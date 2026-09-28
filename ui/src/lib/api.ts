@@ -1,0 +1,120 @@
+/* 后端接口的类型与调用封装。接口形状以 server.js / lib/routes.js 为准。 */
+
+export type PluginSummary = {
+  root: string
+  version: string
+  engine: string
+  engineExists: boolean
+  runAllExists: boolean
+}
+
+export type FrameEntry = {
+  fileId: string
+  layerId: string
+  name: string
+  from: string
+  verified: boolean
+}
+
+export type Health = {
+  ok: true
+  version: string
+  plugin: PluginSummary
+  frames: FrameEntry[]
+}
+
+export type PipelineStep = {
+  Id: number
+  Name: string
+  Title: string
+  Inputs: string[]
+  Outputs: string[]
+  Failures: string[]
+  Recovery: string[]
+}
+
+export type PluginInfo = {
+  ok: true
+  plugin: PluginSummary
+  steps: PipelineStep[]
+}
+
+export type ResolvedNode = {
+  ref: string
+  id: string
+  layerId: string
+  name: string
+  text: string
+  type: string
+  pageAbsX?: number
+  pageAbsY?: number
+  width?: number
+  height?: number
+  template?: string
+  controlType?: string
+  xml?: string
+}
+
+export type ResolveResult = {
+  ok: true
+  mode: "single" | "container"
+  requested: { fileId: string; layerId: string; pageId: string }
+  frame: { layerId: string; from: string; verified: boolean }
+  target: ResolvedNode | null
+  candidates: ResolvedNode[]
+  capture: { pageKey: string; source: string; totalCount: number; mappedCount: number }
+  nodes: ResolvedNode[]
+  notes: string[]
+  elapsedMs: number
+}
+
+export class ApiFailure extends Error {
+  code: string
+  hint: string
+
+  constructor(code: string, message: string, hint: string) {
+    super(message)
+    this.name = "ApiFailure"
+    this.code = code
+    this.hint = hint
+  }
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  let response: Response
+  try {
+    response = await fetch(path, init)
+  } catch (error) {
+    throw new ApiFailure("OFFLINE", "连不上本地服务", String(error instanceof Error ? error.message : error))
+  }
+
+  const text = await response.text()
+  let payload: unknown = null
+  if (text) {
+    try {
+      payload = JSON.parse(text)
+    } catch {
+      throw new ApiFailure("BAD_RESPONSE", "服务返回的不是 JSON", text.slice(0, 300))
+    }
+  }
+
+  if (!response.ok) {
+    const failure = (payload as { error?: { code?: string; message?: string; hint?: string } } | null)?.error
+    throw new ApiFailure(failure?.code ?? "HTTP_" + response.status, failure?.message ?? "请求失败", failure?.hint ?? "")
+  }
+  return payload as T
+}
+
+function post<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body)
+  })
+}
+
+export const api = {
+  health: () => request<Health>("/api/health"),
+  plugin: () => request<PluginInfo>("/api/plugin"),
+  resolve: (body: { link: string; frameLink: string; projectDir: string }) => post<ResolveResult>("/api/resolve", body)
+}

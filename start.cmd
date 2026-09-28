@@ -1,7 +1,8 @@
 @echo off
 cd /d "%~dp0"
-echo MTSLG Control ID Lookup GUI
-echo   server: %~dp0server.js
+echo MasterGo Transcoder GUI
+echo   server : %~dp0server.js
+echo   ui     : %~dp0public
 echo   browser opens automatically; close this window to stop the server.
 echo.
 node server.js %*
