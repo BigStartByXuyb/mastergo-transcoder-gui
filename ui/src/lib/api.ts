@@ -182,6 +182,9 @@ export type PendingIcons = {
   mustName: IconCandidate[]
   /** 需登记但命名表里还没名字的条数。 */
   missing: number
+  /** 命名表里插件当前不认的下标条数（换了设计稿/图层沿用同一 Target 时的旧条目）。 */
+  stale: number
+  staleIndexes: number[]
   naming: { index: number; name: string; comment: string }[]
   needsNaming: boolean
 }
@@ -479,6 +482,8 @@ export const api = {
     translations?: Record<string, string>
     glossary?: Record<string, string>
     allowEmptyLedger?: boolean
+    /** 顺手把命名表里当前不认的旧下标裁掉。 */
+    pruneNaming?: boolean
     resume?: boolean
   }) =>
     post<{

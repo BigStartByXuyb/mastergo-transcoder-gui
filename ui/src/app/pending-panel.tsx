@@ -132,6 +132,8 @@ export function PendingPanel({
 
   const iconTotal = pending?.icons.available ? pending.icons.mustName.length : 0
   const iconCount = pending?.icons.available ? pending.icons.missing : 0
+  // 命名表里插件当前不认的旧下标（上一版设计稿留下的）：也要处理，否则第 7 步会拒绝。
+  const staleCount = pending?.icons.available ? pending.icons.stale : 0
   const langCount =
     pending?.translations.available && pending.translations.needsTranslation
       ? pending.translations.pendingTranslations.length
@@ -140,7 +142,7 @@ export function PendingPanel({
     pending?.translations.available && pending.translations.needsGlossary
       ? pending.translations.glossaryRequired.length
       : 0
-  const waiting = iconCount + langCount + glossaryCount
+  const waiting = iconCount + langCount + glossaryCount + staleCount
 
   /*
    * 「本页没有图标槽位」只有一种情形：插件判定必须登记的候选一条都没有。
@@ -205,6 +207,8 @@ export function PendingPanel({
           translations: pending.translations.available ? translations : undefined,
           glossary: pending.translations.available ? glossaryMap : undefined,
           allowEmptyLedger: noIconSlots && allowEmptyLedger,
+          // 命名表里有当前不认的旧下标就顺手裁掉：这次提交不只是补名字。
+          pruneNaming: staleCount > 0,
           resume
         })
         const written = payload.written.map(labelOfWritten)
@@ -235,7 +239,8 @@ export function PendingPanel({
     if (!pending || automation === "off") return
     if (waiting === 0) return
     if (aiReady !== true) return
-    const key = projectRoot + "|" + target + "|" + iconCount + "|" + langCount + "|" + glossaryCount
+    const key =
+      projectRoot + "|" + target + "|" + iconCount + "|" + staleCount + "|" + langCount + "|" + glossaryCount
     if (autoKey.current === key) return
     autoKey.current = key
     void (async () => {
@@ -385,6 +390,7 @@ export function PendingPanel({
           <div className="flex flex-wrap items-center gap-2">
             {icons.registrationSummary && <Badge variant="secondary">需登记 {icons.registrationSummary.register}</Badge>}
             {icons.registrationSummary && <Badge variant="outline">不登记 {icons.registrationSummary.skip}</Badge>}
+            {staleCount > 0 && <Badge variant="destructive">旧条目 {staleCount}</Badge>}
             {icons.registrationSummary &&
               Object.entries(icons.registrationSummary.byBasis).map(([basis, count]) => (
                 <Badge key={basis} variant="outline">
@@ -392,6 +398,16 @@ export function PendingPanel({
                 </Badge>
               ))}
           </div>
+
+          {staleCount > 0 && (
+            <Alert className="border-amber-500/60">
+              <AlertTitle>命名表里有 {staleCount} 条这一页用不到的旧条目</AlertTitle>
+              <AlertDescription>
+                下标 {pending?.icons.staleIndexes.join("、")} 是上一次用同一个 Target 时留下的（多半换了设计稿或图层）。
+                插件把它们算作多余图标，第 7 步会直接拒绝。提交时会把它们清掉。
+              </AlertDescription>
+            </Alert>
+          )}
 
           {noIconSlots && (
             <>
