@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { CheckCircle2, Circle, Loader2, MinusCircle, Play, RefreshCw, Square, XCircle } from "lucide-react"
+import { CheckCircle2, Circle, Loader2, MinusCircle, Play, RefreshCw, RotateCw, Square, XCircle } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -49,7 +49,7 @@ function StepIcon({ state }: { state: RunStepState }) {
   return <Circle className="text-muted-foreground size-4 shrink-0" />
 }
 
-function RunCard({ run }: { run: RunEntry }) {
+function RunCard({ run, onResume, resuming }: { run: RunEntry; onResume: () => void; resuming: boolean }) {
   const steps = Object.values(run.steps).sort((left, right) => left.id - right.id)
   const doneCount = steps.filter((step) => step.state === "ok").length
   const percent = steps.length === 0 ? 0 : Math.round((doneCount / steps.length) * 100)
@@ -109,6 +109,15 @@ function RunCard({ run }: { run: RunEntry }) {
             </AlertTitle>
             <AlertDescription className="flex flex-col gap-2">
               <span className="break-all">{run.failure.message}</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="secondary" size="sm" disabled={resuming} onClick={onResume}>
+                  {resuming ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
+                  {run.failure.stepId === 0
+                    ? "按原参数重跑这一条路线"
+                    : "从第 " + run.failure.stepId + " 步（" + run.failure.stepName + "）继续"}
+                </Button>
+                <span className="text-xs">续跑会继承本次的工程目录、路线、Ui、覆盖与空台账开关</span>
+              </div>
               {run.failure.contract && (
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
@@ -158,6 +167,7 @@ export function PipelinePage() {
   const [job, setJob] = useState<Job | null>(null)
   const [logText, setLogText] = useState("")
   const [failure, setFailure] = useState("")
+  const [busy, setBusy] = useState("")
   const offsetRef = useRef(0)
   const logRef = useRef<HTMLPreElement | null>(null)
 
@@ -243,6 +253,26 @@ export function PipelinePage() {
       setJob(payload.job)
     } catch (error) {
       toast.error(error instanceof ApiFailure ? error.message : String(error))
+    }
+  }
+
+  // 从断点继续：后端取这次运行里第一条没跑完的路线，继承原次运行的全部参数。
+  async function resume() {
+    if (!job) return
+    setBusy("resume")
+    setFailure("")
+    try {
+      const payload = await api.runResume(job.id)
+      setLogText("")
+      offsetRef.current = 0
+      setJob(payload.job)
+      toast.success(
+        "已继续：路线 " + payload.mode + (payload.resumedFrom === "起点" ? "（从起点）" : "（从 " + payload.resumedFrom + "）")
+      )
+    } catch (error) {
+      setFailure(error instanceof ApiFailure ? error.message + (error.hint ? "：" + error.hint : "") : String(error))
+    } finally {
+      setBusy("")
     }
   }
 
@@ -370,15 +400,26 @@ export function PipelinePage() {
       </Card>
 
       {job && (
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Badge variant={job.state === "failed" ? "destructive" : "secondary"}>{JOB_STATE_TEXT[job.state] ?? job.state}</Badge>
           <span className="text-muted-foreground font-mono text-xs">{job.id}</span>
           <span className="text-muted-foreground text-xs">{job.request.mode}</span>
+          {job.state !== "done" && job.state !== "running" && job.state !== "stopping" && (
+            <Button size="sm" disabled={busy === "resume"} onClick={() => void resume()}>
+              {busy === "resume" ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
+              从断点继续
+            </Button>
+          )}
         </div>
       )}
 
       {job?.runs.map((run) => (
-        <RunCard key={run.mode} run={run} />
+        <RunCard
+          key={run.mode}
+          run={run}
+          resuming={busy === "resume"}
+          onResume={() => void resume()}
+        />
       ))}
 
       {job && (

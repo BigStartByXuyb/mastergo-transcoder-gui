@@ -249,6 +249,8 @@ export const api = {
   plugin: () => request<PluginInfo>("/api/plugin"),
   resolve: (body: { link: string; frameLink: string; projectDir: string }) => post<ResolveResult>("/api/resolve", body),
   runStart: (body: RunStartRequest) => post<{ ok: true; job: Job }>("/api/run", body),
+  runResume: (runId: string) =>
+    post<{ ok: true; mode: string; resumedFrom: string; job: Job }>("/api/run/resume", { runId }),
   runStop: (runId: string) => post<{ ok: true; job: Job }>("/api/run/stop", { runId }),
   runStatus: (runId = "") =>
     request<{ ok: true; job: Job | null }>("/api/run/status?runId=" + encodeURIComponent(runId)),
