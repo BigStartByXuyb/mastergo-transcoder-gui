@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import { ArrowRight, CheckCircle2, Circle, Loader2, MinusCircle, Play, RefreshCw, RotateCw, Square, XCircle } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AiFillLine } from "@/app/ai-fill-line"
 import { PendingPanel } from "@/app/pending-panel"
 import { DoneBoard } from "@/app/done-board"
 import { Badge } from "@/components/ui/badge"
@@ -21,6 +22,7 @@ import {
   type PipelineStep,
   type PluginSummary,
   type RunEntry,
+  type RunRegistryStep,
   type RunStepState
 } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -85,6 +87,12 @@ function needsHumanInput(step: PipelineStep | null, kind: "naming" | "translatio
 // 吃人/AI 写的输入文件的步骤 —— 判据同样取自插件步骤契约的 Inputs。
 const HUMAN_INPUT_FILES = ["icon-naming.json", "lang-translations.json", "lang-glossary.json"];
 
+const STEP_STATES = ["pending", "running", "ok", "failed", "skipped"];
+
+function normalizeStepState(value: string, fallback: RunStepState): RunStepState {
+  return (STEP_STATES.includes(value) ? value : fallback) as RunStepState;
+}
+
 function RunCard({
   run,
   waitingIconNames,
@@ -93,7 +101,8 @@ function RunCard({
   resuming,
   running,
   contract,
-  aiFills
+  aiFills,
+  registry
 }: {
   run: RunEntry
   waitingIconNames: number
@@ -102,9 +111,32 @@ function RunCard({
   resuming: boolean
   running: boolean
   contract: PipelineStep[]
-  aiFills: { stepName: string; filled: string[] }[]
+  aiFills: { stepName: string; stoppedAt: string; filled: string[] }[]
+  registry: RunRegistryStep[]
 }) {
-  const steps = Object.values(run.steps).sort((left, right) => left.id - right.id)
+  /*
+   * 步骤列表 = 实时步骤（标题、本次运行的状态）+ 插件登记表的记录。
+   * 登记表才是「这一页整体走到哪儿」：从第 9 步续跑的那一次，前 8 步在本次运行里是「跳过」，
+   * 按实时状态算进度会显示成 4/12，而这一页其实已经跑完了 12 步。
+   */
+  const live = Object.values(run.steps).sort((left, right) => left.id - right.id)
+  const recorded = new Map(registry.map((step) => [step.id, step]))
+  const steps = live.map((step) => {
+    const done = recorded.get(step.id)
+    if (!done) return step
+    const state =
+      step.state === "running"
+        ? "running"
+        : run.failure?.stepId === step.id && done.status !== "ok"
+          ? "failed"
+          : normalizeStepState(done.status, step.state)
+    return {
+      ...step,
+      state: state as RunStepState,
+      seconds: done.seconds || step.seconds,
+      note: done.note || step.note
+    }
+  })
   // 吃人/AI 输入的步骤（判据取自契约 Inputs），以及这一步实际被补过什么。
   const humanInputSteps = useMemo(() => {
     const names = new Set<string>()
@@ -117,6 +149,7 @@ function RunCard({
     const hits = aiFills.filter((fill) => fill.stepName === name)
     return hits[hits.length - 1]
   }
+  const idByName = new Map(steps.map((step) => [step.name, step.id]))
   const doneCount = steps.filter((step) => step.state === "ok").length
   const failedCount = steps.filter((step) => step.state === "failed").length
   const pendingCount = steps.filter((step) => step.state === "pending").length
@@ -164,26 +197,37 @@ function RunCard({
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <ol className="flex flex-col gap-1">
-          {steps.map((step) => (
-            <li
-              key={step.id}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-2 py-1.5",
-                step.state === "running" && "bg-muted"
+          {steps.map((step) => {
+            const fill = fillOf(step.name)
+            return (
+            <Fragment key={step.id}>
+              {fill && (
+                <AiFillLine
+                  filled={fill.filled}
+                  note={
+                    fill.stoppedAt && fill.stoppedAt !== step.name
+                      ? "（当时停在第 " + (idByName.get(fill.stoppedAt) ?? "?") + " 步）"
+                      : undefined
+                  }
+                />
               )}
-            >
+              <li
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-2 py-1.5",
+                  step.state === "running" && "bg-muted"
+                )}
+              >
                     {waitingForInput && step.id === run.failure?.stepId ? <WaitingIcon /> : <StepIcon state={step.state} />}
-              <span className="text-muted-foreground w-6 text-right text-xs">{step.id}</span>
-              <span className="w-24 shrink-0 font-mono text-xs">{step.name}</span>
-              <span className="min-w-0 flex-1 truncate text-sm">{step.title}</span>
-              {humanInputSteps.has(step.name) && <Badge variant="outline">人/AI 语义输入</Badge>}
-              {fillOf(step.name) && (
-                <Badge variant="secondary">AI 已补：{fillOf(step.name)?.filled.join("、")}</Badge>
-              )}
-              {step.seconds !== null && <span className="text-muted-foreground text-xs">{step.seconds}s</span>}
-              {step.note && <span className="text-muted-foreground max-w-64 truncate text-xs">{step.note}</span>}
-            </li>
-          ))}
+                <span className="text-muted-foreground w-6 text-right text-xs">{step.id}</span>
+                <span className="w-24 shrink-0 font-mono text-xs">{step.name}</span>
+                <span className="min-w-0 flex-1 truncate text-sm">{step.title}</span>
+                {humanInputSteps.has(step.name) && <Badge variant="outline">人/AI 语义输入</Badge>}
+                {step.seconds !== null && <span className="text-muted-foreground text-xs">{step.seconds}s</span>}
+                {step.note && <span className="text-muted-foreground max-w-64 truncate text-xs">{step.note}</span>}
+              </li>
+            </Fragment>
+            )
+          })}
         </ol>
         {run.command && (
           <details>
@@ -287,7 +331,9 @@ export function PipelinePage() {
   const [stopAfter, setStopAfter] = useState("")
   const [overwrite, setOverwrite] = useState(false)
   // 本次会话里 AI/人补进去的输入：按「补的内容由哪一步消费」记，显示在流程里。
-  const [aiFills, setAiFills] = useState<{ stepName: string; filled: string[] }[]>([])
+  const [aiFills, setAiFills] = useState<{ stepName: string; stoppedAt: string; filled: string[] }[]>([])
+  // 这一页整体的步骤记录（插件登记表），续跑会接着写同一份。
+  const [registrySteps, setRegistrySteps] = useState<RunRegistryStep[]>([])
 
   const [job, setJob] = useState<Job | null>(null)
   const [pending, setPending] = useState<Pending | null>(null)
@@ -324,6 +370,7 @@ export function PipelinePage() {
       .runStatus()
       .then((payload) => {
         if (payload.job) setJob(payload.job)
+        setRegistrySteps(payload.steps ?? [])
       })
       .catch(() => undefined)
     api
@@ -341,6 +388,7 @@ export function PipelinePage() {
         offsetRef.current = 0
         setJob(payload.job)
       }
+      setRegistrySteps(payload.steps ?? [])
     } catch {
       /* 拉不到就保持现状 */
     }
@@ -389,6 +437,7 @@ export function PipelinePage() {
         try {
           const status = await api.runStatus(jobId)
           if (status.job) setJob(status.job)
+          setRegistrySteps(status.steps ?? [])
           const slice = await api.runLog(jobId, offsetRef.current)
           if (slice.truncated) setLogText(slice.text)
           else if (slice.text) setLogText((current) => current + slice.text)
@@ -635,7 +684,10 @@ export function PipelinePage() {
                 automation={automation}
                 onResumed={(info) => {
                   if (info.filled.length > 0) {
-                    setAiFills((prev) => [...prev, { stepName: info.resumedFrom, filled: info.filled }].slice(-8))
+                    const stoppedAt = job?.runs.find((item) => item.failure)?.failure?.stepName ?? ""
+                    setAiFills((prev) =>
+                      [...prev, { stepName: info.resumedFrom, stoppedAt, filled: info.filled }].slice(-8)
+                    )
                   }
                   void refreshJob()
                 }}
@@ -656,6 +708,7 @@ export function PipelinePage() {
           onResume={() => void resume()}
           contract={contract}
           aiFills={aiFills}
+          registry={registrySteps}
         />
       ))}
 

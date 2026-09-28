@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react"
 import {
   CheckCircle2,
   ChevronDown,
@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AiFillLine } from "@/app/ai-fill-line"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -542,7 +543,18 @@ function StepFlow({ task, stepTitles }: { task: BoardTask; stepTitles: Map<strin
               ? "text-destructive"
               : "text-muted-foreground"
         return (
-          <li key={step.id} className="flex items-start gap-2 text-xs">
+          <Fragment key={step.id}>
+          {step.aiFill && step.aiFill.filled.length > 0 && (
+            <AiFillLine
+              filled={step.aiFill.filled}
+              note={
+                step.aiFill.stoppedAt && step.aiFill.stoppedAt !== step.name
+                  ? "（当时停在第 " + (idByName.get(step.aiFill.stoppedAt) ?? "?") + " 步）"
+                  : undefined
+              }
+            />
+          )}
+          <li className="flex items-start gap-2 text-xs">
             <span className="text-muted-foreground w-6 shrink-0 text-right tabular-nums">{step.id}</span>
             <Icon className={"mt-0.5 size-3.5 shrink-0 " + tone + (step.status === "running" ? " animate-spin" : "")} />
             <span className="w-44 shrink-0 truncate" title={step.name}>
@@ -554,20 +566,10 @@ function StepFlow({ task, stepTitles }: { task: BoardTask; stepTitles: Map<strin
             </span>
             <span className="min-w-0 flex-1">
               {step.humanInput && <Badge variant="outline">人/AI 语义输入</Badge>}
-              {step.aiFill && step.aiFill.filled.length > 0 && (
-                <Badge variant="secondary" className="ml-1">
-                  AI 已补：{step.aiFill.filled.join("、")}
-                </Badge>
-              )}
-              {step.aiFill && step.aiFill.stoppedAt && step.aiFill.stoppedAt !== step.name && (
-                <span className="text-muted-foreground ml-2">
-                  （当时停在第 {idByName.get(step.aiFill.stoppedAt) ?? "?"} 步
-                  {stepTitles.get(step.aiFill.stoppedAt) ? " " + stepTitles.get(step.aiFill.stoppedAt) : ""}）
-                </span>
-              )}
               {step.note && <span className="text-muted-foreground ml-2 break-all">{step.note}</span>}
             </span>
           </li>
+          </Fragment>
         )
       })}
     </ol>

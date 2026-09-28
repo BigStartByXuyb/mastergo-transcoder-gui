@@ -436,7 +436,9 @@ export const api = {
     }>("/api/run/resume", { runId }),
   runStop: (runId: string) => post<{ ok: true; job: Job }>("/api/run/stop", { runId }),
   runStatus: (runId = "") =>
-    request<{ ok: true; job: Job | null }>("/api/run/status?runId=" + encodeURIComponent(runId)),
+    request<{ ok: true; job: Job | null; steps: RunRegistryStep[] }>(
+      "/api/run/status?runId=" + encodeURIComponent(runId)
+    ),
   runLog: (runId: string, from: number) =>
     request<{ ok: true } & LogSlice>(
       "/api/run/log?runId=" + encodeURIComponent(runId) + "&from=" + Math.max(0, from)
