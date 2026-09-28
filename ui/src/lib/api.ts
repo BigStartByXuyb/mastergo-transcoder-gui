@@ -84,6 +84,8 @@ export type RunFailure = {
   stepName: string
   message: string
   resume: string
+  /** 失败摘要后面那几行：真正的原因常常写在这里（例如「目标文件已存在，未覆盖: …」）。 */
+  detail: string
   contract: PipelineStep | null
 }
 
@@ -465,7 +467,15 @@ export const api = {
     glossary?: Record<string, string>
     allowEmptyLedger?: boolean
     resume?: boolean
-  }) => post<{ ok: true; written: { path: string; count: number }[]; job: Job | null; note?: string }>("/api/confirm", body),
+  }) =>
+    post<{
+      ok: true
+      written: { path: string; count: number }[]
+      job: Job | null
+      note?: string
+      /** 续跑从哪一步开始（补进去的输入由这一步消费）。 */
+      resumedFrom?: string
+    }>("/api/confirm", body),
   board: () => request<{ ok: true; board: Board }>("/api/board"),
   boardAdd: (body: BoardAddBody) => post<{ ok: true; board: Board }>("/api/board/add", body),
   boardStart: (id = "") => post<{ ok: true; board: Board }>("/api/board/start", { id }),

@@ -27,7 +27,23 @@ function describe(error: unknown): string {
   return String(error instanceof Error ? error.message : error)
 }
 
+// 写进去的文件 → 人看得懂的名字。用于「AI 补了什么」在流程里的显示。
+const WRITTEN_LABEL: Record<string, string> = {
+  "icon-naming.json": "图标命名",
+  "lang-translations.json": "译文",
+  "lang-glossary.json": "术语"
+}
+
+function labelOfWritten(item: { path: string; count: number }) {
+  const file = item.path.split(/[\\/]/).pop() ?? ""
+  const hit = Object.keys(WRITTEN_LABEL).find((name) => file.endsWith(name))
+  return (hit ? WRITTEN_LABEL[hit] : file) + " " + item.count + " 条"
+}
+
 export type PendingPanelHandle = { reload: () => void }
+
+/** 刚补进去的东西，交给调用方显示在流程里：补了什么、从哪一步续跑。 */
+export type PendingFilled = { filled: string[]; resumedFrom: string }
 
 /*
  * 待确认面板：列出流水线停下来要补的语义输入，可以叫 AI 出候选，确认后从断点续跑。
@@ -52,7 +68,7 @@ export function PendingPanel({
   /** 运行状态指纹（如 `<jobId>:<state>`）。状态变化要重读清单——否则「跑着 → 停下」后看不见新出现的待办。 */
   reloadKey?: string
   automation: string
-  onResumed?: () => void
+  onResumed?: (info: PendingFilled) => void
   onState?: (state: { waiting: number; phase: string }) => void
 }) {
   const [pending, setPending] = useState<Pending | null>(null)
@@ -191,10 +207,11 @@ export function PendingPanel({
           allowEmptyLedger: noIconSlots && allowEmptyLedger,
           resume
         })
-        const summary = payload.written.map((item) => item.path.split(/[\\/]/).pop() + "（" + item.count + " 条）").join("、")
+        const written = payload.written.map(labelOfWritten)
+        const summary = written.join("、")
         toast.success("已写入：" + (summary || "无") + (payload.job ? "，已从断点继续" : ""))
         await load()
-        if (payload.job) onResumed?.()
+        if (payload.job) onResumed?.({ filled: written, resumedFrom: payload.resumedFrom ?? "" })
       } catch (error) {
         setFailure(describe(error))
       } finally {

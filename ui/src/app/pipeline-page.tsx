@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { ArrowRight, CheckCircle2, Circle, Loader2, MinusCircle, Play, RefreshCw, RotateCw, Square, XCircle } from "lucide-react"
 import { toast } from "sonner"
 
@@ -82,13 +82,18 @@ function needsHumanInput(step: PipelineStep | null, kind: "naming" | "translatio
   return step.Inputs.some((item) => item.includes(needle));
 }
 
+// 吃人/AI 写的输入文件的步骤 —— 判据同样取自插件步骤契约的 Inputs。
+const HUMAN_INPUT_FILES = ["icon-naming.json", "lang-translations.json", "lang-glossary.json"];
+
 function RunCard({
   run,
   waitingIconNames,
   waitingTranslations,
   onResume,
   resuming,
-  running
+  running,
+  contract,
+  aiFills
 }: {
   run: RunEntry
   waitingIconNames: number
@@ -96,8 +101,22 @@ function RunCard({
   onResume: () => void
   resuming: boolean
   running: boolean
+  contract: PipelineStep[]
+  aiFills: { stepName: string; filled: string[] }[]
 }) {
   const steps = Object.values(run.steps).sort((left, right) => left.id - right.id)
+  // 吃人/AI 输入的步骤（判据取自契约 Inputs），以及这一步实际被补过什么。
+  const humanInputSteps = useMemo(() => {
+    const names = new Set<string>()
+    for (const step of contract) {
+      if (step.Inputs.some((item) => HUMAN_INPUT_FILES.some((name) => item.includes(name)))) names.add(step.Name)
+    }
+    return names
+  }, [contract])
+  function fillOf(name: string) {
+    const hits = aiFills.filter((fill) => fill.stepName === name)
+    return hits[hits.length - 1]
+  }
   const doneCount = steps.filter((step) => step.state === "ok").length
   const failedCount = steps.filter((step) => step.state === "failed").length
   const pendingCount = steps.filter((step) => step.state === "pending").length
@@ -113,6 +132,11 @@ function RunCard({
   const waitingForInput =
     (waitingIconNames > 0 && needsHumanInput(run.failure?.contract ?? null, "naming")) ||
     (waitingTranslations > 0 && needsHumanInput(run.failure?.contract ?? null, "translations"))
+
+  // 「目标文件已存在，未覆盖」= 这个工程里已经有这一页的产物。插件据此停下是它的安全阀，
+  // 不是故障；要不要替换由人决定，界面必须把这件事说清楚，不能默默覆盖。
+  const failureText = (run.failure?.message ?? "") + "\n" + (run.failure?.detail ?? "")
+  const existingPage = failureText.includes("目标文件已存在")
 
   return (
     <Card>
@@ -152,6 +176,10 @@ function RunCard({
               <span className="text-muted-foreground w-6 text-right text-xs">{step.id}</span>
               <span className="w-24 shrink-0 font-mono text-xs">{step.name}</span>
               <span className="min-w-0 flex-1 truncate text-sm">{step.title}</span>
+              {humanInputSteps.has(step.name) && <Badge variant="outline">人/AI 语义输入</Badge>}
+              {fillOf(step.name) && (
+                <Badge variant="secondary">AI 已补：{fillOf(step.name)?.filled.join("、")}</Badge>
+              )}
               {step.seconds !== null && <span className="text-muted-foreground text-xs">{step.seconds}s</span>}
               {step.note && <span className="text-muted-foreground max-w-64 truncate text-xs">{step.note}</span>}
             </li>
@@ -170,10 +198,10 @@ function RunCard({
                 ? "步骤 " + run.failure.stepId + "（" + run.failure.stepName + "）在等语义输入"
                 : run.failure.stepId === 0
                   ? "流水线在进入步骤之前退出"
-                  : "步骤 " +
-                    run.failure.stepId +
+                  : run.failure.stepId +
                     (run.failure.stepName ? "（" + run.failure.stepName + "）" : "") +
-                    " 失败"}
+                    (existingPage ? "：这一页在工程里已经有了" : " 失败")
+            }
             </AlertTitle>
             <AlertDescription className="flex flex-col gap-2">
               {waitingForInput && (
@@ -181,13 +209,36 @@ function RunCard({
                   报的这句话不是故障，是插件在说「把输入补上再回来」——上面那张卡里列了要补什么。
                 </span>
               )}
+              {existingPage && (
+                <span>
+                  上面点名的是工程里已经存在的页面文件。插件默认不替换已有页面；要用本次结果覆盖它们，
+                  就点下面的按钮（它会带上覆盖开关，从这一步继续）。
+                </span>
+              )}
               <span className="break-all">{run.failure.message}</span>
+              {run.failure.detail && run.failure.detail.trim() && (
+                <details>
+                  <summary className="text-muted-foreground cursor-pointer text-xs">失败前后的原始输出</summary>
+                  <pre className="bg-background/60 mt-1 max-h-56 overflow-auto rounded p-2 text-xs">
+                    {run.failure.detail}
+                  </pre>
+                </details>
+              )}
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="secondary" size="sm" disabled={resuming || running} onClick={onResume}>
+                <Button
+                  variant={existingPage ? "destructive" : "secondary"}
+                  size="sm"
+                  disabled={resuming || running}
+                  onClick={onResume}
+                >
                   {resuming ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
                   {run.failure.stepId === 0
                     ? "按原参数重跑这一条路线"
-                    : "从第 " + run.failure.stepId + " 步（" + run.failure.stepName + "）继续"}
+                    : (existingPage ? "替换已有产物，从第 " : "从第 ") +
+                      run.failure.stepId +
+                      " 步（" +
+                      run.failure.stepName +
+                      "）继续"}
                 </Button>
                 <span className="text-xs">续跑会继承本次的工程目录、路线、Ui、覆盖与空台账开关</span>
               </div>
@@ -236,6 +287,8 @@ export function PipelinePage() {
   const [mode, setMode] = useState("B")
   const [stopAfter, setStopAfter] = useState("")
   const [overwrite, setOverwrite] = useState(false)
+  // 本次会话里 AI/人补进去的输入：按「补的内容由哪一步消费」记，显示在流程里。
+  const [aiFills, setAiFills] = useState<{ stepName: string; filled: string[] }[]>([])
 
   const [job, setJob] = useState<Job | null>(null)
   const [pending, setPending] = useState<Pending | null>(null)
@@ -578,7 +631,12 @@ export function PipelinePage() {
                 runId={job?.id ?? ""}
                 reloadKey={(job?.id ?? "") + ":" + (job?.state ?? "")}
                 automation={automation}
-                onResumed={() => void refreshJob()}
+                onResumed={(info) => {
+                  if (info.filled.length > 0) {
+                    setAiFills((prev) => [...prev, { stepName: info.resumedFrom, filled: info.filled }].slice(-8))
+                  }
+                  void refreshJob()
+                }}
               />
             </div>
           </CardContent>
@@ -594,6 +652,8 @@ export function PipelinePage() {
           resuming={busy === "resume"}
           running={running}
           onResume={() => void resume()}
+          contract={contract}
+          aiFills={aiFills}
         />
       ))}
 
