@@ -1,2 +1,6 @@
 node_modules/
 *.log
+
+# 用户状态：设置与 DPAPI 加密的凭据，绝不入库
+local.json
+credentials

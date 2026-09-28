@@ -3,6 +3,7 @@ import { ArrowRight, CheckCircle2, Circle, Loader2, MinusCircle, Play, RefreshCw
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { PendingPanel } from "@/app/pending-panel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -50,12 +51,23 @@ const MODE_HINT: Record<string, string> = {
   AB: "AB —— 两条都跑，两次独立运行（先 A 后 B）"
 }
 
+const AUTOMATION_LABEL: Record<string, string> = {
+  off: "关（不叫模型）",
+  assist: "辅助",
+  auto: "自动"
+}
+
 function StepIcon({ state }: { state: RunStepState }) {
   if (state === "ok") return <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
   if (state === "failed") return <XCircle className="size-4 shrink-0 text-destructive" />
   if (state === "running") return <Loader2 className="size-4 shrink-0 animate-spin" />
   if (state === "skipped") return <MinusCircle className="text-muted-foreground size-4 shrink-0" />
   return <Circle className="text-muted-foreground size-4 shrink-0" />
+}
+
+// 停点的步骤不用红叉：它不是在报错，是在等人/AI 补输入。
+function WaitingIcon() {
+  return <Circle className="size-4 shrink-0 fill-amber-500 text-amber-500" />
 }
 
 /*
@@ -133,7 +145,7 @@ function RunCard({
                 step.state === "running" && "bg-muted"
               )}
             >
-              <StepIcon state={step.state} />
+                    {waitingForInput && step.id === run.failure?.stepId ? <WaitingIcon /> : <StepIcon state={step.state} />}
               <span className="text-muted-foreground w-6 text-right text-xs">{step.id}</span>
               <span className="w-24 shrink-0 font-mono text-xs">{step.name}</span>
               <span className="min-w-0 flex-1 truncate text-sm">{step.title}</span>
@@ -227,6 +239,7 @@ export function PipelinePage() {
   const [logText, setLogText] = useState("")
   const [failure, setFailure] = useState("")
   const [busy, setBusy] = useState("")
+  const [automation, setAutomation] = useState("assist")
   const offsetRef = useRef(0)
   const logRef = useRef<HTMLPreElement | null>(null)
 
@@ -258,7 +271,25 @@ export function PipelinePage() {
         if (payload.job) setJob(payload.job)
       })
       .catch(() => undefined)
+    api
+      .settingsGet()
+      .then((payload) => setAutomation(payload.settings.automation))
+      .catch(() => undefined)
   }, [])
+
+  // 待确认面板续跑之后，把最新的运行状态拉回来（新 job 会替换掉旧的）。
+  async function refreshJob() {
+    try {
+      const payload = await api.runStatus()
+      if (payload.job) {
+        setLogText("")
+        offsetRef.current = 0
+        setJob(payload.job)
+      }
+    } catch {
+      /* 拉不到就保持现状 */
+    }
+  }
 
   const running = job !== null && (job.state === "running" || job.state === "stopping")
 
@@ -519,14 +550,34 @@ export function PipelinePage() {
             </div>
           </CardHeader>
           <CardContent>
-            <Button
-              onClick={() => {
-                window.location.hash = "review"
-              }}
-            >
-              <ArrowRight className="size-4" />
-              去待确认页处理（AI 出候选 → 你确认 → 从断点继续）
-            </Button>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    window.location.hash = "review"
+                  }}
+                >
+                  <ArrowRight className="size-4" />
+                  在独立页面打开
+                </Button>
+                <span className="text-muted-foreground text-xs">
+                  当前自动化层级：{AUTOMATION_LABEL[automation] ?? automation}
+                  {automation === "assist" ? "（AI 自动出候选，你确认后继续）" : ""}
+                  {automation === "auto" ? "（AI 自动出候选并直接继续）" : ""}
+                  {automation === "off" ? "（不叫模型，全人工填）" : ""}
+                </span>
+              </div>
+              <PendingPanel
+                projectRoot={job?.request.projectRoot ?? ""}
+                target={job?.request.target ?? ""}
+                runId={job?.id ?? ""}
+                reloadKey={(job?.id ?? "") + ":" + (job?.state ?? "")}
+                automation={automation}
+                onResumed={() => void refreshJob()}
+              />
+            </div>
           </CardContent>
         </Card>
       )}

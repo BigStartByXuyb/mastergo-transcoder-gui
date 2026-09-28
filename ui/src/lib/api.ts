@@ -158,6 +158,8 @@ export type IconCandidate = {
   siblingPathCount: number
   registration: { register: boolean; basis: string; source: string; matchedName?: string }
   ledgerFields: { iconSize?: { width: number; height: number } }
+  /** sourceId 是否指向页面根：是则几何为整页级别，命名表必须标 fromDsl。由后端机械判定。 */
+  sourceIsPageRoot?: boolean
 }
 
 export type PendingIcons = {
@@ -186,9 +188,12 @@ export type PendingTranslations = {
   translationsPath: string
   glossaryPath: string
   pendingTranslations: PendingText[]
-  glossaryRequired: unknown[]
+  /** 派生不出语义键、必须靠术语表给标识符的条目（插件按 provisionalKeys 分组得出）。 */
+  glossaryRequired: { key: string; text: string; menuIndex?: number }[]
   translations: Record<string, string>
+  glossary: Record<string, string>
   needsTranslation: boolean
+  needsGlossary: boolean
 }
 
 export type Pending = {
@@ -274,12 +279,18 @@ export const api = {
       kind: "translation",
       texts
     }),
+  aiGlossary: (texts: string[]) =>
+    post<{ ok: true; items: { text: string; identifier: string }[] }>("/api/ai/suggest", {
+      kind: "glossary",
+      texts
+    }),
   confirm: (body: {
     projectRoot: string
     target: string
     runId?: string
-    naming?: { index: number; name: string; comment: string }[]
+    naming?: { index: number; name: string; comment: string; fromDsl?: boolean }[]
     translations?: Record<string, string>
+    glossary?: Record<string, string>
     allowEmptyLedger?: boolean
     resume?: boolean
   }) => post<{ ok: true; written: { path: string; count: number }[]; job: Job | null; note?: string }>("/api/confirm", body)
