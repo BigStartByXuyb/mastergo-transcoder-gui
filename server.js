@@ -107,6 +107,8 @@ fs.mkdirSync(workRoot, { recursive: true });
 
 const resolver = createResolver({
   engine: PLUGIN.engine,
+  pluginRoot: PLUGIN.root,
+  pwsh: PLUGIN.pwsh,
   token: TOKEN,
   project: options.project,
   snapshot: options.snapshot,
@@ -196,7 +198,8 @@ server.listen(options.port, options.host, function () {
   process.stdout.write("listening " + actualPort + "\n");
   process.stdout.write("MasterGo 转码客户端 v" + VERSION + ": " + url + "\n");
   process.stdout.write("插件: " + PLUGIN_ROOT + (PLUGIN.version ? "（v" + PLUGIN.version + "）" : "") + "\n");
-  process.stdout.write("引擎: " + (PLUGIN.engineExists ? "已找到" : "缺失") + " → " + PLUGIN.engine + "\n");
+  process.stdout.write("引擎: " + (PLUGIN.engineExists ? "已找到" : "缺失") + " → " + PLUGIN.engine
+    + (PLUGIN.queryMissing.length ? "（插件缺 " + PLUGIN.queryMissing.join("、") + "）" : "") + "\n");
   process.stdout.write("token: " + (TOKEN ? "已就绪" : "缺失（只有本地快照模式可用）") + "\n");
   if (!fs.existsSync(path.join(PUBLIC_DIR, "index.html"))) {
     process.stdout.write("界面: 未构建 —— 先跑 npm run build:ui，或开发时用 npm run dev:ui。\n");

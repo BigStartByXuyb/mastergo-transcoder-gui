@@ -8,7 +8,7 @@
     "api": "node server.js --no-open",
     "dev:ui": "npm --prefix ui run dev",
     "build:ui": "npm --prefix ui run build",
-    "test": "node tests/merge.test.js && node tests/mapping.test.js"
+    "test": "node tests/merge.test.js && node tests/mapping.test.js && node tests/node-controls.test.js"
   },
   "dependencies": {
     "openai": "^7.23.0"

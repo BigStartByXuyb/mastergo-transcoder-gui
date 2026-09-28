@@ -46,6 +46,8 @@ lib/routes.js       路由表与分发
 lib/plugin-root.js  插件定位
 lib/plugin.js       插件信息与步骤契约
 lib/resolve.js      控件查询
+lib/node-controls.js 控件查询引擎（客户端编排，ID 与控件代码取插件的实现）
+lib/xml-chunk.js    从整页 XML 里取单个控件片段
 lib/run.js          流水线运行管理（进度、日志、失败契约）
 lib/pending.js      待确认清单的读写
 lib/artifacts.js    产物台账（读插件运行登记表的 outputs，供「已完成」看板用）
@@ -60,9 +62,9 @@ lib/ai.js           模型调用（只出候选，从不写盘）
 
 厂商表只列**核实过**的默认值（当前只有 DeepSeek，取自 `~/.codex/config.toml` 的 `model_providers.deepseek`）；其余厂商走「自定义」，填 OpenAI 兼容的 base_url。
 
-## 引擎来自插件，本仓库不自带
+## 口径来自插件，本仓库只做编排
 
-控件 ID、映射命中、控件 XML、整页流水线全部由 `mastergo-wpf-transcoder` 插件内的脚本产出，与 Codex / Claude Code 走的是同一份实现。本仓库只负责界面与转发。
+控件 ID、映射命中、控件 XML、整页流水线全部由 `mastergo-wpf-transcoder` 插件内的脚本产出，与 Codex / Claude Code 走的是同一份实现。本仓库只负责界面、编排与转发：查询引擎 `lib/node-controls.js` 逐个子进程调用插件的取数、固化快照、mapping、控件代码发射脚本，ID 直接 `require` 插件的 `lib/page-node-id.js`。
 
 插件根的查找顺序：
 
@@ -75,7 +77,12 @@ lib/ai.js           模型调用（只出候选，从不写盘）
 
 插件内需要：
 
-- `skills/mastergo-to-wpf/scripts/resolve-node-control.js` —— 控件查询引擎
+- `skills/mastergo-to-wpf/scripts/core/call-mastergo-mcp.js` —— 取 getDsl（查询与流水线共用）
+- `skills/mastergo-to-wpf/scripts/core/mastergo-dsl-pipeline.ps1` —— 固化 DSL 快照（查询用 `-Action Capture`）
+- `skills/mastergo-to-wpf/scripts/core/resolve-mastergo-visibility.js` —— 显隐事实
+- `skills/mastergo-to-wpf/scripts/adapters/mtslg-iocontrol/gen-mtslg-mapping-from-dsl.js` —— 推导 mapping
+- `skills/mastergo-to-wpf/scripts/adapters/mtslg-iocontrol/gen-iocontrol-xml.js` —— 发射控件代码
+- `skills/mastergo-to-wpf/scripts/lib/page-node-id.js` —— 页面节点 ID 公式
 - `skills/mastergo-to-wpf/scripts/entry/run-all.ps1` —— 整页流水线入口，界面按它 `-List` 返回的步骤契约渲染
 
 ## 依赖
