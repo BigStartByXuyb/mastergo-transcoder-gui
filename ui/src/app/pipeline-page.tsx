@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { CheckCircle2, Circle, Loader2, MinusCircle, Play, RefreshCw, RotateCw, Square, XCircle } from "lucide-react"
+import { ArrowRight, CheckCircle2, Circle, Loader2, MinusCircle, Play, RefreshCw, RotateCw, Square, XCircle } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -11,7 +11,16 @@ import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { ApiFailure, api, type Job, type PipelineStep, type PluginSummary, type RunEntry, type RunStepState } from "@/lib/api"
+import {
+  ApiFailure,
+  api,
+  type Job,
+  type Pending,
+  type PipelineStep,
+  type PluginSummary,
+  type RunEntry,
+  type RunStepState
+} from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 const STORAGE_KEY = "mastergo-transcoder-gui.pipeline"
@@ -49,10 +58,46 @@ function StepIcon({ state }: { state: RunStepState }) {
   return <Circle className="text-muted-foreground size-4 shrink-0" />
 }
 
-function RunCard({ run, onResume, resuming }: { run: RunEntry; onResume: () => void; resuming: boolean }) {
+/*
+ * 这一步是不是「等人/AI 补输入」的停点？
+ * 判据取自步骤契约自己的 Inputs —— 哪一步吃命名表、哪一步吃译文，插件写在那里，
+ * 界面不另写一份步骤名清单。
+ */
+function needsHumanInput(step: PipelineStep | null, kind: "naming" | "translations"): boolean {
+  if (!step) return false;
+  const needle = kind === "naming" ? "icon-naming.json" : "lang-translations.json";
+  return step.Inputs.some((item) => item.includes(needle));
+}
+
+function RunCard({
+  run,
+  waitingIconNames,
+  waitingTranslations,
+  onResume,
+  resuming
+}: {
+  run: RunEntry
+  waitingIconNames: number
+  waitingTranslations: number
+  onResume: () => void
+  resuming: boolean
+}) {
   const steps = Object.values(run.steps).sort((left, right) => left.id - right.id)
   const doneCount = steps.filter((step) => step.state === "ok").length
+  const failedCount = steps.filter((step) => step.state === "failed").length
+  const pendingCount = steps.filter((step) => step.state === "pending").length
   const percent = steps.length === 0 ? 0 : Math.round((doneCount / steps.length) * 100)
+  // 进度条按路线状态变色：跑完了绿、失败了红、在跑就是主题色。
+  const tone =
+    run.state === "failed"
+      ? "[&_[data-slot=progress-indicator]]:bg-destructive"
+      : run.state === "done"
+        ? "[&_[data-slot=progress-indicator]]:bg-emerald-600"
+        : ""
+
+  const waitingForInput =
+    (waitingIconNames > 0 && needsHumanInput(run.failure?.contract ?? null, "naming")) ||
+    (waitingTranslations > 0 && needsHumanInput(run.failure?.contract ?? null, "translations"))
 
   return (
     <Card>
@@ -70,7 +115,13 @@ function RunCard({ run, onResume, resuming }: { run: RunEntry; onResume: () => v
             {doneCount} / {steps.length}
           </span>
         </div>
-        <Progress value={percent} className="mt-3" />
+        <Progress value={percent} className={cn("mt-3 h-1.5", tone)} />
+        <div className="text-muted-foreground mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+          <span>完成 {doneCount}</span>
+          {failedCount > 0 && <span className="text-destructive">失败 {failedCount}</span>}
+          {pendingCount > 0 && <span>未开始 {pendingCount}</span>}
+          <span>共 {steps.length}</span>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <ol className="flex flex-col gap-1">
@@ -98,16 +149,23 @@ function RunCard({ run, onResume, resuming }: { run: RunEntry; onResume: () => v
           </details>
         )}
         {run.failure && (
-          <Alert variant="destructive">
+          <Alert variant={waitingForInput ? "default" : "destructive"} className={waitingForInput ? "border-amber-500/60" : undefined}>
             <AlertTitle>
-              {run.failure.stepId === 0
-                ? "流水线在进入步骤之前退出"
-                : "步骤 " +
-                  run.failure.stepId +
-                  (run.failure.stepName ? "（" + run.failure.stepName + "）" : "") +
-                  " 失败"}
+              {waitingForInput
+                ? "步骤 " + run.failure.stepId + "（" + run.failure.stepName + "）在等语义输入"
+                : run.failure.stepId === 0
+                  ? "流水线在进入步骤之前退出"
+                  : "步骤 " +
+                    run.failure.stepId +
+                    (run.failure.stepName ? "（" + run.failure.stepName + "）" : "") +
+                    " 失败"}
             </AlertTitle>
             <AlertDescription className="flex flex-col gap-2">
+              {waitingForInput && (
+                <span>
+                  报的这句话不是故障，是插件在说「把输入补上再回来」——上面那张卡里列了要补什么。
+                </span>
+              )}
               <span className="break-all">{run.failure.message}</span>
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="secondary" size="sm" disabled={resuming} onClick={onResume}>
@@ -165,6 +223,7 @@ export function PipelinePage() {
   const [overwrite, setOverwrite] = useState(false)
 
   const [job, setJob] = useState<Job | null>(null)
+  const [pending, setPending] = useState<Pending | null>(null)
   const [logText, setLogText] = useState("")
   const [failure, setFailure] = useState("")
   const [busy, setBusy] = useState("")
@@ -202,6 +261,39 @@ export function PipelinePage() {
   }, [])
 
   const running = job !== null && (job.state === "running" || job.state === "stopping")
+
+  /*
+   * 每次运行停下来后看一眼有没有待确认项。
+   * 有，就说明这次停是插件设计的语义判断停点（等人/AI 补输入），不是错误——
+   * 界面必须把它和真正的失败分开，否则整条流水线看起来就是"纯脚本执行"。
+   */
+  useEffect(() => {
+    if (!job || running) return
+    const { projectRoot, target } = job.request
+    if (!projectRoot || !target) {
+      setPending(null)
+      return
+    }
+    let stopped = false
+    api
+      .pending(projectRoot, target)
+      .then((payload) => {
+        if (!stopped) setPending(payload.pending)
+      })
+      .catch(() => {
+        if (!stopped) setPending(null)
+      })
+    return () => {
+      stopped = true
+    }
+  }, [job, running])
+
+  const waitingIconNames = pending?.icons.available && pending.icons.needsNaming ? pending.icons.mustName.length : 0
+  const waitingTranslations =
+    pending?.translations.available && pending.translations.needsTranslation
+      ? pending.translations.pendingTranslations.length
+      : 0
+  const waitingTotal = waitingIconNames + waitingTranslations
 
   useEffect(() => {
     if (!job || !running) return
@@ -413,10 +505,38 @@ export function PipelinePage() {
         </div>
       )}
 
+      {waitingTotal > 0 && (
+        <Card className="border-amber-500/60">
+          <CardHeader>
+            <CardTitle>等待语义输入 —— 这不是错误</CardTitle>
+            <CardDescription>
+              流水线按设计停在这里。「要不要登记」由插件机械判定；「叫什么名字、怎么翻译」才是语义判断，
+              只能由人或 AI 给——这几步永远绕不过去。补完从断点继续。
+            </CardDescription>
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              {waitingIconNames > 0 && <Badge variant="secondary">图标定名 {waitingIconNames} 条</Badge>}
+              {waitingTranslations > 0 && <Badge variant="secondary">文案译文 {waitingTranslations} 条</Badge>}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Button
+              onClick={() => {
+                window.location.hash = "review"
+              }}
+            >
+              <ArrowRight className="size-4" />
+              去待确认页处理（AI 出候选 → 你确认 → 从断点继续）
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {job?.runs.map((run) => (
         <RunCard
           key={run.mode}
           run={run}
+          waitingIconNames={waitingIconNames}
+          waitingTranslations={waitingTranslations}
           resuming={busy === "resume"}
           onResume={() => void resume()}
         />
