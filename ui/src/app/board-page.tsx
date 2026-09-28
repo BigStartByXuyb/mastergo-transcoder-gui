@@ -53,6 +53,7 @@ type Form = {
   ui: string
   mode: "A" | "B" | "AB"
   autoMerge: boolean
+  overwrite: boolean
   links: string
 }
 
@@ -65,13 +66,14 @@ function readForm(): Form {
         ui: String(parsed.ui ?? ""),
         mode: parsed.mode === "A" || parsed.mode === "AB" ? parsed.mode : "B",
         autoMerge: parsed.autoMerge !== false,
+        overwrite: parsed.overwrite === true,
         links: String(parsed.links ?? "")
       }
     }
   } catch {
     /* 没存过或存坏了都从空白开始 */
   }
-  return { projectRoot: "", ui: "", mode: "B", autoMerge: true, links: "" }
+  return { projectRoot: "", ui: "", mode: "B", autoMerge: true, overwrite: false, links: "" }
 }
 
 // 一行一个任务：`链接` 或 `链接 | Target`（Target 省略时由插件按设计稿推导）。
@@ -191,6 +193,7 @@ export function BoardPage() {
         projectRoot: form.projectRoot.trim(),
         ui: form.ui.trim(),
         autoMerge: form.autoMerge,
+        overwrite: form.overwrite,
         items
       })
     )
@@ -301,6 +304,15 @@ export function BoardPage() {
                 <div className="text-muted-foreground text-xs">冲突时一律停下等人，不自动选边。</div>
               </div>
               <Switch checked={form.autoMerge} onCheckedChange={(value) => setForm({ ...form, autoMerge: value })} />
+            </div>
+            <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2">
+              <div className="leading-tight">
+                <div className="text-sm">替换已有产物</div>
+                <div className="text-muted-foreground text-xs">
+                  工程里已经有同名页面时才会用到；默认不替换，同名就停在 bundle。
+                </div>
+              </div>
+              <Switch checked={form.overwrite} onCheckedChange={(value) => setForm({ ...form, overwrite: value })} />
             </div>
           </div>
           <div className="flex flex-col gap-2">

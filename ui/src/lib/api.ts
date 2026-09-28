@@ -354,6 +354,8 @@ export type BoardAddBody = {
   projectRoot: string
   ui: string
   autoMerge: boolean
+  /** 目标工程里已经有同名页面时是否替换（对应流水线的「替换已有产物」）。 */
+  overwrite: boolean
   items: { link: string; target: string; mode: "A" | "B" | "AB" }[]
 }
 
@@ -424,7 +426,14 @@ export const api = {
   resolve: (body: { link: string; frameLink: string; projectDir: string }) => post<ResolveResult>("/api/resolve", body),
   runStart: (body: RunStartRequest) => post<{ ok: true; job: Job }>("/api/run", body),
   runResume: (runId: string) =>
-    post<{ ok: true; mode: string; resumedFrom: string; job: Job }>("/api/run/resume", { runId }),
+    post<{
+      ok: true
+      mode: string
+      resumedFrom: string
+      /** 因为工程里已有这一页，续跑回到了生成 Bundle 清单的那一步重算。 */
+      recomputedManifest?: boolean
+      job: Job
+    }>("/api/run/resume", { runId }),
   runStop: (runId: string) => post<{ ok: true; job: Job }>("/api/run/stop", { runId }),
   runStatus: (runId = "") =>
     request<{ ok: true; job: Job | null }>("/api/run/status?runId=" + encodeURIComponent(runId)),

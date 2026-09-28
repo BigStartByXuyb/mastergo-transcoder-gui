@@ -211,8 +211,9 @@ function RunCard({
               )}
               {existingPage && (
                 <span>
-                  上面点名的是工程里已经存在的页面文件。插件默认不替换已有页面；要用本次结果覆盖它们，
-                  就点下面的按钮（它会带上覆盖开关，从这一步继续）。
+                  上面点名的是工程里已经存在的页面文件。插件默认不替换已有页面。要用本次结果覆盖它们，
+                  点下面的按钮：它会回到生成 Bundle 清单的那一步重算（覆盖开关是在那一步写进清单的，
+                  从 bundle 直接接着跑永远拿的是旧清单），同 Target 的产物整套替换，替换前逐个备份。
                 </span>
               )}
               <span className="break-all">{run.failure.message}</span>
@@ -234,11 +235,9 @@ function RunCard({
                   {resuming ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
                   {run.failure.stepId === 0
                     ? "按原参数重跑这一条路线"
-                    : (existingPage ? "替换已有产物，从第 " : "从第 ") +
-                      run.failure.stepId +
-                      " 步（" +
-                      run.failure.stepName +
-                      "）继续"}
+                    : existingPage
+                      ? "替换已有产物并继续"
+                      : "从第 " + run.failure.stepId + " 步（" + run.failure.stepName + "）继续"}
                 </Button>
                 <span className="text-xs">续跑会继承本次的工程目录、路线、Ui、覆盖与空台账开关</span>
               </div>
@@ -446,7 +445,10 @@ export function PipelinePage() {
       offsetRef.current = 0
       setJob(payload.job)
       toast.success(
-        "已继续：路线 " + payload.mode + (payload.resumedFrom === "起点" ? "（从起点）" : "（从 " + payload.resumedFrom + "）")
+        "已继续：路线 " +
+          payload.mode +
+          (payload.resumedFrom === "起点" ? "（从起点）" : "（从 " + payload.resumedFrom + "）") +
+          (payload.recomputedManifest ? "；已有页面 → 回到生成 Bundle 清单的那一步重算" : "")
       )
     } catch (error) {
       setFailure(error instanceof ApiFailure ? error.message + (error.hint ? "：" + error.hint : "") : String(error))
