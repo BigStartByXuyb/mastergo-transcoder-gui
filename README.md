@@ -2,11 +2,12 @@
 
 MasterGo 设计稿转 MTSLG IOContorl / MW WPF 的本地客户端。
 
-前端 React + Vite + shadcn/ui，后端 Node 内置 `http`（零第三方运行时依赖），两者通过 HTTP 通信。
+前端 React + Vite + shadcn/ui，后端 Node 内置 `http`，两者通过 HTTP 通信。后端唯一的运行时依赖是 `openai`（模型客户端，零传递依赖）。
 
 ## 跑起来
 
 ```
+npm install        # 首次：后端依赖
 双击 start.cmd
 ```
 
@@ -23,7 +24,8 @@ node server.js --token mg_xxx                  # 缺省取 env MASTERGO_MCP_TOKE
 ## 开发
 
 ```
-npm --prefix ui install        # 首次
+npm install                    # 首次：后端依赖
+npm --prefix ui install        # 首次：前端依赖
 npm run api                    # 起后端（8787，不打开浏览器）
 npm run dev:ui                 # 另开一个窗口：Vite dev server（5173），/api 代理到 8787
 npm run build:ui               # 构建前端 → public/
@@ -35,8 +37,27 @@ npm run build:ui               # 构建前端 → public/
 ui/            前端源码（shadcn CLI 生成 components/ui/，源码入库）
 public/        前端构建产物（vite build --outDir ../public），不手工编辑
 server.js      入口：命令行、装配、监听
-lib/           后端实现：http 工具、路由表、插件定位、插件契约、控件查询
+lib/           后端实现（见下）
 ```
+
+```
+lib/http.js         JSON / 请求体 / 静态文件
+lib/routes.js       路由表与分发
+lib/plugin-root.js  插件定位
+lib/plugin.js       插件信息与步骤契约
+lib/resolve.js      控件查询
+lib/run.js          流水线运行管理（进度、日志、失败契约）
+lib/pending.js      待确认清单的读写
+lib/settings.js     用户设置与模型凭据
+lib/dpapi.ps1       凭据加解密（PowerShell + Windows DPAPI）
+lib/ai.js           模型调用（只出候选，从不写盘）
+```
+
+## 模型凭据
+
+在「设置」页填厂商 / base_url / 模型名 / API key。key 用 Windows DPAPI（当前用户）加密后存在安装目录的 `credentials`，不写进任何产物、不进日志。
+
+厂商表只列**核实过**的默认值（当前只有 DeepSeek，取自 `~/.codex/config.toml` 的 `model_providers.deepseek`）；其余厂商走「自定义」，填 OpenAI 兼容的 base_url。
 
 ## 引擎来自插件，本仓库不自带
 

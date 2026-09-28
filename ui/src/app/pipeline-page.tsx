@@ -33,6 +33,14 @@ const JOB_STATE_TEXT: Record<string, string> = {
   failed: "失败"
 }
 
+// 下拉框里只显示短值，长说明放下面一行：否则触发按钮的宽度会随选中项变化，
+// 弹层每次重新定位，看起来像"选一下就跳位置"。
+const MODE_HINT: Record<string, string> = {
+  B: "B —— MTSLG IOContorl 页面 XML（缺省）",
+  A: "A —— MW WPF XAML 页面",
+  AB: "AB —— 两条都跑，两次独立运行（先 A 后 B）"
+}
+
 function StepIcon({ state }: { state: RunStepState }) {
   if (state === "ok") return <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
   if (state === "failed") return <XCircle className="size-4 shrink-0 text-destructive" />
@@ -306,15 +314,16 @@ export function PipelinePage() {
             <div className="flex flex-col gap-2">
               <Label>路线</Label>
               <Select value={mode} onValueChange={setMode}>
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger className="w-24">
+                  <SelectValue>{mode}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="B">B —— MTSLG IOContorl 页面 XML（缺省）</SelectItem>
+                  <SelectItem value="B">B —— MTSLG IOContorl 页面 XML</SelectItem>
                   <SelectItem value="A">A —— MW WPF XAML 页面</SelectItem>
-                  <SelectItem value="AB">AB —— 两条都跑（两次运行）</SelectItem>
+                  <SelectItem value="AB">AB —— 两条都跑</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-muted-foreground text-xs">{MODE_HINT[mode] ?? ""}</p>
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="run-ui">UI 名（可选）</Label>

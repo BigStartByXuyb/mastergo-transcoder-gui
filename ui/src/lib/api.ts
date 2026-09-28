@@ -137,6 +137,68 @@ export type RunStartRequest = {
 
 export type LogSlice = { from: number; next: number; truncated: boolean; text: string }
 
+export type ProviderPreset = { id: string; label: string; baseUrl: string; model: string }
+
+export type Settings = {
+  providers: ProviderPreset[]
+  ai: { provider: string; baseUrl: string; model: string; hasKey: boolean }
+  automation: "off" | "assist" | "auto"
+}
+
+export type IconCandidate = {
+  index: number
+  sourceRef: string
+  svgName: string
+  nodeName: string
+  status: string
+  reason: string
+  ownerText: string
+  ownerControlType: string | null
+  parentType: string
+  siblingPathCount: number
+  registration: { register: boolean; basis: string; source: string; matchedName?: string }
+  ledgerFields: { iconSize?: { width: number; height: number } }
+}
+
+export type PendingIcons = {
+  available: boolean
+  reason?: string
+  candidatesPath: string
+  namingPath: string
+  registrationSummary: {
+    register: number
+    skip: number
+    review: number
+    byBasis: Record<string, number>
+    notes: string
+  } | null
+  candidates: IconCandidate[]
+  mustName: IconCandidate[]
+  naming: { index: number; name: string; comment: string }[]
+  needsNaming: boolean
+}
+
+export type PendingText = { key: string; locale: string; text: string; sourceRef: string }
+
+export type PendingTranslations = {
+  available: boolean
+  reason?: string
+  translationsPath: string
+  glossaryPath: string
+  pendingTranslations: PendingText[]
+  glossaryRequired: unknown[]
+  translations: Record<string, string>
+  needsTranslation: boolean
+}
+
+export type Pending = {
+  projectRoot: string
+  target: string
+  summary: unknown
+  icons: PendingIcons
+  translations: PendingTranslations
+}
+
 export class ApiFailure extends Error {
   code: string
   hint: string
@@ -193,5 +255,30 @@ export const api = {
   runLog: (runId: string, from: number) =>
     request<{ ok: true } & LogSlice>(
       "/api/run/log?runId=" + encodeURIComponent(runId) + "&from=" + Math.max(0, from)
-    )
+    ),
+  settingsGet: () => request<{ ok: true; settings: Settings }>("/api/settings"),
+  settingsSave: (body: unknown) => post<{ ok: true; settings: Settings }>("/api/settings", body),
+  pending: (projectRoot: string, target: string) =>
+    request<{ ok: true; pending: Pending }>(
+      "/api/pending?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
+    ),
+  aiIconNames: (mustName: IconCandidate[]) =>
+    post<{ ok: true; items: { index: number; name: string; comment: string; confidence: number | null }[] }>(
+      "/api/ai/suggest",
+      { kind: "icon-name", mustName }
+    ),
+  aiTranslations: (texts: string[]) =>
+    post<{ ok: true; items: { text: string; translation: string }[] }>("/api/ai/suggest", {
+      kind: "translation",
+      texts
+    }),
+  confirm: (body: {
+    projectRoot: string
+    target: string
+    runId?: string
+    naming?: { index: number; name: string; comment: string }[]
+    translations?: Record<string, string>
+    allowEmptyLedger?: boolean
+    resume?: boolean
+  }) => post<{ ok: true; written: { path: string; count: number }[]; job: Job | null; note?: string }>("/api/confirm", body)
 }

@@ -8,5 +8,8 @@
     "api": "node server.js --no-open",
     "dev:ui": "npm --prefix ui run dev",
     "build:ui": "npm --prefix ui run build"
+  },
+  "dependencies": {
+    "openai": "^7.23.0"
   }
 }

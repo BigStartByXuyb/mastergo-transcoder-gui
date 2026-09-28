@@ -32,6 +32,9 @@ const { resolvePluginRoot } = require("./lib/plugin-root.js");
 const { readPluginInfo } = require("./lib/plugin.js");
 const { createRoutes, dispatch } = require("./lib/routes.js");
 const { createRunManager } = require("./lib/run.js");
+const { createSettings } = require("./lib/settings.js");
+const { createPending } = require("./lib/pending.js");
+const { createAi } = require("./lib/ai.js");
 
 const HERE = __dirname;
 const PUBLIC_DIR = path.join(HERE, "public");
@@ -105,7 +108,18 @@ const resolver = createResolver({
 resolver.refreshProjectFrames();
 
 const runs = createRunManager({ plugin: PLUGIN });
-const routes = createRoutes({ resolver: resolver, plugin: PLUGIN, version: VERSION, runs: runs });
+const settings = createSettings(process.env.MASTERGO_HOME || HERE);
+const pending = createPending({ plugin: PLUGIN });
+const ai = createAi({ settings: settings });
+const routes = createRoutes({
+  resolver: resolver,
+  plugin: PLUGIN,
+  version: VERSION,
+  runs: runs,
+  settings: settings,
+  pending: pending,
+  ai: ai
+});
 
 // ---- 服务 ----
 const server = http.createServer(function (request, response) {
