@@ -41,6 +41,7 @@ const { createConfirm } = require("./lib/confirm.js");
 const { createAutoFill } = require("./lib/autofill.js");
 const { createLayoutRegistrar } = require("./lib/plugin-layout.js");
 const { createPendingQueue } = require("./lib/pending-queue.js");
+const { createMapping } = require("./lib/mapping.js");
 
 const HERE = __dirname;
 const PUBLIC_DIR = path.join(HERE, "public");
@@ -135,6 +136,7 @@ const board = createBoard({
   home: HOME
 });
 const pendingQueue = createPendingQueue({ runs: runs, board: board, pending: pending });
+const mapping = createMapping({ plugin: PLUGIN });
 const routes = createRoutes({
   resolver: resolver,
   plugin: PLUGIN,
@@ -146,7 +148,8 @@ const routes = createRoutes({
   artifacts: artifacts,
   board: board,
   confirm: confirm,
-  pendingQueue: pendingQueue
+  pendingQueue: pendingQueue,
+  mapping: mapping
 });
 
 // ---- 服务 ----

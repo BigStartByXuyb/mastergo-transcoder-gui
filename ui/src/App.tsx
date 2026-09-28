@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react"
-import { Boxes, LayoutGrid, ListChecks, Search, Settings } from "lucide-react"
+import { Boxes, LayoutGrid, ListChecks, Search, Settings, Table2 } from "lucide-react"
 
 import { BoardPage } from "@/app/board-page"
+import { MappingPage } from "@/app/mapping-page"
 import { QueryPage } from "@/app/query-page"
 import { PipelinePage } from "@/app/pipeline-page"
 import { ReviewPage } from "@/app/review-page"
@@ -16,6 +17,7 @@ const NAV = [
   { key: "board", label: "看板", icon: LayoutGrid },
   { key: "pipeline", label: "流水线", icon: Boxes },
   { key: "review", label: "待确认", icon: ListChecks },
+  { key: "mapping", label: "映射表", icon: Table2 },
   { key: "settings", label: "设置", icon: Settings }
 ] as const
 
@@ -111,6 +113,7 @@ export default function App() {
           {page === "board" && <BoardPage />}
           {page === "pipeline" && <PipelinePage />}
           {page === "review" && <ReviewPage />}
+          {page === "mapping" && <MappingPage />}
           {page === "settings" && <SettingsPage />}
         </main>
       </div>

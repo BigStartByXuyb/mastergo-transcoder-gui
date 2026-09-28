@@ -378,6 +378,42 @@ export type PendingQueueEntry = {
 
 export type PendingQueue = { items: PendingQueueEntry[] }
 
+/** 模板族的匹配键（真值源：映射表各族自己的 match 字段）。 */
+export type MappingMatch = {
+  property?: string
+  componentSet?: boolean
+  componentName?: boolean
+  structural?: { variant?: string; signature?: { minHeaderTexts?: number } }
+}
+
+export type MappingFamily = {
+  key: string
+  match: MappingMatch | null
+  variants: { name: string; fields: Record<string, unknown> }[]
+}
+
+export type MappingView = {
+  pluginVersion: string
+  /** 本路线写入规则（extends 指向共享类型表）。 */
+  routePath: string
+  sharedPath: string
+  families: MappingFamily[]
+  layoutRules: {
+    bottomBar?: {
+      match?: MappingMatch
+      residentGroupPattern?: string
+      fKeyPattern?: string
+      decorativeNamePattern?: string
+      menuItemAlwaysWrittenAttrs?: string[]
+      iconSizeAttrs?: string[]
+      variants?: Record<string, { topLeftContent?: string }>
+      menuItemFlags?: Record<string, { attr?: string }>
+    }
+  } | null
+  requiredAttrs: Record<string, string[]> | null
+  ruleKeys: { key: string; entries: number }[]
+}
+
 export class ApiFailure extends Error {
   code: string
   hint: string
@@ -455,6 +491,7 @@ export const api = {
       "/api/pending?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
     ),
   pendingList: () => request<{ ok: true; queue: PendingQueue }>("/api/pending/list"),
+  mapping: () => request<{ ok: true; mapping: MappingView }>("/api/mapping"),
   artifacts: (projectRoot: string, target: string) =>
     request<{ ok: true; artifacts: Artifacts }>(
       "/api/artifacts?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
