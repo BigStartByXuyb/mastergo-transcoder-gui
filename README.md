@@ -48,6 +48,7 @@ lib/plugin.js       插件信息与步骤契约
 lib/resolve.js      控件查询
 lib/run.js          流水线运行管理（进度、日志、失败契约）
 lib/pending.js      待确认清单的读写
+lib/artifacts.js    产物台账（读插件运行登记表的 outputs，供「已完成」看板用）
 lib/settings.js     用户设置与模型凭据
 lib/dpapi.ps1       凭据加解密（PowerShell + Windows DPAPI）
 lib/ai.js           模型调用（只出候选，从不写盘）

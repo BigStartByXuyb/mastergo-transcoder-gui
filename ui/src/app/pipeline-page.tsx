@@ -4,6 +4,7 @@ import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { PendingPanel } from "@/app/pending-panel"
+import { DoneBoard } from "@/app/done-board"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -595,6 +596,10 @@ export function PipelinePage() {
           onResume={() => void resume()}
         />
       ))}
+
+      {job && job.state === "done" && (
+        <DoneBoard projectRoot={job.request.projectRoot} target={job.request.target} />
+      )}
 
       {job && (
         <Card>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Loader2, RefreshCw, Send, Sparkles } from "lucide-react"
+import { CheckCircle2, Loader2, RefreshCw, Send, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -114,7 +114,8 @@ export function PendingPanel({
     void load()
   }, [load])
 
-  const iconCount = pending?.icons.available && pending.icons.needsNaming ? pending.icons.mustName.length : 0
+  const iconTotal = pending?.icons.available ? pending.icons.mustName.length : 0
+  const iconCount = pending?.icons.available ? pending.icons.missing : 0
   const langCount =
     pending?.translations.available && pending.translations.needsTranslation
       ? pending.translations.pendingTranslations.length
@@ -349,6 +350,11 @@ export function PendingPanel({
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium">图标命名</span>
             <span className="text-muted-foreground text-xs">「要不要登记」由插件判定；这里只补名字</span>
+            {iconTotal > 0 && (
+              <Badge variant={iconCount > 0 ? "secondary" : "outline"}>
+                已填 {iconTotal - iconCount} / {iconTotal}
+              </Badge>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {icons.registrationSummary && <Badge variant="secondary">需登记 {icons.registrationSummary.register}</Badge>}
@@ -398,7 +404,12 @@ export function PendingPanel({
                   <TableBody>
                     {icons.mustName.map((item) => (
                       <TableRow key={item.index}>
-                        <TableCell className="text-muted-foreground text-xs">{item.index}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">
+                          <div className="flex items-center gap-1">
+                            {item.filled && <CheckCircle2 className="size-3.5 text-emerald-600" />}
+                            {item.index}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <div className="text-sm">{item.svgName || item.nodeName || "(未命名图层)"}</div>
                           <div className="text-muted-foreground text-xs">

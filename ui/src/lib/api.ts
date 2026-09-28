@@ -160,6 +160,8 @@ export type IconCandidate = {
   ledgerFields: { iconSize?: { width: number; height: number } }
   /** sourceId 是否指向页面根：是则几何为整页级别，命名表必须标 fromDsl。由后端机械判定。 */
   sourceIsPageRoot?: boolean
+  /** 命名表里是否已经有名字（后端跟已写入的命名表比对得出）。 */
+  filled?: boolean
 }
 
 export type PendingIcons = {
@@ -176,6 +178,8 @@ export type PendingIcons = {
   } | null
   candidates: IconCandidate[]
   mustName: IconCandidate[]
+  /** 需登记但命名表里还没名字的条数。 */
+  missing: number
   naming: { index: number; name: string; comment: string }[]
   needsNaming: boolean
 }
@@ -202,6 +206,33 @@ export type Pending = {
   summary: unknown
   icons: PendingIcons
   translations: PendingTranslations
+}
+
+export type ArtifactEntry = {
+  file: string
+  kind: string
+  exists: boolean
+  sha256: string | null
+  dependsOn: string | null
+}
+
+export type Artifacts = {
+  available: boolean
+  reason?: string
+  runId: string
+  mode: string
+  updatedAt: string
+  project: ArtifactEntry[]
+  audit: ArtifactEntry[]
+  backupCount: number
+  cleanedCount: number
+  summary: {
+    generatedAt: string
+    page: unknown
+    pageProduct: unknown
+    todos: { kind?: string; count?: number; byReason?: Record<string, number>; note?: string }[]
+    notices: unknown[]
+  } | null
 }
 
 export class ApiFailure extends Error {
@@ -268,6 +299,10 @@ export const api = {
   pending: (projectRoot: string, target: string) =>
     request<{ ok: true; pending: Pending }>(
       "/api/pending?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
+    ),
+  artifacts: (projectRoot: string, target: string) =>
+    request<{ ok: true; artifacts: Artifacts }>(
+      "/api/artifacts?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
     ),
   aiIconNames: (mustName: IconCandidate[]) =>
     post<{ ok: true; items: { index: number; name: string; comment: string; confidence: number | null }[] }>(

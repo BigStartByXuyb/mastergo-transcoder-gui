@@ -35,6 +35,7 @@ const { createRunManager } = require("./lib/run.js");
 const { createSettings } = require("./lib/settings.js");
 const { createPending } = require("./lib/pending.js");
 const { createAi } = require("./lib/ai.js");
+const { createArtifacts } = require("./lib/artifacts.js");
 
 const HERE = __dirname;
 const PUBLIC_DIR = path.join(HERE, "public");
@@ -111,6 +112,7 @@ const runs = createRunManager({ plugin: PLUGIN });
 const settings = createSettings(process.env.MASTERGO_HOME || HERE);
 const pending = createPending({ plugin: PLUGIN });
 const ai = createAi({ settings: settings });
+const artifacts = createArtifacts();
 const routes = createRoutes({
   resolver: resolver,
   plugin: PLUGIN,
@@ -118,7 +120,8 @@ const routes = createRoutes({
   runs: runs,
   settings: settings,
   pending: pending,
-  ai: ai
+  ai: ai,
+  artifacts: artifacts
 });
 
 // ---- 服务 ----
