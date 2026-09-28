@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MTSLG 控件 ID 查询</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="page-head">
+      <div class="brand">
+        <span class="brand-mark">ID</span>
+        <div>
+          <h1>MTSLG 控件 ID 查询</h1>
+          <p class="muted">贴 MasterGo 容器链接 → 返回控件在 IOContorl 里应该用的 ID</p>
+        </div>
+      </div>
+      <div class="head-meta" id="health">
+        <span class="badge badge-outline">连接中…</span>
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="card-head">
+        <div class="card-head-text">
+          <h2>容器链接</h2>
+          <p class="muted">在 MasterGo 里选中页面帧（容器）或控件 → 复制链接 → 粘到这里。只给 ID，不做整页转码。</p>
+        </div>
+        <span class="badge">不整页转码</span>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label class="label" for="link">MasterGo 链接</label>
+          <div class="row">
+            <input id="link" class="input" type="text" spellcheck="false"
+              placeholder="https://mastergo.com/goto/xxxx?page_id=4:4&amp;layer_id=79:162125&amp;file=181586559903927" />
+            <button id="submit" class="btn btn-primary" type="button">
+              <span class="spinner" id="spinner" hidden></span>
+              <span id="submit-text">查询</span>
+            </button>
+          </div>
+          <p class="hint">
+            贴<b>容器（页面帧）</b>链接 → 列出里面每个控件该用的 ID，点一下复制；
+            贴<b>控件</b>链接 → 直接给这一个控件的 ID（前提是本工具已知它所在的页面帧）。
+          </p>
+        </div>
+
+        <details class="advanced">
+          <summary>高级（可选）</summary>
+          <div class="advanced-body">
+            <div class="field">
+              <label class="label" for="frame-link">页面帧链接</label>
+              <input id="frame-link" class="input" type="text" spellcheck="false"
+                placeholder="贴控件链接时填：该控件所在页面帧（容器）的链接" />
+              <p class="hint">页面帧决定 ID 的页面键；没有它，控件链接算不出与转码一致的 ID。</p>
+            </div>
+            <div class="field">
+              <label class="label" for="project">工程目录</label>
+              <input id="project" class="input" type="text" spellcheck="false"
+                placeholder="D:\SSD_YinQie_F2ContinuousRunData" />
+              <p class="hint">填了就从该工程里已有的 <code>Generated/dsl.snapshot.json</code> 找页面帧：离线、更快、不占用设计稿接口。</p>
+            </div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <div id="alert-slot"></div>
+
+    <section class="card" id="result-card" hidden>
+      <div class="card-head">
+        <div class="card-head-text">
+          <h2 id="result-title">结果</h2>
+          <p class="muted" id="result-subtitle"></p>
+        </div>
+        <div class="row row-tight" id="result-badges"></div>
+      </div>
+      <div class="card-body">
+        <div id="notes-slot"></div>
+        <div class="row row-tight toolbar">
+          <div class="search">
+            <svg viewBox="0 0 24 24" class="icon"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+            <input id="filter" class="input input-search" type="text" placeholder="按名称 / 文本 / layer_id / ID 过滤" />
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="only-mapped" checked />
+            <span>只看控件（命中映射）</span>
+          </label>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>控件</th>
+                <th class="col-pos">位置</th>
+                <th>IOContorl ID</th>
+                <th class="col-map">映射</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+          <p class="empty" id="empty" hidden>没有匹配的控件。关掉「只看控件」可看到容器里的全部设计节点（含未登记映射的）。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="detail-card" hidden>
+      <div class="card-head">
+        <div class="card-head-text">
+          <h2 id="detail-name">控件</h2>
+          <p class="muted" id="detail-sub"></p>
+        </div>
+        <div id="detail-badge"></div>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <span class="label">IOContorl ID（填到控件的 ID="" 上）</span>
+          <div class="id-row">
+            <code class="id-value" id="detail-id"></code>
+            <button class="btn btn-primary btn-sm" type="button" id="copy-id">
+              <svg viewBox="0 0 24 24" class="icon"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>
+              复制 ID
+            </button>
+          </div>
+        </div>
+        <dl class="meta" id="detail-meta"></dl>
+        <div class="field" id="code-field">
+          <div class="code-head">
+            <span class="label">控件代码（与转码产物同一套模板）</span>
+            <button class="btn btn-outline btn-sm" type="button" id="copy-code">
+              <svg viewBox="0 0 24 24" class="icon"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>
+              复制代码
+            </button>
+          </div>
+          <pre class="code" id="detail-code"></pre>
+        </div>
+        <div class="alert alert-muted" id="no-code" hidden>
+          该控件不在正式映射表里：需要人工按设计稿手写，或先在设计器映射表里补登记。
+        </div>
+      </div>
+    </section>
+
+    <footer class="page-foot">
+      ID = <code>MX_</code> + sha256(页面键 + 换行 + 节点 ref) 前 32 位；页面键 = 页面帧的 layer_id。
+      公式与转码器同一份实现，重跑不变；你们自己新增的控件沿用 GUID 写法即可。
+    </footer>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="/app.js"></script>
+</body>
+</html>
