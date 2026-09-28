@@ -314,6 +314,22 @@ export type BoardAddBody = {
   items: { link: string; target: string; mode: "A" | "B" | "AB" }[]
 }
 
+/** 一条「还缺语义输入」的页面。board = 看板任务（产物在它自己的工作目录里），pipeline = 流水线页直跑的运行。 */
+export type PendingQueueEntry = {
+  source: "board" | "pipeline"
+  projectRoot: string
+  target: string
+  runId: string
+  taskId: string
+  runState: string
+  /** 看板任务已经被移除，但工作目录与产物还在。 */
+  orphan: boolean
+  counts: { icons: number; translations: number; glossary: number }
+  total: number
+}
+
+export type PendingQueue = { items: PendingQueueEntry[] }
+
 export class ApiFailure extends Error {
   code: string
   hint: string
@@ -379,6 +395,7 @@ export const api = {
     request<{ ok: true; pending: Pending }>(
       "/api/pending?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
     ),
+  pendingList: () => request<{ ok: true; queue: PendingQueue }>("/api/pending/list"),
   artifacts: (projectRoot: string, target: string) =>
     request<{ ok: true; artifacts: Artifacts }>(
       "/api/artifacts?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)

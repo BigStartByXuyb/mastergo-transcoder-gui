@@ -40,6 +40,7 @@ const { createBoard } = require("./lib/board.js");
 const { createConfirm } = require("./lib/confirm.js");
 const { createAutoFill } = require("./lib/autofill.js");
 const { createLayoutRegistrar } = require("./lib/plugin-layout.js");
+const { createPendingQueue } = require("./lib/pending-queue.js");
 
 const HERE = __dirname;
 const PUBLIC_DIR = path.join(HERE, "public");
@@ -132,6 +133,7 @@ const board = createBoard({
   layout: layoutRegistrar,
   home: HOME
 });
+const pendingQueue = createPendingQueue({ runs: runs, board: board, pending: pending });
 const routes = createRoutes({
   resolver: resolver,
   plugin: PLUGIN,
@@ -142,7 +144,8 @@ const routes = createRoutes({
   ai: ai,
   artifacts: artifacts,
   board: board,
-  confirm: confirm
+  confirm: confirm,
+  pendingQueue: pendingQueue
 });
 
 // ---- 服务 ----

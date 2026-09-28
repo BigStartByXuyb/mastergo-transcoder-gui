@@ -378,7 +378,7 @@ function TaskRow({
           )}
           {task.state === "waiting" && (
             <span className="text-muted-foreground text-xs">
-              停在语义判断点。产物在工作目录里 —— 到「待确认」页把工程目录填成上面这个路径即可处理。
+              停在语义判断点，已经进「待确认」列表（产物在它自己的工作目录里）。
             </span>
           )}
           {task.merge && task.merge.conflicts.length === 0 && (

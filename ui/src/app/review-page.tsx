@@ -1,55 +1,236 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { RefreshCw } from "lucide-react"
 
 import { PendingPanel } from "@/app/pending-panel"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { api } from "@/lib/api"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ApiFailure, api, type PendingQueueEntry } from "@/lib/api"
 
 /*
- * 待确认页：独立入口。
- * 面板本身与「流水线页停下时内嵌的那一块」是同一个组件 —— 两处不各写一份。
+ * 待确认页：列出**所有**还缺语义输入的页面。
+ *
+ * 列表来自后端 /api/pending/list —— 看板任务（一条一个工作目录）和流水线页直跑的运行都在里面，
+ * 按「工程目录 + Target」去重。这里只负责选一条、把面板挂上去；判断什么要填仍然由插件产物决定。
  */
+
+const POLL_MS = 2000
+
+const RUN_STATE_TEXT: Record<string, string> = {
+  queued: "排队中",
+  preparing: "建工作目录",
+  running: "运行中",
+  waiting: "待确认",
+  ready: "待合并",
+  merging: "合并中",
+  merged: "已合并",
+  conflict: "合并冲突",
+  failed: "失败",
+  stopped: "已停止",
+  done: "已跑完",
+  stopping: "正在停止"
+}
+
+function keyOf(entry: { source: string; projectRoot: string; target: string }) {
+  return entry.source + "|" + entry.projectRoot + "|" + entry.target
+}
+
 export function ReviewPage() {
-  const [projectRoot, setProjectRoot] = useState("")
-  const [target, setTarget] = useState("")
-  const [runId, setRunId] = useState("")
+  const [queue, setQueue] = useState<PendingQueueEntry[]>([])
+  const [problem, setProblem] = useState("")
+  const [selected, setSelected] = useState("")
   const [automation, setAutomation] = useState("assist")
+  const [manualRoot, setManualRoot] = useState("")
+  const [manualTarget, setManualTarget] = useState("")
+  const [loaded, setLoaded] = useState(false)
+
+  const load = useCallback(async () => {
+    try {
+      const payload = await api.pendingList()
+      setQueue(payload.queue.items)
+      setProblem("")
+    } catch (error) {
+      setProblem(error instanceof ApiFailure ? error.message : String(error))
+    } finally {
+      setLoaded(true)
+    }
+  }, [])
 
   useEffect(() => {
-    api
-      .runStatus()
-      .then((payload) => {
-        const job = payload.job
-        if (!job) return
-        setRunId(job.id)
-        if (job.request.projectRoot) setProjectRoot(job.request.projectRoot)
-        if (job.request.target) setTarget(job.request.target)
-      })
-      .catch(() => undefined)
+    void load()
+    const timer = setInterval(() => void load(), POLL_MS)
+    return () => clearInterval(timer)
+  }, [load])
+
+  useEffect(() => {
     api
       .settingsGet()
       .then((payload) => setAutomation(payload.settings.automation))
       .catch(() => undefined)
   }, [])
 
+  // 选中的那条已经从列表里消失（填完了 / 任务被移除），面板继续留着看结果，但会提示一下。
+  const active = useMemo(() => {
+    const hit = queue.find((item) => keyOf(item) === selected)
+    if (hit) return hit
+    if (manualRoot.trim() && manualTarget.trim()) {
+      return {
+        source: "pipeline" as const,
+        projectRoot: manualRoot.trim(),
+        target: manualTarget.trim(),
+        runId: "",
+        taskId: "",
+        runState: "",
+        counts: { icons: 0, translations: 0, glossary: 0 },
+        total: 0
+      }
+    }
+    return null
+  }, [queue, selected, manualRoot, manualTarget])
+
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4">
+    <div className="mx-auto flex max-w-6xl flex-col gap-4">
+      {problem && (
+        <Alert variant="destructive">
+          <AlertTitle>待确认列表没读到最新状态</AlertTitle>
+          <AlertDescription>{problem}</AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>待确认</CardTitle>
           <CardDescription>
-            流水线停在语义判断点时，这里列出它要人/AI 补的输入。写回后从断点继续。
+            流水线停在语义判断点时要人/AI 补的输入。看板里的任务与流水线页直跑的运行都列在这里，
+            按「工程目录 + 页面 Target」去重；填完就从列表里消失。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={queue.length > 0 ? "default" : "outline"}>待填 {queue.length} 条</Badge>
+            <Button variant="outline" size="sm" onClick={() => void load()}>
+              <RefreshCw className="size-4" />
+              刷新
+            </Button>
+          </div>
+
+          <div className="overflow-hidden rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-28">来源</TableHead>
+                  <TableHead className="w-40">Target</TableHead>
+                  <TableHead className="w-24">运行状态</TableHead>
+                  <TableHead className="w-56">待填</TableHead>
+                  <TableHead>工程 / 工作目录</TableHead>
+                  <TableHead className="w-20 text-right">操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {queue.map((entry) => {
+                  const key = keyOf(entry)
+                  const isActive = key === selected
+                  return (
+                    <TableRow key={key} className={isActive ? "bg-muted/50" : undefined}>
+                      <TableCell>
+                        <Badge variant={entry.source === "board" ? "secondary" : "outline"}>
+                          {entry.source === "board" ? "看板" : "流水线"}
+                        </Badge>
+                        {entry.orphan && (
+                          <Badge variant="outline" className="ml-1">
+                            任务已移除
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs break-all">
+                        {entry.target || "（未指定）"}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {RUN_STATE_TEXT[entry.runState] ?? entry.runState ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {entry.counts.icons > 0 && <span className="mr-2">图标 {entry.counts.icons}</span>}
+                        {entry.counts.translations > 0 && <span className="mr-2">译文 {entry.counts.translations}</span>}
+                        {entry.counts.glossary > 0 && <span>术语 {entry.counts.glossary}</span>}
+                      </TableCell>
+                      <TableCell
+                        className="text-muted-foreground truncate font-mono text-xs"
+                        title={entry.projectRoot}
+                      >
+                        {entry.projectRoot}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant={isActive ? "secondary" : "outline"}
+                          onClick={() => setSelected(key)}
+                        >
+                          {isActive ? "处理中" : "处理"}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+                {queue.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-muted-foreground py-8 text-center text-sm">
+                      {loaded ? "当前没有待确认的页面。" : "读取中…"}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="text-muted-foreground text-xs">
+            看板任务停在语义判断点时，产物在它自己的工作目录里；上表里的路径就是那个目录。
+          </div>
+        </CardContent>
+      </Card>
+
+      {active && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              {active.target || "（未指定 Target）"}
+              {!queue.some((item) => keyOf(item) === selected) && manualRoot.trim() ? " —— 手填" : ""}
+            </CardTitle>
+            <CardDescription className="font-mono text-xs break-all">{active.projectRoot}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PendingPanel
+              projectRoot={active.projectRoot}
+              target={active.target}
+              runId={active.runId}
+              automation={automation}
+              onResumed={() => void load()}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">手动指定</CardTitle>
+          <CardDescription>
+            列表里没有的（例如客户端重启过、或者路径不在已知运行里）可以手填。
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="review-project">工程目录</Label>
+            <Label htmlFor="review-project">工程目录 / 工作目录</Label>
             <Input
               id="review-project"
               spellCheck={false}
-              value={projectRoot}
-              onChange={(event) => setProjectRoot(event.target.value)}
+              value={manualRoot}
+              onChange={(event) => {
+                setManualRoot(event.target.value)
+                setSelected("")
+              }}
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -57,27 +238,15 @@ export function ReviewPage() {
             <Input
               id="review-target"
               spellCheck={false}
-              value={target}
-              onChange={(event) => setTarget(event.target.value)}
+              value={manualTarget}
+              onChange={(event) => {
+                setManualTarget(event.target.value)
+                setSelected("")
+              }}
             />
           </div>
         </CardContent>
       </Card>
-
-      {projectRoot.trim() && target.trim() ? (
-        <Card>
-          <CardContent className="pt-6">
-            <PendingPanel
-              projectRoot={projectRoot.trim()}
-              target={target.trim()}
-              runId={runId}
-              automation={automation}
-            />
-          </CardContent>
-        </Card>
-      ) : (
-        <p className="text-muted-foreground text-sm">填上工程目录与页面 Target，或先跑一次流水线。</p>
-      )}
     </div>
   )
 }

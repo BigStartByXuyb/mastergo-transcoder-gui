@@ -126,6 +126,15 @@ export function PendingPanel({
       : 0
   const waiting = iconCount + langCount + glossaryCount
 
+  /*
+   * 「本页没有图标槽位」只有一种情形：插件判定必须登记的候选一条都没有。
+   * 已经填完命名表**不算** —— 那时再传 -AllowEmptyLedger，后端会按空台账处理，
+   * 直接清掉刚写好的命名表，产物会退化成没有图标的一页。
+   */
+  const noIconSlots = Boolean(pending?.icons.available) && (pending?.icons.mustName.length ?? 0) === 0
+  // 有待办才让提交；没有图标槽位时靠「按空台账继续」这一个显式声明兜底。
+  const canSubmit = Boolean(pending) && (waiting > 0 || (noIconSlots && allowEmptyLedger))
+
   useEffect(() => {
     onState?.({ waiting, phase: busy })
   }, [waiting, busy, onState])
@@ -179,7 +188,7 @@ export function PendingPanel({
           naming: pending.icons.available && pending.icons.needsNaming ? naming : undefined,
           translations: pending.translations.available ? translations : undefined,
           glossary: pending.translations.available ? glossaryMap : undefined,
-          allowEmptyLedger: pending.icons.available && !pending.icons.needsNaming ? allowEmptyLedger : false,
+          allowEmptyLedger: noIconSlots && allowEmptyLedger,
           resume
         })
         const summary = payload.written.map((item) => item.path.split(/[\\/]/).pop() + "（" + item.count + " 条）").join("、")
@@ -367,7 +376,7 @@ export function PendingPanel({
               ))}
           </div>
 
-          {!icons.needsNaming && (
+          {noIconSlots && (
             <>
               <Alert>
                 <AlertTitle>本页没有要登记的图标</AlertTitle>
@@ -521,7 +530,7 @@ export function PendingPanel({
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button disabled={busy === "submit"} onClick={() => void submit(true)}>
+        <Button disabled={busy === "submit" || !canSubmit} onClick={() => void submit(true)}>
           {busy === "submit" ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           确认并继续
         </Button>
@@ -529,9 +538,12 @@ export function PendingPanel({
           <RefreshCw className="size-4" />
           重新读取
         </Button>
-        <Button variant="ghost" disabled={busy === "submit"} onClick={() => void submit(false)}>
+        <Button variant="ghost" disabled={busy === "submit" || !canSubmit} onClick={() => void submit(false)}>
           只写入，不继续
         </Button>
+        {!canSubmit && pending && (
+          <span className="text-muted-foreground text-xs">这个页面当前没有要填的东西。</span>
+        )}
       </div>
     </div>
   )
