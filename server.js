@@ -31,6 +31,7 @@ const { createResolver } = require("./lib/resolve.js");
 const { resolvePluginRoot } = require("./lib/plugin-root.js");
 const { readPluginInfo } = require("./lib/plugin.js");
 const { createRoutes, dispatch } = require("./lib/routes.js");
+const { createRunManager } = require("./lib/run.js");
 
 const HERE = __dirname;
 const PUBLIC_DIR = path.join(HERE, "public");
@@ -103,7 +104,8 @@ const resolver = createResolver({
 });
 resolver.refreshProjectFrames();
 
-const routes = createRoutes({ resolver: resolver, plugin: PLUGIN, version: VERSION });
+const runs = createRunManager({ plugin: PLUGIN });
+const routes = createRoutes({ resolver: resolver, plugin: PLUGIN, version: VERSION, runs: runs });
 
 // ---- 服务 ----
 const server = http.createServer(function (request, response) {

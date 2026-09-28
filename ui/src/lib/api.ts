@@ -68,6 +68,75 @@ export type ResolveResult = {
   elapsedMs: number
 }
 
+export type RunStepState = "pending" | "running" | "ok" | "failed" | "skipped"
+
+export type RunStep = {
+  id: number
+  name: string
+  title: string
+  state: RunStepState
+  seconds: number | null
+  note: string
+}
+
+export type RunFailure = {
+  stepId: number
+  stepName: string
+  message: string
+  resume: string
+  contract: PipelineStep | null
+}
+
+export type RunEntry = {
+  mode: string
+  label: string
+  state: "pending" | "running" | "done" | "failed" | "stopped"
+  startedAt: string
+  endedAt: string
+  exitCode: number | null
+  currentStep: number
+  steps: Record<string, RunStep>
+  failure: RunFailure | null
+  command: string
+}
+
+export type JobState = "running" | "stopping" | "stopped" | "done" | "failed"
+
+export type Job = {
+  id: string
+  createdAt: string
+  state: JobState
+  request: {
+    projectRoot: string
+    target: string
+    layerId: string
+    fileId: string
+    ui: string
+    mode: string
+    stopAfter: string
+    progress: string
+    overwrite: boolean
+  }
+  plan: string[]
+  runs: RunEntry[]
+  log: { base: number; next: number }
+  error: string
+}
+
+export type RunStartRequest = {
+  projectRoot: string
+  link?: string
+  target?: string
+  layerId?: string
+  fileId?: string
+  ui?: string
+  mode?: string
+  stopAfter?: string
+  overwrite?: boolean
+}
+
+export type LogSlice = { from: number; next: number; truncated: boolean; text: string }
+
 export class ApiFailure extends Error {
   code: string
   hint: string
@@ -116,5 +185,13 @@ function post<T>(path: string, body: unknown): Promise<T> {
 export const api = {
   health: () => request<Health>("/api/health"),
   plugin: () => request<PluginInfo>("/api/plugin"),
-  resolve: (body: { link: string; frameLink: string; projectDir: string }) => post<ResolveResult>("/api/resolve", body)
+  resolve: (body: { link: string; frameLink: string; projectDir: string }) => post<ResolveResult>("/api/resolve", body),
+  runStart: (body: RunStartRequest) => post<{ ok: true; job: Job }>("/api/run", body),
+  runStop: (runId: string) => post<{ ok: true; job: Job }>("/api/run/stop", { runId }),
+  runStatus: (runId = "") =>
+    request<{ ok: true; job: Job | null }>("/api/run/status?runId=" + encodeURIComponent(runId)),
+  runLog: (runId: string, from: number) =>
+    request<{ ok: true } & LogSlice>(
+      "/api/run/log?runId=" + encodeURIComponent(runId) + "&from=" + Math.max(0, from)
+    )
 }

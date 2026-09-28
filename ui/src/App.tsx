@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Boxes, ListChecks, Search, Settings } from "lucide-react"
 
 import { QueryPage } from "@/app/query-page"
@@ -18,6 +18,14 @@ const NAV = [
 ] as const
 
 type PageKey = (typeof NAV)[number]["key"]
+
+const PAGE_KEYS = NAV.map((item) => item.key) as readonly string[]
+
+// 页面记在 hash 上：刷新或直接给链接都能落到同一页。
+function readHash(): PageKey {
+  const raw = window.location.hash.replace(/^#\/?/, "")
+  return (PAGE_KEYS.includes(raw) ? raw : "query") as PageKey
+}
 
 function StatusBadges() {
   const { health, offline } = useHealth()
@@ -41,7 +49,18 @@ function StatusBadges() {
 }
 
 export default function App() {
-  const [page, setPage] = useState<PageKey>("query")
+  const [page, setPage] = useState<PageKey>(readHash)
+
+  useEffect(() => {
+    const onHashChange = () => setPage(readHash())
+    window.addEventListener("hashchange", onHashChange)
+    return () => window.removeEventListener("hashchange", onHashChange)
+  }, [])
+
+  function go(key: PageKey) {
+    window.location.hash = key
+    setPage(key)
+  }
 
   return (
     <div className="bg-background text-foreground flex min-h-svh">
@@ -64,7 +83,7 @@ export default function App() {
               <button
                 key={item.key}
                 type="button"
-                onClick={() => setPage(item.key)}
+                onClick={() => go(item.key)}
                 className={cn(
                   "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
                   active
