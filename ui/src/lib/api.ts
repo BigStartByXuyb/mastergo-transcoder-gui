@@ -235,6 +235,85 @@ export type Artifacts = {
   } | null
 }
 
+export type BoardTaskState =
+  | "queued"
+  | "preparing"
+  | "running"
+  | "waiting"
+  | "ready"
+  | "merging"
+  | "merged"
+  | "conflict"
+  | "failed"
+  | "stopped"
+
+export type BoardTaskRun = {
+  label: string
+  state: string
+  done: number
+  total: number
+  currentTitle: string
+}
+
+export type BoardProgress = {
+  done: number
+  total: number
+  currentTitle: string
+  runs: BoardTaskRun[]
+}
+
+export type BoardMergeConflict = { path: string; reason: string }
+
+export type BoardMergeReport = {
+  at: string
+  applied: string[]
+  skipped: string[]
+  notes: string[]
+  conflicts: BoardMergeConflict[]
+}
+
+export type BoardTask = {
+  id: string
+  createdAt: string
+  updatedAt: string
+  state: BoardTaskState
+  /** 中文状态名，后端给好，界面直接用。 */
+  stateLabel: string
+  request: {
+    mode: "A" | "B" | "AB"
+    link: string
+    target: string
+    ui: string
+    projectRoot: string
+    fileId: string
+    layerId: string
+  }
+  /** 这次运行在当前进程里的 id；客户端重启后为空或指向已经结束的那次。 */
+  jobId: string
+  /** 这个任务自己的工作目录（流水线的 -ProjectRoot）。 */
+  workDir: string
+  autoMerge: boolean
+  progress: BoardProgress | null
+  failure: { stepName: string; title: string; message: string; logPath: string } | null
+  merge: BoardMergeReport | null
+  error: string
+}
+
+export type Board = {
+  workRoot: string
+  limits: { logical: number; limit: number }
+  /** 正在占并发额度的任务数。 */
+  running: number
+  tasks: BoardTask[]
+}
+
+export type BoardAddBody = {
+  projectRoot: string
+  ui: string
+  autoMerge: boolean
+  items: { link: string; target: string; mode: "A" | "B" | "AB" }[]
+}
+
 export class ApiFailure extends Error {
   code: string
   hint: string
@@ -328,5 +407,13 @@ export const api = {
     glossary?: Record<string, string>
     allowEmptyLedger?: boolean
     resume?: boolean
-  }) => post<{ ok: true; written: { path: string; count: number }[]; job: Job | null; note?: string }>("/api/confirm", body)
+  }) => post<{ ok: true; written: { path: string; count: number }[]; job: Job | null; note?: string }>("/api/confirm", body),
+  board: () => request<{ ok: true; board: Board }>("/api/board"),
+  boardAdd: (body: BoardAddBody) => post<{ ok: true; board: Board }>("/api/board/add", body),
+  boardStart: (id = "") => post<{ ok: true; board: Board }>("/api/board/start", { id }),
+  boardStop: (id: string) => post<{ ok: true; board: Board }>("/api/board/stop", { id }),
+  boardRemove: (id: string) => post<{ ok: true; board: Board }>("/api/board/remove", { id }),
+  boardMerge: (id: string) => post<{ ok: true; board: Board; task: BoardTask }>("/api/board/merge", { id }),
+  boardMergeAll: (projectRoot: string) => post<{ ok: true; board: Board }>("/api/board/merge-all", { projectRoot }),
+  boardClear: (states: string[]) => post<{ ok: true; board: Board }>("/api/board/clear", { states })
 }
