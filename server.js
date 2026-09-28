@@ -29,13 +29,17 @@ const { spawnSync } = require("child_process");
 
 const { createResolver } = require("./lib/resolve.js");
 const { resolvePluginRoot } = require("./lib/plugin-root.js");
-const { readPluginInfo } = require("./lib/plugin.js");
+const { readPluginInfo, readPipelineSteps } = require("./lib/plugin.js");
 const { createRoutes, dispatch } = require("./lib/routes.js");
 const { createRunManager } = require("./lib/run.js");
 const { createSettings } = require("./lib/settings.js");
 const { createPending } = require("./lib/pending.js");
 const { createAi } = require("./lib/ai.js");
 const { createArtifacts } = require("./lib/artifacts.js");
+const { createBoard } = require("./lib/board.js");
+const { createConfirm } = require("./lib/confirm.js");
+const { createAutoFill } = require("./lib/autofill.js");
+const { createLayoutRegistrar } = require("./lib/plugin-layout.js");
 
 const HERE = __dirname;
 const PUBLIC_DIR = path.join(HERE, "public");
@@ -109,10 +113,25 @@ const resolver = createResolver({
 resolver.refreshProjectFrames();
 
 const runs = createRunManager({ plugin: PLUGIN });
-const settings = createSettings(process.env.MASTERGO_HOME || HERE);
+const HOME = process.env.MASTERGO_HOME || HERE;
+const settings = createSettings(HOME);
 const pending = createPending({ plugin: PLUGIN });
 const ai = createAi({ settings: settings });
 const artifacts = createArtifacts();
+const confirm = createConfirm({
+  runs: runs,
+  pending: pending,
+  steps: function () { return readPipelineSteps(PLUGIN.root); }
+});
+const autoFill = createAutoFill({ ai: ai, pending: pending, confirm: confirm, settings: settings });
+const layoutRegistrar = createLayoutRegistrar({ pluginRoot: PLUGIN.root });
+const board = createBoard({
+  runs: runs,
+  pending: pending,
+  autoFill: autoFill,
+  layout: layoutRegistrar,
+  home: HOME
+});
 const routes = createRoutes({
   resolver: resolver,
   plugin: PLUGIN,
@@ -121,7 +140,9 @@ const routes = createRoutes({
   settings: settings,
   pending: pending,
   ai: ai,
-  artifacts: artifacts
+  artifacts: artifacts,
+  board: board,
+  confirm: confirm
 });
 
 // ---- 服务 ----

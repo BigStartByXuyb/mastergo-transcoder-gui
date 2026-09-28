@@ -4,3 +4,7 @@ node_modules/
 # 用户状态：设置与 DPAPI 加密的凭据，绝不入库
 local.json
 credentials
+
+# 看板状态与任务工作目录（方案 B 的产物隔离区）
+board.json
+work/
