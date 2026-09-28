@@ -366,7 +366,7 @@ function TaskRow({
             {task.workDir || task.request.projectRoot}
           </span>
           {task.error && <span className="text-destructive text-xs">{task.error}</span>}
-          {task.failure && (
+          {task.failure && task.failure.kind !== "semantic" && (
             <span className="text-destructive text-xs">
               {task.failure.title || task.failure.stepName}：{task.failure.message}
               {task.failure.logPath && (
@@ -376,9 +376,15 @@ function TaskRow({
               )}
             </span>
           )}
+          {task.failure && task.failure.kind === "semantic" && (
+            <span className="text-muted-foreground text-xs">
+              停在语义判断点，不是错误：{task.failure.title || task.failure.stepName}
+              {task.failure.message ? " —— " + task.failure.message : ""}
+            </span>
+          )}
           {task.state === "waiting" && (
             <span className="text-muted-foreground text-xs">
-              停在语义判断点，已经进「待确认」列表（产物在它自己的工作目录里）。
+              AI 会自动补输入；补不动就去「待确认」列表处理（产物在它自己的工作目录里）。
             </span>
           )}
           {task.merge && task.merge.conflicts.length === 0 && (

@@ -294,7 +294,14 @@ export type BoardTask = {
   workDir: string
   autoMerge: boolean
   progress: BoardProgress | null
-  failure: { stepName: string; title: string; message: string; logPath: string } | null
+  failure: {
+    /** semantic = 停在语义判断点（不是错误）；error = 真的失败。 */
+    kind: "" | "semantic" | "error"
+    stepName: string
+    title: string
+    message: string
+    logPath: string
+  } | null
   merge: BoardMergeReport | null
   error: string
 }
