@@ -412,6 +412,8 @@ export type MappingView = {
   } | null
   requiredAttrs: Record<string, string[]> | null
   ruleKeys: { key: string; entries: number }[]
+  /** 映射表里形状不合预期的条目（后端跳过并记下来，界面照实显示，不静默吞）。 */
+  warnings: string[]
 }
 
 export class ApiFailure extends Error {

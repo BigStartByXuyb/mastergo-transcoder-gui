@@ -92,6 +92,13 @@ export function MappingPage() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
+          {mapping.warnings.length > 0 && (
+            <div className="text-destructive text-xs">
+              {mapping.warnings.map((warning) => (
+                <div key={warning}>{warning}</div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -201,7 +208,9 @@ export function MappingPage() {
                 {Object.entries(mapping.requiredAttrs ?? {}).map(([type, attrs]) => (
                   <TableRow key={type}>
                     <TableCell className="font-mono text-xs">{type}</TableCell>
-                    <TableCell className="font-mono text-xs break-all">{attrs.join(" / ")}</TableCell>
+                    <TableCell className="font-mono text-xs break-all">
+                      {Array.isArray(attrs) ? attrs.join(" / ") : String(attrs)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
