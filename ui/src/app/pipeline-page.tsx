@@ -86,13 +86,15 @@ function RunCard({
   waitingIconNames,
   waitingTranslations,
   onResume,
-  resuming
+  resuming,
+  running
 }: {
   run: RunEntry
   waitingIconNames: number
   waitingTranslations: number
   onResume: () => void
   resuming: boolean
+  running: boolean
 }) {
   const steps = Object.values(run.steps).sort((left, right) => left.id - right.id)
   const doneCount = steps.filter((step) => step.state === "ok").length
@@ -180,7 +182,7 @@ function RunCard({
               )}
               <span className="break-all">{run.failure.message}</span>
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="secondary" size="sm" disabled={resuming} onClick={onResume}>
+                <Button variant="secondary" size="sm" disabled={resuming || running} onClick={onResume}>
                   {resuming ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
                   {run.failure.stepId === 0
                     ? "按原参数重跑这一条路线"
@@ -589,6 +591,7 @@ export function PipelinePage() {
           waitingIconNames={waitingIconNames}
           waitingTranslations={waitingTranslations}
           resuming={busy === "resume"}
+          running={running}
           onResume={() => void resume()}
         />
       ))}
