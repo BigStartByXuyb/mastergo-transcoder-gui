@@ -432,6 +432,8 @@ export const api = {
       resumedFrom: string
       /** 因为工程里已有这一页，续跑回到了生成 Bundle 清单的那一步重算。 */
       recomputedManifest?: boolean
+      /** 命名表里留着当前候选清单不认的下标，续跑前裁掉了。 */
+      reconciled?: { removed: number; kept: number; note?: string } | null
       job: Job
     }>("/api/run/resume", { runId }),
   runStop: (runId: string) => post<{ ok: true; job: Job }>("/api/run/stop", { runId }),

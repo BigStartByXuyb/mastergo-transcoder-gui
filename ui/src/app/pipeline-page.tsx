@@ -497,7 +497,10 @@ export function PipelinePage() {
         "已继续：路线 " +
           payload.mode +
           (payload.resumedFrom === "起点" ? "（从起点）" : "（从 " + payload.resumedFrom + "）") +
-          (payload.recomputedManifest ? "；已有页面 → 回到生成 Bundle 清单的那一步重算" : "")
+          (payload.recomputedManifest ? "；已有页面 → 回到生成 Bundle 清单的那一步重算" : "") +
+          (payload.reconciled && payload.reconciled.removed > 0
+            ? "；命名表裁掉 " + payload.reconciled.removed + " 条当前不登记的下标"
+            : "")
       )
     } catch (error) {
       setFailure(error instanceof ApiFailure ? error.message + (error.hint ? "：" + error.hint : "") : String(error))
