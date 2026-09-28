@@ -131,6 +131,7 @@ const board = createBoard({
   pending: pending,
   autoFill: autoFill,
   layout: layoutRegistrar,
+  artifacts: artifacts,
   home: HOME
 });
 const pendingQueue = createPendingQueue({ runs: runs, board: board, pending: pending });

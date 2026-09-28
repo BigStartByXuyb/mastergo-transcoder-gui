@@ -226,6 +226,8 @@ export type Artifacts = {
   audit: ArtifactEntry[]
   backupCount: number
   cleanedCount: number
+  /** 插件运行登记表里的步骤（跨多次运行合并的一份）。 */
+  steps: RunRegistryStep[]
   summary: {
     generatedAt: string
     page: unknown
@@ -233,6 +235,14 @@ export type Artifacts = {
     todos: { kind?: string; count?: number; byReason?: Record<string, number>; note?: string }[]
     notices: unknown[]
   } | null
+}
+
+export type RunRegistryStep = {
+  id: number
+  name: string
+  status: string
+  seconds: number
+  note: string
 }
 
 export type BoardTaskState =
@@ -294,6 +304,9 @@ export type BoardTask = {
   workDir: string
   autoMerge: boolean
   progress: BoardProgress | null
+  /** 这一页的流程：步骤来自插件自己的运行登记表，续跑会接着写同一份。 */
+  steps: BoardTaskStep[]
+  aiFills: BoardAiFill[]
   failure: {
     /** semantic = 停在语义判断点（不是错误）；error = 真的失败。 */
     kind: "" | "semantic" | "error"
@@ -304,6 +317,27 @@ export type BoardTask = {
   } | null
   merge: BoardMergeReport | null
   error: string
+}
+
+export type BoardAiFill = {
+  at: string
+  /** 补的输入由这一步消费（续跑锚点）。 */
+  stepName: string
+  stepTitle: string
+  /** 流水线当时停在哪一步。 */
+  stoppedAt: string
+  filled: string[]
+}
+
+export type BoardTaskStep = {
+  id: number
+  name: string
+  status: string
+  seconds: number
+  note: string
+  /** 这一步吃人/AI 写的输入文件（判据取自插件步骤契约的 Inputs）。 */
+  humanInput: boolean
+  aiFill: BoardAiFill | null
 }
 
 export type Board = {
