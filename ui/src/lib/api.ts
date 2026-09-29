@@ -426,6 +426,23 @@ export type ProjectPages = {
   problem: string
 }
 
+/** 页面身份候选：区域来自项目既有约定，语义名来自设计页名的机械转换或模型。 */
+export type IdentityCandidate = {
+  target: string
+  ui: string
+  semanticName: string
+  basis: string
+  needsSemanticName: boolean
+  confidence?: number | null
+  reason?: string
+}
+
+export type IdentityCandidates = {
+  uiCandidates: { ui: string; count: number; basis: string }[]
+  candidates: IdentityCandidate[]
+  ai: { used: boolean; items: IdentityCandidate[] }
+}
+
 export class ApiFailure extends Error {
   code: string
   hint: string
@@ -547,6 +564,16 @@ export const api = {
     request<{ ok: true; pages: ProjectPages }>(
       "/api/project/pages?projectRoot=" + encodeURIComponent(projectRoot)
     ),
+  identityCandidates: (body: { projectRoot: string; pageName: string; useAi?: boolean }) =>
+    post<{ ok: true } & IdentityCandidates>("/api/identity/candidates", body),
+  identityApply: (body: {
+    projectRoot: string
+    target: string
+    ui: string
+    fileId?: string
+    layerId?: string
+    designPageName?: string
+  }) => post<{ ok: true; registryPath: string; replaced: boolean }>("/api/identity/apply", body),
   boardAdd: (body: BoardAddBody) => post<{ ok: true; board: Board; created: string[] }>("/api/board/add", body),
   boardStart: (id = "") => post<{ ok: true; board: Board }>("/api/board/start", { id }),
   boardStop: (id: string) => post<{ ok: true; board: Board }>("/api/board/stop", { id }),

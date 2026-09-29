@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ArrowRight, GitMerge, Loader2, Play, RefreshCw, RotateCw, Square } from "lucide-react"
+import { ArrowRight, GitMerge, Loader2, Play, RefreshCw, RotateCw, Sparkles, Square } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -17,6 +17,7 @@ import {
   ApiFailure,
   api,
   type Board,
+  type IdentityCandidate,
   type Job,
   type Pending,
   type PipelineStep,
@@ -66,6 +67,9 @@ export function PipelinePage({ taskId }: { taskId: string }) {
   const [busy, setBusy] = useState("")
   const [automation, setAutomation] = useState("assist")
   const [pages, setPages] = useState<ProjectPages | null>(null)
+  const [identityName, setIdentityName] = useState("")
+  const [identityCandidates, setIdentityCandidates] = useState<IdentityCandidate[]>([])
+  const [identityBusy, setIdentityBusy] = useState("")
 
   const [link, setLink] = useState("")
   const [projectRoot, setProjectRoot] = useState("")
@@ -170,6 +174,66 @@ export function PipelinePage({ taskId }: { taskId: string }) {
   const needsIdentityHint = !ui.trim() && !target.trim()
   // 填了 Target 但仍推不出区域：这是最容易被误判成「插件坏了」的情况，必须提前说清原因。
   const targetWithoutPrefix = !ui.trim() && Boolean(target.trim()) && !derivedUi
+
+  /*
+   * 页面身份补全：和插件跑法里 agent 做的是同一件事——按设计页名与项目既有区域约定给出
+   * 「Target + 区域」候选，写进工程登记表，再回填表单。
+   * 自动化层级是 auto 时直接采用第一条（不人工确认）；assist/off 时列出来等人点。
+   */
+  async function fillIdentity() {
+    setIdentityBusy("candidates")
+    setFailure("")
+    try {
+      const payload = await api.identityCandidates({
+        projectRoot: projectRoot.trim(),
+        pageName: identityName.trim() || target.trim(),
+        useAi: automation !== "off"
+      })
+      const list: IdentityCandidate[] = [
+        ...(payload.ai.items ?? []).map((item) => ({ ...item, basis: item.reason || "模型按设计页名与既有区域约定给出" })),
+        ...(payload.candidates ?? [])
+      ]
+      setIdentityCandidates(list)
+      if (list.length === 0) {
+        setFailure("这个工程里还没有任何区域约定（登记表里没有页面、也没有带前缀的 Target），先手工填一次 Ui 前缀，之后就能自动补了。")
+        return
+      }
+      if (automation === "auto") {
+        const first = list.find((item) => item.target && !item.needsSemanticName) ?? list.find((item) => item.target)
+        if (first) await applyIdentity(first)
+        else setFailure("候选里还没有拼好的 Target，需要先给语义名（或把自动化层级降到辅助，手工确认一次）。")
+      }
+    } catch (error) {
+      setFailure(error instanceof ApiFailure ? error.message + (error.hint ? "：" + error.hint : "") : String(error))
+    } finally {
+      setIdentityBusy("")
+    }
+  }
+
+  async function applyIdentity(item: IdentityCandidate) {
+    if (!item.target || !item.ui) return
+    setIdentityBusy("apply")
+    try {
+      const written = await api.identityApply({
+        projectRoot: projectRoot.trim(),
+        target: item.target,
+        ui: item.ui,
+        designPageName: identityName.trim() || target.trim()
+      })
+      setTarget(item.target)
+      setUi(item.ui)
+      toast.success("已写入登记表（" + (written.replaced ? "替换" : "新增") + "）：" + item.target + " · UI " + item.ui)
+      setIdentityCandidates([])
+      api
+        .projectPages(projectRoot.trim())
+        .then((payload) => setPages(payload.pages))
+        .catch(() => undefined)
+    } catch (error) {
+      setFailure(error instanceof ApiFailure ? error.message + (error.hint ? "：" + error.hint : "") : String(error))
+    } finally {
+      setIdentityBusy("")
+    }
+  }
 
   // 从看板点「详情」进来时 URL 带 task=<id>：跟着它切换当前任务。
   useEffect(() => {
@@ -423,6 +487,47 @@ export function PipelinePage({ taskId }: { taskId: string }) {
 
           {/* Target / UI 的去向提示：说明「谁来决定区域」，并给出登记表里的候选与推导预览。 */}
           <div className="text-muted-foreground flex flex-col gap-1 text-xs">
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                id="run-identity-name"
+                className="h-8 max-w-xs"
+                spellCheck={false}
+                placeholder="设计页名（可选，如 Manual Align）"
+                value={identityName}
+                onChange={(event) => setIdentityName(event.target.value)}
+              />
+              <Button size="sm" variant="outline" disabled={identityBusy !== ""} onClick={() => void fillIdentity()}>
+                {identityBusy === "candidates" ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                自动补 Target / 区域
+              </Button>
+              <span>
+                按项目既有区域约定 + 设计页名给出候选并写进工程登记表；
+                当前自动化层级：
+                {AUTOMATION_LABEL[automation] ?? automation}
+                {automation === "auto" ? "（直接采用第一条，不人工确认）" : "（列出来，你点一下再写）"}
+              </span>
+            </div>
+            {identityCandidates.length > 0 && (
+              <div className="flex flex-col gap-1">
+                {identityCandidates.map((item, index) => (
+                  <div key={index} className="flex flex-wrap items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant={item.target ? "default" : "outline"}
+                      disabled={!item.target || identityBusy !== ""}
+                      onClick={() => void applyIdentity(item)}
+                    >
+                      {item.target || "（还需要语义名）"}
+                    </Button>
+                    <span>
+                      {item.ui ? "UI " + item.ui + " · " : ""}
+                      {item.basis}
+                      {typeof item.confidence === "number" ? " · 置信度 " + item.confidence : ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             {derivedUi && <span>将使用 UI={derivedUi}（按 Target 前缀推导；插件自己也会这么算）</span>}
             {needsIdentityHint && (
               <span className="text-amber-600">
