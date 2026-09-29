@@ -15,6 +15,7 @@ export type AgentStreamEvent =
 
 export type AgentItem =
   | { kind: "message"; text: string }
+  | { kind: "notice"; text: string }
   | { kind: "command"; command: string; output: string; exitCode: number | null }
   | { kind: "failure"; text: string }
   | { kind: "thread"; id: string }
@@ -85,9 +86,15 @@ export function readCodexLine(line: string): AgentItem | null {
     const tokens = typeof usage?.total_tokens === "number" ? usage.total_tokens : null
     return { kind: "turn", tokens: tokens }
   }
-  if (type === "turn.failed" || type === "error") {
+  if (type === "turn.failed") {
     const error = asRecord(payload.error)
     return { kind: "failure", text: textOf(error?.message) || textOf(payload.message) || "这次提问没有跑完" }
+  }
+  // 引擎级的 error（重试、网络抖动、模型元数据这类）不直接判定这一轮失败：
+  // 跑没跑完只看 turn.completed / 退出码，界面在收尾时统一定性。
+  if (type === "error") {
+    const error = asRecord(payload.error)
+    return { kind: "notice", text: textOf(payload.message) || textOf(error?.message) || "引擎报了一条错误" }
   }
   if (type !== "item.completed") return null
 
@@ -102,6 +109,8 @@ export function readCodexLine(line: string): AgentItem | null {
       exitCode: typeof item?.exit_code === "number" ? item.exit_code : null
     }
   }
-  if (itemType === "error") return { kind: "failure", text: textOf(item?.message) }
+  // 条目级的 error 是一轮里引擎自己报的（模型元数据缺失、重试之类），这一轮照样会跑完；
+  // 跑没跑完只看 turn.completed / turn.failed 与进程退出码，所以这里按提示，不按失败。
+  if (itemType === "error") return { kind: "notice", text: textOf(item?.message) }
   return null
 }

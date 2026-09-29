@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react"
-import { Loader2, Send, Square, Terminal, User } from "lucide-react"
+import { Loader2, Send, Square } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ClampText } from "@/app/clamp-text"
+import { ChatTranscript, type Turn } from "@/app/chat-transcript"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -15,13 +16,16 @@ import { readCodexLine, type AgentItem } from "@/lib/agent-stream"
 import { describeFailure } from "@/lib/describe-failure"
 import { readRecentProjects, rememberProject } from "@/lib/recent-projects"
 
-type Turn = { kind: "you"; text: string } | { kind: "agent"; item: AgentItem }
-
 /*
  * 对话页：一次提问就是一次 codex exec，回答、命令、命令输出都按顺序贴在下面。
  * 续跑认 thread id（codex exec resume），所以同一个对话能接着上一次继续说。
  *
  * 写盘默认关：关着时 Codex 只读；开着且这里也勾了，才允许它直接改工程文件。
+ * 引擎日志按轮收尾：正常跑完的 stderr 有「Reading additional input from stdin」这类噪音，
+ * 默认收着；收尾不干净（收到失败事件或退出码非 0）才自动铺开，让人一眼看到真正的原因。
+ *
+ * 一红就是真没跑完：只有传输失败、turn.failed、退出码非 0、退出码 0 却没收尾（且不是人点停下）才出红卡；
+ * 引擎中途报的重试一类消息走浅色提示，等收尾再定性。
  */
 export function ChatPage() {
   const [settings, setSettings] = useState<Settings | null>(null)
@@ -29,12 +33,15 @@ export function ChatPage() {
   const [prompt, setPrompt] = useState("")
   const [write, setWrite] = useState(false)
   const [turns, setTurns] = useState<Turn[]>([])
-  const [stderr, setStderr] = useState("")
   const [engine, setEngine] = useState("")
   const [thread, setThread] = useState("")
   const [running, setRunning] = useState(false)
   const [failure, setFailure] = useState("")
   const abortRef = useRef<AbortController | null>(null)
+  const failedRef = useRef(false)
+  const stderrRef = useRef("")
+  const turnDoneRef = useRef(false)
+  const stoppedRef = useRef(false)
 
   useEffect(() => {
     api
@@ -49,13 +56,23 @@ export function ChatPage() {
     setTurns((current) => [...current, { kind: "agent", item }])
   }
 
+  function flushEngineLog() {
+    const text = stderrRef.current.replace(/\n+$/, "")
+    stderrRef.current = ""
+    if (!text) return
+    setTurns((current) => [...current, { kind: "log", text, open: failedRef.current }])
+  }
+
   async function send() {
     const text = prompt.trim()
     if (!text || running) return
     setTurns((current) => [...current, { kind: "you", text }])
     setPrompt("")
-    setStderr("")
+    stderrRef.current = ""
     setFailure("")
+    failedRef.current = false
+    turnDoneRef.current = false
+    stoppedRef.current = false
     setRunning(true)
     if (projectRoot.trim()) rememberProject(projectRoot.trim())
 
@@ -70,12 +87,24 @@ export function ChatPage() {
             return
           }
           if (event.kind === "failure") {
+            failedRef.current = true
             setFailure(event.message + (event.hint ? "；" + event.hint : ""))
+            return
+          }
+          if (event.kind === "exit") {
+            if (event.code !== 0) {
+              if (!failedRef.current) setFailure("Codex 退出码 " + event.code + "；下面是引擎日志。")
+              failedRef.current = true
+            } else if (!turnDoneRef.current && !stoppedRef.current) {
+              if (!failedRef.current) setFailure("这一轮没有正常收尾；下面是引擎日志。")
+              failedRef.current = true
+            }
+            flushEngineLog()
             return
           }
           if (event.kind === "line") {
             if (event.stream !== "stdout") {
-              setStderr((current) => current + event.line + "\n")
+              stderrRef.current += event.line + "\n"
               return
             }
             const item = readCodexLine(event.line)
@@ -84,6 +113,11 @@ export function ChatPage() {
               setThread(item.id)
               return
             }
+            // 一轮没跑完（turn.failed）时把这一轮的引擎日志标成默认铺开。
+            if (item.kind === "failure") {
+              failedRef.current = true
+            }
+            if (item.kind === "turn") turnDoneRef.current = true
             push(item)
           }
         },
@@ -92,12 +126,15 @@ export function ChatPage() {
     } catch (error) {
       if (!controller.signal.aborted) setFailure(describeFailure(error))
     } finally {
+      // 半路断线（含点「停下」）时收不到 exit 事件，日志在这里补挂。
+      flushEngineLog()
       abortRef.current = null
       setRunning(false)
     }
   }
 
   function stop() {
+    stoppedRef.current = true
     abortRef.current?.abort()
   }
 
@@ -189,66 +226,11 @@ export function ChatPage() {
           <CardDescription>关掉这个页面就清空；要接着上一次说，就在同一个页面里继续问。</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          {turns.length === 0 && !stderr && <p className="text-muted-foreground text-sm">还没有对话。</p>}
-          {turns.map((turn, index) =>
-            turn.kind === "you" ? (
-              <div key={index} className="flex items-start gap-2">
-                <User className="text-muted-foreground mt-0.5 size-4 shrink-0" />
-                <p className="text-sm whitespace-pre-wrap">{turn.text}</p>
-              </div>
-            ) : (
-              <TurnView key={index} item={turn.item} />
-            )
-          )}
-          {stderr && (
-            <pre className="bg-muted text-muted-foreground max-h-40 overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">
-              {stderr}
-            </pre>
-          )}
+          <ChatTranscript
+            turns={turns}
+          />
         </CardContent>
       </Card>
-    </div>
-  )
-}
-
-function TurnView({ item }: { item: AgentItem }) {
-  if (item.kind === "message") {
-    return <p className="text-sm whitespace-pre-wrap">{item.text}</p>
-  }
-  if (item.kind === "failure") {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>Codex 报错</AlertTitle>
-        <AlertDescription>
-          <ClampText text={item.text} />
-        </AlertDescription>
-      </Alert>
-    )
-  }
-  if (item.kind === "turn") {
-    return (
-      <p className="text-muted-foreground text-xs">
-        一轮结束{item.tokens === null ? "" : "（用了 " + item.tokens + " tokens）"}
-      </p>
-    )
-  }
-  if (item.kind === "thread") {
-    return <p className="text-muted-foreground text-xs">对话 {item.id.slice(0, 8)} 已开</p>
-  }
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="text-muted-foreground flex items-center gap-2 text-xs">
-        <Terminal className="size-3" />
-        <span className="min-w-0 flex-1 truncate font-mono" title={item.command}>
-          {item.command}
-        </span>
-        <Badge variant={item.exitCode === 0 ? "outline" : "destructive"}>
-          {item.exitCode === null ? "没退出码" : "exit " + item.exitCode}
-        </Badge>
-      </div>
-      {item.output && (
-        <pre className="bg-muted max-h-60 overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">{item.output}</pre>
-      )}
     </div>
   )
 }

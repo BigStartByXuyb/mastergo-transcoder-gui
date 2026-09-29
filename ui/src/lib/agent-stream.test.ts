@@ -66,15 +66,21 @@ describe("codex 自己的输出", () => {
     expect(readCodexLine('{"type":"turn.completed"}')).toEqual({ kind: "turn", tokens: null })
   })
 
-  it("失败两种写法都能认出来", () => {
+  it("一轮失败只有 turn.failed 这一种写法", () => {
     expect(readCodexLine('{"type":"turn.failed","error":{"message":"模型拒了"}}')).toEqual({
       kind: "failure",
       text: "模型拒了"
     })
-    expect(readCodexLine('{"type":"error","message":"连不上"}')).toEqual({ kind: "failure", text: "连不上" })
+  })
+
+  it("引擎自己报的错都算提示，跑没跑完由收尾定", () => {
     expect(readCodexLine('{"type":"item.completed","item":{"type":"error","message":"单步失败"}}')).toEqual({
-      kind: "failure",
+      kind: "notice",
       text: "单步失败"
+    })
+    expect(readCodexLine('{"type":"error","message":"Reconnecting... waiting for network"}')).toEqual({
+      kind: "notice",
+      text: "Reconnecting... waiting for network"
     })
   })
 

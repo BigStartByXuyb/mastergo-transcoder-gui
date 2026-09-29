@@ -16,6 +16,47 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-09-30 对话页：Codex 自动/对话模式端到端（含「停下」真杀进程）
+
+### 改了什么
+
+- `lib/routes.js`：`/api/agent/chat` 的断开监听从 `request.on("close")` 挪到 `response.on("close")` 且要求
+  `!response.writableEnded`。请求体的 `close` 在请求读完时就发（实测隔 7ms），拿它当「客户端断开」永远杀不掉 codex 子进程；
+  真断开只体现在响应流上。
+- `ui/src/lib/agent-stream.ts`：这一轮失败只认 `turn.failed`；`item.completed/error` 与顶层 `error`（重试、网络抖动、
+  模型元数据缺失）都是浅色提示 —— 跑没跑完交给收尾判定。
+- `ui/src/app/chat-page.tsx`：一红就是真没跑完 —— 传输失败、`turn.failed`、退出码非 0、退出码 0 却没收到
+  `turn.completed`（人点「停下」不算）才出红卡；引擎日志按轮收尾，挂在那一轮末尾。
+- `ui/src/app/chat-transcript.tsx`：日志从「全页一份、每次发送被重置」改成「一轮一条」，默认收着，收尾不干净才自动铺开。
+
+### 点过的东西
+
+| 页面 | 操作 | 观察到 | 结论 |
+| --- | --- | --- | --- |
+| 对话 | 发「只回答四个字：链路正常」 | 会话徽标 `对话 01a0eea5`；正文「链路正常」+「一轮结束」；`Model metadata ... not found` 是浅色一行；红卡 0；「引擎日志（1 行）」默认收着 | 通过 |
+| 对话 | 同一页面接着问「再回答三个字：收到了」 | 徽标仍是 `对话 01a0eea5`（thread 复用）；两轮日志各留一条（`引擎日志（2 行）`、`引擎日志（1 行）`），都是收着 | 通过（修掉「上一轮日志被清掉」） |
+| 对话 | 点第一轮的「引擎日志（2 行）」 | 展开出当轮 stderr（`Reading additional input from stdin...` + skill 加载失败），时间戳 `19:30:34` 对应第一轮 | 通过 |
+| 对话 | Base URL 换死端口 `http://127.0.0.1:9/v1` 再发 | 重试消息 `Reconnecting... waiting for network` 是浅色一行；红卡 0（不再提前报红） | 通过 |
+| 对话 | 点「停下」 | 5 秒内 `codex.exe` 里 parent `28000` 的子进程从 1 个变 0 个，`pid 48024` 也查不到；界面不再有「停下」；日志挂成收着的一条；红卡 0（自己停的不算失败） | 通过（本轮真 bug 修复） |
+| 对话 | Base URL 改回 `https://api.deepseek.com` 再发一轮 | 「收尾正常」+「一轮结束」；红卡 0；日志收着 | 通过 |
+| 设置 | 两次读写 Base URL（死端口 → 回 DeepSeek） | `GET /api/settings` 回读一致，`local.json` 恢复 `https://api.deepseek.com` | 通过 |
+
+### 没点的
+
+- 写盘开关（`agent.allowWrite` 是 false，界面上是禁用态）：没开，写操作白名单与二次确认留给要改工程文件的那次。
+- Codex 版本列表 / 切换 / 回退：会真下载并改指针，由第 5 块更新器演练覆盖。
+- 「停下」之后再在同一个 thread 追问：本次没验证停掉那一轮的半途状态怎么接。
+
+### 自动化门禁
+
+| 命令 | 结果 |
+| --- | --- |
+| `npm run test:coverage` | 通过，lines 96.56 / branch 81.87 / funcs 96.04（门禁 90/75/90） |
+| `npm --prefix ui run test:coverage` | 通过，stmts 99.23 / branch 90.64 / funcs 100 |
+| `npm --prefix ui run lint` | 通过（0 error） |
+| `npm --prefix ui run build` | 通过 |
+| `node <cicd>/check-app-structure.mjs --root .` | PASS（硬编码路径 / 孤儿导出 / 分层 / CI 钉死 均 0 条） |
+
 ## 2026-09-30 复核：同页重复合并只留一份 + Layout 语言名 + 看板定宽
 
 ### 改了什么
