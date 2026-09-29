@@ -173,6 +173,8 @@ export type PendingIcons = {
   /** 命名表里插件当前不认的下标条数（换了设计稿/图层沿用同一 Target 时的旧条目）。 */
   stale: number
   staleIndexes: number[]
+  /** 资源名撞在一起的组：同一页里 name 必须唯一，重名会被第 7 步的台账直接拒绝。 */
+  duplicates: { name: string; indexes: number[] }[]
   naming: { index: number; name: string; comment: string }[]
   needsNaming: boolean
 }

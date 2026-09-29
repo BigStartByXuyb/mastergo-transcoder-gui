@@ -131,6 +131,9 @@ export function PendingPanel({
   const iconCount = pending?.icons.available ? pending.icons.missing : 0
   // 命名表里插件当前不认的旧下标（上一版设计稿留下的）：也要处理，否则第 7 步会拒绝。
   const staleCount = pending?.icons.available ? pending.icons.stale : 0
+  // 资源名撞在一起的组数（同名图层按图层名起名就会撞）：第 7 步的台账要求同一页里名字唯一。
+  const duplicateGroups = pending?.icons.available ? pending.icons.duplicates : []
+  const duplicateCount = duplicateGroups.length
   const langCount =
     pending?.translations.available && pending.translations.needsTranslation
       ? pending.translations.pendingTranslations.length
@@ -139,7 +142,7 @@ export function PendingPanel({
     pending?.translations.available && pending.translations.needsGlossary
       ? pending.translations.glossaryRequired.length
       : 0
-  const waiting = iconCount + langCount + glossaryCount + staleCount
+  const waiting = iconCount + langCount + glossaryCount + staleCount + duplicateCount
 
   /*
    * 「本页没有图标槽位」只有一种情形：插件判定必须登记的候选一条都没有。
@@ -204,8 +207,8 @@ export function PendingPanel({
           translations: pending.translations.available ? translations : undefined,
           glossary: pending.translations.available ? glossaryMap : undefined,
           allowEmptyLedger: noIconSlots && allowEmptyLedger,
-          // 命名表里有当前不认的旧下标就顺手裁掉：这次提交不只是补名字。
-          pruneNaming: staleCount > 0,
+          // 命名表写歪了（旧下标 / 重名）就顺手修好：这次提交不只是补名字。
+          pruneNaming: staleCount > 0 || duplicateCount > 0,
           resume
         })
         const written = payload.written.map(labelOfWritten)
@@ -237,7 +240,7 @@ export function PendingPanel({
     if (waiting === 0) return
     if (aiReady !== true) return
     const key =
-      projectRoot + "|" + target + "|" + iconCount + "|" + staleCount + "|" + langCount + "|" + glossaryCount
+      projectRoot + "|" + target + "|" + iconCount + "|" + staleCount + "|" + duplicateCount + "|" + langCount + "|" + glossaryCount
     if (autoKey.current === key) return
     autoKey.current = key
     void (async () => {
@@ -390,6 +393,7 @@ export function PendingPanel({
             {icons.registrationSummary && <Badge variant="secondary">需登记 {icons.registrationSummary.register}</Badge>}
             {icons.registrationSummary && <Badge variant="outline">不登记 {icons.registrationSummary.skip}</Badge>}
             {staleCount > 0 && <Badge variant="destructive">旧条目 {staleCount}</Badge>}
+            {duplicateCount > 0 && <Badge variant="destructive">重名 {duplicateCount} 组</Badge>}
             {icons.registrationSummary &&
               Object.entries(icons.registrationSummary.byBasis).map(([basis, count]) => (
                 <Badge key={basis} variant="outline">
@@ -404,6 +408,17 @@ export function PendingPanel({
               <AlertDescription>
                 下标 {pending?.icons.staleIndexes.join("、")} 是上一次用同一个 Target 时留下的（多半换了设计稿或图层）。
                 插件把它们算作多余图标，第 7 步会直接拒绝。提交时会把它们清掉。
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {duplicateCount > 0 && (
+            <Alert className="border-amber-500/60">
+              <AlertTitle>{duplicateCount} 组图标的资源名撞在一起</AlertTitle>
+              <AlertDescription>
+                {duplicateGroups.map((group) => group.name + "（下标 " + group.indexes.join("、") + "）").join("；")}。
+                图层名相同的实例不算同一个图标，同一页里资源名必须唯一，第 7 步的台账会直接拒绝。
+                提交时会把后面的补成 …2Geometry；想按自己的口径区分，就改上面的资源名。
               </AlertDescription>
             </Alert>
           )}
@@ -424,7 +439,7 @@ export function PendingPanel({
             </>
           )}
 
-          {icons.needsNaming && (
+          {(icons.needsNaming || duplicateCount > 0) && (
             <>
               <div>
                 <Button variant="outline" size="sm" disabled={busy !== ""} onClick={() => void suggestNamesOnly()}>
