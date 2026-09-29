@@ -83,6 +83,12 @@ export function areaLabel(ui: string): string {
 /** 按工程分好组的区域：侧边栏直接渲染，不再自己 Set/filter/some 扫一遍。 */
 export type ProjectGroup = { projectRoot: string; areas: AreaEntry[]; hasTasks: boolean }
 
+/** 这个工程还有没有任务：视图（要不要给「移除」）与动作（能不能移除）共用这一处判定。 */
+export function projectHasTasks(areas: AreaEntry[], projectRoot: string): boolean {
+  const root = String(projectRoot || "").trim()
+  return areas.some((area) => area.projectRoot === root && area.tasks.length > 0)
+}
+
 export function groupByProject(areas: AreaEntry[]): ProjectGroup[] {
   const groups = new Map<string, AreaEntry[]>()
   for (const area of areas) {
@@ -93,6 +99,6 @@ export function groupByProject(areas: AreaEntry[]): ProjectGroup[] {
   return [...groups.entries()].map(([projectRoot, list]) => ({
     projectRoot: projectRoot,
     areas: list,
-    hasTasks: list.some((area) => area.tasks.length > 0)
+    hasTasks: projectHasTasks(list, projectRoot)
   }))
 }

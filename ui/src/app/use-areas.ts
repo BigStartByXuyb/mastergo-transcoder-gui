@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import { api, type BoardTask } from "@/lib/api"
-import { buildAreas, collectProjectRoots, projectRootOf, type AreaEntry, type AreaPage } from "@/lib/areas"
+import {
+  buildAreas,
+  collectProjectRoots,
+  projectHasTasks,
+  projectRootOf,
+  type AreaEntry,
+  type AreaPage
+} from "@/lib/areas"
 import { forgetProject, readRecentProjects, rememberProject } from "@/lib/recent-projects"
 import { POLL_MS } from "@/lib/task-state"
 
@@ -120,7 +127,7 @@ export function useAreas() {
   function forget(projectRoot: string): boolean {
     const root = String(projectRoot || "").trim()
     if (!root) return false
-    if (areas.some((area) => area.projectRoot === root && area.tasks.length > 0)) return false
+    if (projectHasTasks(areas, root)) return false
     setProjects(forgetProject(root))
     return true
   }
