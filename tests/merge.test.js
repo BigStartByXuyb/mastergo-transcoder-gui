@@ -206,6 +206,77 @@ function caseThreeWayDisjoint() {
   assert.ok(!threeWayMerge(base, ["a", "P", "b", "c", "d", "e", ""].join("\n"), ["a", "Q", "b", "c", "d", "e", ""].join("\n")).ok, "同一处各改各的要报冲突");
 }
 
+// 同一页第二次跑：主工程里留着上一次运行的产物（Generated/**），本次运行会重新产出它们 ——
+// 运行产物按「本次运行说了算」覆盖，人给的输入（命名表/译文/术语表/约束）两边都动过才停下。
+async function caseRerunOverwritesRunProducts(fx) {
+  const project = path.join(fx.root, "RerunProject");
+  write(path.join(project, "Resources", "Layout", "Layout.xml"), LAYOUT_BASE);
+  write(path.join(project, "Generated", "Detail.summary.json"), "{\"上次运行\":true}\n");
+  write(path.join(project, "Generated", "runs", "Detail", "run.json"), "{\"上次\":1}\n");
+
+  await workdir.create({ projectRoot: project, taskId: "t6", workRoot: fx.workRoot });
+  const dir = path.join(fx.workRoot, "t6");
+  write(path.join(dir, "Generated", "Detail.summary.json"), "{\"本次运行\":true}\n");
+  write(path.join(dir, "Generated", "runs", "Detail", "run.json"), "{\"本次\":2}\n");
+  write(path.join(dir, "Resources", "Pages", "Detail", "DetailPage.xml"), "<Page Name=\"Detail\" />\n");
+  writeLayoutManifest(dir, "Detail", project);
+
+  const manifest = await workdir.readManifest("t6", fx.workRoot);
+  const report = await merge({
+    projectRoot: project,
+    workDir: dir,
+    baseDir: path.join(fx.workRoot, "t6.base"),
+    manifest: manifest,
+    target: "Detail",
+    layout: fakeLayout()
+  });
+
+  assert.deepStrictEqual(report.conflicts, [], "运行产物不该拦合并（同一页第二次跑必须能合上）");
+  assert.ok(report.applied.includes("Generated/Detail.summary.json"), "本次运行的产物要覆盖主工程那一份");
+  assert.strictEqual(read(path.join(project, "Generated", "Detail.summary.json")), "{\"本次运行\":true}\n");
+  assert.strictEqual(read(path.join(project, "Generated", "runs", "Detail", "run.json")), "{\"本次\":2}\n");
+  assert.ok(
+    report.notes.some((note) => note.includes("本次运行的产物，覆盖主工程上一次的")),
+    "覆盖要留一条说明"
+  );
+}
+
+// GUI 的运行不消费工程里那份 Generated/_inputs（建工作目录时整层不复制），它只是上一次运行的记录。
+// 所以本次运行重新填的命名表/译文照样按「本次运行说了算」刷新，并留一条说明；
+// 冲突只留给真正的源码文件（Resources/**、UI/**）。
+async function caseRunInputRecordRefreshed(fx) {
+  const project = path.join(fx.root, "HumanInputProject");
+  write(path.join(project, "Resources", "Layout", "Layout.xml"), LAYOUT_BASE);
+  write(path.join(project, "Generated", "_inputs", "Detail.lang-translations.json"), "{\"停止调整\":\"人改的\"}\n");
+
+  await workdir.create({ projectRoot: project, taskId: "t7", workRoot: fx.workRoot });
+  const dir = path.join(fx.workRoot, "t7");
+  write(path.join(dir, "Generated", "_inputs", "Detail.lang-translations.json"), "{\"停止调整\":\"本次跑的\"}\n");
+  write(path.join(dir, "Resources", "Pages", "Detail", "DetailPage.xml"), "<Page Name=\"Detail\" />\n");
+  writeLayoutManifest(dir, "Detail", project);
+
+  const manifest = await workdir.readManifest("t7", fx.workRoot);
+  const report = await merge({
+    projectRoot: project,
+    workDir: dir,
+    baseDir: path.join(fx.workRoot, "t7.base"),
+    manifest: manifest,
+    target: "Detail",
+    layout: fakeLayout()
+  });
+
+  assert.deepStrictEqual(report.conflicts, [], "输入记录不该拦合并");
+  assert.ok(
+    report.applied.includes("Generated/_inputs/Detail.lang-translations.json"),
+    "本次运行填的译文记录要刷新到工程里"
+  );
+  assert.strictEqual(
+    read(path.join(project, "Generated", "_inputs", "Detail.lang-translations.json")),
+    "{\"停止调整\":\"本次跑的\"}\n",
+    "工程里那份是上一次运行的记录，由本次运行刷新"
+  );
+}
+
 function caseConcurrency() {
   const logical = logicalCores();
   const limit = parallelism(logical);
@@ -221,6 +292,8 @@ async function main() {
     ["两个任务各加一页，Layout 重新注册后两页都在", caseMergeTwoPagesKeepsBoth],
     ["没有注册入口时 Layout 不允许整份覆盖", caseLayoutNeedsRegistrar],
     ["真冲突时不写半份", caseConflictWritesNothing],
+    ["同一页第二次跑：运行产物由本次运行覆盖", caseRerunOverwritesRunProducts],
+    ["工程里的输入记录由本次运行刷新", caseRunInputRecordRefreshed],
     ["行级三方合并", function () { caseThreeWayDisjoint(); }],
     ["并发上限", function () { caseConcurrency(); }]
   ];
