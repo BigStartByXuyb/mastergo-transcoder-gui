@@ -580,6 +580,7 @@ export const api = {
     ui: string
     fileId?: string
     layerId?: string
+    link?: string
     designPageName?: string
   }) => post<{ ok: true; registryPath: string; replaced: boolean }>("/api/identity/apply", body),
   boardAdd: (body: BoardAddBody) => post<{ ok: true; board: Board; created: string[] }>("/api/board/add", body),

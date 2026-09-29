@@ -241,6 +241,8 @@ export function PipelinePage({ taskId }: { taskId: string }) {
         projectRoot: projectRoot.trim(),
         target: item.target,
         ui: item.ui,
+        // 把链接一起交给后端解析设计来源：链接解析只有插件那份实现，前端不自己拆 URL。
+        link: link.trim(),
         designPageName: identityName.trim() || target.trim()
       })
       setTarget(item.target)
