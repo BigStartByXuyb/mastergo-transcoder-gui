@@ -158,14 +158,14 @@ export function PipelinePage({ taskId }: { taskId: string }) {
       return
     }
     api
-      .projectPages(root, "")
+      .projectPages(root)
       .then((payload) => setPages(payload.pages))
       .catch(() => setPages(null))
   }
 
   function loadPreview(nextTarget: string) {
     api
-      .projectPages(projectRoot.trim(), nextTarget)
+      .identityPrefix(nextTarget)
       .then((payload) => setPreviewUi(payload.previewUi))
       .catch(() => setPreviewUi(""))
   }
@@ -184,7 +184,7 @@ export function PipelinePage({ taskId }: { taskId: string }) {
     }
     const timer = window.setTimeout(() => loadPreview(next), 600)
     return () => window.clearTimeout(timer)
-  }, [target, projectRoot])
+  }, [target])
 
   const derivedUi = ui.trim() ? "" : previewUi
   const needsIdentityHint = !ui.trim() && !target.trim()
@@ -241,7 +241,7 @@ export function PipelinePage({ taskId }: { taskId: string }) {
       toast.success("已写入登记表（" + (written.replaced ? "替换" : "新增") + "）：" + item.target + " · UI " + item.ui)
       setIdentityCandidates([])
       loadPages(projectRoot.trim())
-      loadPreview(item.target)
+      // 预览不用在这里再取一次：setTarget 会让上面那条 effect 跑（同一件事只有一个入口）。
     } catch (error) {
       setFailure(error instanceof ApiFailure ? error.message + (error.hint ? "：" + error.hint : "") : String(error))
     } finally {

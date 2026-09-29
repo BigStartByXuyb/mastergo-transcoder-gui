@@ -560,11 +560,13 @@ export const api = {
       resumedFrom?: string
     }>("/api/confirm", body),
   board: () => request<{ ok: true; board: Board }>("/api/board"),
-  /** target 只用于取「会推出什么区域」的预览；结论由后端算，前端不自己持规则。 */
-  projectPages: (projectRoot: string, target = "") =>
-    request<{ ok: true; pages: ProjectPages; previewUi: string }>(
-      "/api/project/pages?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
+  projectPages: (projectRoot: string) =>
+    request<{ ok: true; pages: ProjectPages }>(
+      "/api/project/pages?projectRoot=" + encodeURIComponent(projectRoot)
     ),
+  /** Target → 区域前缀的预览：规则在后端，界面上只显示结论。 */
+  identityPrefix: (target: string) =>
+    request<{ ok: true; previewUi: string }>("/api/identity/prefix?target=" + encodeURIComponent(target)),
   identityCandidates: (body: { projectRoot: string; pageName: string; useAi?: boolean }) =>
     post<{ ok: true } & IdentityCandidates>("/api/identity/candidates", body),
   identityApply: (body: {
