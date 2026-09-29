@@ -23,6 +23,7 @@ import {
   type PluginSummary
 } from "@/lib/api"
 import { readStored, writeStored } from "@/lib/storage"
+import { boardStateVariant } from "@/lib/board-state"
 
 /*
  * 流水线：新建任务 + 看某个任务的详情。
@@ -424,7 +425,7 @@ export function PipelinePage({ taskId }: { taskId: string }) {
           <CardHeader>
             <CardTitle className="flex flex-wrap items-center gap-2">
               任务详情
-              <Badge variant={task.state === "failed" || task.state === "conflict" ? "destructive" : "secondary"}>
+              <Badge variant={boardStateVariant(task.state)}>
                 {task.stateLabel}
               </Badge>
               <Badge variant="outline">{task.request.mode}</Badge>

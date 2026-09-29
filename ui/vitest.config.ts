@@ -20,6 +20,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    setupFiles: [path.resolve(here, "src/test-setup.ts")],
     // 单进程跑：本机并行起多个 jsdom 环境会把内存打爆（实测 heap OOM），用例量也还不需要并行。
     pool: "forks",
     poolOptions: { forks: { singleFork: true } },

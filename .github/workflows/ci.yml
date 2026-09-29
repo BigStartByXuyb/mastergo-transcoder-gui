@@ -17,9 +17,9 @@ permissions:
 
 jobs:
   ci:
-    uses: BigStartByXuyb/cicd/.github/workflows/desktop-app.yml@e19c741d63a6f5642c5bbc230ae3efd5bf9cd046
+    uses: BigStartByXuyb/cicd/.github/workflows/desktop-app.yml@4b432f0d64971dde539833ebf2bc8eddcb095ba9
     with:
-      ci_ref: e19c741d63a6f5642c5bbc230ae3efd5bf9cd046
+      ci_ref: 4b432f0d64971dde539833ebf2bc8eddcb095ba9
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
