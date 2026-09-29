@@ -116,16 +116,17 @@ function caseStepContractFailures() {
     "契约里的四个数组不能是空的"
   );
 
-  // 编码坏了（U+FFFD）也要报出来，而不是把坏内容往下传
+  // 编码坏了（U+FFFD）也要报出来，而不是把坏内容往下传。
+  // 必须真写出替换字符的字节（EF BF BD）：写成普通字符串的话，这条用例根本没打到编码分支。
   const badEncoding = makePlugin([
     "param([switch]$List, [string]$OutFile)",
-    "$bytes = [System.Text.Encoding]::UTF8.GetBytes('[\"\\uFFFD\"]')",
-    "Set-Content -LiteralPath $OutFile -Value $bytes -Encoding Byte",
+    "[System.IO.File]::WriteAllBytes($OutFile, [byte[]](0x5B, 0xEF, 0xBF, 0xBD, 0x5D))",
     ""
   ].join("\n"));
   assert.throws(
     () => readPipelineSteps(badEncoding.root),
-    (error) => ["STEPS_ENCODING", "STEPS_JSON", "STEPS_EMPTY", "NO_STEPS"].includes(error.code)
+    (error) => error.code === "STEPS_ENCODING",
+    "UTF-8 替换字符必须被当成编码损坏拦下"
   );
 }
 
@@ -148,12 +149,35 @@ function caseNodeControlsCli() {
   assert.strictEqual(noFiles.status, 2);
   assert.match(noFiles.stderr, /插件里缺少查询所需文件/);
 
-  // 快照不是 JSON：要报「不是合法 JSON」，而不是抛栈
+  /*
+   * 快照不是 JSON：要报「不是合法 JSON」，而不是抛栈。
+   * 这里必须给一个**完整**的桩插件——只造空目录的话，程序会先停在「插件缺件」，
+   * 根本走不到 JSON 校验，断言看着通过其实没打到目标分支。
+   */
+  const fullPlugin = path.join(tmp, "full-plugin");
+  const skill = path.join(fullPlugin, "skills", "mastergo-to-wpf");
+  for (const rel of [
+    "scripts/core/call-mastergo-mcp.js",
+    "scripts/core/mastergo-dsl-pipeline.ps1",
+    "scripts/core/resolve-mastergo-visibility.js",
+    "scripts/adapters/mtslg-iocontrol/gen-mtslg-mapping-from-dsl.js",
+    "scripts/adapters/mtslg-iocontrol/gen-iocontrol-xml.js",
+    "references/adapters/mtslg-iocontrol/mtslg-iocontrol-map.json"
+  ]) {
+    write(path.join(skill, rel), "stub\n");
+  }
+  write(path.join(skill, "scripts", "lib", "page-node-id.js"), [
+    "\"use strict\";",
+    "exports.pageKeyOf = (snapshot) => String(snapshot.dsl.nodes[0].id);",
+    "exports.derivePageNodeId = (pageKey, ref) => \"MX_\" + ref;",
+    ""
+  ].join("\n"));
+
   const badSnapshot = path.join(tmp, "snapshot.json");
   fs.writeFileSync(badSnapshot, "not json", "utf8");
-  const bad = run(["--plugin", emptyPlugin, "--out", path.join(tmp, "out.json"), "--work-dir", path.join(tmp, "work"), "--snapshot", badSnapshot]);
+  const bad = run(["--plugin", fullPlugin, "--out", path.join(tmp, "out.json"), "--work-dir", path.join(tmp, "work"), "--snapshot", badSnapshot]);
   assert.strictEqual(bad.status, 2);
-  assert.match(bad.stderr, /插件里缺少查询所需文件/);
+  assert.match(bad.stderr, /不是合法 JSON/, "坏快照要报 JSON 解析失败，而不是别的错");
 
   // 插件根不完整时，先报「缺哪些文件」（早于「用法」检查：缺件是更根本的失败）
   const usage = run(["--plugin", emptyPlugin, "--out", path.join(tmp, "out.json"), "--work-dir", path.join(tmp, "work")]);
