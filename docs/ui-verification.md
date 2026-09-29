@@ -16,6 +16,52 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-09-30 写盘白名单：可写范围只认这一次的工程目录
+
+### 改了什么
+
+- `lib/codex.js`：常量 `WRITABLE_NOTE` 换成 `writableNote(root)`，把可写范围逐字写进提示词；新增 `writeScope()`，
+  只放行「绝对路径、真实存在、确实是目录、不是盘根、不是客户端自己的安装目录（`MASTERGO_HOME`／程序所在目录）」；
+  `samePath()` 按解析后的绝对路径比对（Windows 大小写不敏感）。
+- `execArgs()` 加两道门：开了写盘而目录不合法 → `WRITE_SCOPE`；目录合法但这一次没确认、或确认的不是同一个目录 → `WRITE_CONFIRM`。
+- `lib/routes.js`：`/api/agent/chat` 把 `projectRoot` 与 `writeConfirm` 一并交给 `execArgs`，写盘要「设置里开 + 这次勾 + 这次确认目录」三处都同意。
+- 对话页：写盘打开后显示范围卡片（逐字列出这次可写的目录）与 `#chat-write-confirm`；没确认时发送键禁用；改工程目录会清掉上一次的确认。
+- `tests/codex.test.js`：补 8 条 —— 合法组合放行且范围句含该目录、只读后缀、以及 6 条拒绝（空目录／相对路径／盘根／客户端安装目录／不存在／没确认）。
+
+### 点过的东西
+
+先在设置里把写盘开关打开（`POST /api/settings`），验完改回关；服务在 8787。
+
+| 页面／入口 | 操作 | 观察到 | 结论 |
+| --- | --- | --- | --- |
+| 对话页 | 写盘开关关着时打开 `#chat` | 没有确认卡片；发送键只看「要问什么」 | 通过 |
+| 对话页 | 设置里写盘关着打开 `#chat` | `#chat-write` 存在但 `disabled`，旁边写「（先在设置里开写盘开关）」 | 通过 |
+| 对话页 | 填工程目录 `D:\ttt`，点开 `#chat-write` | 出现范围卡片「写盘只落在这一份工程目录之内，别处一律不动：D:\ttt」；`#chat-write-confirm` 未勾，发送键禁用 | 通过 |
+| 对话页 | 点 `#chat-write-confirm` | 复选框 `checked`，发送键解禁 | 通过 |
+| 对话页 | 把工程目录改成 `D:\ttt2` | 确认自动退回未勾、发送键再次禁用、卡片里的路径变成 `D:\ttt2` | 通过 |
+| 接口 | `POST /api/agent/chat`，`projectRoot=D:\ttt` + `writeConfirm=D:\ttt2` | `WRITE_CONFIRM`「这次没有确认可写范围」 | 通过 |
+| 接口 | 同上但不带 `projectRoot` | `WRITE_SCOPE`「这次不能开写盘：没给工程目录」 | 通过 |
+| 接口 | `projectRoot=D:\` | `WRITE_SCOPE`「这次不能开写盘：工程目录不能是盘根」 | 通过 |
+| 接口 | 合法目录 + 确认同一目录 | 放行，codex 真跑完一轮并回话 | 通过（不挡正常用法） |
+
+### 没点的
+
+- 没在设置页里把写盘开关关掉再点一次：设置项的开关形态这轮没动，改设置走的是接口。
+- 客户端安装目录（`MASTERGO_HOME`）与相对路径只在单测和接口里验过，没在界面上造这两种输入。
+- 插件缓存目录（`~/.codex/plugins`）不在拦截范围：填它并确认后后端放行。这里只记录，判据没改。
+
+### 自动化门禁
+
+| 命令 | 结果 |
+| --- | --- |
+| `npm test`（仓库根） | 通过 29/29 |
+| `npm run test:coverage`（仓库根，`lib/**`） | 通过，all files 96.86 / 82.89 / 96.39（门禁 90/75/90） |
+| `npx tsc -b`（`ui\`） | exit 0 |
+| `npm --prefix ui run test:coverage` | 通过，27 文件 / 153 用例；all files 99.29 / 91.63 / 100 / 99.29 |
+| `npm run lint --prefix ui` | 0 error（只剩既存的 hooks warning） |
+| `npm run build:ui` | 通过，`index-DD0ojcQN.js` 530.53 kB |
+| `node <cicd>/check-app-structure.mjs --root .` | PASS（硬编码路径 / 孤儿导出 / 分层 / CI 钉死 均 0 条） |
+
 ## 2026-09-30 「只看生效」铺到区域详情页 + 任务行宽高固定
 
 ### 改了什么
@@ -414,3 +460,4 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | `npm --prefix ui run test:coverage` | 通过，21 文件 86 用例，stmts 99 / branch 88.47 / funcs 100 |
 | `npm run build:ui` | 通过 |
 | `node <cicd>/check-app-structure.mjs --root .` | PASS（硬编码路径 / 孤儿导出 / 分层 / CI 钉死 均 0 条） |
+

@@ -778,7 +778,7 @@ export const api = {
  * 这里逐行读、逐行回调 —— request() 是按整包 JSON 解析的，读不了这条流。
  */
 export async function agentChatStream(
-  body: { prompt: string; resume?: string; projectRoot?: string; write?: boolean },
+  body: { prompt: string; resume?: string; projectRoot?: string; write?: boolean; writeConfirm?: string },
   onEvent: (event: AgentStreamEvent) => void,
   signal?: AbortSignal
 ): Promise<void> {

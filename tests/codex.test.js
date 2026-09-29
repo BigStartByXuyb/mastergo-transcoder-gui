@@ -456,11 +456,30 @@ async function main() {
     fetchImpl: remote.fetchImpl,
     spawnSyncImpl: probe()
   });
-  const custom = customCodex.execArgs({ prompt: "x", resume: "th_1", write: true });
+  const project = fs.mkdtempSync(path.join(os.tmpdir(), "gui-project-"));
+  tempDirs.push(project);
+
+  const custom = customCodex.execArgs({
+    prompt: "x",
+    resume: "th_1",
+    projectRoot: project,
+    confirmRoot: path.join(project, "..", path.basename(project)),
+    write: true
+  });
   assert.ok(custom.args.includes("model_provider=custom"), "不合法或空的厂商名统一叫 custom");
   assert.match(custom.args[custom.args.length - 1], /^\[可写\]/, "写盘走提示词授权");
+  assert.ok(custom.args[custom.args.length - 1].includes(project), "写盘范围要逐字写进提示词");
   assert.strictEqual(custom.args[custom.args.indexOf("resume") + 1], "th_1");
   assert.ok(custom.args[custom.args.length - 1].endsWith("x"));
+
+  assert.match(codex.execArgs({ prompt: "x" }).args.slice(-1)[0], /^\[只读\]/, "没开写盘就是只读");
+  assert.throws(function () { customCodex.execArgs({ prompt: "x", write: true, confirmRoot: project }); }, /没给工程目录/);
+  assert.throws(function () { customCodex.execArgs({ prompt: "x", write: true, projectRoot: project }); }, /没有确认可写范围/);
+  assert.throws(function () { customCodex.execArgs({ prompt: "x", write: true, projectRoot: project, confirmRoot: home }); }, /没有确认可写范围/);
+  assert.throws(function () { customCodex.execArgs({ prompt: "x", write: true, projectRoot: path.join(project, "missing"), confirmRoot: project }); }, /工程目录不存在/);
+  assert.throws(function () { customCodex.execArgs({ prompt: "x", write: true, projectRoot: "relative/dir", confirmRoot: project }); }, /不是绝对路径/);
+  assert.throws(function () { customCodex.execArgs({ prompt: "x", write: true, projectRoot: path.parse(project).root, confirmRoot: project }); }, /不能是盘根/);
+  assert.throws(function () { customCodex.execArgs({ prompt: "x", write: true, projectRoot: home, confirmRoot: home }); }, /本客户端自己的目录/);
 
   // 直接给了不可用的厂商名以外，配置缺项要能原样报出来。
   const noKey = createCodex({

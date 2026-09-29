@@ -5,6 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { ClampText } from "@/app/clamp-text"
 import { ChatTranscript, type Turn } from "@/app/chat-transcript"
 import { Input } from "@/components/ui/input"
@@ -21,6 +22,7 @@ import { readRecentProjects, rememberProject } from "@/lib/recent-projects"
  * 续跑认 thread id（codex exec resume），所以同一个对话能接着上一次继续说。
  *
  * 写盘默认关：关着时 Codex 只读；开着且这里也勾了，才允许它直接改工程文件。
+ * 开写盘还要再确认一遍改的是哪个目录 —— 范围就这一次的工程目录，后端拿到确认串才放行。
  * 引擎日志按轮收尾：正常跑完的 stderr 有「Reading additional input from stdin」这类噪音，
  * 默认收着；收尾不干净（收到失败事件或退出码非 0）才自动铺开，让人一眼看到真正的原因。
  *
@@ -32,6 +34,7 @@ export function ChatPage() {
   const [projectRoot, setProjectRoot] = useState(() => readRecentProjects()[0] ?? "")
   const [prompt, setPrompt] = useState("")
   const [write, setWrite] = useState(false)
+  const [writeConfirmed, setWriteConfirmed] = useState(false)
   const [turns, setTurns] = useState<Turn[]>([])
   const [engine, setEngine] = useState("")
   const [thread, setThread] = useState("")
@@ -51,6 +54,8 @@ export function ChatPage() {
   }, [])
 
   const allowWrite = Boolean(settings?.agent.allowWrite)
+  /* 勾了写盘却没确认改哪个目录，这一轮不发出去；后端同样会拦。 */
+  const writeBlocked = write && allowWrite && !writeConfirmed
 
   function push(item: AgentItem) {
     setTurns((current) => [...current, { kind: "agent", item }])
@@ -65,7 +70,7 @@ export function ChatPage() {
 
   async function send() {
     const text = prompt.trim()
-    if (!text || running) return
+    if (!text || running || writeBlocked) return
     setTurns((current) => [...current, { kind: "you", text }])
     setPrompt("")
     stderrRef.current = ""
@@ -80,7 +85,13 @@ export function ChatPage() {
     abortRef.current = controller
     try {
       await agentChatStream(
-        { prompt: text, resume: thread, projectRoot: projectRoot.trim(), write: write && allowWrite },
+        {
+          prompt: text,
+          resume: thread,
+          projectRoot: projectRoot.trim(),
+          write: write && allowWrite,
+          writeConfirm: projectRoot.trim()
+        },
         (event) => {
           if (event.kind === "engine") {
             setEngine(event.version + "（" + event.source + "）")
@@ -166,7 +177,11 @@ export function ChatPage() {
               list="chat-projects"
               placeholder="填工程目录的绝对路径；给了它才能读这个目录里的文件"
               value={projectRoot}
-              onChange={(event) => setProjectRoot(event.target.value)}
+              onChange={(event) => {
+                setProjectRoot(event.target.value)
+                // 换了目录，上一次的确认就不算数了。
+                setWriteConfirmed(false)
+              }}
             />
             <datalist id="chat-projects">
               {readRecentProjects().map((item) => (
@@ -190,11 +205,40 @@ export function ChatPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <label className="flex items-center gap-2 text-sm">
-              <Switch checked={write && allowWrite} disabled={!allowWrite} onCheckedChange={setWrite} />
-              这次允许它直接改工程文件
-              {!allowWrite && <span className="text-muted-foreground text-xs">（先在设置里开写盘开关）</span>}
-            </label>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 text-sm">
+                <Switch
+                  id="chat-write"
+                  checked={write && allowWrite}
+                  disabled={!allowWrite}
+                  onCheckedChange={(value) => {
+                    setWrite(value)
+                    setWriteConfirmed(false)
+                  }}
+                />
+                这次允许它直接改工程文件
+                {!allowWrite && <span className="text-muted-foreground text-xs">（先在设置里开写盘开关）</span>}
+              </label>
+              {write && allowWrite && (
+                <div className="flex flex-col gap-2 rounded-md border px-3 py-2">
+                  <p className="text-xs">
+                    写盘只落在这一份工程目录之内，别处一律不动：
+                    <span className="font-mono">
+                      {projectRoot.trim() || "（还没填工程目录，开不了写盘）"}
+                    </span>
+                  </p>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      id="chat-write-confirm"
+                      checked={writeConfirmed}
+                      disabled={!projectRoot.trim()}
+                      onCheckedChange={(value) => setWriteConfirmed(value === true)}
+                    />
+                    我确认这次只让它改这个目录里的文件
+                  </label>
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               {running && (
                 <Button variant="outline" onClick={stop}>
@@ -202,7 +246,7 @@ export function ChatPage() {
                   停下
                 </Button>
               )}
-              <Button disabled={running || !prompt.trim()} onClick={() => void send()}>
+              <Button disabled={running || !prompt.trim() || writeBlocked} onClick={() => void send()}>
                 {running ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
                 发送
               </Button>
