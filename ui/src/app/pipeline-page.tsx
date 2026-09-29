@@ -203,7 +203,9 @@ export function PipelinePage({ taskId }: { taskId: string }) {
       const payload = await api.identityCandidates({
         projectRoot: projectRoot.trim(),
         pageName: identityName.trim() || target.trim(),
-        useAi: automation !== "off"
+        useAi: automation !== "off",
+        // 你已经在 UI 区域框里写了区域（例如 F1）时，就按你给的那个算候选。
+        ui: ui.trim()
       })
       const list: IdentityCandidate[] = [
         ...(payload.ai.items ?? []),
