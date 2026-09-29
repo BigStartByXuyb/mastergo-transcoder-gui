@@ -20,10 +20,12 @@ import {
   type Job,
   type Pending,
   type PipelineStep,
-  type PluginSummary
+  type PluginSummary,
+  type ProjectPages
 } from "@/lib/api"
 import { readStored, writeStored } from "@/lib/storage"
 import { boardStateVariant } from "@/lib/board-state"
+import { deriveUiPrefix } from "@/lib/ui-prefix"
 
 /*
  * 流水线：新建任务 + 看某个任务的详情。
@@ -63,6 +65,7 @@ export function PipelinePage({ taskId }: { taskId: string }) {
   const [failure, setFailure] = useState("")
   const [busy, setBusy] = useState("")
   const [automation, setAutomation] = useState("assist")
+  const [pages, setPages] = useState<ProjectPages | null>(null)
 
   const [link, setLink] = useState("")
   const [projectRoot, setProjectRoot] = useState("")
@@ -137,6 +140,34 @@ export function PipelinePage({ taskId }: { taskId: string }) {
       .then((payload) => setAutomation(payload.settings.automation))
       .catch(() => undefined)
   }, [])
+
+  // 工程目录一改就去读登记表：把插件取值链第 2/3 级的候选页面列出来给人选。
+  // 读不到（没有登记表或坏 JSON）也不拦，只把原因显示出来——命令行给 Target 一样能跑。
+  useEffect(() => {
+    const root = projectRoot.trim()
+    if (!root) {
+      setPages(null)
+      return
+    }
+    let alive = true
+    const timer = window.setTimeout(() => {
+      api
+        .projectPages(root)
+        .then((payload) => {
+          if (alive) setPages(payload.pages)
+        })
+        .catch(() => {
+          if (alive) setPages(null)
+        })
+    }, 600)
+    return () => {
+      alive = false
+      window.clearTimeout(timer)
+    }
+  }, [projectRoot])
+
+  const derivedUi = ui.trim() ? "" : deriveUiPrefix(target)
+  const needsIdentityHint = !ui.trim() && !target.trim()
 
   // 从看板点「详情」进来时 URL 带 task=<id>：跟着它切换当前任务。
   useEffect(() => {
@@ -386,6 +417,39 @@ export function PipelinePage({ taskId }: { taskId: string }) {
                 onChange={(event) => setStopAfter(event.target.value)}
               />
             </div>
+          </div>
+
+          {/* Target / UI 的去向提示：说明「谁来决定区域」，并给出登记表里的候选与推导预览。 */}
+          <div className="text-muted-foreground flex flex-col gap-1 text-xs">
+            {derivedUi && <span>将使用 UI={derivedUi}（按 Target 前缀推导；插件自己也会这么算）</span>}
+            {needsIdentityHint && (
+              <span className="text-amber-600">
+                UI 与 Target 都空：插件会按取值链解析（登记表 → Target 前缀/首词）；都取不到就会在入口停下。
+                最省事的做法是把 Target 写成带区域前缀的形式，例如 F3Align。
+              </span>
+            )}
+            {pages && !pages.exists && <span>{pages.problem}</span>}
+            {pages && pages.exists && pages.pages.length === 0 && <span>登记表里还没有可用的页面条目。</span>}
+            {pages && pages.exists && pages.pages.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span>登记表里登记的页面（点一下自动填好）：</span>
+                {pages.pages.map((page, index) => (
+                  <Button
+                    key={page.target + index}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      if (page.target) setTarget(page.target)
+                      setUi(page.ui || deriveUiPrefix(page.target))
+                    }}
+                  >
+                    {page.target || page.layerId}
+                    {page.ui ? "（UI " + page.ui + "）" : ""}
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-4">

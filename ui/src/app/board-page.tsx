@@ -277,6 +277,11 @@ export function BoardPage() {
               value={form.links}
               onChange={(event) => setForm({ ...form, links: event.target.value })}
             />
+            {/* 区域前缀的去向：Target 带前缀（F3Align）时插件会自己推出来；两处都空且工程没登记表就会在入口停下。 */}
+            <p className="text-muted-foreground text-xs">
+              链接里写的 Target（`链接 | F3Align`）带区域前缀时，UI 前缀插件会自动推出来；UI 与 Target
+              都空、工程又没有 <span className="font-mono">docs/page-registry.json</span> 时，插件会在入口停下要求显式给出。
+            </p>
           </div>
           <div className="flex justify-end">
             <Button disabled={busy !== ""} onClick={addTasks}>

@@ -409,6 +409,23 @@ export type MappingView = {
   warnings: string[]
 }
 
+/** 项目登记表里的页面条目：区域前缀的权威来源之一（插件取值链的第 2/3 级）。 */
+export type ProjectPage = {
+  target: string
+  ui: string
+  derivation: string
+  fileId: string
+  layerId: string
+  designPageName: string
+}
+
+export type ProjectPages = {
+  exists: boolean
+  registryPath: string
+  pages: ProjectPage[]
+  problem: string
+}
+
 export class ApiFailure extends Error {
   code: string
   hint: string
@@ -526,6 +543,10 @@ export const api = {
       resumedFrom?: string
     }>("/api/confirm", body),
   board: () => request<{ ok: true; board: Board }>("/api/board"),
+  projectPages: (projectRoot: string) =>
+    request<{ ok: true; pages: ProjectPages }>(
+      "/api/project/pages?projectRoot=" + encodeURIComponent(projectRoot)
+    ),
   boardAdd: (body: BoardAddBody) => post<{ ok: true; board: Board; created: string[] }>("/api/board/add", body),
   boardStart: (id = "") => post<{ ok: true; board: Board }>("/api/board/start", { id }),
   boardStop: (id: string) => post<{ ok: true; board: Board }>("/api/board/stop", { id }),
