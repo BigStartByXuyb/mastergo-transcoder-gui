@@ -1,86 +1,52 @@
-import { useEffect, useMemo, useRef, useState } from "react"
-import { ArrowRight, GitMerge, Loader2, Play, RefreshCw, RotateCw, Sparkles, Square } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { DoneBoard } from "@/app/done-board"
-import { PendingPanel } from "@/app/pending-panel"
-import { StepFlow } from "@/app/task-steps"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import {
-  ApiFailure,
-  api,
-  type Board,
-  type IdentityCandidate,
-  type Job,
-  type Pending,
-  type PipelineStep,
-  type PluginSummary,
-  type ProjectPages
-} from "@/lib/api"
-import { readStored, writeStored } from "@/lib/storage"
-import { boardStateVariant } from "@/lib/board-state"
+import { NewTaskCard } from "@/app/new-task-card"
+import { TaskDetailCard } from "@/app/task-detail-card"
+import { TaskLogCard } from "@/app/task-log-card"
+import { TaskPendingCard } from "@/app/task-pending-card"
+import { useIdentity } from "@/app/use-identity"
+import { useRunLog } from "@/app/use-run-log"
+import { api, type Board, type Pending, type PipelineStep, type PluginSummary } from "@/lib/api"
+import { describeFailure } from "@/lib/describe-failure"
+import { readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
+import { POLL_MS, isBusyState, isFinishedState, waitingCounts } from "@/lib/task-state"
 
 /*
  * 流水线：新建任务 + 看某个任务的详情。
  *
  * 任务只有一套登记（看板）：这里「开始」等于「加入看板并启动」，看板的「详情」跳到这里，
  * 两边看的是同一个任务的同一份步骤登记。执行引擎、工作目录、并发与合并都在后端做。
+ *
+ * 本文件只做编排：表单在 NewTaskCard，详情 / 待确认 / 日志各一张卡，
+ * 身份补全在 useIdentity，运行日志在 useRunLog，判定逻辑在 src/lib。
  */
-
-const STORAGE_KEY = "mastergo-transcoder-gui.pipeline"
-const POLL_MS = 1500
-
-// 下拉框里只显示短值，长说明放下面一行：否则触发按钮的宽度会随选中项变化，
-// 弹层每次重新定位，看起来像"选一下就跳位置"。
-const MODE_HINT: Record<string, string> = {
-  B: "B —— MTSLG IOContorl 页面 XML（缺省）",
-  A: "A —— MW WPF XAML 页面",
-  AB: "AB —— 两条都跑，两次独立运行（先 A 后 B）"
-}
-
-const AUTOMATION_LABEL: Record<string, string> = {
-  off: "关（不叫模型）",
-  assist: "辅助",
-  auto: "自动"
-}
-
-// 占着执行额度的状态：这些状态下不允许再起同一个任务，也显示「停止」。
-const BUSY_STATES = ["preparing", "running", "merging"]
 
 export function PipelinePage({ taskId }: { taskId: string }) {
   const [plugin, setPlugin] = useState<PluginSummary | null>(null)
   const [contract, setContract] = useState<PipelineStep[]>([])
   const [board, setBoard] = useState<Board | null>(null)
   const [currentId, setCurrentId] = useState(taskId)
-  const [job, setJob] = useState<Job | null>(null)
   const [pending, setPending] = useState<Pending | null>(null)
-  const [logText, setLogText] = useState("")
   const [failure, setFailure] = useState("")
   const [busy, setBusy] = useState("")
   const [automation, setAutomation] = useState("assist")
-  const [pages, setPages] = useState<ProjectPages | null>(null)
-  const [previewUi, setPreviewUi] = useState("")
-  const [identityName, setIdentityName] = useState("")
-  const [identityCandidates, setIdentityCandidates] = useState<IdentityCandidate[]>([])
-  const [identityBusy, setIdentityBusy] = useState("")
+  const [form, setForm] = useState<TaskForm>(() => readTaskForm())
 
-  const [link, setLink] = useState("")
-  const [projectRoot, setProjectRoot] = useState("")
-  const [target, setTarget] = useState("")
-  const [ui, setUi] = useState("")
-  const [mode, setMode] = useState("B")
-  const [stopAfter, setStopAfter] = useState("")
-  const [overwrite, setOverwrite] = useState(false)
+  function patchForm(patch: Partial<TaskForm>) {
+    setForm((current) => ({ ...current, ...patch }))
+  }
 
-  const offsetRef = useRef(0)
-  const logRef = useRef<HTMLPreElement | null>(null)
+  const identity = useIdentity({
+    link: form.link,
+    projectRoot: form.projectRoot,
+    target: form.target,
+    ui: form.ui,
+    automation,
+    onFailure: setFailure,
+    onPicked: (nextTarget, nextUi) => patchForm({ target: nextTarget, ui: nextUi })
+  })
 
   const task = useMemo(
     () => (board?.tasks ?? []).find((item) => item.id === currentId) ?? null,
@@ -91,24 +57,12 @@ export function PipelinePage({ taskId }: { taskId: string }) {
     for (const step of contract) map.set(step.Name, step.Title)
     return map
   }, [contract])
-  const running = task !== null && BUSY_STATES.includes(task.state)
-  const finished = task !== null && ["ready", "merging", "merged", "conflict"].includes(task.state)
+  const running = task !== null && isBusyState(task.state)
+  const finished = task !== null && isFinishedState(task.state)
   const contractStep = task?.failure ? contract.find((step) => step.Name === task.failure?.stepName) ?? null : null
+  const counts = waitingCounts(pending)
 
-  useEffect(() => {
-    const saved = readStored(STORAGE_KEY, { link: "", projectRoot: "", target: "", ui: "", mode: "" }, (raw) => ({
-      link: String(raw.link ?? ""),
-      projectRoot: String(raw.projectRoot ?? ""),
-      target: String(raw.target ?? ""),
-      ui: String(raw.ui ?? ""),
-      mode: String(raw.mode ?? "")
-    }))
-    if (saved.link) setLink(saved.link)
-    if (saved.projectRoot) setProjectRoot(saved.projectRoot)
-    if (saved.target) setTarget(saved.target)
-    if (saved.ui) setUi(saved.ui)
-    if (saved.mode) setMode(saved.mode)
-  }, [])
+  const { job, setJob, logText, logRef, reset } = useRunLog(task?.jobId ?? "")
 
   // 看板是任务的唯一登记：详情页的状态一律从它的快照读，不自己推。
   useEffect(() => {
@@ -136,190 +90,17 @@ export function PipelinePage({ taskId }: { taskId: string }) {
         setPlugin(payload.plugin)
         setContract(payload.steps)
       })
-      .catch((error) =>
-        setFailure(error instanceof ApiFailure ? error.message + (error.hint ? "：" + error.hint : "") : String(error))
-      )
+      .catch((error) => setFailure(describeFailure(error)))
     api
       .settingsGet()
       .then((payload) => setAutomation(payload.settings.automation))
       .catch(() => undefined)
   }, [])
 
-  /*
-   * 登记表与「Target → 区域」预览是两件独立的事，分两条取值路径：
-   *   · 候选页面列表只跟工程目录有关；
-   *   · 预览只跟 Target 有关（后端算，前端不持规则），工程目录空着也要能显示。
-   * 之前把两者塞进同一个 effect，会因为「目录为空就提前 return」让预览停留在上一次的值，
-   * 提示就会说反话（能推的说推不出来、推不出来的说成会推出）。
-   */
-  function loadPages(root: string) {
-    if (!root) {
-      setPages(null)
-      return
-    }
-    api
-      .projectPages(root)
-      .then((payload) => setPages(payload.pages))
-      .catch(() => setPages(null))
-  }
-
-  function loadPreview(nextTarget: string) {
-    api
-      .identityPrefix(nextTarget)
-      .then((payload) => setPreviewUi(payload.previewUi))
-      .catch(() => setPreviewUi(""))
-  }
-
-  useEffect(() => {
-    const root = projectRoot.trim()
-    const timer = window.setTimeout(() => loadPages(root), 600)
-    return () => window.clearTimeout(timer)
-  }, [projectRoot])
-
-  useEffect(() => {
-    const next = target.trim()
-    if (!next) {
-      setPreviewUi("")
-      return
-    }
-    const timer = window.setTimeout(() => loadPreview(next), 600)
-    return () => window.clearTimeout(timer)
-  }, [target])
-
-  const derivedUi = ui.trim() ? "" : previewUi
-  const needsIdentityHint = !ui.trim() && !target.trim()
-  // 填了 Target 但仍推不出区域：这是最容易被误判成「插件坏了」的情况，必须提前说清原因。
-  const targetWithoutPrefix = !ui.trim() && Boolean(target.trim()) && !derivedUi
-
-  /*
-   * 页面身份补全：和插件跑法里 agent 做的是同一件事——按设计页名与项目既有区域约定给出
-   * 「Target + 区域」候选，写进工程登记表，再回填表单。
-   * 自动化层级是 auto 时直接采用第一条（不人工确认）；assist/off 时列出来等人点。
-   */
-  /*
-   * 身份补全的唯一入口：按钮点击与「自动层级启动前自动补」都走这里。
-   * 之前这两条各写了一份，改了一处漏一处 —— 分叉会让两条入口对同一页给出不同结论。
-   * 返回选中的候选；要人决策的情况返回 null 并把原因写进 failure。
-   */
-  async function pickIdentity(): Promise<IdentityCandidate | null> {
-    const payload = await api.identityCandidates({
-      projectRoot: projectRoot.trim(),
-      pageName: identityName.trim() || target.trim(),
-      useAi: automation !== "off",
-      // 已经在 UI 区域框里写了区域（例如 F1）时，就按你给的那个算候选。
-      ui: ui.trim(),
-      link: link.trim()
-    })
-    const list: IdentityCandidate[] = [...(payload.ai.items ?? []), ...(payload.candidates ?? [])]
-    setIdentityCandidates(list)
-    const pick = list.find((item) => item.target && !item.needsSemanticName) ?? list.find((item) => item.target) ?? null
-    if (pick && !payload.ambiguous && list.length > 0) return pick
-    if (list.length === 0) {
-      setFailure(
-        "这个工程还没有任何区域约定（登记表里没有页面、也没有带前缀的 Target）。"
-        + "区域是团队对项目的约定，设计稿里没有这条信息，所以第一次要人给一次："
-        + "在「UI 区域」里填一个区域前缀（例如 F1），再点「自动补 Target / 区域」；给过就写进该工程的 docs/page-registry.json，之后同一页全自动。"
-      )
-      return null
-    }
-    setFailure(
-      payload.ambiguous
-        ? "这个设计文件里登记过的区域不是恰好一个（可能还没有先例，也可能出现了 F1/F3 这种分歧）：不敢替你猜，请在候选里点一下这一页的区域，确认后这一页以后就自动了。"
-        : "候选里还没有拼好的 Target，需要先给语义名（或把自动化层级降到辅助，手工确认一次）。"
-    )
-    return null
-  }
-
-  // 手动入口：列候选；自动化层级是「自动」时直接采用第一条。
-  async function fillIdentity() {
-    setIdentityBusy("candidates")
-    setFailure("")
-    try {
-      const pick = await pickIdentity()
-      if (pick && automation === "auto") await applyIdentity(pick)
-    } catch (error) {
-      setFailure(error instanceof ApiFailure ? error.message + (error.hint ? "：" + error.hint : "") : String(error))
-    } finally {
-      setIdentityBusy("")
-    }
-  }
-
-  async function applyIdentity(item: IdentityCandidate) {
-    if (!item.target || !item.ui) return
-    setIdentityBusy("apply")
-    try {
-      const written = await api.identityApply({
-        projectRoot: projectRoot.trim(),
-        target: item.target,
-        ui: item.ui,
-        // 把链接一起交给后端解析设计来源：链接解析只有插件那份实现，前端不自己拆 URL。
-        link: link.trim(),
-        designPageName: identityName.trim() || target.trim()
-      })
-      setTarget(item.target)
-      setUi(item.ui)
-      toast.success("已写入登记表（" + (written.replaced ? "替换" : "新增") + "）：" + item.target + " · UI " + item.ui)
-      setIdentityCandidates([])
-      loadPages(projectRoot.trim())
-      // 预览不用在这里再取一次：setTarget 会让上面那条 effect 跑（同一件事只有一个入口）。
-    } catch (error) {
-      setFailure(error instanceof ApiFailure ? error.message + (error.hint ? "：" + error.hint : "") : String(error))
-    } finally {
-      setIdentityBusy("")
-    }
-  }
-
   // 从看板点「详情」进来时 URL 带 task=<id>：跟着它切换当前任务。
   useEffect(() => {
     if (taskId) setCurrentId(taskId)
   }, [taskId])
-
-  // 换任务、或这次任务换了运行（续跑会起新运行）时，日志从头发。
-  const jobId = task?.jobId ?? ""
-  useEffect(() => {
-    setLogText("")
-    offsetRef.current = 0
-    if (!jobId) {
-      setJob(null)
-      return
-    }
-    let alive = true
-    api
-      .runStatus(jobId)
-      .then((payload) => {
-        if (alive) setJob(payload.job)
-      })
-      .catch(() => undefined)
-    return () => {
-      alive = false
-    }
-  }, [jobId])
-
-  const runLive = job !== null && (job.state === "running" || job.state === "stopping")
-
-  useEffect(() => {
-    if (!jobId || !runLive) return
-    const timer = window.setInterval(() => {
-      void (async () => {
-        try {
-          const status = await api.runStatus(jobId)
-          if (status.job) setJob(status.job)
-          const slice = await api.runLog(jobId, offsetRef.current)
-          if (slice.truncated) setLogText(slice.text)
-          else if (slice.text) setLogText((current) => current + slice.text)
-          offsetRef.current = slice.next
-        } catch {
-          /* 轮询失败不打断界面 */
-        }
-      })()
-    }, POLL_MS)
-    return () => window.clearInterval(timer)
-  }, [jobId, runLive])
-
-  useEffect(() => {
-    const node = logRef.current
-    if (node) node.scrollTop = node.scrollHeight
-  }, [logText])
 
   /*
    * 任务停下来后看一眼有没有待确认项：有就说明这次停是插件设计的语义判断停点
@@ -344,40 +125,33 @@ export function PipelinePage({ taskId }: { taskId: string }) {
     }
   }, [task?.id, task?.workDir, task?.request.target, task?.state, running])
 
-  const waitingIconNames = pending?.icons.available && pending.icons.needsNaming ? pending.icons.mustName.length : 0
-  const waitingTranslations =
-    pending?.translations.available && pending.translations.needsTranslation
-      ? pending.translations.pendingTranslations.length
-      : 0
-  const waitingTotal = waitingIconNames + waitingTranslations
-
   // 开始 = 新建看板任务 + 启动它；看板负责建工作目录、并发与合并。
   async function start() {
     setFailure("")
-    writeStored(STORAGE_KEY, { link, projectRoot, target, ui, mode })
+    writeTaskForm(form)
     setBusy("start")
     try {
       /*
        * 自动化层级是「自动」时身份也不必先点按钮：启动前自己补一遍（与插件跑法里 agent 做的一致）。
        * 区域只能来自项目既有约定，所以项目里一次都没登记过时会停下来要人给一次——那一次是项目事实。
        */
-      let finalTarget = target.trim()
-      let finalUi = ui.trim()
+      let finalTarget = form.target.trim()
+      let finalUi = form.ui.trim()
       if (!finalTarget && !finalUi && automation === "auto") {
-        // 与按钮同一条实现：选出候选 → 写登记表 → 回填；要人决策时 pickIdentity 已经把原因写进 failure。
-        const pick = await pickIdentity()
-        if (!pick) return
-        await applyIdentity(pick)
-        finalTarget = pick.target
-        finalUi = pick.ui
+        // 与按钮同一条实现：落后端取候选 → 写登记表 → 回填；要人决策时 pick 已经把原因写进 failure。
+        const picked = await identity.pick()
+        if (!picked) return
+        await identity.apply(picked)
+        finalTarget = picked.target
+        finalUi = picked.ui
       }
       const added = await api.boardAdd({
-        projectRoot,
+        projectRoot: form.projectRoot,
         ui: finalUi,
         autoMerge: true,
-        stopAfter,
-        overwrite,
-        items: [{ link, target: finalTarget, mode: mode as "A" | "B" | "AB" }]
+        stopAfter: form.stopAfter,
+        overwrite: form.overwrite,
+        items: [{ link: form.link, target: finalTarget, mode: form.mode as "A" | "B" | "AB" }]
       })
       const created = added.created[0] ?? ""
       await api.boardStart(created)
@@ -386,7 +160,7 @@ export function PipelinePage({ taskId }: { taskId: string }) {
       window.location.hash = "pipeline?task=" + created
       toast.success("已加入看板并开始")
     } catch (error) {
-      setFailure(error instanceof ApiFailure ? error.message + (error.hint ? "：" + error.hint : "") : String(error))
+      setFailure(describeFailure(error))
     } finally {
       setBusy("")
     }
@@ -399,7 +173,7 @@ export function PipelinePage({ taskId }: { taskId: string }) {
       const payload = await api.boardStop(task.id)
       setBoard(payload.board)
     } catch (error) {
-      toast.error(error instanceof ApiFailure ? error.message : String(error))
+      toast.error(describeFailure(error))
     } finally {
       setBusy("")
     }
@@ -412,8 +186,7 @@ export function PipelinePage({ taskId }: { taskId: string }) {
     setFailure("")
     try {
       const payload = await api.runResume(task.jobId)
-      setLogText("")
-      offsetRef.current = 0
+      reset()
       setJob(payload.job)
       toast.success(
         "已继续：路线 " +
@@ -425,10 +198,20 @@ export function PipelinePage({ taskId }: { taskId: string }) {
             : "")
       )
     } catch (error) {
-      setFailure(error instanceof ApiFailure ? error.message + (error.hint ? "：" + error.hint : "") : String(error))
+      setFailure(describeFailure(error))
     } finally {
       setBusy("")
     }
+  }
+
+  function merge() {
+    if (!task) return
+    setBusy("merge")
+    api
+      .boardMerge(task.id)
+      .then((payload) => setBoard(payload.board))
+      .catch((error) => toast.error(describeFailure(error)))
+      .finally(() => setBusy(""))
   }
 
   async function reloadContract() {
@@ -438,409 +221,61 @@ export function PipelinePage({ taskId }: { taskId: string }) {
       setContract(payload.steps)
       toast.success("已重新读取流水线契约")
     } catch (error) {
-      toast.error(error instanceof ApiFailure ? error.message : String(error))
+      toast.error(describeFailure(error))
     }
   }
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>新建转码任务</CardTitle>
-          <CardDescription>
-            一次任务只走一条路线；选 AB 会跑两次（先 A 后 B），两条进度独立，互不覆盖。任务会进看板，
-            有自己的工作目录，跑完自动合并回工程。
-          </CardDescription>
-          <div className="flex flex-wrap items-center gap-2 pt-2">
-            {plugin && <Badge variant="outline">插件 {plugin.version ? "v" + plugin.version : "未知版本"}</Badge>}
-            {plugin && <Badge variant="secondary">共 {contract.length} 步</Badge>}
-            {plugin && !plugin.runAllExists && <Badge variant="destructive">缺 run-all.ps1</Badge>}
-            <Button variant="outline" size="sm" onClick={() => void reloadContract()}>
-              <RefreshCw className="size-4" />
-              重读契约
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="run-link">MasterGo 链接（页面帧或容器）</Label>
-            <Input
-              id="run-link"
-              spellCheck={false}
-              placeholder="https://mastergo.com/goto/xxxx?file=...&layer_id=..."
-              value={link}
-              onChange={(event) => setLink(event.target.value)}
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="run-project">工程目录</Label>
-              <Input
-                id="run-project"
-                spellCheck={false}
-                placeholder="工程目录的绝对路径 —— 产物合并回这里，必填"
-                value={projectRoot}
-                onChange={(event) => setProjectRoot(event.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="run-target">页面 Target</Label>
-              <Input
-                id="run-target"
-                spellCheck={false}
-                placeholder="页面名 —— 产物文件名与 UI 区域都按它算"
-                value={target}
-                onChange={(event) => setTarget(event.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="flex flex-col gap-2">
-              <Label>路线</Label>
-              <Select value={mode} onValueChange={setMode}>
-                <SelectTrigger className="w-24">
-                  <SelectValue>{mode}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="B">B —— MTSLG IOContorl 页面 XML</SelectItem>
-                  <SelectItem value="A">A —— MW WPF XAML 页面</SelectItem>
-                  <SelectItem value="AB">AB —— 两条都跑</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-muted-foreground text-xs">{MODE_HINT[mode] ?? ""}</p>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="run-ui">UI 区域（可选）</Label>
-              <Input
-                id="run-ui"
-                spellCheck={false}
-                placeholder="F3 —— 登记表没登记时才要填"
-                value={ui}
-                onChange={(event) => setUi(event.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="run-stop">停在某一步（可选）</Label>
-              <Input
-                id="run-stop"
-                spellCheck={false}
-                placeholder="例如 discover —— 先出待命名清单"
-                value={stopAfter}
-                onChange={(event) => setStopAfter(event.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Target / UI 的去向提示：说明「谁来决定区域」，并给出登记表里的候选与推导预览。 */}
-          <div className="text-muted-foreground flex flex-col gap-1 text-xs">
-            <div className="flex flex-wrap items-center gap-2">
-              <Input
-                id="run-identity-name"
-                className="h-8 max-w-xs"
-                spellCheck={false}
-                placeholder="设计页名（可选，如 Manual Align）"
-                value={identityName}
-                onChange={(event) => setIdentityName(event.target.value)}
-              />
-              <Button size="sm" variant="outline" disabled={identityBusy !== ""} onClick={() => void fillIdentity()}>
-                {identityBusy === "candidates" ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                自动补 Target / 区域
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={identityBusy !== "" || !link.trim()}
-                onClick={() => {
-                  setIdentityBusy("name")
-                  setFailure("")
-                  api
-                    .designPageName(link.trim())
-                    .then((payload) => {
-                      setIdentityName(payload.pageName)
-                      toast.success("设计页名：" + (payload.pageName || "（设计稿里没有名字）"))
-                    })
-                    .catch((error) =>
-                      setFailure(error instanceof ApiFailure ? error.message + (error.hint ? "：" + error.hint : "") : String(error))
-                    )
-                    .finally(() => setIdentityBusy(""))
-                }}
-              >
-                {identityBusy === "name" ? <Loader2 className="size-4 animate-spin" /> : null}
-                从链接取设计页名
-              </Button>
-              <span>
-                按项目既有区域约定 + 设计页名给出候选并写进工程登记表；
-                当前自动化层级：
-                {AUTOMATION_LABEL[automation] ?? automation}
-                {automation === "auto" ? "（直接采用第一条，不人工确认）" : "（列出来，你点一下再写）"}
-              </span>
-            </div>
-            {identityCandidates.length > 0 && (
-              <div className="flex flex-col gap-1">
-                {identityCandidates.map((item, index) => (
-                  <div key={index} className="flex flex-wrap items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant={item.target ? "default" : "outline"}
-                      disabled={!item.target || identityBusy !== ""}
-                      onClick={() => void applyIdentity(item)}
-                    >
-                      {item.target || "（还需要语义名）"}
-                    </Button>
-                    <span>
-                      {item.ui ? "UI " + item.ui + " · " : ""}
-                      {item.basis}
-                      {typeof item.confidence === "number" ? " · 置信度 " + item.confidence : ""}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {derivedUi && <span>将使用 UI={derivedUi}（按 Target 前缀推导；插件自己也会这么算）</span>}
-            {needsIdentityHint && (
-              <span className="text-amber-600">
-                UI 与 Target 都空：插件会按取值链解析（登记表 → Target 前缀/首词）；都取不到就会在入口停下。
-                最省事的做法是把 Target 写成带区域前缀的形式，例如 F3Align。
-              </span>
-            )}
-            {targetWithoutPrefix && (
-              <span className="text-amber-600">
-                Target「{target.trim()}」推不出区域前缀：插件只认两种形状——带编号前缀（F3Align → F3）或
-                大写开头的首词（HomeContent → Home）。当前这个写成小写/下划线，两条都不命中。
-                要么把 UI 区域显式填上，要么把 Target 改成 F3{target.trim()}（或用 PascalCase 如 TestMastergp）。
-              </span>
-            )}
-            {pages && !pages.exists && <span>{pages.problem}</span>}
-            {pages && pages.exists && pages.pages.length === 0 && <span>登记表里还没有可用的页面条目。</span>}
-            {pages && pages.exists && pages.pages.length > 0 && (
-              <div className="flex flex-col gap-1">
-                {/* 按 UI 区域分组：同一区域下的页面放在一起，点一下就切到那个区域的流程。 */}
-                <span>
-                  登记表里登记的页面（按 UI 分组；点一下填上 Target，条目里写了 Ui 就连 Ui 一起填）
-                  {ui.trim() ? "　当前：UI " + ui.trim() : ""}
-                  {target.trim() ? " · " + target.trim() : ""}
-                </span>
-                {[...new Set(pages.pages.map((page) => page.ui || "（未写 Ui）"))].sort().map((group) => (
-                  <div key={group} className="flex flex-wrap items-center gap-2">
-                    <Badge variant={ui.trim() === group ? "default" : "outline"}>{group}</Badge>
-                    {pages.pages
-                      .filter((page) => (page.ui || "（未写 Ui）") === group)
-                      .map((page, index) => (
-                        <Button
-                          key={page.target + index}
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            if (page.target) setTarget(page.target)
-                            // 登记表条目没写 ui 时照实留空：区域由插件按 Target 前缀自己推。
-                            setUi(page.ui)
-                          }}
-                        >
-                          {page.target || page.layerId}
-                        </Button>
-                      ))}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Switch id="run-overwrite" checked={overwrite} onCheckedChange={setOverwrite} />
-              <Label htmlFor="run-overwrite">替换已有产物（默认不替换，同名就停）</Label>
-            </div>
-            <div className="ml-auto flex items-center gap-2">
-              {task && running && (
-                <Button variant="outline" disabled={busy !== ""} onClick={() => void stop()}>
-                  <Square className="size-4" />
-                  停止
-                </Button>
-              )}
-              <Button disabled={busy !== ""} onClick={() => void start()}>
-                {busy === "start" ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-                加入看板并开始
-              </Button>
-            </div>
-          </div>
-
-          {failure && (
-            <Alert variant="destructive">
-              <AlertTitle>启动失败</AlertTitle>
-              <AlertDescription className="break-all">{failure}</AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
+      <NewTaskCard
+        form={form}
+        onForm={patchForm}
+        plugin={plugin}
+        contract={contract}
+        automation={automation}
+        identity={identity}
+        busy={busy}
+        failure={failure}
+        running={running}
+        onStart={() => void start()}
+        onStop={() => void stop()}
+        onReloadContract={() => void reloadContract()}
+      />
 
       {!task && (
-        <p className="text-muted-foreground text-sm">还没有选中的任务。上面填好点「加入看板并开始」，或在看板点某个任务的「详情」。</p>
+        <p className="text-muted-foreground text-sm">
+          还没有选中的任务。上面填好点「加入看板并开始」，或在看板点某个任务的「详情」。
+        </p>
       )}
 
       {task && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex flex-wrap items-center gap-2">
-              任务详情
-              <Badge variant={boardStateVariant(task.state)}>
-                {task.stateLabel}
-              </Badge>
-              <Badge variant="outline">{task.request.mode}</Badge>
-              {task.request.target && <Badge variant="outline">Target {task.request.target}</Badge>}
-              {task.request.ui && <Badge variant="outline">UI {task.request.ui}</Badge>}
-              {task.request.stopAfter && <Badge variant="outline">停在 {task.request.stopAfter}</Badge>}
-            </CardTitle>
-            <CardDescription className="break-all">
-              工作目录 {task.workDir || "（还没建）"}
-              {task.request.projectRoot ? " · 合并回 " + task.request.projectRoot : ""}
-            </CardDescription>
-            <div className="flex flex-wrap items-center gap-2 pt-2">
-              {task.state !== "running" && task.state !== "merging" && task.jobId && (
-                <Button size="sm" disabled={busy === "resume"} onClick={() => void resume()}>
-                  {busy === "resume" ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
-                  从断点继续
-                </Button>
-              )}
-              {(task.state === "ready" || task.state === "conflict") && (
-                <Button
-                  size="sm"
-                  disabled={busy !== ""}
-                  onClick={() => {
-                    setBusy("merge")
-                    api
-                      .boardMerge(task.id)
-                      .then((payload) => setBoard(payload.board))
-                      .catch((error) => toast.error(error instanceof ApiFailure ? error.message : String(error)))
-                      .finally(() => setBusy(""))
-                  }}
-                >
-                  <GitMerge className="size-4" />
-                  {task.state === "conflict" ? "重新合并" : "合并回工程"}
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  window.location.hash = "board"
-                }}
-              >
-                在看板里看
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            {task.failure && (
-              <Alert variant={task.failure.kind === "error" ? "destructive" : "default"}>
-                <AlertTitle>
-                  {task.failure.kind === "error"
-                    ? "失败：" + (task.failure.title || task.failure.stepName)
-                    : "停在语义判断点，不是错误：" + (task.failure.title || task.failure.stepName)}
-                </AlertTitle>
-                <AlertDescription className="flex flex-col gap-2">
-                  {task.failure.message && <p className="break-all">{task.failure.message}</p>}
-                  {task.failure.logPath && (
-                    <p className="text-muted-foreground break-all text-xs">这一步的日志：{task.failure.logPath}</p>
-                  )}
-                  {contractStep && (
-                    <>
-                      <div>
-                        <div className="text-xs font-medium">可能的原因</div>
-                        <ul className="list-disc pl-5 text-xs">
-                          {contractStep.Failures.map((item) => (
-                            <li key={item}>{item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div>
-                        <div className="text-xs font-medium">修好后怎么继续</div>
-                        <ul className="list-disc pl-5 text-xs">
-                          {contractStep.Recovery.map((item) => (
-                            <li key={item}>{item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </>
-                  )}
-                </AlertDescription>
-              </Alert>
-            )}
-            <StepFlow task={task} stepTitles={stepTitles} />
-          </CardContent>
-        </Card>
+        <TaskDetailCard
+          task={task}
+          contractStep={contractStep}
+          stepTitles={stepTitles}
+          busy={busy}
+          onResume={() => void resume()}
+          onMerge={merge}
+        />
       )}
 
-      {task && waitingTotal > 0 && (
-        <Card className="border-amber-500/60">
-          <CardHeader>
-            <CardTitle>等待语义输入 —— 这不是错误</CardTitle>
-            <CardDescription>
-              流水线按设计停在这里。「要不要登记」由插件机械判定；「叫什么名字、怎么翻译」才是语义判断，
-              只能由人或 AI 给——这几步永远绕不过去。补完从断点继续。
-            </CardDescription>
-            <div className="flex flex-wrap items-center gap-2 pt-2">
-              {waitingIconNames > 0 && <Badge variant="secondary">图标定名 {waitingIconNames} 条</Badge>}
-              {waitingTranslations > 0 && <Badge variant="secondary">文案译文 {waitingTranslations} 条</Badge>}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    window.location.hash = "review"
-                  }}
-                >
-                  <ArrowRight className="size-4" />
-                  在独立页面打开
-                </Button>
-                <span className="text-muted-foreground text-xs">
-                  当前自动化层级：{AUTOMATION_LABEL[automation] ?? automation}
-                  {automation === "assist" ? "（AI 自动出候选，你确认后继续）" : ""}
-                  {automation === "auto" ? "（AI 自动出候选并直接继续）" : ""}
-                  {automation === "off" ? "（不叫模型，全人工填）" : ""}
-                </span>
-              </div>
-              <PendingPanel
-                projectRoot={task.workDir}
-                target={task.request.target}
-                runId={task.jobId}
-                reloadKey={task.id + ":" + task.updatedAt}
-                automation={automation}
-                onResumed={() => {
-                  void api
-                    .board()
-                    .then((payload) => setBoard(payload.board))
-                    .catch(() => undefined)
-                }}
-              />
-            </div>
-          </CardContent>
-        </Card>
+      {task && counts.total > 0 && (
+        <TaskPendingCard
+          task={task}
+          automation={automation}
+          counts={counts}
+          onResumed={() => {
+            void api
+              .board()
+              .then((payload) => setBoard(payload.board))
+              .catch(() => undefined)
+          }}
+        />
       )}
 
-      {task && finished && task.workDir && (
-        <DoneBoard projectRoot={task.workDir} target={task.request.target} />
-      )}
+      {task && finished && task.workDir && <DoneBoard projectRoot={task.workDir} target={task.request.target} />}
 
-      {task && job && (
-        <Card>
-          <CardHeader>
-            <CardTitle>运行日志</CardTitle>
-            <CardDescription>来自 run-all.ps1 的实时输出；每步的完整日志另存在工作目录的 Generated\_work\steps\ 下。</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <pre ref={logRef} className="bg-muted max-h-96 overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">
-              {logText || "（暂无输出）"}
-            </pre>
-          </CardContent>
-        </Card>
-      )}
+      {task && job && <TaskLogCard logText={logText} logRef={logRef} />}
     </div>
   )
 }
