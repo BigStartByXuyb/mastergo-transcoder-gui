@@ -46,16 +46,20 @@ test("重名分组只报出现两次以上的名字，按首次下标排序", ()
   ]);
 });
 
-test("行序唯一化保留第一行，按行序补数字", () => {
+test("按下标升序唯一化：下标最小的保留原名，与文件行序无关", () => {
   const rows = uniqueRowNames([
-    { index: 10, name: "LineFocusAdjustGeometry", comment: "a" },
-    { index: 11, name: "CurrentPositionGeometry" },
     { index: 14, name: "LineFocusAdjustGeometry", comment: "b" },
-    { index: 15, name: "" }
+    { index: 15, name: "" },
+    { index: 10, name: "LineFocusAdjustGeometry", comment: "a" },
+    { index: 11, name: "CurrentPositionGeometry" }
   ]);
+  assert.strictEqual(rows[0].index, 10);
   assert.strictEqual(rows[0].name, "LineFocusAdjustGeometry");
+  assert.strictEqual(rows[1].index, 11);
+  assert.strictEqual(rows[2].index, 14);
   assert.strictEqual(rows[2].name, "LineFocusAdjust2Geometry");
   assert.strictEqual(rows[2].comment, "b");
+  assert.strictEqual(rows[3].index, 15);
   assert.strictEqual(rows[3].name, "");
 });
 

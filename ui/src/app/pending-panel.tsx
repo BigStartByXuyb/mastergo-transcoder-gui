@@ -208,7 +208,7 @@ export function PendingPanel({
           glossary: pending.translations.available ? glossaryMap : undefined,
           allowEmptyLedger: noIconSlots && allowEmptyLedger,
           // 命名表写歪了（旧下标 / 重名）就顺手修好：这次提交不只是补名字。
-          pruneNaming: staleCount > 0 || duplicateCount > 0,
+          pruneNaming: Boolean(pending.icons.available && pending.icons.needsRepair),
           resume
         })
         const written = payload.written.map(labelOfWritten)
@@ -418,7 +418,7 @@ export function PendingPanel({
               <AlertDescription>
                 {duplicateGroups.map((group) => group.name + "（下标 " + group.indexes.join("、") + "）").join("；")}。
                 图层名相同的实例不算同一个图标，同一页里资源名必须唯一，第 7 步的台账会直接拒绝。
-                提交时会把后面的补成 …2Geometry；想按自己的口径区分，就改上面的资源名。
+                提交时会把重复的按下标顺序补数字（插在 Geometry 后缀之前）；想按自己的口径区分，就改上面的资源名。
               </AlertDescription>
             </Alert>
           )}

@@ -78,7 +78,7 @@ function makeBoard(options = {}) {
       inspect: (args) => {
         pendingCalls.push(args);
         if (options.pendingThrows) throw new Error("读不到清单");
-        return options.pending || { icons: { available: true, needsNaming: true, mustName: [1, 2], stale: 0, duplicates: [] }, translations: { available: false } };
+        return options.pending || { icons: { available: true, needsNaming: true, needsRepair: false, mustName: [1, 2] }, translations: { available: false } };
       }
     },
     autoFill: options.autoFill === undefined
@@ -256,7 +256,7 @@ async function caseAutoFillLimitAndRealFailure() {
   }]));
   const board = createBoard({
     runs: runs.api,
-    pending: { inspect: () => ({ icons: { available: true, needsNaming: true, mustName: [1], stale: 0, duplicates: [] }, translations: { available: false } }) },
+    pending: { inspect: () => ({ icons: { available: true, needsNaming: true, needsRepair: false, mustName: [1] }, translations: { available: false } }) },
     autoFill: { fill: async () => ({ ok: true, filled: [], job: { id: "job-resumed", request: { progress: "" } } }) },
     layout: { register: () => ({ ok: true }) },
     artifacts: null,

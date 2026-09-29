@@ -177,6 +177,8 @@ export type PendingIcons = {
   duplicates: { name: string; indexes: number[] }[]
   naming: { index: number; name: string; comment: string }[]
   needsNaming: boolean
+  /** 命名表要重写才符合台账口径：留着插件当前不认的旧下标，或资源名有重复。 */
+  needsRepair: boolean
 }
 
 export type PendingText = { key: string; locale: string; text: string; sourceRef: string }
@@ -503,8 +505,8 @@ export const api = {
       resumedFrom: string
       /** 因为工程里已有这一页，续跑回到了生成 Bundle 清单的那一步重算。 */
       recomputedManifest?: boolean
-      /** 命名表里留着当前候选清单不认的下标，续跑前裁掉了。 */
-      reconciled?: { removed: number; kept: number; note?: string } | null
+      /** 续跑前把命名表修回台账口径：裁掉旧下标、改掉重名，各自的条数在这里。 */
+      reconciled?: { removed: number; renamed: number; kept: number; note?: string } | null
       job: Job
     }>("/api/run/resume", { runId }),
   runStop: (runId: string) => post<{ ok: true; job: Job }>("/api/run/stop", { runId }),
