@@ -11,7 +11,7 @@ import { useRunLog } from "@/app/use-run-log"
 import { api, type Board, type Pending, type PipelineStep, type PluginSummary } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { adoptsIdentityWithoutConfirm, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
-import { POLL_MS, canStop, isBusyState, isFinishedState, waitingCounts } from "@/lib/task-state"
+import { POLL_MS, canStop, hasProducts, isBusyState, waitingCounts } from "@/lib/task-state"
 
 /*
  * 流水线：新建任务 + 看某个任务的详情。
@@ -58,7 +58,7 @@ export function PipelinePage({ taskId }: { taskId: string }) {
     return map
   }, [contract])
   const running = task !== null && isBusyState(task.state)
-  const finished = task !== null && isFinishedState(task.state)
+  const showProducts = task !== null && hasProducts(task.state)
   const contractStep = task?.failure ? contract.find((step) => step.Name === task.failure?.stepName) ?? null : null
   const counts = waitingCounts(pending)
 
@@ -273,7 +273,7 @@ export function PipelinePage({ taskId }: { taskId: string }) {
         />
       )}
 
-      {task && finished && task.workDir && <DoneBoard projectRoot={task.workDir} target={task.request.target} />}
+      {task && showProducts && task.workDir && <DoneBoard projectRoot={task.workDir} target={task.request.target} />}
 
       {task && job && <TaskLogCard logText={logText} logRef={logRef} />}
     </div>

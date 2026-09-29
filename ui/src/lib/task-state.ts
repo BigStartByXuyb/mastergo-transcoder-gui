@@ -22,13 +22,12 @@ const RUNNING_STATES = ["preparing", "running", "merging"]
  */
 const OCCUPIED_STATES = ["queued", "preparing", "running", "waiting", "merging"]
 
-/* 产物已经落地的状态：合并中也算 —— 产物写完了，正在回写主工程。 */
-const FINISHED_STATES = ["ready", "merging", "merged", "conflict"]
+/* 产物已写完、清单可以看的状态：合并中算（产物写完了，正在回写主工程）。 */
+const PRODUCT_STATES = ["ready", "merging", "merged", "conflict"]
 
 /*
- * 已经落地、可以先收起的任务：跑完 / 失败 / 停止都走完了，冲突也已经出了报告。
- * 「落地」不等于「不会再变」——冲突还能靠「重新合并」再试一次，所以它在这里，
- * 但看板不给它「已结束」的说法。
+ * 可以先收起的任务：跑完 / 失败 / 停止已经结束了，冲突也已经出了报告。
+ * 冲突还能靠「重新合并」再试一次，所以它虽然在收起范围里，看板也照样给它「重新合并」。
  */
 export const SETTLED_STATES = ["merged", "failed", "stopped", "conflict"]
 
@@ -45,8 +44,8 @@ export function isMerging(state: string): boolean {
   return state === "merging"
 }
 
-export function isFinishedState(state: string): boolean {
-  return FINISHED_STATES.includes(state)
+export function hasProducts(state: string): boolean {
+  return PRODUCT_STATES.includes(state)
 }
 
 export function isSettled(state: string): boolean {

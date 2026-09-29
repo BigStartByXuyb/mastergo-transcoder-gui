@@ -192,7 +192,7 @@ export function BoardPage() {
               disabled={busy !== "" || tasks.length === 0}
               onClick={() => void run("clear", () => api.boardClear(SETTLED_STATES))}
             >
-              清掉已落地
+              清掉已结束的（含冲突）
             </Button>
           </div>
         </CardContent>

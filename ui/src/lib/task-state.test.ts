@@ -4,8 +4,8 @@ import type { Pending } from "@/lib/api"
 import {
   SETTLED_STATES,
   canStop,
+  hasProducts,
   isBusyState,
-  isFinishedState,
   isMerging,
   isSettled,
   occupiesSlot,
@@ -41,8 +41,8 @@ describe("task-state", () => {
   it("占额度的三个状态算运行中，跑完的状态算已完成", () => {
     for (const state of ["preparing", "running", "merging"]) expect(isBusyState(state)).toBe(true)
     expect(isBusyState("ready")).toBe(false)
-    for (const state of ["ready", "merging", "merged", "conflict"]) expect(isFinishedState(state)).toBe(true)
-    expect(isFinishedState("queued")).toBe(false)
+    for (const state of ["ready", "merging", "merged", "conflict"]) expect(hasProducts(state)).toBe(true)
+    expect(hasProducts("queued")).toBe(false)
   })
 
   it("排队与待确认也占看板这一位，但不属于「正在跑」", () => {
@@ -54,7 +54,7 @@ describe("task-state", () => {
     expect(isMerging("running")).toBe(false)
   })
 
-  it("已落地的可清可移，停止只在没在合并中时给", () => {
+  it("可收起的状态可清可移，停止只在没在合并中时给", () => {
     expect(SETTLED_STATES).toEqual(["merged", "failed", "stopped", "conflict"])
     for (const state of SETTLED_STATES) expect(isSettled(state)).toBe(true)
     expect(isSettled("ready")).toBe(false)
