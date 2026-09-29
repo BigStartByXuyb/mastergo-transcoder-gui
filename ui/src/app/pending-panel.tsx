@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { api, type Pending } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
+import { waitingCounts } from "@/lib/task-state"
 
 const BASIS_LABEL: Record<string, string> = {
   "host-shell": "宿主外壳自带",
@@ -134,18 +135,10 @@ export function PendingPanel({
   // 资源名撞在一起的组数（同名图层按图层名起名就会撞）：第 7 步的台账要求同一页里名字唯一。
   const duplicateGroups = pending?.icons.available ? pending.icons.duplicates : []
   const duplicateCount = duplicateGroups.length
-  const langCount =
-    pending?.translations.available && pending.translations.needsTranslation
-      ? pending.translations.pendingTranslations.length
-      : 0
-  const glossaryCount =
-    pending?.translations.available && pending.translations.needsGlossary
-      ? pending.translations.glossaryRequired.length
-      : 0
-  // 与后端同一口径：两节的 waiting 相加（图标那节还含旧下标与重名组）。
-  const waiting =
-    (pending?.icons.available ? pending.icons.waiting : 0) +
-    (pending?.translations.available ? pending.translations.waiting : 0)
+  const langCount = pending?.translations.available ? pending.translations.pendingTranslations.length : 0
+  const glossaryCount = pending?.translations.available ? pending.translations.glossaryRequired.length : 0
+  // 本页还缺多少条语义输入：口径在 lib/pending.js 算一次，这里只取数。
+  const { total: waiting } = waitingCounts(pending)
 
   /*
    * 「本页没有图标槽位」只有一种情形：插件判定必须登记的候选一条都没有。

@@ -87,7 +87,7 @@ export function ReviewPage() {
         runId: "",
         taskId: "",
         runState: "",
-        counts: { icons: 0, translations: 0, glossary: 0 },
+        counts: { icons: 0, translations: 0 },
         total: 0
       }
     }
@@ -158,8 +158,7 @@ export function ReviewPage() {
                       </TableCell>
                       <TableCell className="text-xs">
                         {entry.counts.icons > 0 && <span className="mr-2">图标 {entry.counts.icons}</span>}
-                        {entry.counts.translations > 0 && <span className="mr-2">译文 {entry.counts.translations}</span>}
-                        {entry.counts.glossary > 0 && <span>术语 {entry.counts.glossary}</span>}
+                        {entry.counts.translations > 0 && <span>文案 {entry.counts.translations}</span>}
                       </TableCell>
                       <TableCell
                         className="text-muted-foreground truncate font-mono text-xs"

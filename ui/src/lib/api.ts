@@ -373,7 +373,8 @@ export type PendingQueueEntry = {
   runState: string
   /** 看板任务已经被移除，但工作目录与产物还在。 */
   orphan: boolean
-  counts: { icons: number; translations: number; glossary: number }
+  /** 两节的待办条数，与看板 / 流水线详情同一份口径（图标一节、文案一节）。 */
+  counts: { icons: number; translations: number }
   total: number
 }
 
