@@ -27,7 +27,13 @@ function stub(routes: { match: string; reply: () => Promise<Response> }[]) {
   })
 }
 
-const NO_CANDIDATES = { ok: true, uiCandidates: [], candidates: [], ai: { used: false, items: [] }, ambiguous: false }
+const NO_CANDIDATES = {
+  ok: true,
+  uiCandidates: [],
+  candidates: [],
+  ai: { used: false, items: [] },
+  blocked: "这个工程还没有任何区域约定（登记表里没有页面，也没有带前缀的 Target）：写进 docs/page-registry.json"
+}
 
 function render(overrides: Partial<Parameters<typeof useIdentity>[0]> = {}) {
   const onFailure = vi.fn()
@@ -114,7 +120,7 @@ describe("useIdentity", () => {
       const href = String(url)
       if (href.includes("/api/project/pages")) return ok({ ok: true, pages: { exists: true, registryPath: "", problem: "", pages: [] } })
       if (href.includes("/api/identity/candidates"))
-        return ok({ ok: true, uiCandidates: [], candidates: [candidate], ai: { used: false, items: [] }, ambiguous: false })
+        return ok({ ok: true, uiCandidates: [], candidates: [candidate], ai: { used: false, items: [] }, blocked: "" })
       if (href.includes("/api/identity/apply")) {
         applied.push(String(init?.body ?? ""))
         return ok({ ok: true, registryPath: "docs/page-registry.json", replaced: false })
@@ -136,7 +142,7 @@ describe("useIdentity", () => {
     vi.stubGlobal("fetch", (url: string) => {
       const href = String(url)
       if (href.includes("/api/identity/candidates"))
-        return ok({ ok: true, uiCandidates: [], candidates: [candidate], ai: { used: false, items: [] }, ambiguous: false })
+        return ok({ ok: true, uiCandidates: [], candidates: [candidate], ai: { used: false, items: [] }, blocked: "" })
       if (href.includes("/api/identity/apply")) applyCalls += 1
       return ok({ ok: true })
     })
@@ -147,6 +153,32 @@ describe("useIdentity", () => {
     expect(result.current.candidates).toHaveLength(1)
     expect(applyCalls).toBe(0)
     expect(onPicked).not.toHaveBeenCalled()
+  })
+
+  it("沿用登记过的页时，把候选里的设计页名一起写回，不抹掉登记", async () => {
+    const applied: string[] = []
+    vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
+      const href = String(url)
+      if (href.includes("/api/identity/apply")) {
+        applied.push(String(init?.body ?? ""))
+        return ok({ ok: true, registryPath: "docs/page-registry.json", replaced: true })
+      }
+      return ok({ ok: true, pages: { exists: true, registryPath: "", problem: "", pages: [] } })
+    })
+    const { result, onPicked } = render({ automation: "auto" })
+    await act(async () => {
+      await result.current.apply({
+        target: "F4TargetTeaching",
+        ui: "F4",
+        semanticName: "",
+        basis: "登记表里这一页已经登记过",
+        needsSemanticName: false,
+        registered: true,
+        designPageName: "目标示教"
+      })
+    })
+    expect(applied[0]).toContain('"designPageName":"目标示教"')
+    expect(onPicked).toHaveBeenCalledWith("F4TargetTeaching", "F4")
   })
 
   it("取候选失败时把后端原因（含怎么修）写进 failure", async () => {

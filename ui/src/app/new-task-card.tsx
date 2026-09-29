@@ -162,7 +162,7 @@ export function NewTaskCard(props: Props) {
               当前自动化层级：
               {AUTOMATION_LABEL[automation] ?? automation}
               {adoptsIdentityWithoutConfirm(automation)
-                ? "（直接采用第一条，不人工确认）"
+                ? "（这一页登记过就自动沿用；没登记过由模型按设计页名给名直接采用，给不出才停下来要你点一次）"
                 : "（列出来，你点一下再写）"}
             </span>
           </div>
@@ -172,11 +172,11 @@ export function NewTaskCard(props: Props) {
                 <div key={index} className="flex flex-wrap items-center gap-2">
                   <Button
                     size="sm"
-                    variant={item.target ? "default" : "outline"}
-                    disabled={!item.target || identity.busy !== ""}
+                    variant={item.needsSemanticName ? "outline" : "default"}
+                    disabled={!item.target || item.needsSemanticName || identity.busy !== ""}
                     onClick={() => void identity.apply(item)}
                   >
-                    {item.target || "（还需要语义名）"}
+                    {item.needsSemanticName ? "还缺语义名" : item.target}
                   </Button>
                   <span>
                     {item.ui ? "UI " + item.ui + " · " : ""}

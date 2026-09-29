@@ -143,7 +143,8 @@ export function PipelinePage({
     try {
       /*
        * 自动化层级是「自动」时身份也不必先点按钮：启动前自己补一遍（与插件跑法里 agent 做的一致）。
-       * 区域只能来自项目既有约定，所以项目里一次都没登记过时会停下来要人给一次——那一次是项目事实。
+       * 自动只在「这一页登记过区域」时成立：区域是团队对项目的约定、设计稿里没有，
+       * 这一页没登记过时 pick 停下来把原因写进 failure，让人点一次——那一次是项目事实。
        */
       let finalTarget = form.target.trim()
       let finalUi = form.ui.trim()

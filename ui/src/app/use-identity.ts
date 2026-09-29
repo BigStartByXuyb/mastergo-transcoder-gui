@@ -68,7 +68,8 @@ export function useIdentity(options: IdentityOptions) {
   async function pick(): Promise<IdentityCandidate | null> {
     const payload = await api.identityCandidates({
       projectRoot: projectRoot.trim(),
-      pageName: name.trim() || target.trim(),
+      // 设计页名只认「从链接取到 / 人填的」那一个：拿 Target 顶替会让后端把这一页误判成改过名。
+      pageName: name.trim(),
       useAi: automation !== "off",
       // 已经在 UI 区域框里写了区域（例如 F1）时，就按你给的那个算候选。
       ui: ui.trim(),
@@ -76,7 +77,7 @@ export function useIdentity(options: IdentityOptions) {
     })
     const list: IdentityCandidate[] = [...(payload.ai.items ?? []), ...(payload.candidates ?? [])]
     setCandidates(list)
-    const decision = pickIdentityCandidate(list, payload.ambiguous)
+    const decision = pickIdentityCandidate(list, payload.blocked)
     if (decision.pick) return decision.pick
     onFailure(decision.reason)
     return null
@@ -92,7 +93,8 @@ export function useIdentity(options: IdentityOptions) {
         ui: item.ui,
         // 把链接一起交给后端解析设计来源：链接解析只有插件那份实现，前端不自己拆 URL。
         link: link.trim(),
-        designPageName: name.trim() || target.trim()
+        // 沿用登记过的页时页名框通常是空的：这时带上候选里的那条，别把登记里的页名抹掉。
+        designPageName: name.trim() || item.designPageName || ""
       })
       onPicked(item.target, item.ui)
       toast.success("已写入登记表（" + (written.replaced ? "替换" : "新增") + "）：" + item.target + " · UI " + item.ui)

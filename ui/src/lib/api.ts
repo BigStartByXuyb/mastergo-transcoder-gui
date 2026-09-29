@@ -455,14 +455,20 @@ export type IdentityCandidate = {
   needsSemanticName: boolean
   confidence?: number | null
   reason?: string
+  /** 这一页在登记表里已经登记过：自动沿用走的就是这条。 */
+  registered?: boolean
+  /** 登记表里的页名与设计稿现在的页名不一致：改名要人确认一次。 */
+  rename?: boolean
+  /** 登记表里记的设计页名：沿用这条写回时要带上，否则下次改名就没人提示。 */
+  designPageName?: string
 }
 
 export type IdentityCandidates = {
   uiCandidates: { ui: string; count: number; basis: string }[]
   candidates: IdentityCandidate[]
   ai: { used: boolean; items: IdentityCandidate[] }
-  /** 同一设计文件里区域不唯一或并列：界面必须让人点一次，不许自动采用。 */
-  ambiguous: boolean
+  /** 不能自动采用时的整句原因（含人要做什么）；空串＝可以自动采用第一条。 */
+  blocked: string
 }
 
 export class ApiFailure extends Error {

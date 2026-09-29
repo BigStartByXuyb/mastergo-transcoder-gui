@@ -8,42 +8,40 @@ function candidate(patch: Partial<IdentityCandidate>): IdentityCandidate {
 }
 
 describe("pickIdentityCandidate", () => {
-  it("区域唯一时采用第一条拼好的 Target", () => {
+  it("后端没挡住时采用第一条拼好的 Target", () => {
     const decision = pickIdentityCandidate(
-      [candidate({ target: "F1StopAdjust", ui: "F1" }), candidate({ target: "F2StopAdjust", ui: "F2" })],
-      false
+      [
+        candidate({ target: "F1StopAdjust", ui: "F1", registered: true }),
+        candidate({ target: "F2StopAdjust", ui: "F2" })
+      ],
+      ""
     )
     expect(decision.pick?.target).toBe("F1StopAdjust")
     expect(decision.reason).toBe("")
   })
 
-  it("优先采用不需要补语义名的那条", () => {
+  it("跳过还要补语义名的那条，采用拼好的 Target", () => {
     const decision = pickIdentityCandidate(
       [
-        candidate({ target: "F1NeedsName", ui: "F1", needsSemanticName: true }),
+        candidate({ target: "F1", ui: "F1", needsSemanticName: true }),
         candidate({ target: "F1StopAdjust", ui: "F1" })
       ],
-      false
+      ""
     )
     expect(decision.pick?.target).toBe("F1StopAdjust")
   })
 
-  it("区域不唯一时必须让人点一次，不给候选结论", () => {
-    const decision = pickIdentityCandidate([candidate({ target: "F1StopAdjust", ui: "F1" })], true)
+  it("后端挡住时不许自动采用，原因原样交出去", () => {
+    const blocked = "这一页（layerId 357:269592）还没登记过区域：……"
+    const decision = pickIdentityCandidate([candidate({ target: "F1StopAdjust", ui: "F1" })], blocked)
     expect(decision.pick).toBeNull()
-    expect(decision.reason).toContain("区域不是恰好一个")
+    expect(decision.reason).toBe(blocked)
   })
 
-  it("候选为空时提示这是「项目第一次没有区域约定」，并说清人要给什么", () => {
-    const decision = pickIdentityCandidate([], false)
+  it("后端放行但候选里没有拼好的 Target 时，说清语义名要由人给", () => {
+    const decision = pickIdentityCandidate([candidate({ ui: "F1", needsSemanticName: true })], "")
     expect(decision.pick).toBeNull()
-    expect(decision.reason).toContain("还没有任何区域约定")
-    expect(decision.reason).toContain("docs/page-registry.json")
-  })
-
-  it("有候选但都缺语义名时，提示先补语义名", () => {
-    const decision = pickIdentityCandidate([candidate({ ui: "F1", needsSemanticName: true })], false)
-    expect(decision.pick).toBeNull()
-    expect(decision.reason).toContain("先给语义名")
+    expect(decision.reason).toContain("语义名要由人给")
+    expect(decision.reason).toContain("F1StopAdjust")
   })
 })

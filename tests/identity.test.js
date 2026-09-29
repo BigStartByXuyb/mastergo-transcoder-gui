@@ -49,7 +49,7 @@ function caseCandidates() {
   });
   const info = candidatesFor({ projectRoot: root, pageName: "Manual Align (2.2.1)" });
   assert.deepStrictEqual(info.uiCandidates.map((item) => item.ui), ["F2", "F3"], "区域按使用频次排");
-  assert.ok(info.ambiguous, "同一设计文件里有两个区域 → 不明确，界面要人点一次");
+  assert.match(info.blocked, /还没登记过区域/, "没有页帧先例 → 要人点一次");
   assert.strictEqual(info.candidates[0].target, "F2ManualAlign", "给出的候选直接满足「Target 前缀 = 区域」");
   assert.strictEqual(info.candidates[0].needsSemanticName, false);
   assert.match(info.candidates[0].basis, /设计页名/);
@@ -57,6 +57,8 @@ function caseCandidates() {
 
   const noRegistry = candidatesFor({ projectRoot: project(), pageName: "Manual Align" });
   assert.deepStrictEqual(noRegistry.candidates, [], "项目里没有既有区域约定时，不凭空编一个区域");
+  assert.match(noRegistry.blocked, /还没有任何区域约定/, "空工程要说清这是「工程项目第一页要人给一次」");
+  assert.match(noRegistry.blocked, /docs\/page-registry\.json/, "要告诉人给过之后写在哪、以后自动");
 
   // 同一设计文件优先：F1 只在这个文件里出现，F2 是全项目更多 → 这个文件仍然先给 F1
   const scoped = project({
@@ -66,9 +68,9 @@ function caseCandidates() {
       { target: "F1StopAdjust", ui: "F1", designSource: { fileId: "7", layerId: "1:1" } }
     ]
   });
-  const scopedInfo = candidatesFor({ projectRoot: scoped, pageName: "Stop Adjust", fileId: "7" });
+  const scopedInfo = candidatesFor({ projectRoot: scoped, pageName: "Stop Adjust", fileId: "7", layerId: "1:9" });
   assert.strictEqual(scopedInfo.uiCandidates[0].ui, "F1", "同一设计文件里出现过的区域优先");
-  assert.strictEqual(scopedInfo.ambiguous, false, "这个文件里只有一个区域 → 可以自动");
+  assert.match(scopedInfo.blocked, /还没登记过区域/, "同一文件里有先例也不自动：别的页帧的区域不是这一页的区域");
   assert.match(scopedInfo.uiCandidates[0].basis, /同一设计文件/);
   fs.rmSync(scoped, { recursive: true, force: true });
 
@@ -78,7 +80,85 @@ function caseCandidates() {
   });
   const renameInfo = candidatesFor({ projectRoot: renamed, pageName: "停止微调", fileId: "7", layerId: "1:1" });
   assert.ok(renameInfo.candidates.some((item) => item.rename), "改名要给出显式确认项");
+  assert.match(renameInfo.blocked, /改了名/, "改了名不能静默沿用旧 Target");
   fs.rmSync(renamed, { recursive: true, force: true });
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
+// 页帧（layerId）是唯一的自动键：登记过就沿用，没登记过就要人点一次。
+function caseLayerScope() {
+  const root = project({
+    pages: [
+      { target: "F4TargetTeaching", ui: "F4", designSource: { fileId: "181", layerId: "357:290731", designPageName: "目标示教" } }
+    ]
+  });
+
+  // 同一设计文件里的另一页帧：不算这一页的先例（实测踩过：同文件的 F4 被当成了别页的区域先例）
+  const other = candidatesFor({ projectRoot: root, pageName: "StopAdjust", fileId: "181", layerId: "357:269592" });
+  assert.match(other.blocked, /357:269592/, "挡住的原因要指出是哪一个页帧没登记过");
+  assert.ok(other.uiCandidates.some((item) => item.ui === "F4"), "候选里照样给出同文件的既有区域，供人点一下");
+
+  // 这一页登记过、页名没变 → 自动沿用登记那一条，而且排在第一
+  const same = candidatesFor({ projectRoot: root, pageName: "目标示教", fileId: "181", layerId: "357:290731" });
+  assert.strictEqual(same.blocked, "", "这一页登记过 → 可以自动沿用");
+  assert.strictEqual(same.candidates[0].target, "F4TargetTeaching");
+  assert.strictEqual(same.candidates[0].registered, true);
+  assert.strictEqual(same.candidates[0].designPageName, "目标示教", "沿用登记那条要把登记里的页名带回去");
+
+  // 登记过的页帧但页名变了 → 不自动
+  const changed = candidatesFor({ projectRoot: root, pageName: "停止调整", fileId: "181", layerId: "357:290731" });
+  assert.match(changed.blocked, /改了名/);
+
+  // 页帧登记过但没写区域 → 照样要人给一次（没有区域就写不出产物目录）
+  const noUi = project({
+    pages: [{ target: "F4TargetTeaching", designSource: { fileId: "181", layerId: "357:290731" } }]
+  });
+  const withoutUi = candidatesFor({ projectRoot: noUi, pageName: "目标示教", fileId: "181", layerId: "357:290731" });
+  assert.match(withoutUi.blocked, /还没登记过区域/, "登记条目缺区域时不能当成可以自动");
+  fs.rmSync(noUi, { recursive: true, force: true });
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
+// 人指定区域（界面上填了 UI 区域）：候选只剩语义名这一件事，且不许再被 blocked 拦住。
+function caseExplicitUi() {
+  const root = project({
+    pages: [{
+      target: "F4TargetTeaching",
+      ui: "F4",
+      designSource: { fileId: "181", layerId: "357:290731", designPageName: "目标示教" }
+    }]
+  });
+
+  // 英文设计页名：直接给出「F1 + 语义名」的整条候选，能点
+  const ascii = candidatesFor({
+    projectRoot: root, pageName: "StopAdjust", fileId: "181", layerId: "357:269592", explicitUi: "F1"
+  });
+  assert.strictEqual(ascii.blocked, "", "人给了区域就不该再拦");
+  assert.deepStrictEqual(ascii.uiCandidates.map((item) => item.ui), ["F1"], "只按人给的区域算");
+  assert.strictEqual(ascii.candidates[0].target, "F1StopAdjust", "候选要拼成人给的那个区域");
+  assert.strictEqual(ascii.candidates[0].needsSemanticName, false);
+  assert.ok(ascii.candidates.every((item) => item.ui === "F1"), "项目里别的区域不许混进候选");
+
+  // 中文设计页名转不出语义名：只剩「区域、语义名待给」这一条，人要自己定名
+  const cjk = candidatesFor({
+    projectRoot: root, pageName: "停止调整", fileId: "181", layerId: "357:269592", explicitUi: "F1"
+  });
+  assert.strictEqual(cjk.blocked, "");
+  assert.strictEqual(cjk.candidates.length, 1);
+  assert.strictEqual(cjk.candidates[0].needsSemanticName, true);
+
+  // 人给的区域跟登记表里这一页记的不一致：登记那条不再顶到最前，避免自动采用错的那条
+  const conflicted = candidatesFor({
+    projectRoot: root, pageName: "目标示教", fileId: "181", layerId: "357:290731", explicitUi: "F1"
+  });
+  assert.ok(conflicted.candidates.every((item) => item.ui === "F1"), "人指定区域后不许把登记过的 F4 排到前面");
+
+  // 改名优先于「人给了区域」：这一页换过身份，给不给出区域都要显式确认一次
+  const renamedExplicit = candidatesFor({
+    projectRoot: root, pageName: "停止调整", fileId: "181", layerId: "357:290731", explicitUi: "F1"
+  });
+  assert.match(renamedExplicit.blocked, /改了名/, "人填了区域也不能把改名这件事静默吞掉");
+  assert.match(renamedExplicit.blocked, /F4TargetTeaching/, "要说清登记的是哪一条 Target");
   fs.rmSync(root, { recursive: true, force: true });
 }
 
@@ -152,6 +232,8 @@ function main() {
   const cases = [
     ["区域前缀与 PascalCase", casePrefixAndPascal],
     ["候选推导", caseCandidates],
+    ["页帧范围：登记过才自动", caseLayerScope],
+    ["人指定区域：只按那个区域算", caseExplicitUi],
     ["原始登记表读取只此一份", caseRegistryDocument],
     ["写登记表：追加与替换", caseWrite],
     ["写登记表：拒绝不合法输入", caseWriteRejections]
