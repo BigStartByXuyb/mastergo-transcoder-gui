@@ -19,5 +19,9 @@ describe("deriveUiPrefix", () => {
     expect(deriveUiPrefix("")).toBe("")
     expect(deriveUiPrefix("   ")).toBe("")
     expect(deriveUiPrefix("手动对准")).toBe("")
+    // 实测踩过的坑：小写 + 下划线的写法两条规则都不命中
+    expect(deriveUiPrefix("test_mastergp")).toBe("")
+    expect(deriveUiPrefix("F3TestMastergp")).toBe("F3")
+    expect(deriveUiPrefix("TestMastergp")).toBe("Test")
   })
 })

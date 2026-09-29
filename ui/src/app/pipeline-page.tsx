@@ -168,6 +168,8 @@ export function PipelinePage({ taskId }: { taskId: string }) {
 
   const derivedUi = ui.trim() ? "" : deriveUiPrefix(target)
   const needsIdentityHint = !ui.trim() && !target.trim()
+  // 填了 Target 但仍推不出区域：这是最容易被误判成「插件坏了」的情况，必须提前说清原因。
+  const targetWithoutPrefix = !ui.trim() && Boolean(target.trim()) && !derivedUi
 
   // 从看板点「详情」进来时 URL 带 task=<id>：跟着它切换当前任务。
   useEffect(() => {
@@ -426,6 +428,13 @@ export function PipelinePage({ taskId }: { taskId: string }) {
               <span className="text-amber-600">
                 UI 与 Target 都空：插件会按取值链解析（登记表 → Target 前缀/首词）；都取不到就会在入口停下。
                 最省事的做法是把 Target 写成带区域前缀的形式，例如 F3Align。
+              </span>
+            )}
+            {targetWithoutPrefix && (
+              <span className="text-amber-600">
+                Target「{target.trim()}」推不出区域前缀：插件只认两种形状——带编号前缀（F3Align → F3）或
+                大写开头的首词（HomeContent → Home）。当前这个写成小写/下划线，两条都不命中。
+                要么把 UI 区域显式填上，要么把 Target 改成 F3{target.trim()}（或用 PascalCase 如 TestMastergp）。
               </span>
             )}
             {pages && !pages.exists && <span>{pages.problem}</span>}
