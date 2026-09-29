@@ -125,18 +125,6 @@ export type Job = {
   error: string
 }
 
-export type RunStartRequest = {
-  projectRoot: string
-  link?: string
-  target?: string
-  layerId?: string
-  fileId?: string
-  ui?: string
-  mode?: string
-  stopAfter?: string
-  overwrite?: boolean
-}
-
 export type LogSlice = { from: number; next: number; truncated: boolean; text: string }
 
 export type ProviderPreset = { id: string; label: string; baseUrl: string; model: string }
@@ -302,6 +290,9 @@ export type BoardTask = {
     projectRoot: string
     fileId: string
     layerId: string
+    /** 插件 -StopAfter：跑到这一步停下（先出待命名清单，再回来跑后半段）。 */
+    stopAfter: string
+    overwrite: boolean
   }
   /** 这次运行在当前进程里的 id；客户端重启后为空或指向已经结束的那次。 */
   jobId: string
@@ -357,6 +348,8 @@ export type BoardAddBody = {
   projectRoot: string
   ui: string
   autoMerge: boolean
+  /** 插件 -StopAfter：一次任务统一的停点，空串表示跑到底。 */
+  stopAfter: string
   /** 目标工程里已经有同名页面时是否替换（对应流水线的「替换已有产物」）。 */
   overwrite: boolean
   items: { link: string; target: string; mode: "A" | "B" | "AB" }[]
@@ -465,7 +458,6 @@ export const api = {
   health: () => request<Health>("/api/health"),
   plugin: () => request<PluginInfo>("/api/plugin"),
   resolve: (body: { link: string; frameLink: string; projectDir: string }) => post<ResolveResult>("/api/resolve", body),
-  runStart: (body: RunStartRequest) => post<{ ok: true; job: Job }>("/api/run", body),
   runResume: (runId: string) =>
     post<{
       ok: true
@@ -534,7 +526,7 @@ export const api = {
       resumedFrom?: string
     }>("/api/confirm", body),
   board: () => request<{ ok: true; board: Board }>("/api/board"),
-  boardAdd: (body: BoardAddBody) => post<{ ok: true; board: Board }>("/api/board/add", body),
+  boardAdd: (body: BoardAddBody) => post<{ ok: true; board: Board; created: string[] }>("/api/board/add", body),
   boardStart: (id = "") => post<{ ok: true; board: Board }>("/api/board/start", { id }),
   boardStop: (id: string) => post<{ ok: true; board: Board }>("/api/board/stop", { id }),
   boardRemove: (id: string) => post<{ ok: true; board: Board }>("/api/board/remove", { id }),

@@ -26,9 +26,13 @@ type PageKey = (typeof NAV)[number]["key"]
 const PAGE_KEYS = NAV.map((item) => item.key) as readonly string[]
 
 // 页面记在 hash 上：刷新或直接给链接都能落到同一页。
-function readHash(): PageKey {
+// 带参数的形式是 `#<页面>?<查询串>`（例如 `#pipeline?task=<任务 id>`，看板的「详情」跳这里）。
+function readRoute(): { page: PageKey; params: URLSearchParams } {
   const raw = window.location.hash.replace(/^#\/?/, "")
-  return (PAGE_KEYS.includes(raw) ? raw : "query") as PageKey
+  const at = raw.indexOf("?")
+  const key = at < 0 ? raw : raw.slice(0, at)
+  const params = new URLSearchParams(at < 0 ? "" : raw.slice(at + 1))
+  return { page: (PAGE_KEYS.includes(key) ? key : "query") as PageKey, params: params }
 }
 
 function StatusBadges() {
@@ -53,18 +57,21 @@ function StatusBadges() {
 }
 
 export default function App() {
-  const [page, setPage] = useState<PageKey>(readHash)
+  const [route, setRoute] = useState(readRoute)
 
   useEffect(() => {
-    const onHashChange = () => setPage(readHash())
+    const onHashChange = () => setRoute(readRoute())
     window.addEventListener("hashchange", onHashChange)
     return () => window.removeEventListener("hashchange", onHashChange)
   }, [])
 
   function go(key: PageKey) {
     window.location.hash = key
-    setPage(key)
+    setRoute(readRoute())
   }
+
+  const page = route.page
+  const taskId = route.page === "pipeline" ? (route.params.get("task") ?? "") : ""
 
   return (
     <div className="bg-background text-foreground flex min-h-svh">
@@ -111,7 +118,7 @@ export default function App() {
         <main className="min-w-0 flex-1 overflow-auto p-6">
           {page === "query" && <QueryPage />}
           {page === "board" && <BoardPage />}
-          {page === "pipeline" && <PipelinePage />}
+          {page === "pipeline" && <PipelinePage taskId={taskId} />}
           {page === "review" && <ReviewPage />}
           {page === "mapping" && <MappingPage />}
           {page === "settings" && <SettingsPage />}

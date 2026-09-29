@@ -49,6 +49,7 @@ lib/resolve.js      控件查询
 lib/node-controls.js 控件查询引擎（客户端编排，ID 与控件代码取插件的实现）
 lib/xml-chunk.js    从整页 XML 里取单个控件片段
 lib/run.js          流水线运行管理（进度、日志、失败契约）
+lib/board.js        看板：任务的唯一登记（工作目录、并发、AI 补输入、自动合并）
 lib/pending.js      待确认清单的读写
 lib/artifacts.js    产物台账（读插件运行登记表的 outputs，供「已完成」看板用）
 lib/settings.js     用户设置与模型凭据
@@ -84,6 +85,13 @@ lib/ai.js           模型调用（只出候选，从不写盘）
 - `skills/mastergo-to-wpf/scripts/adapters/mtslg-iocontrol/gen-iocontrol-xml.js` —— 发射控件代码
 - `skills/mastergo-to-wpf/scripts/lib/page-node-id.js` —— 页面节点 ID 公式
 - `skills/mastergo-to-wpf/scripts/entry/run-all.ps1` —— 整页流水线入口，界面按它 `-List` 返回的步骤契约渲染
+
+## 任务与看板
+
+任务只有一套登记：`lib/board.js`。流水线页的「加入看板并开始」就是新建一个看板任务并启动它，
+看板行的「详情」跳到 `#pipeline?task=<任务 id>`。每个任务有自己的工作目录（复制主工程 → 跑流水线 →
+合并回主工程），并发上限按本机逻辑核数给；停在语义判断点等输入、AI 补输入、冲突后停下都由看板管。
+运行本身（步骤、日志、断点续跑）仍在 `lib/run.js`，看板与流水线详情读的是同一份运行状态。
 
 ## 依赖
 
