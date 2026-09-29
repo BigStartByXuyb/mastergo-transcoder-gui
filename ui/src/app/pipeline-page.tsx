@@ -11,7 +11,7 @@ import { useRunLog } from "@/app/use-run-log"
 import { api, type Board, type Pending, type PipelineStep, type PluginSummary } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { adoptsIdentityWithoutConfirm, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
-import { POLL_MS, isBusyState, isFinishedState, waitingCounts } from "@/lib/task-state"
+import { POLL_MS, canStop, isBusyState, isFinishedState, waitingCounts } from "@/lib/task-state"
 
 /*
  * 流水线：新建任务 + 看某个任务的详情。
@@ -236,7 +236,7 @@ export function PipelinePage({ taskId }: { taskId: string }) {
         identity={identity}
         busy={busy}
         failure={failure}
-        running={running}
+        canStop={task !== null && canStop(task.state)}
         onStart={() => void start()}
         onStop={() => void stop()}
         onReloadContract={() => void reloadContract()}

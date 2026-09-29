@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest"
 
 import type { Pending } from "@/lib/api"
-import { isBusyState, isFinishedState, isMerging, occupiesSlot, waitingCounts } from "@/lib/task-state"
+import {
+  TERMINAL_STATES,
+  canStop,
+  isBusyState,
+  isFinishedState,
+  isMerging,
+  isTerminal,
+  occupiesSlot,
+  waitingCounts
+} from "@/lib/task-state"
 
 /*
  * 这里只验证计数口径，条目的其它字段与本判定无关：按条数造空壳，
@@ -43,6 +52,16 @@ describe("task-state", () => {
     expect(isBusyState("waiting")).toBe(false)
     expect(isMerging("merging")).toBe(true)
     expect(isMerging("running")).toBe(false)
+  })
+
+  it("终态可清可移，停止只在没在合并中时给", () => {
+    expect(TERMINAL_STATES).toEqual(["merged", "failed", "stopped", "conflict"])
+    for (const state of TERMINAL_STATES) expect(isTerminal(state)).toBe(true)
+    expect(isTerminal("ready")).toBe(false)
+    expect(canStop("running")).toBe(true)
+    expect(canStop("queued")).toBe(true)
+    expect(canStop("merging")).toBe(false)
+    expect(canStop("merged")).toBe(false)
   })
 
   it("只数真正待补的条目：needsNaming / needsTranslation 为假时不计数", () => {

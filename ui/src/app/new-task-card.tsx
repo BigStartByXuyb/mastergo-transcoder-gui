@@ -26,14 +26,14 @@ type Props = {
   identity: ReturnType<typeof useIdentity>
   busy: string
   failure: string
-  running: boolean
+  canStop: boolean
   onStart: () => void
   onStop: () => void
   onReloadContract: () => void
 }
 
 export function NewTaskCard(props: Props) {
-  const { form, onForm, plugin, contract, automation, identity, busy, failure, running } = props
+  const { form, onForm, plugin, contract, automation, identity, busy, failure } = props
   const needsIdentityHint = !form.ui.trim() && !form.target.trim()
   // 填了 Target 但仍推不出区域：这是最容易被误判成「插件坏了」的情况，必须提前说清原因。
   const targetWithoutPrefix = !form.ui.trim() && Boolean(form.target.trim()) && !identity.derivedUi
@@ -247,7 +247,7 @@ export function NewTaskCard(props: Props) {
             <Label htmlFor="run-overwrite">替换已有产物（默认不替换，同名就停）</Label>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            {running && (
+            {props.canStop && (
               <Button variant="outline" disabled={busy !== ""} onClick={props.onStop}>
                 <Square className="size-4" />
                 停止

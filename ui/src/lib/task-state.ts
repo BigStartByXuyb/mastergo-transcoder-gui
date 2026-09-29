@@ -13,7 +13,7 @@ export const POLL_MS = 1500
  */
 export const REVIEW_POLL_MS = 2000
 
-/* 正在占用执行额度：流水线详情按它显示「停止」。 */
+/* 正在占用执行额度：任务在推进，界面不让再起同一条流水线。 */
 const RUNNING_STATES = ["preparing", "running", "merging"]
 
 /*
@@ -22,8 +22,11 @@ const RUNNING_STATES = ["preparing", "running", "merging"]
  */
 const OCCUPIED_STATES = ["queued", "preparing", "running", "waiting", "merging"]
 
-/* 已经跑完、可以看待办与产物的状态。 */
+/* 产物已经落地的状态：合并中也算 —— 产物写完了，正在回写主工程。 */
 const FINISHED_STATES = ["ready", "merging", "merged", "conflict"]
+
+/* 终态：跑完 / 失败 / 停止 / 冲突都落地了，不会再变，可以清掉或移除。 */
+export const TERMINAL_STATES = ["merged", "failed", "stopped", "conflict"]
 
 export function isBusyState(state: string): boolean {
   return RUNNING_STATES.includes(state)
@@ -40,6 +43,18 @@ export function isMerging(state: string): boolean {
 
 export function isFinishedState(state: string): boolean {
   return FINISHED_STATES.includes(state)
+}
+
+export function isTerminal(state: string): boolean {
+  return TERMINAL_STATES.includes(state)
+}
+
+/*
+ * 能不能给「停止」：占着这一位、且不在合并中（合并停不了一半）。
+ * 看板与流水线共用这一条 —— 两处各写一遍，就会出现「看板藏了、流水线还显示」。
+ */
+export function canStop(state: string): boolean {
+  return occupiesSlot(state) && !isMerging(state)
 }
 
 /** 待确认条目计数：命名表与译文各自独立，界面按这两类分别给徽标。 */

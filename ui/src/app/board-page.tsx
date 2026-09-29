@@ -18,7 +18,7 @@ import { parseBoardItems } from "@/lib/board-items"
 import { boardStateVariant } from "@/lib/board-state"
 import { describeFailure } from "@/lib/describe-failure"
 import { readStored, writeStored } from "@/lib/storage"
-import { POLL_MS, isMerging, occupiesSlot } from "@/lib/task-state"
+import { POLL_MS, TERMINAL_STATES, canStop, isTerminal } from "@/lib/task-state"
 
 /*
  * 看板：一屏同时跑多个页面。
@@ -190,7 +190,7 @@ export function BoardPage() {
             <Button
               variant="ghost"
               disabled={busy !== "" || tasks.length === 0}
-              onClick={() => void run("clear", () => api.boardClear(["merged", "failed", "stopped", "conflict"]))}
+              onClick={() => void run("clear", () => api.boardClear(TERMINAL_STATES))}
             >
               清掉已结束
             </Button>
@@ -429,7 +429,7 @@ function TaskRow({
               <Play /> 启动
             </Button>
           )}
-          {occupiesSlot(task.state) && !isMerging(task.state) && (
+          {canStop(task.state) && (
             <Button
               size="sm"
               variant="outline"
@@ -444,7 +444,7 @@ function TaskRow({
               <GitMerge /> {task.state === "conflict" ? "重新合并" : "合并"}
             </Button>
           )}
-          {["merged", "failed", "stopped", "conflict"].includes(task.state) && (
+          {isTerminal(task.state) && (
             <Button
               size="sm"
               variant="ghost"
