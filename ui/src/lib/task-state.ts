@@ -25,8 +25,12 @@ const OCCUPIED_STATES = ["queued", "preparing", "running", "waiting", "merging"]
 /* 产物已经落地的状态：合并中也算 —— 产物写完了，正在回写主工程。 */
 const FINISHED_STATES = ["ready", "merging", "merged", "conflict"]
 
-/* 终态：跑完 / 失败 / 停止 / 冲突都落地了，不会再变，可以清掉或移除。 */
-export const TERMINAL_STATES = ["merged", "failed", "stopped", "conflict"]
+/*
+ * 已经落地、可以先收起的任务：跑完 / 失败 / 停止都走完了，冲突也已经出了报告。
+ * 「落地」不等于「不会再变」——冲突还能靠「重新合并」再试一次，所以它在这里，
+ * 但看板不给它「已结束」的说法。
+ */
+export const SETTLED_STATES = ["merged", "failed", "stopped", "conflict"]
 
 export function isBusyState(state: string): boolean {
   return RUNNING_STATES.includes(state)
@@ -45,8 +49,8 @@ export function isFinishedState(state: string): boolean {
   return FINISHED_STATES.includes(state)
 }
 
-export function isTerminal(state: string): boolean {
-  return TERMINAL_STATES.includes(state)
+export function isSettled(state: string): boolean {
+  return SETTLED_STATES.includes(state)
 }
 
 /*
