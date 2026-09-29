@@ -337,13 +337,37 @@ export function PipelinePage({ taskId }: { taskId: string }) {
     writeStored(STORAGE_KEY, { link, projectRoot, target, ui, mode })
     setBusy("start")
     try {
+      /*
+       * 自动化层级是「自动」时身份也不必先点按钮：启动前自己补一遍（与插件跑法里 agent 做的一致）。
+       * 区域只能来自项目既有约定，所以项目里一次都没登记过时会停下来要人给一次——那一次是项目事实。
+       */
+      let finalTarget = target.trim()
+      let finalUi = ui.trim()
+      if (!finalTarget && !finalUi && automation === "auto") {
+        const payload = await api.identityCandidates({ projectRoot: projectRoot.trim(), pageName: identityName.trim(), useAi: true })
+        const list: IdentityCandidate[] = [...(payload.ai.items ?? []), ...(payload.candidates ?? [])]
+        const pick = list.find((item) => item.target && !item.needsSemanticName) ?? list.find((item) => item.target)
+        if (!pick) {
+          setFailure(
+            "这个工程还没有任何区域约定（登记表里没有页面、也没有带前缀的 Target）：区域是项目事实，设计稿里没有这个信息，"
+            + "需要先手工填一次 Ui 前缀；之后这个项目就有约定了，自动层级会一直沿用。"
+          )
+          return
+        }
+        await api.identityApply({ projectRoot: projectRoot.trim(), target: pick.target, ui: pick.ui, designPageName: identityName.trim() })
+        finalTarget = pick.target
+        finalUi = pick.ui
+        setTarget(pick.target)
+        setUi(pick.ui)
+        toast.success("已自动补身份：" + pick.target + "（UI " + pick.ui + "）")
+      }
       const added = await api.boardAdd({
         projectRoot,
-        ui,
+        ui: finalUi,
         autoMerge: true,
         stopAfter,
         overwrite,
-        items: [{ link, target, mode: mode as "A" | "B" | "AB" }]
+        items: [{ link, target: finalTarget, mode: mode as "A" | "B" | "AB" }]
       })
       const created = added.created[0] ?? ""
       await api.boardStart(created)
