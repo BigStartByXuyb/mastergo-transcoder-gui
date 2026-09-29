@@ -98,6 +98,19 @@ function makeBoard(options = {}) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// 启动是异步的（要先把主工程复制进工作目录）：必须等 jobId 落下来再往下驱动，
+// 否则会在 CI 上抢在 launch 之前写状态，被随后的真实 launch 覆盖。
+async function waitForTask(fx, id, predicate, label) {
+  for (let index = 0; index < 100; index += 1) {
+    const task = fx.board.snapshot().tasks.find((item) => item.id === id);
+    if (task && predicate(task)) return task;
+    await sleep(50);
+  }
+  throw new Error("等超时：" + label);
+}
+
+const hasJob = (task) => Boolean(task.jobId);
+
 function caseLoadMarksDeadTasksStopped() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-resume-"));
   write(path.join(home, "board.json"), JSON.stringify([
@@ -150,8 +163,7 @@ async function caseStartUsesWorkDirAndKeepsQueue() {
   for (let index = 0; index < 6; index += 1) items.push({ link: LINK + "&i=" + index, target: "T" + index, mode: "B" });
   const added = fx.board.add({ projectRoot: fx.project, items: items });
   fx.board.start(added.created[0]);
-  await sleep(60);
-  const first = fx.board.snapshot().tasks.find((task) => task.id === added.created[0]);
+  const first = await waitForTask(fx, added.created[0], hasJob, "第一个任务启动完成");
   assert.ok(first.workDir && first.workDir.startsWith(path.join(fx.home, "work")), "任务在自己的工作目录里跑");
   assert.ok(fs.existsSync(path.join(first.workDir, "docs", "page-registry.json")), "工作目录是主工程的副本");
   assert.strictEqual(fx.runs.started[0].projectRoot, first.workDir, "执行引擎的 -ProjectRoot 是工作目录");
@@ -159,7 +171,7 @@ async function caseStartUsesWorkDirAndKeepsQueue() {
   assert.strictEqual(fx.runs.started[0].mode, "B");
 
   fx.board.start();
-  await sleep(60);
+  await sleep(300);
   const limit = fx.board.snapshot().limits.limit;
   const occupying = fx.board.snapshot().tasks.filter((task) => ["preparing", "running", "merging"].includes(task.state));
   assert.ok(occupying.length <= limit, "并发不超过按核数算出来的上限，实际 " + occupying.length + " / " + limit);
@@ -173,8 +185,7 @@ async function caseTickSyncsReadyAndMerges() {
   const added = fx.board.add({ projectRoot: fx.project, items: [{ link: LINK, target: "T1", mode: "B" }] });
   const id = added.created[0];
   fx.board.start(id);
-  await sleep(60);
-  const task = fx.board.snapshot().tasks.find((item) => item.id === id);
+  const task = await waitForTask(fx, id, hasJob, '启动完成');
   fx.runs.seed(task.jobId, { id: task.jobId, state: "done", request: {}, runs: [] }, task.workDir);
 
   await sleep(TICK + 300);
@@ -194,8 +205,7 @@ async function caseSemanticStopAndAutoFill() {
   const added = fx.board.add({ projectRoot: fx.project, ui: "F3", items: [{ link: LINK, target: "T1", mode: "B" }] });
   const id = added.created[0];
   fx.board.start(id);
-  await sleep(60);
-  const task = fx.board.snapshot().tasks.find((item) => item.id === id);
+  const task = await waitForTask(fx, id, hasJob, '启动完成');
   fx.runs.seed(task.jobId, {
     id: task.jobId,
     state: "failed",
@@ -251,8 +261,7 @@ async function caseAutoFillLimitAndRealFailure() {
     home: home
   });
   board.start(id);
-  await sleep(60);
-  const task = board.snapshot().tasks.find((item) => item.id === id);
+  const task = await waitForTask({ board: board }, id, hasJob, '启动完成');
   runs.seed(task.jobId, {
     id: task.jobId,
     state: "failed",
@@ -269,8 +278,7 @@ async function caseAutoFillLimitAndRealFailure() {
   const fx2 = makeBoard({ pendingThrows: true });
   const added2 = fx2.board.add({ projectRoot: fx2.project, items: [{ link: LINK, target: "T1", mode: "B" }] });
   fx2.board.start(added2.created[0]);
-  await sleep(60);
-  const task2 = fx2.board.snapshot().tasks.find((item) => item.id === added2.created[0]);
+  const task2 = await waitForTask(fx2, added2.created[0], hasJob, '启动完成');
   fx2.runs.seed(task2.jobId, {
     id: task2.jobId,
     state: "failed",
@@ -300,7 +308,7 @@ async function caseStopRemoveClearAndMerge() {
   // 正在跑的任务不许直接移除：先停掉再移除。
   const third = fx.board.add({ projectRoot: fx.project, items: [{ link: LINK + "&c=1", target: "T3", mode: "B" }] }).created[0];
   fx.board.start(third);
-  await sleep(60);
+  await waitForTask(fx, third, (task) => task.state === "running", "第三个任务跑起来");
   await assert.rejects(() => fx.board.remove(third), (error) => error.code === "BUSY_TASK");
   fx.board.stop(third);
   const afterStop = await fx.board.remove(third);
@@ -325,8 +333,7 @@ async function caseProgressStepsAndTargetAdoption() {
   const added = fx.board.add({ projectRoot: fx.project, ui: "F3", items: [{ link: LINK, mode: "B" }] });
   const id = added.created[0];
   fx.board.start(id);
-  await sleep(60);
-  const task = fx.board.snapshot().tasks.find((item) => item.id === id);
+  const task = await waitForTask(fx, id, hasJob, '启动完成');
 
   // 没写 Target 时，跑起来之后从运行登记表的目录名把真实 Target 认回来
   write(path.join(task.workDir, "Generated", "runs", "F3Align", "run.json"), '{ "outputs": [] }\n');
