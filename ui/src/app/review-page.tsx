@@ -9,7 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ApiFailure, api, type PendingQueueEntry } from "@/lib/api"
+import { api, type PendingQueueEntry } from "@/lib/api"
+import { describeFailure } from "@/lib/describe-failure"
 
 /*
  * 待确认页：列出**所有**还缺语义输入的页面。
@@ -54,7 +55,7 @@ export function ReviewPage() {
       setQueue(payload.queue.items)
       setProblem("")
     } catch (error) {
-      setProblem(error instanceof ApiFailure ? error.message : String(error))
+      setProblem(describeFailure(error))
     } finally {
       setLoaded(true)
     }

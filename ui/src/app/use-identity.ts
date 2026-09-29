@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { api, type IdentityCandidate, type ProjectPages } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { pickIdentityCandidate } from "@/lib/identity-pick"
+import { adoptsIdentityWithoutConfirm } from "@/lib/task-form"
 
 /*
  * 页面身份：Target 与 UI 区域。
@@ -111,7 +112,7 @@ export function useIdentity(options: IdentityOptions) {
     onFailure("")
     try {
       const picked = await pick()
-      if (picked && automation === "auto") await apply(picked)
+      if (picked && adoptsIdentityWithoutConfirm(automation)) await apply(picked)
     } catch (error) {
       onFailure(describeFailure(error))
     } finally {

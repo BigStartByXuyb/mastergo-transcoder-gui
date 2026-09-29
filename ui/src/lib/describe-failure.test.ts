@@ -14,8 +14,8 @@ describe("describeFailure", () => {
     expect(describeFailure(new ApiFailure("NO_HINT", "插件目录不存在", ""))).toBe("插件目录不存在")
   })
 
-  it("非 ApiFailure 的异常原文照给", () => {
-    expect(describeFailure(new Error("boom"))).toBe("Error: boom")
+  it("普通异常只给 message，不加 Error: 前缀", () => {
+    expect(describeFailure(new Error("boom"))).toBe("boom")
     expect(describeFailure("直接抛的字符串")).toBe("直接抛的字符串")
   })
 })

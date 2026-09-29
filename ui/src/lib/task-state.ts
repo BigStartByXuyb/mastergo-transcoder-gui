@@ -7,14 +7,24 @@ import type { Pending } from "@/lib/api"
 
 export const POLL_MS = 1500
 
-/* 占着执行额度的状态：这些状态显示「停止」，也不允许再起同一条流水线。 */
-const BUSY_STATES = ["preparing", "running", "merging"]
+/* 正在占用执行额度：流水线详情按它显示「停止」。 */
+const RUNNING_STATES = ["preparing", "running", "merging"]
+
+/*
+ * 占了看板这一位、不能再起同一个任务的状态：排队与待确认也占着位子。
+ * 与 RUNNING_STATES 是两个具名判定，不是同一个集合的两种叫法。
+ */
+const OCCUPIED_STATES = ["queued", "preparing", "running", "waiting", "merging"]
 
 /* 已经跑完、可以看待办与产物的状态。 */
 const FINISHED_STATES = ["ready", "merging", "merged", "conflict"]
 
 export function isBusyState(state: string): boolean {
-  return BUSY_STATES.includes(state)
+  return RUNNING_STATES.includes(state)
+}
+
+export function occupiesSlot(state: string): boolean {
+  return OCCUPIED_STATES.includes(state)
 }
 
 export function isFinishedState(state: string): boolean {

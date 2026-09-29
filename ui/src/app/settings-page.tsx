@@ -9,15 +9,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ApiFailure, api, type Settings } from "@/lib/api"
+import { api, type Settings } from "@/lib/api"
+import { describeFailure } from "@/lib/describe-failure"
 import { useHealth } from "@/lib/use-health"
 
 const CUSTOM = "custom"
-
-function describe(error: unknown): string {
-  if (error instanceof ApiFailure) return error.message + (error.hint ? "：" + error.hint : "")
-  return String(error instanceof Error ? error.message : error)
-}
 
 export function SettingsPage() {
   const { health, offline } = useHealth(10000)
@@ -38,7 +34,7 @@ export function SettingsPage() {
         setBaseUrl(payload.settings.ai.baseUrl)
         setModel(payload.settings.ai.model)
       })
-      .catch((error) => setFailure(describe(error)))
+      .catch((error) => setFailure(describeFailure(error)))
   }, [])
 
   function pickProvider(id: string) {
@@ -66,7 +62,7 @@ export function SettingsPage() {
       setApiKey("")
       toast.success("已保存")
     } catch (error) {
-      setFailure(describe(error))
+      setFailure(describeFailure(error))
     } finally {
       setBusy(false)
     }

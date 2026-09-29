@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ApiFailure, api, type MappingMatch, type MappingView } from "@/lib/api"
+import { api, type MappingMatch, type MappingView } from "@/lib/api"
+import { describeFailure } from "@/lib/describe-failure"
 
 /*
  * 映射表展示：只读。
@@ -33,9 +34,7 @@ export function MappingPage() {
     api
       .mapping()
       .then((payload) => setMapping(payload.mapping))
-      .catch((error) =>
-        setFailure(error instanceof ApiFailure ? error.message + (error.hint ? "：" + error.hint : "") : String(error))
-      )
+      .catch((error) => setFailure(describeFailure(error)))
   }, [])
 
   const needle = query.trim().toLowerCase()

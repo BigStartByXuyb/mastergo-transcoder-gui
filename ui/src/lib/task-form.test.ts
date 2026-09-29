@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest"
 
-import { AUTOMATION_LABEL, MODE_HINT, readTaskForm, writeTaskForm } from "@/lib/task-form"
+import {
+  AUTOMATION_LABEL,
+  MODE_HINT,
+  adoptsIdentityWithoutConfirm,
+  readTaskForm,
+  writeTaskForm
+} from "@/lib/task-form"
 
 afterEach(() => {
   localStorage.clear()
@@ -51,5 +57,11 @@ describe("task-form", () => {
     expect(MODE_HINT.A).toContain("MW WPF")
     expect(MODE_HINT.AB).toContain("两次独立运行")
     expect(AUTOMATION_LABEL.off).toContain("不叫模型")
+  })
+
+  it("只有「自动」层级才不人工确认地采用身份候选", () => {
+    expect(adoptsIdentityWithoutConfirm("auto")).toBe(true)
+    expect(adoptsIdentityWithoutConfirm("assist")).toBe(false)
+    expect(adoptsIdentityWithoutConfirm("off")).toBe(false)
   })
 })

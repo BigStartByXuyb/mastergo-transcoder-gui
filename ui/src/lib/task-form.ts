@@ -38,6 +38,11 @@ export const AUTOMATION_LABEL: Record<string, string> = {
   auto: "自动"
 }
 
+/* 「自动」这一层级的含义：身份候选不人工确认，直接采用。按钮入口与启动前共用这条规则。 */
+export function adoptsIdentityWithoutConfirm(automation: string): boolean {
+  return automation === "auto"
+}
+
 const STORAGE_KEY = "mastergo-transcoder-gui.pipeline"
 
 export function readTaskForm(): TaskForm {

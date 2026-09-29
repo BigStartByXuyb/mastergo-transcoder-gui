@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ApiFailure, api, type Pending } from "@/lib/api"
+import { api, type Pending } from "@/lib/api"
+import { describeFailure } from "@/lib/describe-failure"
 
 const BASIS_LABEL: Record<string, string> = {
   "host-shell": "宿主外壳自带",
@@ -20,11 +21,6 @@ const BASIS_LABEL: Record<string, string> = {
   "icon-policy-single-path": "单 PATH 图标",
   "camera-viewport-internal": "相机视图内部",
   "no-icon-slot": "无图标槽位"
-}
-
-function describe(error: unknown): string {
-  if (error instanceof ApiFailure) return error.message + (error.hint ? "：" + error.hint : "")
-  return String(error instanceof Error ? error.message : error)
 }
 
 // 写进去的文件 → 人看得懂的名字。用于「AI 补了什么」在流程里的显示。
@@ -119,7 +115,7 @@ export function PendingPanel({
         return next
       })
     } catch (error) {
-      setFailure(describe(error))
+      setFailure(describeFailure(error))
     } finally {
       setBusy("")
     }
@@ -217,7 +213,7 @@ export function PendingPanel({
         await load()
         if (payload.job) onResumed?.({ filled: written, resumedFrom: payload.resumedFrom ?? "" })
       } catch (error) {
-        setFailure(describe(error))
+        setFailure(describeFailure(error))
       } finally {
         setBusy("")
       }
@@ -290,7 +286,7 @@ export function PendingPanel({
         if (automation === "auto") await submitWith(true, naming, translations, glossaryMap)
       } catch (error) {
         // 模型不可用不该把人挡住：退回人工填，把原因写在面板上。
-        setFailure("AI 出候选失败（可以人工填）：" + describe(error))
+        setFailure("AI 出候选失败（可以人工填）：" + describeFailure(error))
       } finally {
         setBusy("")
       }
@@ -323,7 +319,7 @@ export function PendingPanel({
       })
       toast.success("已填入 " + payload.items.length + " 条")
     } catch (error) {
-      setFailure("AI 出候选失败（可以人工填）：" + describe(error))
+      setFailure("AI 出候选失败（可以人工填）：" + describeFailure(error))
     } finally {
       setBusy("")
     }
@@ -341,7 +337,7 @@ export function PendingPanel({
       })
       toast.success("已填入 " + payload.items.length + " 条")
     } catch (error) {
-      setFailure("AI 出候选失败（可以人工填）：" + describe(error))
+      setFailure("AI 出候选失败（可以人工填）：" + describeFailure(error))
     } finally {
       setBusy("")
     }

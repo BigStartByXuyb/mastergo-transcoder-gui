@@ -10,7 +10,7 @@ import { useIdentity } from "@/app/use-identity"
 import { useRunLog } from "@/app/use-run-log"
 import { api, type Board, type Pending, type PipelineStep, type PluginSummary } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
-import { readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
+import { adoptsIdentityWithoutConfirm, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
 import { POLL_MS, isBusyState, isFinishedState, waitingCounts } from "@/lib/task-state"
 
 /*
@@ -137,7 +137,7 @@ export function PipelinePage({ taskId }: { taskId: string }) {
        */
       let finalTarget = form.target.trim()
       let finalUi = form.ui.trim()
-      if (!finalTarget && !finalUi && automation === "auto") {
+      if (!finalTarget && !finalUi && adoptsIdentityWithoutConfirm(automation)) {
         // 与按钮同一条实现：落后端取候选 → 写登记表 → 回填；要人决策时 pick 已经把原因写进 failure。
         const picked = await identity.pick()
         if (!picked) return

@@ -13,10 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
-import { ApiFailure, api, type Board, type BoardTask } from "@/lib/api"
+import { api, type Board, type BoardTask } from "@/lib/api"
 import { parseBoardItems } from "@/lib/board-items"
 import { boardStateVariant } from "@/lib/board-state"
+import { describeFailure } from "@/lib/describe-failure"
 import { readStored, writeStored } from "@/lib/storage"
+import { POLL_MS, occupiesSlot } from "@/lib/task-state"
 
 /*
  * 看板：一屏同时跑多个页面。
@@ -26,9 +28,6 @@ import { readStored, writeStored } from "@/lib/storage"
  */
 
 const STORAGE_KEY = "mastergo-transcoder-gui.board"
-const POLL_MS = 1500
-
-const BUSY_STATES = ["queued", "preparing", "running", "waiting", "merging"]
 const EMPTY_FORM: Form = { projectRoot: "", ui: "", mode: "B", autoMerge: true, overwrite: false, stopAfter: "", links: "" }
 
 type Form = {
@@ -76,7 +75,7 @@ export function BoardPage() {
         .catch((error) => {
           if (!alive) return
           // 轮询失败保留上一份数据：界面不该因为一次抖动就空掉。
-          setProblem(error instanceof ApiFailure ? error.message : String(error))
+          setProblem(describeFailure(error))
         })
     }
     load()
@@ -111,7 +110,7 @@ export function BoardPage() {
       setBoard(payload.board)
       setProblem("")
     } catch (error) {
-      const message = error instanceof ApiFailure ? [error.message, error.hint].filter(Boolean).join(" —— ") : String(error)
+      const message = describeFailure(error)
       setProblem(message)
       toast.error(message)
     } finally {
@@ -430,7 +429,7 @@ function TaskRow({
               <Play /> 启动
             </Button>
           )}
-          {BUSY_STATES.includes(task.state) && task.state !== "merging" && (
+          {occupiesSlot(task.state) && task.state !== "merging" && (
             <Button
               size="sm"
               variant="outline"
