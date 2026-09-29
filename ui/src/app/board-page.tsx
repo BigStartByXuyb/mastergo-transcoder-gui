@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { api, type Board, type BoardTask } from "@/lib/api"
 import { parseBoardItems } from "@/lib/board-items"
 import { boardStateVariant } from "@/lib/board-state"
+import { coverageOf, type Coverage } from "@/lib/board-effective"
 import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
 import { MergeConflicts } from "@/app/merge-conflicts"
@@ -31,7 +32,16 @@ import { FINISHED_STATES, POLL_MS, canStop, isSettled } from "@/lib/task-state"
  */
 
 const STORAGE_KEY = "mastergo-transcoder-gui.board"
-const EMPTY_FORM: Form = { projectRoot: "", ui: "", mode: "B", autoMerge: true, overwrite: false, stopAfter: "", links: "" }
+const EMPTY_FORM: Form = {
+  projectRoot: "",
+  ui: "",
+  mode: "B",
+  autoMerge: true,
+  overwrite: false,
+  stopAfter: "",
+  links: "",
+  onlyEffective: true
+}
 
 type Form = {
   projectRoot: string
@@ -41,6 +51,7 @@ type Form = {
   overwrite: boolean
   stopAfter: string
   links: string
+  onlyEffective: boolean
 }
 
 function readForm(): Form {
@@ -51,7 +62,8 @@ function readForm(): Form {
     autoMerge: raw.autoMerge !== false,
     overwrite: raw.overwrite === true,
     stopAfter: String(raw.stopAfter ?? ""),
-    links: String(raw.links ?? "")
+    links: String(raw.links ?? ""),
+    onlyEffective: raw.onlyEffective !== false
   }))
 }
 
@@ -145,6 +157,9 @@ export function BoardPage() {
 
   const tasks = board?.tasks ?? []
   const readyCount = tasks.filter((task) => task.state === "ready").length
+  const coverage = useMemo(() => coverageOf(tasks), [tasks])
+  const shown = form.onlyEffective ? tasks.filter((task) => coverage.get(task.id) !== "covered") : tasks
+  const coveredCount = tasks.length - shown.length
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -199,6 +214,17 @@ export function BoardPage() {
             >
               清掉已结束
             </Button>
+            {/* 同一页面只留当前生效那一行，被后一次合并覆盖的默认藏起来；要看历史就关掉它。 */}
+            <div className="ml-auto flex items-center gap-2">
+              <Switch
+                id="board-only-effective"
+                checked={form.onlyEffective}
+                onCheckedChange={(value) => setForm({ ...form, onlyEffective: value })}
+              />
+              <Label htmlFor="board-only-effective" className="text-xs">
+                只看生效{coveredCount > 0 ? `（已藏起 ${coveredCount} 条被覆盖的）` : ""}
+              </Label>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -304,27 +330,29 @@ export function BoardPage() {
         </CardHeader>
         <CardContent>
           <div className="overflow-hidden rounded-md border">
-            <Table>
+            {/* 固定列宽：中间内容再长也只换行，不把整张表撑宽。 */}
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-28">状态</TableHead>
-                  <TableHead className="w-40">Target</TableHead>
+                  <TableHead className="w-32">状态</TableHead>
+                  <TableHead className="w-36">Target</TableHead>
                   <TableHead className="w-16">模式</TableHead>
-                  <TableHead className="w-56">进度</TableHead>
+                  <TableHead className="w-52">进度</TableHead>
                   <TableHead>工作目录 / 说明</TableHead>
-                  <TableHead className="w-44 text-right">操作</TableHead>
+                  <TableHead className="w-48 text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tasks.map((task) => (
+                {shown.map((task) => (
                   <TaskRow
                     key={task.id}
                     task={task}
+                    coverage={coverage.get(task.id)}
                     busy={busy}
                     run={run}
                   />
                 ))}
-                {tasks.length === 0 && (
+                {shown.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={6} className="text-muted-foreground py-8 text-center text-sm">
                       还没有任务。填工程目录与链接，加进来再启动。
@@ -342,10 +370,12 @@ export function BoardPage() {
 
 function TaskRow({
   task,
+  coverage,
   busy,
   run
 }: {
   task: BoardTask
+  coverage?: Coverage
   busy: string
   run: (key: string, action: () => Promise<{ board: Board }>) => Promise<void>
 }) {
@@ -358,18 +388,26 @@ function TaskRow({
   return (
     <>
     <TableRow>
-      <TableCell>
-        <Badge variant={boardStateVariant(task.state)}>{task.stateLabel}</Badge>
+      <TableCell className="align-top whitespace-normal">
+        <div className="flex flex-col items-start gap-1">
+          <Badge variant={boardStateVariant(task.state)}>{task.stateLabel}</Badge>
+          {coverage === "effective" && <Badge variant="outline">生效中</Badge>}
+          {coverage === "covered" && (
+            <Badge variant="secondary" title="同一页面的后一次合并已经把它覆盖，工程里当前不是这一份">
+              已被覆盖
+            </Badge>
+          )}
+        </div>
       </TableCell>
-      <TableCell className="text-xs">
+      <TableCell className="align-top text-xs whitespace-normal">
         <IdentifierText text={task.request.target || "（按设计稿推导）"} />
       </TableCell>
-      <TableCell className="text-sm">{task.request.mode}</TableCell>
-      <TableCell>
+      <TableCell className="align-top text-sm">{task.request.mode}</TableCell>
+      <TableCell className="align-top">
         {progress ? (
           <div className="flex flex-col gap-1">
             <Progress value={percent} />
-            <span className="text-muted-foreground truncate text-xs" title={progress.currentTitle}>
+            <span className="text-muted-foreground block truncate text-xs" title={progress.currentTitle}>
               {done}/{total} {progress.currentTitle ? "· " + progress.currentTitle : ""}
             </span>
           </div>
@@ -377,11 +415,13 @@ function TaskRow({
           <span className="text-muted-foreground text-xs">—</span>
         )}
       </TableCell>
-      <TableCell className="align-top">
+      <TableCell className="align-top whitespace-normal">
         <div className="flex flex-col gap-1">
-          <span className="text-muted-foreground truncate font-mono text-xs" title={task.workDir || task.request.projectRoot}>
-            {task.workDir || task.request.projectRoot}
-          </span>
+          <ClampText
+            text={task.workDir || task.request.projectRoot}
+            lines={3}
+            className="text-muted-foreground font-mono text-xs"
+          />
           {task.error && <ClampText text={task.error} lines={2} className="text-destructive text-xs" />}
           {task.failure && task.failure.kind !== "semantic" && (
             <span className="text-destructive text-xs">
@@ -426,7 +466,7 @@ function TaskRow({
           )}
         </div>
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className="align-top text-right whitespace-normal">
         <div className="flex flex-wrap justify-end gap-1">
           <Button
             size="sm"

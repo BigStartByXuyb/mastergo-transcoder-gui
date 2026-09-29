@@ -177,6 +177,7 @@ function caseResolveConflict(fx) {
   const home = path.join(fx.root, "home-resolve-conflict");
   fs.mkdirSync(home, { recursive: true });
   const conflict = "Resources/Pages/Detail/DetailPage.xml";
+  const missingFlag = "UI/F1/View/DetailView.xaml";
   write(path.join(home, "board.json"), JSON.stringify([{
     id: "conflict-task",
     createdAt: new Date().toISOString(),
@@ -206,6 +207,7 @@ function caseResolveConflict(fx) {
       notes: [],
       conflicts: [
         { path: conflict, reason: "主工程与本任务都改过它", resolvable: true },
+        { path: missingFlag, reason: "主工程与本任务都改过它" },
         { path: "Resources/Layout/Layout.xml", reason: "缺注册入口", resolvable: false }
       ]
     },
@@ -216,6 +218,14 @@ function caseResolveConflict(fx) {
   const board = createBoard({ runs: runs, pending: null, home: home });
   const task = () => taskOf(board, "conflict-task");
   assert.deepStrictEqual(task().resolutions, {}, "新任务的裁决是空的");
+
+  const flagOf = function (rel) {
+    return task().merge.conflicts.find(function (item) { return item.path === rel; }).resolvable;
+  };
+  assert.strictEqual(flagOf(missingFlag), true, "缺 resolvable 的冲突读盘时补成可裁决");
+  board.resolveConflict("conflict-task", missingFlag, "mine");
+  assert.strictEqual(task().resolutions[missingFlag], "mine", "缺字段的冲突照样能裁决");
+  board.resolveConflict("conflict-task", missingFlag, "clear");
 
   board.resolveConflict("conflict-task", conflict, "mine");
   assert.strictEqual(task().resolutions[conflict], "mine", "选择要记在任务上");

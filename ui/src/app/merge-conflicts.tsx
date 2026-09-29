@@ -31,6 +31,13 @@ export function MergeConflicts({
     }
   }
 
+  async function bulkClear() {
+    for (const conflict of choosable) {
+      if (!pick(conflict.path)) continue
+      await onPick(conflict.path, "clear")
+    }
+  }
+
   return (
     <div className="flex flex-col gap-2">
       <span className="text-destructive text-xs">
@@ -38,10 +45,17 @@ export function MergeConflicts({
         ：整单一个字节都不写，选完点「重新合并」
       </span>
       {choosable.length > 1 && (
-        <Button size="sm" variant="outline" className="h-7 w-fit" disabled={busy} onClick={() => void bulkMine()}>
-          <GitMerge className="size-3.5" />
-          全部以本任务为准
-        </Button>
+        <div className="flex flex-wrap gap-1">
+          <Button size="sm" variant="outline" className="h-7" disabled={busy} onClick={() => void bulkMine()}>
+            <GitMerge className="size-3.5" />
+            全部以本任务为准
+          </Button>
+          {chosen > 0 && (
+            <Button size="sm" variant="ghost" className="h-7" disabled={busy} onClick={() => void bulkClear()}>
+              清空选择
+            </Button>
+          )}
+        </div>
       )}
       {conflicts.map((conflict) => (
         <div key={conflict.path} className="flex flex-col gap-1 rounded-md border px-2 py-1.5">

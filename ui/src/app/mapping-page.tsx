@@ -67,6 +67,11 @@ export function MappingPage() {
 
   const bottomBar = mapping.layoutRules?.bottomBar
   const bottomBarVariants = Object.entries(bottomBar?.variants ?? {})
+  // 搜索也覆盖底部栏变体：它们是 layoutRules 下的变体，不属于任何模板族，但用户按变体名找时
+  // 并不知道这层区分（输入框提示词里就写着「底部栏」）。不覆盖就会出现「提示能搜、搜了全空」。
+  const shownBottomBarVariants = needle
+    ? bottomBarVariants.filter(([name]) => name.toLowerCase().includes(needle))
+    : bottomBarVariants
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -90,7 +95,7 @@ export function MappingPage() {
           </div>
           <Input
             spellCheck={false}
-            placeholder="搜族名或变体名，例如 底部栏 / 非首页 / 选择框"
+            placeholder="搜族名或变体名，例如 选择框 / 底部栏 / 首页"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -138,7 +143,7 @@ export function MappingPage() {
                 {families.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={3} className="text-muted-foreground py-6 text-center text-sm">
-                      没有匹配的族
+                      {shownBottomBarVariants.length > 0 ? "没有匹配的族（底部栏变体见下一张卡片）" : "没有匹配的族"}
                     </TableCell>
                   </TableRow>
                 )}
@@ -148,7 +153,7 @@ export function MappingPage() {
         </CardContent>
       </Card>
 
-      {bottomBar && (
+      {bottomBar && (!needle || shownBottomBarVariants.length > 0) && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">布局规则：底部栏</CardTitle>
@@ -176,7 +181,10 @@ export function MappingPage() {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {bottomBarVariants.map(([name, spec]) => (
+              {shownBottomBarVariants.length === 0 && (
+                <span className="text-muted-foreground">映射表里没有登记底部栏变体</span>
+              )}
+              {shownBottomBarVariants.map(([name, spec]) => (
                 <Badge key={name} variant={spec?.topLeftContent === "text" ? "secondary" : "outline"}>
                   {name}
                   {spec?.topLeftContent === "text" ? " · 有 F 键槽位" : ""}
