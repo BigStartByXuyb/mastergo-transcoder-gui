@@ -7,7 +7,6 @@ import {
   canStop,
   hasProducts,
   isBusyState,
-  isFinished,
   isMerging,
   isSettled,
   occupiesSlot,
@@ -61,8 +60,6 @@ describe("task-state", () => {
     expect(SETTLED_STATES).toEqual(["merged", "failed", "stopped", "conflict"])
     for (const state of SETTLED_STATES) expect(isSettled(state)).toBe(true)
     expect(isSettled("ready")).toBe(false)
-    expect(isFinished("merged")).toBe(true)
-    expect(isFinished("conflict")).toBe(false)
     expect(isSettled("conflict")).toBe(true)
   })
 

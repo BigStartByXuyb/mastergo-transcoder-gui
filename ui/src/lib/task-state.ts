@@ -51,10 +51,6 @@ export function hasProducts(state: string): boolean {
   return PRODUCT_STATES.includes(state)
 }
 
-export function isFinished(state: string): boolean {
-  return FINISHED_STATES.includes(state)
-}
-
 export function isSettled(state: string): boolean {
   return SETTLED_STATES.includes(state)
 }
