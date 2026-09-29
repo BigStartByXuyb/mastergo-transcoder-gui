@@ -3,6 +3,7 @@ import { CheckCircle2, Loader2, RefreshCw, Send, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { ClampText } from "@/app/clamp-text"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -347,7 +348,7 @@ export function PendingPanel({
     return (
       <div className="text-muted-foreground flex items-center gap-2 text-sm">
         {busy === "load" && <Loader2 className="size-4 animate-spin" />}
-        {failure ? failure : "读取待确认清单…"}
+        <ClampText text={failure || "读取待确认清单…"} />
       </div>
     )
   }
@@ -359,7 +360,9 @@ export function PendingPanel({
     <div className="flex flex-col gap-4">
       {failure && (
         <Alert variant="destructive">
-          <AlertDescription className="break-all">{failure}</AlertDescription>
+          <AlertDescription>
+            <ClampText text={failure} />
+          </AlertDescription>
         </Alert>
       )}
 
