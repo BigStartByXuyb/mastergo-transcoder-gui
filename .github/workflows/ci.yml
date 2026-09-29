@@ -1,0 +1,28 @@
+name: CI
+
+# 调用共享 CI 仓库里的 reusable workflow：单测 + 覆盖率门禁 + 确定性检查 + AI 语义审计。
+# ci_ref 固定到 cicd 仓库的一个 commit：CI 逻辑变了要显式改这里，不让上游静默改变门禁。
+
+on:
+  push:
+    branches: [main]
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  ci:
+    uses: BigStartByXuyb/cicd/.github/workflows/desktop-app.yml@16de38c417c2a2d99de2d91d7a94d02ca3689467
+    with:
+      ci_ref: 16de38c417c2a2d99de2d91d7a94d02ca3689467
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+      FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+      FEISHU_DEFAULT_CHAT_ID: ${{ secrets.FEISHU_DEFAULT_CHAT_ID }}
+      FEISHU_RECIPIENT_MAP_JSON: ${{ secrets.FEISHU_RECIPIENT_MAP_JSON }}

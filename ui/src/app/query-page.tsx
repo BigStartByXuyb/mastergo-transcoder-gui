@@ -173,7 +173,7 @@ export function QueryPage() {
               <Input
                 id="query-project"
                 spellCheck={false}
-                placeholder="D:\SomeProject —— 从它的快照与登记表自动找页面帧（离线）"
+                placeholder="工程目录的绝对路径 —— 从它的快照与登记表自动找页面帧（离线）"
                 value={projectDir}
                 onChange={(event) => setProjectDir(event.target.value)}
                 onBlur={() => persist({ projectDir })}

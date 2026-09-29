@@ -334,7 +334,7 @@ export function PipelinePage({ taskId }: { taskId: string }) {
               <Input
                 id="run-project"
                 spellCheck={false}
-                placeholder="D:\SomeProject —— 产物合并回这里，必填"
+                placeholder="工程目录的绝对路径 —— 产物合并回这里，必填"
                 value={projectRoot}
                 onChange={(event) => setProjectRoot(event.target.value)}
               />
