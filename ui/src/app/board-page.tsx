@@ -18,7 +18,7 @@ import { parseBoardItems } from "@/lib/board-items"
 import { boardStateVariant } from "@/lib/board-state"
 import { describeFailure } from "@/lib/describe-failure"
 import { readStored, writeStored } from "@/lib/storage"
-import { POLL_MS, occupiesSlot } from "@/lib/task-state"
+import { POLL_MS, isMerging, occupiesSlot } from "@/lib/task-state"
 
 /*
  * 看板：一屏同时跑多个页面。
@@ -429,7 +429,7 @@ function TaskRow({
               <Play /> 启动
             </Button>
           )}
-          {occupiesSlot(task.state) && task.state !== "merging" && (
+          {occupiesSlot(task.state) && !isMerging(task.state) && (
             <Button
               size="sm"
               variant="outline"

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import type { useIdentity } from "@/app/use-identity"
 import type { PipelineStep, PluginSummary } from "@/lib/api"
-import { AUTOMATION_LABEL, MODE_HINT, type TaskForm } from "@/lib/task-form"
+import { AUTOMATION_LABEL, MODE_HINT, adoptsIdentityWithoutConfirm, type TaskForm } from "@/lib/task-form"
 
 /*
  * 新建任务卡片：填链接 / 工程目录 / Target / 区域 / 路线，然后「加入看板并开始」。
@@ -160,7 +160,9 @@ export function NewTaskCard(props: Props) {
               按项目既有区域约定 + 设计页名给出候选并写进工程登记表；
               当前自动化层级：
               {AUTOMATION_LABEL[automation] ?? automation}
-              {automation === "auto" ? "（直接采用第一条，不人工确认）" : "（列出来，你点一下再写）"}
+              {adoptsIdentityWithoutConfirm(automation)
+                ? "（直接采用第一条，不人工确认）"
+                : "（列出来，你点一下再写）"}
             </span>
           </div>
           {identity.candidates.length > 0 && (

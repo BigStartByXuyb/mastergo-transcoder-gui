@@ -7,6 +7,12 @@ import type { Pending } from "@/lib/api"
 
 export const POLL_MS = 1500
 
+/*
+ * 待确认清单页的节拍比看板慢一拍：它读的是磁盘上的清单（谁要填什么），
+ * 不跟实时日志，快轮询只是白读盘。
+ */
+export const REVIEW_POLL_MS = 2000
+
 /* 正在占用执行额度：流水线详情按它显示「停止」。 */
 const RUNNING_STATES = ["preparing", "running", "merging"]
 
@@ -25,6 +31,11 @@ export function isBusyState(state: string): boolean {
 
 export function occupiesSlot(state: string): boolean {
   return OCCUPIED_STATES.includes(state)
+}
+
+/* 正在合并：产物已写完、正在回写主工程，这时不给「停止」（停也停不了一半）。 */
+export function isMerging(state: string): boolean {
+  return state === "merging"
 }
 
 export function isFinishedState(state: string): boolean {

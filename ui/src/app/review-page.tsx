@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { api, type PendingQueueEntry } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
+import { REVIEW_POLL_MS } from "@/lib/task-state"
 
 /*
  * 待确认页：列出**所有**还缺语义输入的页面。
@@ -18,8 +19,6 @@ import { describeFailure } from "@/lib/describe-failure"
  * 列表来自后端 /api/pending/list —— 看板任务（一条一个工作目录）和流水线页直跑的运行都在里面，
  * 按「工程目录 + Target」去重。这里只负责选一条、把面板挂上去；判断什么要填仍然由插件产物决定。
  */
-
-const POLL_MS = 2000
 
 const RUN_STATE_TEXT: Record<string, string> = {
   queued: "排队中",
@@ -63,7 +62,7 @@ export function ReviewPage() {
 
   useEffect(() => {
     void load()
-    const timer = setInterval(() => void load(), POLL_MS)
+    const timer = setInterval(() => void load(), REVIEW_POLL_MS)
     return () => clearInterval(timer)
   }, [load])
 
