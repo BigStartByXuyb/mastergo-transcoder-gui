@@ -278,6 +278,86 @@ async function caseRunInputRecordRefreshed(fx) {
   );
 }
 
+// 冲突处的人工裁决：同一个文件再合一次，按选择落地。
+// 选「保留主工程」一个字节都不动；选「以本任务为准」落本任务的版本并留一条说明。
+async function caseResolutionsUnblockConflict(fx) {
+  const project = path.join(fx.root, "ResolveProject");
+  const rel = "Resources/Pages/Detail/DetailPage.xml";
+  write(path.join(project, "Resources", "Layout", "Layout.xml"), LAYOUT_BASE);
+  write(path.join(project, rel), "<Page Name=\"v0\" />\n");
+
+  await workdir.create({ projectRoot: project, taskId: "t8", workRoot: fx.workRoot });
+  const dir = path.join(fx.workRoot, "t8");
+  // 本任务改了这页，主工程在任务开工之后也改了同一行 —— 三态判不了，必须报冲突。
+  write(path.join(dir, rel), "<Page Name=\"task\" />\n");
+  write(path.join(project, rel), "<Page Name=\"human\" />\n");
+
+  const manifest = await workdir.readManifest("t8", fx.workRoot);
+  const options = {
+    projectRoot: project,
+    workDir: dir,
+    baseDir: path.join(fx.workRoot, "t8.base"),
+    manifest: manifest,
+    target: "Detail"
+  };
+
+  const blocked = await merge(options);
+  assert.deepStrictEqual(blocked.applied, [], "没裁决前一个字节都不写");
+  assert.strictEqual(blocked.conflicts.length, 1, "这一处要报冲突");
+  assert.strictEqual(blocked.conflicts[0].path, rel);
+  assert.strictEqual(blocked.conflicts[0].resolvable, true, "内容归属类冲突由人裁决");
+
+  const kept = await merge(Object.assign({}, options, { resolutions: { [rel]: "main" } }));
+  assert.deepStrictEqual(kept.conflicts, [], "选保留主工程后不再报冲突");
+  assert.deepStrictEqual(kept.applied, [], "保留主工程就是不写这个文件");
+  assert.strictEqual(read(path.join(project, rel)), "<Page Name=\"human\" />\n", "主工程那份原样不动");
+
+  const taken = await merge(Object.assign({}, options, { resolutions: { [rel]: "mine" } }));
+  assert.deepStrictEqual(taken.conflicts, []);
+  assert.ok(taken.applied.includes(rel), "按人的选择以本任务产出为准");
+  assert.strictEqual(read(path.join(project, rel)), "<Page Name=\"task\" />\n");
+  assert.ok(
+    taken.notes.some((note) => note.includes("按人工选择以本任务产出为准")),
+    "裁决要留一条说明"
+  );
+}
+
+// 人的选择本身不成立时不能放行：项目级文件取本任务那份、但那份结构就不合格，
+// 依旧按冲突拦下，并且标成不可裁决 —— 这种只能回去修产物。
+async function caseUnresolvableConflictStaysBlocked(fx) {
+  const project = path.join(fx.root, "BrokenProject");
+  const rel = "App.csproj";
+  const base = "<Project>\n  <ItemGroup>\n  </ItemGroup>\n</Project>\n";
+  write(path.join(project, "Resources", "Layout", "Layout.xml"), LAYOUT_BASE);
+  write(path.join(project, rel), base);
+
+  await workdir.create({ projectRoot: project, taskId: "t9", workRoot: fx.workRoot });
+  const dir = path.join(fx.workRoot, "t9");
+  // 本任务那份 csproj 结构是坏的（缺 Project 闭标签），而且改在主工程也改的那一行上。
+  write(path.join(dir, rel), "<Project Label=\"task\">\n");
+  write(path.join(project, rel), base.replace("<Project>", "<Project Label=\"human\">"));
+
+  const manifest = await workdir.readManifest("t9", fx.workRoot);
+  const options = {
+    projectRoot: project,
+    workDir: dir,
+    baseDir: path.join(fx.workRoot, "t9.base"),
+    manifest: manifest,
+    target: "Detail"
+  };
+
+  const blocked = await merge(options);
+  assert.strictEqual(blocked.conflicts.length, 1, "结构不合格也要报冲突");
+  assert.strictEqual(blocked.conflicts[0].resolvable, true, "还没选之前这一处是人可以裁决的");
+  assert.deepStrictEqual(blocked.applied, [], "一个字节都不写");
+
+  const forced = await merge(Object.assign({}, options, { resolutions: { [rel]: "mine" } }));
+  assert.deepStrictEqual(forced.applied, [], "选了也不放行");
+  assert.strictEqual(forced.conflicts[0].resolvable, false, "本任务那份结构不合格，不能由人拍板");
+  assert.ok(forced.conflicts[0].reason.includes("csproj"), "理由要说清是这份产物不合格");
+  assert.strictEqual(read(path.join(project, rel)), base.replace("<Project>", "<Project Label=\"human\">"));
+}
+
 // 逐文件分流的判定表：纯函数，逐条钉死「哪条规则先命中」。
 function caseClassifyDecisionTable() {
   const base = {
@@ -328,6 +408,8 @@ async function main() {
     ["真冲突时不写半份", caseConflictWritesNothing],
     ["同一页第二次跑：运行产物由本次运行覆盖", caseRerunOverwritesRunProducts],
     ["工程里的输入记录由本次运行刷新", caseRunInputRecordRefreshed],
+    ["冲突由人裁决后按选择落地", caseResolutionsUnblockConflict],
+    ["产物不合格的冲突不能由人放行", caseUnresolvableConflictStaysBlocked],
     ["逐文件分流判定表", function () { caseClassifyDecisionTable(); }],
     ["行级三方合并", function () { caseThreeWayDisjoint(); }],
     ["并发上限", function () { caseConcurrency(); }]

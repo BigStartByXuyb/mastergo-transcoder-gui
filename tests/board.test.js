@@ -169,6 +169,85 @@ async function caseClearArea(fx) {
   assert.ok(taskOf(board, running.created[0]), "拒绝之后任务还在");
 }
 
+/*
+ * 冲突裁决：只认当前冲突清单里列出来的文件，只接受 mine / main / clear。
+ * 选择记在任务上（resolutions），合并时才生效 —— 这里只验登记与拒绝，不碰合并。
+ */
+function caseResolveConflict(fx) {
+  const home = path.join(fx.root, "home-resolve-conflict");
+  fs.mkdirSync(home, { recursive: true });
+  const conflict = "Resources/Pages/Detail/DetailPage.xml";
+  write(path.join(home, "board.json"), JSON.stringify([{
+    id: "conflict-task",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    state: "conflict",
+    request: {
+      mode: "B",
+      link: LINK,
+      target: "Detail",
+      ui: "F1",
+      projectRoot: fx.project,
+      fileId: "204689197363903",
+      layerId: "1872:60904",
+      overwrite: true,
+      allowEmptyLedger: false,
+      stopAfter: ""
+    },
+    workDir: path.join(fx.root, "conflict-work"),
+    baseDir: path.join(fx.root, "conflict-base"),
+    jobId: "",
+    autoMerge: false,
+    failure: null,
+    merge: {
+      at: new Date().toISOString(),
+      applied: [],
+      skipped: [],
+      notes: [],
+      conflicts: [
+        { path: conflict, reason: "主工程与本任务都改过它", resolvable: true },
+        { path: "Resources/Layout/Layout.xml", reason: "缺注册入口", resolvable: false }
+      ]
+    },
+    error: ""
+  }], null, 2));
+
+  const runs = stubRuns();
+  const board = createBoard({ runs: runs, pending: null, home: home });
+  const task = () => taskOf(board, "conflict-task");
+  assert.deepStrictEqual(task().resolutions, {}, "新任务的裁决是空的");
+
+  board.resolveConflict("conflict-task", conflict, "mine");
+  assert.strictEqual(task().resolutions[conflict], "mine", "选择要记在任务上");
+  board.resolveConflict("conflict-task", conflict, "main");
+  assert.strictEqual(task().resolutions[conflict], "main", "可以反悔再选一次");
+  board.resolveConflict("conflict-task", conflict, "clear");
+  assert.strictEqual(task().resolutions[conflict], undefined, "撤销后不留选择");
+
+  assert.throws(
+    function () { board.resolveConflict("conflict-task", "Resources/Pages/Other.xml", "mine"); },
+    /冲突里没有/,
+    "清单外的文件不许选（否则等于拿接口写任意文件）"
+  );
+  assert.throws(
+    function () { board.resolveConflict("conflict-task", conflict, "keep"); },
+    /只能选/,
+    "只接受 mine / main / clear"
+  );
+  assert.throws(
+    function () { board.resolveConflict("conflict-task", "Resources/Layout/Layout.xml", "mine"); },
+    /不能按人工选择处理/,
+    "标了不可裁决的文件连选都不让选"
+  );
+
+  board.resolveConflict("conflict-task", "Resources/Layout/Layout.xml", "clear");
+  assert.throws(
+    function () { board.resolveConflict("conflict-task", "", "mine"); },
+    /冲突里没有/,
+    "空路径直接拒绝"
+  );
+}
+
 async function main() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-test-"));
   const project = path.join(root, "project");
@@ -178,7 +257,8 @@ async function main() {
   const cases = [
     ["加任务与参数", caseAdd],
     ["启动走工作目录", caseStart],
-    ["清空一个区域的任务", caseClearArea]
+    ["清空一个区域的任务", caseClearArea],
+    ["冲突裁决的登记与拒绝", caseResolveConflict]
   ];
   try {
     for (const [name, run] of cases) {

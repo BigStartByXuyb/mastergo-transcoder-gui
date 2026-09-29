@@ -234,6 +234,19 @@ export function PipelinePage({
       .finally(() => setBusy(""))
   }
 
+  async function resolveConflict(path: string, pick: "mine" | "main" | "clear") {
+    if (!task) return
+    setBusy("resolve:" + path)
+    try {
+      const payload = await api.boardResolve(task.id, path, pick)
+      setBoard(payload.board)
+    } catch (error) {
+      toast.error(describeFailure(error))
+    } finally {
+      setBusy("")
+    }
+  }
+
   async function reloadContract() {
     try {
       const payload = await api.plugin()
@@ -276,6 +289,7 @@ export function PipelinePage({
           busy={busy}
           onResume={() => void resume()}
           onMerge={merge}
+          onResolve={resolveConflict}
         />
       )}
 

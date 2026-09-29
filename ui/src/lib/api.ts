@@ -273,7 +273,12 @@ export type BoardProgress = {
   runs: BoardTaskRun[]
 }
 
-export type BoardMergeConflict = { path: string; reason: string }
+export type BoardMergeConflict = {
+  path: string
+  reason: string
+  /** false = 这一处不能由人拍板（本任务那份产物不合格、缺 Layout 注册入口等），只能先修好。 */
+  resolvable: boolean
+}
 
 export type BoardMergeReport = {
   at: string
@@ -320,6 +325,8 @@ export type BoardTask = {
     logPath: string
   } | null
   merge: BoardMergeReport | null
+  /** 冲突处已做的选择（相对路径 → mine / main），合并成功后清空。 */
+  resolutions: Record<string, "mine" | "main">
   error: string
 }
 
@@ -601,6 +608,9 @@ export const api = {
   boardStop: (id: string) => post<{ ok: true; board: Board }>("/api/board/stop", { id }),
   boardRemove: (id: string) => post<{ ok: true; board: Board }>("/api/board/remove", { id }),
   boardMerge: (id: string) => post<{ ok: true; board: Board; task: BoardTask }>("/api/board/merge", { id }),
+  /** 冲突逐文件裁决；pick：mine 以本任务为准 / main 保留主工程 / clear 撤销选择。 */
+  boardResolve: (id: string, path: string, pick: "mine" | "main" | "clear") =>
+    post<{ ok: true; board: Board; task: BoardTask }>("/api/board/resolve", { id, path, pick }),
   boardMergeAll: (projectRoot: string) => post<{ ok: true; board: Board }>("/api/board/merge-all", { projectRoot }),
   boardClear: (states: string[]) => post<{ ok: true; board: Board }>("/api/board/clear", { states }),
   /** 清空一个「工程 + 区域」下的任务（侧边栏区域行的动作）；有任务在跑时后端会拒绝。 */

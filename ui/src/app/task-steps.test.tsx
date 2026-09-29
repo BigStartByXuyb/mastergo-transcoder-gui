@@ -30,6 +30,7 @@ function task(steps: BoardTask["steps"]): BoardTask {
     aiFills: [],
     failure: null,
     merge: null,
+    resolutions: {},
     error: ""
   }
 }

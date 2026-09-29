@@ -18,6 +18,7 @@ import { parseBoardItems } from "@/lib/board-items"
 import { boardStateVariant } from "@/lib/board-state"
 import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
+import { MergeConflicts } from "@/app/merge-conflicts"
 import { describeFailure } from "@/lib/describe-failure"
 import { readStored, writeStored } from "@/lib/storage"
 import { FINISHED_STATES, POLL_MS, canStop, isSettled } from "@/lib/task-state"
@@ -414,14 +415,14 @@ function TaskRow({
             <span className="text-muted-foreground text-xs">已合并 {task.merge.applied.length} 个文件</span>
           )}
           {task.merge && task.merge.conflicts.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <span className="text-destructive text-xs">默认不猜：停下等人处理。冲突 {task.merge.conflicts.length} 处</span>
-              {task.merge.conflicts.map((conflict) => (
-                <span key={conflict.path} className="text-xs">
-                <span className="font-mono">{conflict.path}</span> —— <ClampText text={conflict.reason} lines={2} />
-                </span>
-              ))}
-            </div>
+            <MergeConflicts
+              conflicts={task.merge.conflicts}
+              resolutions={task.resolutions}
+              busy={blocked}
+              onPick={(path, pick) =>
+                run(task.id + ":resolve:" + path, () => api.boardResolve(task.id, path, pick))
+              }
+            />
           )}
         </div>
       </TableCell>

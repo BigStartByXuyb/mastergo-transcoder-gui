@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { StepFlow } from "@/app/task-steps"
 import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
+import { MergeConflicts } from "@/app/merge-conflicts"
 import type { BoardTask, PipelineStep } from "@/lib/api"
 import { boardStateVariant } from "@/lib/board-state"
 import { canResume } from "@/lib/task-state"
@@ -23,6 +24,7 @@ type Props = {
   busy: string
   onResume: () => void
   onMerge: () => void
+  onResolve: (path: string, pick: "mine" | "main" | "clear") => Promise<void>
 }
 
 export function TaskDetailCard(props: Props) {
@@ -67,6 +69,14 @@ export function TaskDetailCard(props: Props) {
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        {task.merge && task.merge.conflicts.length > 0 && (
+          <MergeConflicts
+            conflicts={task.merge.conflicts}
+            resolutions={task.resolutions}
+            busy={busy !== ""}
+            onPick={props.onResolve}
+          />
+        )}
         {task.failure && (
           <Alert variant={task.failure.kind === "error" ? "destructive" : "default"}>
             <AlertTitle>
