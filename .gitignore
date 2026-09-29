@@ -15,3 +15,12 @@ ui/coverage/
 # 界面验收截图（playwright 产物，不进仓库）
 output/
 .playwright-cli/
+
+# 更新器状态：内容寻址缓存、已下载的版本、当前版本指针
+blobs/
+versions/
+update-cache/
+current.json
+
+# 发布产物（scripts/publish.js 生成，上传到 GitHub Release）
+dist/

@@ -8,6 +8,7 @@
     "api": "node server.js --no-open",
     "dev:ui": "npm --prefix ui run dev",
     "build:ui": "npm --prefix ui run build",
+    "publish:update": "node scripts/publish.js",
     "test": "node --test \"tests/*.test.js\"",
     "test:coverage": "node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-include=\"lib/**\" --test-coverage-exclude=\"**/node_modules/**\" --test-coverage-lines=90 --test-coverage-functions=90 --test-coverage-branches=75 \"tests/*.test.js\""
   },

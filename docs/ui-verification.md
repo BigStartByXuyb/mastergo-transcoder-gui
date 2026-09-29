@@ -16,6 +16,42 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-09-30 程序更新（差分下载 / 切换 / 回退）
+
+### 改了什么
+
+- `lib/app-manifest.js`：运行树清单（`server.js`/`launch.js`/`package.json`/`start.cmd` + `lib`/`public`/`vendor`），发布与更新共用这一份算法。
+- `lib/bundle-store.js`：内容寻址库 `blobs/` 与 `versions/<版本>/` 的落盘、校验、指针；本地同哈希的文件直接进内容库，缺的才算要下载。
+- `lib/download.js`：取件的重试、超时、退避（4xx 不重试）。
+- `lib/update.js`：四态、差分、后台下载、切指针、回退。
+- `lib/launch.js` + `launch.js` + `start.cmd`：按 `current.json` 选版本再拉起那一份的 `server.js`。
+- `scripts/publish.js`：`manifest.json` + `files/<sha256>` 产物化，可 `--upload` 传成 Release（带 `--min-client` / `--no-fresh-run`）。
+- `lib/routes.js`、`server.js`：五个 `/api/update/*` 接口；启动时静默检查一次。
+- `ui/src/lib/update-state.ts`、`ui/src/app/update-card.tsx`、设置页：四态文案、版本列表、进度、四个按钮。
+
+### 点过的东西
+
+真发了一版 v0.1.1（临时 Release，`package.json` 之外 47 个文件内容相同），跑完删除。
+
+| 页面 | 操作 | 观察到 | 结论 |
+| --- | --- | --- | --- |
+| 设置 | 打开 `#settings`（清掉 `update-cache` 后的首次后台检查） | 「程序更新」卡片：徽标「已是最新 v0.1.0」、仓库名 `BigStartByXuyb/mastergo-transcoder-gui`、版本列表一条 `v0.1.0 正在用` | 通过 |
+| 设置 | 点「检查更新」 | 徽标变「有新版本 v0.1.1」，正文「运行树 48 个文件，要比对替换 1 个；这版要求新开一次运行。」，出现「下载 v0.1.1」 | 通过 |
+| 设置 | 点「下载 v0.1.1」 | 变「v0.1.1 已下载」+「关掉这个窗口再重新双击 start.cmd，就切到 v0.1.1 跑。」；版本列表多一条 `v0.1.1 可切换` | 通过 |
+| — | 落盘核对 | `versions/0.1.1/` 48 个文件（含 `public/index.html`）、`package.json` 里是 `0.1.1`；`blobs/` 48 份 —— 47 份由本地同哈希直接入库，只有 `package.json` 真的下载了 | 通过 |
+| 设置 | 点「重启后用 v0.1.1」 | 出现「退回 v0.1.0」与「下次启动会跑 v0.1.1；现在这个窗口还是 v0.1.0。」；`current.json` = `{version:0.1.1, previous:0.1.0}` | 通过 |
+| — | 真重启（`node launch.js --no-open`） | 打印「版本: v0.1.1（current.json）」「MasterGo 转码客户端 v0.1.1」，引擎路径变成 `versions\0.1.1\lib\node-controls.js`；`/api/health` 返回 `0.1.1` | 通过 |
+| 设置 | 重启后点「退回 v0.1.0」 | 提示「下次启动会跑 v0.1.0；现在这个窗口还是 v0.1.1。」，`current.json` = `{version:0.1.0, previous:""}`，「退回」按钮消失（回退只在刚切过之后可用） | 通过 |
+| — | 再重启 | 打印「版本: 本地这一份（无指针）」，`/api/health` 回到 `0.1.0` | 通过 |
+| 设置 | 页面开着的时候把后端停掉 | 卡片出现「读不到更新状态 / 连不上本地服务：Failed to fetch」，页面其余部分保持上次数据不白屏 | 通过 |
+| 设置 | 后端起来后等一次轮询 | 告警消失，徽标回到「已是最新 v0.1.0」 | 通过 |
+
+### 没点的
+
+- 有任务在跑时点切换：会换成真跑一次流水线，留给实际要切版本的那次（拒绝逻辑已由 `tests/update.test.js` 覆盖）。
+- 下载中断 / 哈希不匹配：同样只在单测里造（`tests/update.test.js`、`tests/bundle-store.test.js`）。
+- 临时 Release 与 tag 已删；本机的 `versions/`、`blobs/`、`update-cache/`、`current.json` 也已清掉，机器回到验证前的状态。
+
 ## 2026-09-30 看板「当前生效 / 已被覆盖」与固定列宽
 
 ### 改了什么

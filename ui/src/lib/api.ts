@@ -473,6 +473,46 @@ export class ApiFailure extends Error {
   }
 }
 
+export type UpdateFailure = { code: string; message: string; hint: string }
+
+export type UpdateTask = {
+  phase: "idle" | "downloading" | "materializing" | "done" | "error"
+  done: number
+  total: number
+  downloaded: number
+  error: UpdateFailure | null
+}
+
+export type UpdateAvailable = {
+  version: string
+  releasedAt: string
+  minClientVersion: string
+  /** 这版要求新开一次运行（跨版本续跑过不了身份校验）。 */
+  freshRunRequired: boolean
+  changed: number
+  removed: number
+  total: number
+  /** 外壳太旧时的原因：有值就表示这版现在切不过去。 */
+  blocked: UpdateFailure | null
+  checkedAt: string
+}
+
+export type UpdateStatus = {
+  state: "up_to_date" | "update_available" | "download_ready" | "error"
+  current: string
+  root: string
+  pointer: { version?: string; previous?: string; switchedAt?: string } | null
+  /** 有任务在跑时是不能切版本的，这里放原因（空串表示空闲）。 */
+  busy: string
+  staged: { version: string; current: boolean; ready: boolean }[]
+  ready: string
+  rollback: string
+  available: UpdateAvailable | null
+  error: UpdateFailure | null
+  task: UpdateTask
+  repo: string
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response
   try {
@@ -615,5 +655,19 @@ export const api = {
   boardClear: (states: string[]) => post<{ ok: true; board: Board }>("/api/board/clear", { states }),
   /** 清空一个「工程 + 区域」下的任务（侧边栏区域行的动作）；有任务在跑时后端会拒绝。 */
   boardClearArea: (projectRoot: string, ui: string) =>
-    post<{ ok: true; board: Board }>("/api/board/clear-area", { projectRoot, ui })
+    post<{ ok: true; board: Board }>("/api/board/clear-area", { projectRoot, ui }),
+  updateStatus: () => request<{ ok: true; status: UpdateStatus }>("/api/update/status"),
+  /** 拉远端清单：失败也回 200，原因在 status.error 里。 */
+  updateCheck: () => post<{ ok: true; status: UpdateStatus }>("/api/update/check", {}),
+  updateDownload: () => post<{ ok: true; started: boolean; version: string; note: string; status: UpdateStatus }>(
+    "/api/update/download",
+    {}
+  ),
+  updateApply: (version = "") =>
+    post<{ ok: true; version: string; previous: string; restartRequired: boolean; status: UpdateStatus }>(
+      "/api/update/apply",
+      { version }
+    ),
+  updateRollback: () =>
+    post<{ ok: true; version: string; restartRequired: boolean; status: UpdateStatus }>("/api/update/rollback", {})
 }

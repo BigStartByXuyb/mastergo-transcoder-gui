@@ -1,0 +1,188 @@
+#!/usr/bin/env node
+"use strict";
+
+// 更新器：四态流转、差分只下变化的内容、切换与回退、有任务在跑时拒绝、外壳下限。
+// 远端用假 fetch 顶替（GitHub Releases 的两种地址），全程不联网。
+// 跑法：node tests/update.test.js
+
+const assert = require("assert");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+
+const { buildManifest } = require("../lib/app-manifest.js");
+const { createUpdate, compareVersions } = require("../lib/update.js");
+
+function makeTree(files) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-update-"));
+  for (const rel of Object.keys(files)) {
+    const abs = path.join(root, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, files[rel], "utf8");
+  }
+  return root;
+}
+
+function ok(text) {
+  const buffer = Buffer.from(text, "utf8");
+  return {
+    ok: true,
+    status: 200,
+    arrayBuffer: async function () {
+      return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+    }
+  };
+}
+
+// 假远端：清单一份，文件按 sha256 命名；发布前没传上去的哈希回 404。
+function remote(root, version, extra) {
+  const manifest = Object.assign(buildManifest(root, version), extra || {});
+  const byHash = new Map();
+  for (const rel of Object.keys(manifest.files)) {
+    byHash.set(manifest.files[rel], fs.readFileSync(path.join(root, rel)));
+  }
+  const urls = [];
+  return {
+    manifest: manifest,
+    urls: urls,
+    fetchImpl: async function (url) {
+      urls.push(url);
+      if (url.endsWith("/releases/latest/download/manifest.json")) {
+        return ok(JSON.stringify(manifest));
+      }
+      const hit = /\/releases\/download\/v([^/]+)\/([0-9a-f]{64})$/.exec(url);
+      if (hit) {
+        const buffer = byHash.get(hit[2]);
+        if (buffer) return ok(buffer.toString("utf8"));
+        return { ok: false, status: 404 };
+      }
+      return { ok: false, status: 500 };
+    }
+  };
+}
+
+function sleep(ms) {
+  return new Promise(function (resolve) { setTimeout(resolve, ms); });
+}
+
+async function settle(update) {
+  for (let index = 0; index < 200; index += 1) {
+    const phase = update.status().task.phase;
+    if (phase !== "downloading" && phase !== "materializing") return update.status();
+    await sleep(5);
+  }
+  throw new Error("下载没有收敛");
+}
+
+async function main() {
+  assert.strictEqual(compareVersions("0.10.0", "0.9.0"), 1, "按数字段比，不是字符串比");
+  assert.strictEqual(compareVersions("1.0", "1.0.0"), 0);
+  assert.strictEqual(compareVersions("0.1.0", "0.2.0"), -1);
+  assert.strictEqual(compareVersions("dev", "1.0.0") < 0 || compareVersions("dev", "1.0.0") > 0, true, "非数字段有兜底");
+
+  const home = makeTree({
+    "server.js": "server 0.1.0",
+    "launch.js": "launch",
+    "package.json": "{\"version\":\"0.1.0\"}",
+    "lib/a.js": "a",
+    "public/index.html": "html"
+  });
+  const next = makeTree({
+    "server.js": "server 0.2.0 改过",
+    "launch.js": "launch",
+    "package.json": "{\"version\":\"0.2.0\"}",
+    "lib/a.js": "a",
+    "lib/b.js": "b 新增",
+    "public/index.html": "html 改过"
+  });
+
+  let busy = "";
+  const server = remote(next, "0.2.0");
+  const update = createUpdate({ root: home, home: home, version: "0.1.0", fetchImpl: server.fetchImpl, isBusy: function () { return busy; } });
+
+  const initial = update.status();
+  assert.strictEqual(initial.state, "up_to_date", "没查过又没缓存就是最新");
+  assert.deepStrictEqual(initial.staged.map(function (item) { return item.version; }), ["0.1.0"], "安装根自己这一份算本地的一份");
+  assert.strictEqual(initial.rollback, "", "只有一份时没有可回退的");
+
+  const checked = await update.check();
+  assert.strictEqual(checked.state, "update_available");
+  assert.strictEqual(checked.available.version, "0.2.0");
+  assert.strictEqual(checked.available.changed, 4, "改过的 server/package/public 与新增的 lib/b.js");
+  assert.strictEqual(checked.available.removed, 0);
+  assert.strictEqual(checked.available.freshRunRequired, true, "默认要求新开一次运行");
+
+  // 下载：只下缺的内容，落进 versions/0.2.0，进度一路报上来。
+  const started = update.startDownload();
+  assert.strictEqual(started.started, true);
+  assert.throws(function () { update.startDownload(); }, /已经在下载了/);
+  const done = await settle(update);
+  assert.strictEqual(done.state, "download_ready");
+  assert.strictEqual(done.ready, "0.2.0");
+  assert.strictEqual(done.task.downloaded, 4, "四份新内容，lib/a.js 与上一版同内容就不用下");
+  assert.strictEqual(fs.readFileSync(path.join(home, "versions", "0.2.0", "lib", "b.js"), "utf8"), "b 新增");
+  assert.strictEqual(fs.existsSync(path.join(home, "versions", "0.2.0", "lib", "a.js")), true);
+
+  // 有任务在跑：不许切。
+  busy = "1 次流水线正在跑";
+  assert.throws(function () { update.apply(); }, /有任务在跑/);
+  assert.strictEqual(update.status().busy, "1 次流水线正在跑");
+  busy = "";
+
+  const applied = update.apply();
+  assert.strictEqual(applied.version, "0.2.0");
+  assert.strictEqual(applied.restartRequired, true);
+  const pointer = JSON.parse(fs.readFileSync(path.join(home, "current.json"), "utf8"));
+  assert.deepStrictEqual({ version: pointer.version, previous: pointer.previous }, { version: "0.2.0", previous: "0.1.0" });
+  assert.strictEqual(update.status().rollback, "0.1.0", "回退目标就是刚才那一版");
+
+  const back = update.rollback();
+  assert.strictEqual(back.version, "0.1.0");
+  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(home, "current.json"), "utf8")).version, "0.1.0");
+  assert.strictEqual(update.status().rollback, "", "切回去之后没有可再回退的目标");
+
+  assert.throws(function () { update.apply("0.1.0"); }, /已经运行在/);
+  assert.throws(function () { update.rollback(); }, /没有可回退的版本/);
+
+  // 本地这一版的字节被改过：校验能看出来，不许切过去。
+  fs.writeFileSync(path.join(home, "versions", "0.2.0", "server.js"), "被人改过", "utf8");
+  const broken = update.status();
+  assert.strictEqual(broken.ready, "", "校验不过就不算下载好了");
+  assert.strictEqual(broken.state, "update_available", "退回「有新版本待下载」");
+  assert.throws(function () { update.apply("0.2.0"); }, /和清单对不上/);
+
+  // 外壳下限：清单要求比当前更高的客户端外壳时，下载与切换都拒。
+  const gated = remote(next, "0.2.1", { minClientVersion: "9.9.9" });
+  const gatedHome = makeTree({ "server.js": "旧客户端", "package.json": "{\"version\":\"0.1.0\"}" });
+  const gatedUpdate = createUpdate({ root: gatedHome, home: gatedHome, version: "0.1.0", fetchImpl: gated.fetchImpl });
+  const gatedStatus = await gatedUpdate.check();
+  assert.strictEqual(gatedStatus.state, "update_available");
+  assert.strictEqual(gatedStatus.available.blocked.code, "CLIENT_TOO_OLD");
+  assert.throws(function () { gatedUpdate.startDownload(); }, /要求客户端至少/);
+  assert.strictEqual(gatedUpdate.status().state, "error", "拒绝之后界面要显示原因");
+
+  // 还没查过就点下载 / 没下过就点切换。
+  const blank = makeTree({ "server.js": "空白", "package.json": "{\"version\":\"0.1.0\"}" });
+  const blankUpdate = createUpdate({ root: blank, home: blank, version: "0.1.0", fetchImpl: server.fetchImpl });
+  assert.throws(function () { blankUpdate.startDownload(); }, /还没有检查过更新/);
+  assert.throws(function () { blankUpdate.apply(); }, /还没有下载好的新版本/);
+
+  // 联网失败：显式检查报 error，启动时的静默检查不打扰。
+  const offline = createUpdate({
+    root: blank,
+    home: blank,
+    version: "0.1.0",
+    fetchImpl: async function () { throw new Error("getaddrinfo ENOTFOUND"); }
+  });
+  const failed = await offline.check();
+  assert.strictEqual(failed.state, "error");
+  assert.strictEqual(failed.error.code, "DOWNLOAD_FAILED");
+  assert.match(failed.error.hint, /ENOTFOUND/);
+  const silent = await offline.check({ silent: true });
+  assert.strictEqual(silent.state, "error", "已经记下的错误不因为一次静默检查就消失");
+
+  for (const dir of [home, next, gatedHome, blank]) fs.rmSync(dir, { recursive: true, force: true });
+  process.stdout.write("update ok\n");
+}
+
+main();

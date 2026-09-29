@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api, type Settings } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { useHealth } from "@/lib/use-health"
+import { UpdateCard } from "@/app/update-card"
 
 const CUSTOM = "custom"
 
@@ -203,6 +204,8 @@ export function SettingsPage() {
           )}
         </CardContent>
       </Card>
+
+      <UpdateCard />
     </div>
   )
 }

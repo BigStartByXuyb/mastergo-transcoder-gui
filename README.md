@@ -11,6 +11,8 @@ npm install        # 首次：后端依赖
 双击 start.cmd
 ```
 
+`start.cmd` 调 `launch.js`：先读安装根的 `current.json`，指向 `versions/<版本>/` 就跑那一份，没有指针就跑安装根这一份。
+
 生产形态：前端已构建成 `public/` 下的静态产物，`server.js` 直接提供。默认监听 `127.0.0.1:8787` 并打开浏览器。
 
 ```
@@ -36,7 +38,9 @@ npm run build:ui               # 构建前端 → public/
 ```
 ui/            前端源码（shadcn CLI 生成 components/ui/，源码入库）
 public/        前端构建产物（vite build --outDir ../public），不手工编辑
+launch.js      启动入口：按 current.json 选版本，再拉起那一份的 server.js
 server.js      入口：命令行、装配、监听
+scripts/       发布工具（不进运行树）
 lib/           后端实现（见下）
 ```
 
@@ -55,6 +59,11 @@ lib/artifacts.js    产物台账（读插件运行登记表的 outputs，供「�
 lib/settings.js     用户设置与模型凭据
 lib/dpapi.ps1       凭据加解密（PowerShell + Windows DPAPI）
 lib/ai.js           模型调用（只出候选，从不写盘）
+lib/app-manifest.js 运行树清单（哪些文件、每个的 sha256；发布与更新共用这一份算法）
+lib/bundle-store.js 内容寻址库：blobs/ 与 versions/<版本>/ 的落盘、校验、指针
+lib/download.js     带重试与超时的取件
+lib/update.js       差分更新：拉清单 → 只下变了的 → 落版本目录 → 切指针
+lib/launch.js       读 current.json，判断那一份能不能跑
 ```
 
 ## 模型凭据
@@ -97,6 +106,41 @@ lib/ai.js           模型调用（只出候选，从不写盘）
 更早的标「已被覆盖」并按「只看生效」藏起来（开关可随时放出来看）。
 
 界面功能点每次改完的实点结论记在 `docs/ui-verification.md`。
+
+## 程序更新
+
+版本线只有客户端自己这一条，远端是 GitHub Releases（公开仓库，不需要自建服务端）。
+
+```
+npm run publish:update                      # 产物化到 dist/update：manifest.json + files/<sha256>
+node scripts/publish.js --upload            # 传成 GitHub Release（gh 需已登录）
+node scripts/publish.js --min-client 0.2.0  # 声明这版要求外壳至少 v0.2.0
+node scripts/publish.js --no-fresh-run      # 声明这版不要求新开一次运行
+```
+
+清单是 `{version, files: {路径: sha256}, releasedAt, minClientVersion, freshRunRequired}`，版本号只有一个来源：`package.json`。
+文件按内容哈希命名，改一个文件只传/只下那一个：客户端先把本地同哈希的文件放进内容库，缺的才下载。
+
+界面上的四个动作对应四个接口：
+
+| 接口 | 作用 |
+| --- | --- |
+| `GET /api/update/status` | 不联网，只读本地状态与上一次检查结果；四态 `up_to_date / update_available / download_ready / error` |
+| `POST /api/update/check` | 拉远端清单并按 sha256 逐文件差分，结果缓存到 `update-cache/manifest.json`（离线也能显示「有新版 / 要换几个文件」） |
+| `POST /api/update/download` | 后台下载缺失内容并拼出 `versions/<版本>/`，进度在 `status().task` 里 |
+| `POST /api/update/apply` · `rollback` | 只写安装根的 `current.json` 指针，不抽走正在跑的目录，所以切完要重启客户端才生效 |
+
+有流水线或看板任务在跑时，`apply` 与 `rollback` 一律拒绝（切版本会换掉正在跑的那份脚本）。
+
+能切的只有「坏了也不影响核心流程」的东西：
+
+| 组件 | 策略 | 能否切换 |
+| --- | --- | --- |
+| 程序本身 | 差分下载 → `versions/` 并存 → 指针切 | 能，含回退 |
+| 配置 / 映射层 | 走插件版本，不在这条线上 | 不适用 |
+| Node / PowerShell 7 | 在关键路径上，坏了整个客户端起不来 | 不参与切换 |
+
+用户状态（`local.json`、`credentials`、`board.json`、`work/`）永远在安装根，不随版本目录走。
 
 ## 依赖
 
