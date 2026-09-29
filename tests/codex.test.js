@@ -235,6 +235,8 @@ async function main() {
     settings: fakeSettings(),
     fetchImpl: remote.fetchImpl,
     spawnSyncImpl: probe("codex-cli 0.158.0\n"),
+    // 本机 Codex 的发现路径是 %LOCALAPPDATA% 专属，钉成 win32 才能在任何宿主上验这一条。
+    platform: "win32",
     env: { LOCALAPPDATA: local, PATH: "" }
   });
   const sysStatus = withSystem.status();
