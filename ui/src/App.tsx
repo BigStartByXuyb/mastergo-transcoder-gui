@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
 
 import { AppShell, TOOLS, type ToolKey } from "@/app/app-shell"
 import { AreaPage } from "@/app/area-page"
@@ -92,7 +93,9 @@ export default function App() {
       status={<StatusBadges />}
       onGoTool={(key) => go(key)}
       onGoArea={(area) => go("area?key=" + encodeURIComponent(area.key))}
-      onForgetProject={(projectRoot) => areas.forget(projectRoot)}
+      onForgetProject={(projectRoot) => {
+        if (!areas.forget(projectRoot)) toast.error("这个工程还有任务，先清空它的任务再移除")
+      }}
       onNewTask={() => go(activeArea ? "pipeline?key=" + encodeURIComponent(activeArea.key) : "pipeline")}
     >
       {route.page === "area" &&

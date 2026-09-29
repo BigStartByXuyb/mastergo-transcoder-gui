@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { useAreas } from "@/app/use-areas"
-import { readRecentProjects } from "@/lib/recent-projects"
+import { readRecentProjects, rememberProject } from "@/lib/recent-projects"
 
 function ok(body: unknown) {
   return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))
@@ -61,10 +61,31 @@ describe("useAreas", () => {
     expect(result.current.areas[1].pages.map((page) => page.target)).toEqual(["F2Align"])
     expect(readRecentProjects()).toEqual(["/project"])
 
-    // 侧边栏工程行上的「移除」：只清本地记忆（界面只在它没有任务时才给这个入口）。
-    act(() => result.current.forget("/project"))
-    expect(result.current.projects).toEqual([])
-    expect(readRecentProjects()).toEqual([])
+    // 还有任务的工程拒绝移除：下一轮轮询会按任务账写回来，静默无效的删除不能只靠视图拦。
+    let removed = true
+    act(() => {
+      removed = result.current.forget("/project")
+    })
+    expect(removed).toBe(false)
+    expect(result.current.projects).toEqual(["/project"])
+    expect(readRecentProjects()).toEqual(["/project"])
+  })
+
+  it("没有任务的工程才能移除：返回 true 并且真从记忆里去掉", async () => {
+    rememberProject("/empty")
+    stub([
+      { match: "/api/board", reply: () => ok({ ok: true, board: { tasks: [boardTask({})] } }) },
+      { match: "/api/project/pages", reply: () => ok({ ok: true, pages: { exists: false, registryPath: "", problem: "", pages: [] } }) }
+    ])
+    const { result } = renderHook(() => useAreas())
+    await waitFor(() => expect(result.current.projects).toContain("/empty"), { timeout: 3000 })
+    let removed = false
+    act(() => {
+      removed = result.current.forget("/empty")
+    })
+    expect(removed).toBe(true)
+    expect(readRecentProjects()).not.toContain("/empty")
+    expect(result.current.forget("   ")).toBe(false)
   })
 
   it("没有任务也没有登记表时，区域列表是空的", async () => {

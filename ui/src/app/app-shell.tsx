@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import type { AreaEntry } from "@/lib/areas"
-import { areaLabel } from "@/lib/areas"
+import { areaLabel, groupByProject } from "@/lib/areas"
 import { cn } from "@/lib/utils"
 
 /*
@@ -40,7 +40,7 @@ type Props = {
 }
 
 export function AppShell(props: Props) {
-  const projects = [...new Set(props.areas.map((area) => area.projectRoot))]
+  const groups = groupByProject(props.areas)
 
   return (
     <div className="bg-background text-foreground flex min-h-svh">
@@ -66,55 +66,56 @@ export function AppShell(props: Props) {
             </Button>
           </div>
 
-          {projects.length === 0 && (
+          {groups.length === 0 && (
             <p className="text-muted-foreground px-2 text-xs leading-relaxed">
               还没有用过的工程。新建一次任务、或填一次工程目录，这里就会出现「工程 → 区域」。
             </p>
           )}
 
-          {projects.map((projectRoot) => (
-            <div key={projectRoot} className="flex flex-col gap-1">
+          {groups.map((group) => (
+            <div key={group.projectRoot} className="flex flex-col gap-1">
               <div className="flex items-center gap-1 px-2">
-                <span className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-xs" title={projectRoot}>
-                  {projectRoot}
+                <span
+                  className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-xs"
+                  title={group.projectRoot}
+                >
+                  {group.projectRoot}
                 </span>
                 {/* 只有这个工程已经没有任务时才给「移除」：删除只清本地记忆，任务还在时移除会被下一轮拉回来。 */}
-                {!props.areas.some((area) => area.projectRoot === projectRoot && area.tasks.length > 0) && (
+                {!group.hasTasks && (
                   <button
                     type="button"
                     title="从侧边栏移除（不动工程与登记表）"
                     className="text-muted-foreground hover:text-sidebar-accent-foreground px-1 text-xs"
-                    onClick={() => props.onForgetProject(projectRoot)}
+                    onClick={() => props.onForgetProject(group.projectRoot)}
                   >
                     ✕
                   </button>
                 )}
               </div>
-              {props.areas
-                .filter((area) => area.projectRoot === projectRoot)
-                .map((area) => {
-                  const active = area.key === props.activeAreaKey
-                  return (
-                    <button
-                      key={area.key}
-                      type="button"
-                      onClick={() => props.onGoArea(area)}
-                      className={cn(
-                        "flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors",
-                        active
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                          : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
-                      )}
-                    >
-                      <Boxes className="size-4 shrink-0" />
-                      <span className="min-w-0 flex-1 truncate">{areaLabel(area.ui)}</span>
-                      {area.running > 0 && <Badge variant="default">{area.running} 跑着</Badge>}
-                      {area.running === 0 && area.tasks.length > 0 && (
-                        <span className="text-muted-foreground text-xs tabular-nums">{area.tasks.length}</span>
-                      )}
-                    </button>
-                  )
-                })}
+              {group.areas.map((area) => {
+                const active = area.key === props.activeAreaKey
+                return (
+                  <button
+                    key={area.key}
+                    type="button"
+                    onClick={() => props.onGoArea(area)}
+                    className={cn(
+                      "flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors",
+                      active
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                        : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+                    )}
+                  >
+                    <Boxes className="size-4 shrink-0" />
+                    <span className="min-w-0 flex-1 truncate">{areaLabel(area.ui)}</span>
+                    {area.running > 0 && <Badge variant="default">{area.running} 跑着</Badge>}
+                    {area.running === 0 && area.tasks.length > 0 && (
+                      <span className="text-muted-foreground text-xs tabular-nums">{area.tasks.length}</span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           ))}
         </div>

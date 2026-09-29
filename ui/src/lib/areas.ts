@@ -79,3 +79,20 @@ export function buildAreas(input: {
 export function areaLabel(ui: string): string {
   return ui || "未定区域"
 }
+
+/** 按工程分好组的区域：侧边栏直接渲染，不再自己 Set/filter/some 扫一遍。 */
+export type ProjectGroup = { projectRoot: string; areas: AreaEntry[]; hasTasks: boolean }
+
+export function groupByProject(areas: AreaEntry[]): ProjectGroup[] {
+  const groups = new Map<string, AreaEntry[]>()
+  for (const area of areas) {
+    const list = groups.get(area.projectRoot)
+    if (list) list.push(area)
+    else groups.set(area.projectRoot, [area])
+  }
+  return [...groups.entries()].map(([projectRoot, list]) => ({
+    projectRoot: projectRoot,
+    areas: list,
+    hasTasks: list.some((area) => area.tasks.length > 0)
+  }))
+}
