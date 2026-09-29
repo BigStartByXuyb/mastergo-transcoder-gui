@@ -1,6 +1,0 @@
-收 1.0 审计的 3 条：删死代码、统一测试入口、CI 版本钉死
-
-- 删掉 lib/workdir.js 里没有任何调用者的 hashText（摘掉导出后它就是死代码）
-- test 与 test:coverage 共用同一份用例集合（都用 tests/*.test.js 通配），不再一处手写文件清单、一处用通配
-- CI 版本 pin 收敛为可校验的两处一致：新增 ci-pin 门禁（在 cicd 侧），ci_ref 与 uses 同时指向
-  c950cb03225a42fe6c5b2101beb24f10bc5921c1
