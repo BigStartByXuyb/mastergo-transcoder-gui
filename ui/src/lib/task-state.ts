@@ -26,10 +26,13 @@ const OCCUPIED_STATES = ["queued", "preparing", "running", "waiting", "merging"]
 const PRODUCT_STATES = ["ready", "merging", "merged", "conflict"]
 
 /*
- * 可以先收起的任务：跑完 / 失败 / 停止已经结束了，冲突也已经出了报告。
- * 冲突还能靠「重新合并」再试一次，所以它虽然在收起范围里，看板也照样给它「重新合并」。
+ * 真的结束了：跑完 / 失败 / 停止。看板「清掉已结束」只清这些 ——
+ * 冲突不属于已结束（它等着人或 AI 处理，还能重新合并再试），清掉会把待办的行一起藏掉。
  */
-export const SETTLED_STATES = ["merged", "failed", "stopped", "conflict"]
+export const FINISHED_STATES = ["merged", "failed", "stopped"]
+
+/* 可以先收起的：已结束的 + 冲突（冲突也已出报告，想放下时可以单独移除这一行）。 */
+export const SETTLED_STATES = [...FINISHED_STATES, "conflict"]
 
 export function isBusyState(state: string): boolean {
   return RUNNING_STATES.includes(state)
@@ -46,6 +49,10 @@ export function isMerging(state: string): boolean {
 
 export function hasProducts(state: string): boolean {
   return PRODUCT_STATES.includes(state)
+}
+
+export function isFinished(state: string): boolean {
+  return FINISHED_STATES.includes(state)
 }
 
 export function isSettled(state: string): boolean {

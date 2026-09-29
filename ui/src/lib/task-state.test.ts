@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest"
 
 import type { Pending } from "@/lib/api"
 import {
+  FINISHED_STATES,
   SETTLED_STATES,
   canStop,
   hasProducts,
   isBusyState,
+  isFinished,
   isMerging,
   isSettled,
   occupiesSlot,
@@ -54,10 +56,17 @@ describe("task-state", () => {
     expect(isMerging("running")).toBe(false)
   })
 
-  it("可收起的状态可清可移，停止只在没在合并中时给", () => {
+  it("已结束的才进「清掉已结束」，冲突只进可移除的收起范围", () => {
+    expect(FINISHED_STATES).toEqual(["merged", "failed", "stopped"])
     expect(SETTLED_STATES).toEqual(["merged", "failed", "stopped", "conflict"])
     for (const state of SETTLED_STATES) expect(isSettled(state)).toBe(true)
     expect(isSettled("ready")).toBe(false)
+    expect(isFinished("merged")).toBe(true)
+    expect(isFinished("conflict")).toBe(false)
+    expect(isSettled("conflict")).toBe(true)
+  })
+
+  it("停止只在没在合并中时给", () => {
     expect(canStop("running")).toBe(true)
     expect(canStop("queued")).toBe(true)
     expect(canStop("merging")).toBe(false)

@@ -18,7 +18,7 @@ import { parseBoardItems } from "@/lib/board-items"
 import { boardStateVariant } from "@/lib/board-state"
 import { describeFailure } from "@/lib/describe-failure"
 import { readStored, writeStored } from "@/lib/storage"
-import { POLL_MS, SETTLED_STATES, canStop, isSettled } from "@/lib/task-state"
+import { FINISHED_STATES, POLL_MS, canStop, isSettled } from "@/lib/task-state"
 
 /*
  * 看板：一屏同时跑多个页面。
@@ -190,9 +190,9 @@ export function BoardPage() {
             <Button
               variant="ghost"
               disabled={busy !== "" || tasks.length === 0}
-              onClick={() => void run("clear", () => api.boardClear(SETTLED_STATES))}
+              onClick={() => void run("clear", () => api.boardClear(FINISHED_STATES))}
             >
-              清掉已结束的（含冲突）
+              清掉已结束
             </Button>
           </div>
         </CardContent>
