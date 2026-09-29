@@ -11,7 +11,7 @@ const os = require("os");
 const path = require("path");
 
 const workdir = require("../lib/workdir.js");
-const { merge, threeWayMerge } = require("../lib/merge.js");
+const { merge, threeWayMerge, classifyFile } = require("../lib/merge.js");
 const { parallelism, logicalCores } = require("../lib/concurrency.js");
 
 const LAYOUT_BASE = [
@@ -206,8 +206,9 @@ function caseThreeWayDisjoint() {
   assert.ok(!threeWayMerge(base, ["a", "P", "b", "c", "d", "e", ""].join("\n"), ["a", "Q", "b", "c", "d", "e", ""].join("\n")).ok, "同一处各改各的要报冲突");
 }
 
-// 同一页第二次跑：主工程里留着上一次运行的产物（Generated/**），本次运行会重新产出它们 ——
-// 运行产物按「本次运行说了算」覆盖，人给的输入（命名表/译文/术语表/约束）两边都动过才停下。
+// 同一页第二次跑：主工程里留着上一次运行的产物（整个 Generated/**，含 _inputs 里那份输入记录），
+// 本次运行会重新产出它们 —— 一律按「本次运行说了算」覆盖并留说明；冲突只留给源码文件
+// （Resources/**、UI/**；Layout.xml 与 csproj 走行级三方合并）。
 async function caseRerunOverwritesRunProducts(fx) {
   const project = path.join(fx.root, "RerunProject");
   write(path.join(project, "Resources", "Layout", "Layout.xml"), LAYOUT_BASE);
@@ -277,6 +278,39 @@ async function caseRunInputRecordRefreshed(fx) {
   );
 }
 
+// 逐文件分流的判定表：纯函数，逐条钉死「哪条规则先命中」。
+function caseClassifyDecisionTable() {
+  const base = {
+    rel: "Resources/Pages/Detail/DetailPage.xml",
+    mainExists: true,
+    mainHash: "B",
+    baseHash: "A",
+    mineHash: "C",
+    isScratch: false,
+    isBackup: false,
+    isRunProduct: false,
+    isProjectLevel: false
+  };
+  const decision = (patch) => classifyFile(Object.assign({}, base, patch));
+
+  assert.strictEqual(decision({ isScratch: true }).action, "skip", "工作文件先出局");
+  assert.strictEqual(decision({ isBackup: true }).action, "skip", "覆盖备份不回写");
+  assert.strictEqual(decision({ mainHash: "C" }).action, "skip", "两边一致跳过");
+  assert.strictEqual(decision({ mainHash: "A" }).action, "write", "主工程没动过快进");
+  assert.strictEqual(decision({ mainHash: "A" }).seen, "A", "快进要记下写入前的哈希");
+  assert.strictEqual(decision({ isRunProduct: true }).action, "write", "运行产物本次运行说了算");
+  assert.match(decision({ isRunProduct: true }).note, /覆盖主工程上一次的/);
+  assert.strictEqual(decision({ isProjectLevel: true }).action, "mergeLines", "项目级共享文件走行级三方合并");
+  assert.strictEqual(decision({}).action, "conflict", "其余是真冲突");
+  assert.strictEqual(decision({ mainExists: false, baseHash: null }).action, "write", "新文件直接写");
+  assert.strictEqual(decision({ mainExists: false, baseHash: "A" }).action, "conflict", "主工程删过的文件不重建");
+  assert.strictEqual(
+    decision({ isRunProduct: true, isProjectLevel: true }).action,
+    "write",
+    "运行产物先于项目级判定：Generated/** 不会被当成需要三方合并的共享文件"
+  );
+}
+
 function caseConcurrency() {
   const logical = logicalCores();
   const limit = parallelism(logical);
@@ -294,6 +328,7 @@ async function main() {
     ["真冲突时不写半份", caseConflictWritesNothing],
     ["同一页第二次跑：运行产物由本次运行覆盖", caseRerunOverwritesRunProducts],
     ["工程里的输入记录由本次运行刷新", caseRunInputRecordRefreshed],
+    ["逐文件分流判定表", function () { caseClassifyDecisionTable(); }],
     ["行级三方合并", function () { caseThreeWayDisjoint(); }],
     ["并发上限", function () { caseConcurrency(); }]
   ];
