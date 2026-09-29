@@ -25,6 +25,9 @@ const OCCUPIED_STATES = ["queued", "preparing", "running", "waiting", "merging"]
 /* 产物已写完、清单可以看的状态：合并中算（产物写完了，正在回写主工程）。 */
 const PRODUCT_STATES = ["ready", "merging", "merged", "conflict"]
 
+/* 停下来的三种：失败、等语义输入、被停掉。只有它们身上还有「断点」可续。 */
+const RESUMABLE_STATES = ["failed", "waiting", "stopped"]
+
 /*
  * 真的结束了：跑完 / 失败 / 停止。看板「清掉已结束」只清这些 ——
  * 冲突不属于已结束（它等着人或 AI 处理，还能重新合并再试），清掉会把待办的行一起藏掉。
@@ -61,6 +64,15 @@ export function isSettled(state: string): boolean {
  */
 export function canStop(state: string): boolean {
   return occupiesSlot(state) && !isMerging(state)
+}
+
+/*
+ * 能不能「从断点继续」：只在这三种停法上有意义 —— 失败、等语义输入、被停掉。
+ * 跑完的没有断点，排队中的还没跑过（那是「开始」）。
+ * 工作目录是续跑要用的：插件登记表与产物都在那儿，没有它续起来只是空跑。
+ */
+export function canResume(task: { state: string; workDir: string }): boolean {
+  return RESUMABLE_STATES.includes(task.state) && Boolean(task.workDir.trim())
 }
 
 /*

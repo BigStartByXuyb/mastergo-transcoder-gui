@@ -503,7 +503,8 @@ export const api = {
   health: () => request<Health>("/api/health"),
   plugin: () => request<PluginInfo>("/api/plugin"),
   resolve: (body: { link: string; frameLink: string; projectDir: string }) => post<ResolveResult>("/api/resolve", body),
-  runResume: (runId: string) =>
+  /** 续跑认看板任务 id：jobId 每次续跑都会被换掉，当钥匙就会「找不到这次运行」。 */
+  runResume: (taskId: string) =>
     post<{
       ok: true
       mode: string
@@ -513,7 +514,7 @@ export const api = {
       /** 续跑前把命名表修回台账口径：裁掉旧下标、改掉重名，各自的条数在这里。 */
       reconciled?: { removed: number; renamed: number; kept: number; note?: string } | null
       job: Job
-    }>("/api/run/resume", { runId }),
+    }>("/api/run/resume", { taskId }),
   runStop: (runId: string) => post<{ ok: true; job: Job }>("/api/run/stop", { runId }),
   runStatus: (runId = "") =>
     request<{ ok: true; job: Job | null; steps: RunRegistryStep[] }>(
@@ -553,7 +554,8 @@ export const api = {
   confirm: (body: {
     projectRoot: string
     target: string
-    runId?: string
+    /** 看板任务 id：运行管理器里那次运行没了，也按任务把续跑重建出来。 */
+    taskId?: string
     naming?: { index: number; name: string; comment: string; fromDsl?: boolean }[]
     translations?: Record<string, string>
     glossary?: Record<string, string>

@@ -57,7 +57,7 @@ export function TaskPendingCard(props: Props) {
           <PendingPanel
             projectRoot={task.workDir}
             target={task.request.target}
-            runId={task.jobId}
+            taskId={task.id}
             reloadKey={task.id + ":" + task.updatedAt}
             automation={automation}
             onResumed={props.onResumed}

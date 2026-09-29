@@ -210,7 +210,7 @@ export function ReviewPage() {
             <PendingPanel
               projectRoot={active.projectRoot}
               target={active.target}
-              runId={active.runId}
+              taskId={active.taskId}
               automation={automation}
               onResumed={() => void load()}
             />

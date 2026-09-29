@@ -4,6 +4,7 @@ import type { Pending } from "@/lib/api"
 import {
   FINISHED_STATES,
   SETTLED_STATES,
+  canResume,
   canStop,
   hasProducts,
   isBusyState,
@@ -57,6 +58,16 @@ describe("task-state", () => {
     expect(canStop("queued")).toBe(true)
     expect(canStop("merging")).toBe(false)
     expect(canStop("merged")).toBe(false)
+  })
+
+  it("续跑只给停下来的三种，且必须有工作目录", () => {
+    for (const state of ["failed", "waiting", "stopped"]) {
+      expect(canResume({ state, workDir: "work\\page" })).toBe(true)
+    }
+    expect(canResume({ state: "merged", workDir: "work\\page" })).toBe(false)
+    expect(canResume({ state: "running", workDir: "work\\page" })).toBe(false)
+    expect(canResume({ state: "failed", workDir: "" })).toBe(false)
+    expect(canResume({ state: "failed", workDir: "   " })).toBe(false)
   })
 
   it("只数后端给出的待办条数：哪一节为 0 就只算另一节", () => {

@@ -4,7 +4,7 @@
 /*
  * 重启之后的续跑：运行管理器里的 job 只在内存里，客户端重启过、旧 job 被挤掉之后，
  * 这次运行的状态只剩看板任务自己的记录与插件在磁盘上的运行登记表。
- * 本文件盯住那条路：看板按登记表对表、按 jobId 找回任务、算得出从哪一步续。
+ * 本文件盯住那条路：看板按登记表对表、按任务 id 取回任务、算得出从哪一步续。
  * 跑法：node tests/resume-after-restart.test.js
  */
 
@@ -159,15 +159,16 @@ function caseStopStaysStopped(fx) {
   assert.strictEqual(stopped.error, "客户端重启，这个任务已中断", "原因保持原样");
 }
 
-// 旧 job 没了也能续：按 jobId 找回任务，从登记表算出锚点与参数。
+// 旧 job 没了也能续：按任务 id 取回任务，从登记表算出锚点与参数。
 function caseResumePlan(fx) {
   const board = fx.board(stubPending(true));
   board.snapshot();
 
-  assert.strictEqual(board.findByJob("job-gone").id, "t-done", "按旧 jobId 也要能找回那一行");
-  const found = board.findByJob("job-partial");
-  assert.ok(found, "按旧 jobId 要能找回那一行");
+  const found = board.byId("t-partial");
+  assert.ok(found, "按任务 id 要能取回那一行");
   assert.strictEqual(found.id, "t-partial");
+  assert.strictEqual(found.jobId, "job-partial", "行上记着它自己的那次运行");
+  assert.strictEqual(found.workDir, fx.workPartial, "工作目录跟着一起给出去");
 
   const finished = board.planResume("t-done");
   assert.strictEqual(finished.finished, true, "跑完的页面没有可续的步骤");
@@ -180,7 +181,8 @@ function caseResumePlan(fx) {
   assert.strictEqual(plan.request.projectRoot, fx.workPartial, "工程目录用这次运行自己的工作目录");
   assert.strictEqual(plan.request.allowEmptyLedger, true, "空台账声明一并继承");
   assert.strictEqual(plan.request.origin, "board");
-  assert.strictEqual(board.findByJob("不存在"), null, "空 jobId 找不到任何任务");
+  assert.strictEqual(board.byId("不存在"), null, "没有这个任务就是 null");
+  assert.strictEqual(board.byId(""), null, "空 id 不猜");
 }
 
 // 续跑起来之后把新 job 挂回那一行：行上的状态、日志、合并都跟着新运行走。
@@ -191,7 +193,7 @@ function caseAttach(fx) {
   const after = board.snapshot().tasks.find(function (item) { return item.id === "t-partial"; });
   assert.strictEqual(after.jobId, "job-new-1", "新运行要挂到行上");
   assert.strictEqual(after.state, "running", "挂上之后这一行就是在跑");
-  assert.strictEqual(board.findByJob("job-new-1").id, "t-partial", "反查跟着更新");
+  assert.strictEqual(board.byId("t-partial").jobId, "job-new-1", "取回来的是换过之后的那次运行");
 }
 
 function main() {

@@ -9,7 +9,7 @@ import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
 import type { BoardTask, PipelineStep } from "@/lib/api"
 import { boardStateVariant } from "@/lib/board-state"
-import { isBusyState } from "@/lib/task-state"
+import { canResume } from "@/lib/task-state"
 
 /*
  * 任务详情卡片：状态、工作目录、可做的动作（续跑 / 合并）、失败原因与 12 步进度。
@@ -43,7 +43,7 @@ export function TaskDetailCard(props: Props) {
           {task.request.projectRoot ? " · 合并回 " + task.request.projectRoot : ""}
         </CardDescription>
         <div className="flex flex-wrap items-center gap-2 pt-2">
-          {!isBusyState(task.state) && task.jobId && (
+          {canResume(task) && (
             <Button size="sm" disabled={busy === "resume"} onClick={props.onResume}>
               {busy === "resume" ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
               从断点继续

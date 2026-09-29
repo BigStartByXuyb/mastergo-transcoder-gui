@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
 import { DoneBoard } from "@/app/done-board"
@@ -8,7 +8,7 @@ import { TaskLogCard } from "@/app/task-log-card"
 import { TaskPendingCard } from "@/app/task-pending-card"
 import { useIdentity } from "@/app/use-identity"
 import { useRunLog } from "@/app/use-run-log"
-import { api, type Board, type Pending, type PipelineStep, type PluginSummary } from "@/lib/api"
+import { ApiFailure, api, type Board, type Pending, type PipelineStep, type PluginSummary } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { adoptsIdentityWithoutConfirm, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
 import { POLL_MS, canStop, hasProducts, isBusyState, waitingCounts } from "@/lib/task-state"
@@ -78,23 +78,20 @@ export function PipelinePage({
   const { job, setJob, logText, logRef, reset } = useRunLog(task?.jobId ?? "")
 
   // 看板是任务的唯一登记：详情页的状态一律从它的快照读，不自己推。
-  useEffect(() => {
-    let alive = true
-    const load = () => {
+  const loadBoard = useCallback(
+    () =>
       api
         .board()
-        .then((payload) => {
-          if (alive) setBoard(payload.board)
-        })
-        .catch(() => undefined)
-    }
-    load()
-    const timer = window.setInterval(load, POLL_MS)
-    return () => {
-      alive = false
-      window.clearInterval(timer)
-    }
-  }, [])
+        .then((payload) => setBoard(payload.board))
+        .catch(() => undefined),
+    []
+  )
+
+  useEffect(() => {
+    void loadBoard()
+    const timer = window.setInterval(() => void loadBoard(), POLL_MS)
+    return () => window.clearInterval(timer)
+  }, [loadBoard])
 
   useEffect(() => {
     api
@@ -192,13 +189,13 @@ export function PipelinePage({
     }
   }
 
-  // 从断点继续：后端取这次运行里第一条没跑完的路线，继承原次运行的全部参数。
+  // 从断点继续：后端按看板任务取第一条没跑完的路线，参数与停点从任务与登记表重建。
   async function resume() {
-    if (!task || !task.jobId) return
+    if (!task) return
     setBusy("resume")
     setFailure("")
     try {
-      const payload = await api.runResume(task.jobId)
+      const payload = await api.runResume(task.id)
       reset()
       setJob(payload.job)
       toast.success(
@@ -220,6 +217,8 @@ export function PipelinePage({
       )
     } catch (error) {
       setFailure(describeFailure(error))
+      // 这一行已经不在看板上（被清掉、或换了工程）：把看板拉回最新，别对着不存在的任务点。
+      if (error instanceof ApiFailure && error.code === "NO_TASK") void loadBoard()
     } finally {
       setBusy("")
     }
@@ -286,10 +285,7 @@ export function PipelinePage({
           automation={automation}
           counts={counts}
           onResumed={() => {
-            void api
-              .board()
-              .then((payload) => setBoard(payload.board))
-              .catch(() => undefined)
+            void loadBoard()
           }}
         />
       )}
