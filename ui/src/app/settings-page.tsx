@@ -3,6 +3,7 @@ import { KeyRound, Loader2, Save } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { ClampText } from "@/app/clamp-text"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -138,7 +139,9 @@ export function SettingsPage() {
           {failure && (
             <Alert variant="destructive">
               <AlertTitle>出错了</AlertTitle>
-              <AlertDescription className="break-all">{failure}</AlertDescription>
+              <AlertDescription>
+                <ClampText text={failure} />
+              </AlertDescription>
             </Alert>
           )}
 

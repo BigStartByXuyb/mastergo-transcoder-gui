@@ -378,10 +378,13 @@ function TaskRow({
           <span className="text-muted-foreground truncate font-mono text-xs" title={task.workDir || task.request.projectRoot}>
             {task.workDir || task.request.projectRoot}
           </span>
-          {task.error && <span className="text-destructive text-xs">{task.error}</span>}
+          {task.error && <ClampText text={task.error} lines={2} className="text-destructive text-xs" />}
           {task.failure && task.failure.kind !== "semantic" && (
             <span className="text-destructive text-xs">
-              {task.failure.title || task.failure.stepName}：{task.failure.message}
+              <ClampText
+                text={(task.failure.title || task.failure.stepName) + "：" + task.failure.message}
+                lines={2}
+              />
               {task.failure.logPath && (
                 <span className="text-muted-foreground block font-mono" title={task.failure.logPath}>
                   {task.failure.logPath}
@@ -391,8 +394,14 @@ function TaskRow({
           )}
           {task.failure && task.failure.kind === "semantic" && (
             <span className="text-muted-foreground text-xs">
-              停在语义判断点，不是错误：{task.failure.title || task.failure.stepName}
-              {task.failure.message ? " —— " + task.failure.message : ""}
+              <ClampText
+                text={
+                  "停在语义判断点，不是错误：" +
+                  (task.failure.title || task.failure.stepName) +
+                  (task.failure.message ? " —— " + task.failure.message : "")
+                }
+                lines={2}
+              />
             </span>
           )}
           {task.state === "waiting" && (

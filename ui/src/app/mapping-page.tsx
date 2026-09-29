@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { ClampText } from "@/app/clamp-text"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -56,7 +57,9 @@ export function MappingPage() {
     return (
       <Alert variant="destructive">
         <AlertTitle>读不到映射表</AlertTitle>
-        <AlertDescription>{failure}</AlertDescription>
+        <AlertDescription>
+          <ClampText text={failure} />
+        </AlertDescription>
       </Alert>
     )
   }

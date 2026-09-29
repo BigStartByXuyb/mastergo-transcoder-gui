@@ -1,6 +1,7 @@
 import { Loader2, Play, RefreshCw, Sparkles, Square } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { ClampText } from "@/app/clamp-text"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -263,7 +264,9 @@ export function NewTaskCard(props: Props) {
         {failure && (
           <Alert variant="destructive">
             <AlertTitle>启动失败</AlertTitle>
-            <AlertDescription className="break-all">{failure}</AlertDescription>
+              <AlertDescription>
+                <ClampText text={failure} />
+              </AlertDescription>
           </Alert>
         )}
       </CardContent>

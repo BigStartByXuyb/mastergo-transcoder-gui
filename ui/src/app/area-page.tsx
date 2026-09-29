@@ -3,6 +3,7 @@ import { Copy, Play, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { ClampText } from "@/app/clamp-text"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -79,7 +80,9 @@ export function AreaPage(props: Props) {
           <CardContent>
             <Alert variant="destructive">
               <AlertTitle>清空失败</AlertTitle>
-              <AlertDescription className="break-all">{failure}</AlertDescription>
+              <AlertDescription>
+                <ClampText text={failure} />
+              </AlertDescription>
             </Alert>
           </CardContent>
         )}

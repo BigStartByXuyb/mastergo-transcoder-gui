@@ -76,7 +76,11 @@ export function TaskDetailCard(props: Props) {
             <AlertDescription className="flex flex-col gap-2">
               {task.failure.message && <ClampText text={task.failure.message} />}
               {task.failure.logPath && (
-                <p className="text-muted-foreground break-all text-xs">这一步的日志：{task.failure.logPath}</p>
+                <ClampText
+                  text={"这一步的日志：" + task.failure.logPath}
+                  lines={2}
+                  className="text-muted-foreground text-xs"
+                />
               )}
               {contractStep && (
                 <>
