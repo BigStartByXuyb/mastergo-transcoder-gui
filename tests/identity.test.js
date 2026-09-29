@@ -48,7 +48,8 @@ function caseCandidates() {
     ]
   });
   const info = candidatesFor({ projectRoot: root, pageName: "Manual Align (2.2.1)" });
-  assert.deepStrictEqual(info.uiCandidates.map((item) => item.ui), ["F2", "F3"], "区域按项目里的使用频次排");
+  assert.deepStrictEqual(info.uiCandidates.map((item) => item.ui), ["F2", "F3"], "区域按使用频次排");
+  assert.ok(info.ambiguous, "同一设计文件里有两个区域 → 不明确，界面要人点一次");
   assert.strictEqual(info.candidates[0].target, "F2ManualAlign", "给出的候选直接满足「Target 前缀 = 区域」");
   assert.strictEqual(info.candidates[0].needsSemanticName, false);
   assert.match(info.candidates[0].basis, /设计页名/);
@@ -56,6 +57,28 @@ function caseCandidates() {
 
   const noRegistry = candidatesFor({ projectRoot: project(), pageName: "Manual Align" });
   assert.deepStrictEqual(noRegistry.candidates, [], "项目里没有既有区域约定时，不凭空编一个区域");
+
+  // 同一设计文件优先：F1 只在这个文件里出现，F2 是全项目更多 → 这个文件仍然先给 F1
+  const scoped = project({
+    pages: [
+      { target: "F2A", ui: "F2", designSource: { fileId: "9", layerId: "2:1" } },
+      { target: "F2B", ui: "F2", designSource: { fileId: "9", layerId: "2:2" } },
+      { target: "F1StopAdjust", ui: "F1", designSource: { fileId: "7", layerId: "1:1" } }
+    ]
+  });
+  const scopedInfo = candidatesFor({ projectRoot: scoped, pageName: "Stop Adjust", fileId: "7" });
+  assert.strictEqual(scopedInfo.uiCandidates[0].ui, "F1", "同一设计文件里出现过的区域优先");
+  assert.strictEqual(scopedInfo.ambiguous, false, "这个文件里只有一个区域 → 可以自动");
+  assert.match(scopedInfo.uiCandidates[0].basis, /同一设计文件/);
+  fs.rmSync(scoped, { recursive: true, force: true });
+
+  // 设计页名与登记不一致 → 提示改名，不静默沿用
+  const renamed = project({
+    pages: [{ target: "F1StopAdjust", ui: "F1", designSource: { fileId: "7", layerId: "1:1", designPageName: "停止调整" } }]
+  });
+  const renameInfo = candidatesFor({ projectRoot: renamed, pageName: "停止微调", fileId: "7", layerId: "1:1" });
+  assert.ok(renameInfo.candidates.some((item) => item.rename), "改名要给出显式确认项");
+  fs.rmSync(renamed, { recursive: true, force: true });
   fs.rmSync(root, { recursive: true, force: true });
 }
 

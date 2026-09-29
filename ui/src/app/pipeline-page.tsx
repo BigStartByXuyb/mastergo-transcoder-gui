@@ -205,7 +205,8 @@ export function PipelinePage({ taskId }: { taskId: string }) {
         pageName: identityName.trim() || target.trim(),
         useAi: automation !== "off",
         // 你已经在 UI 区域框里写了区域（例如 F1）时，就按你给的那个算候选。
-        ui: ui.trim()
+        ui: ui.trim(),
+        link: link.trim()
       })
       const list: IdentityCandidate[] = [
         ...(payload.ai.items ?? []),
@@ -214,6 +215,10 @@ export function PipelinePage({ taskId }: { taskId: string }) {
       setIdentityCandidates(list)
       if (list.length === 0) {
         setFailure("这个工程里还没有任何区域约定（登记表里没有页面、也没有带前缀的 Target），先手工填一次 Ui 前缀，之后就能自动补了。")
+        return
+      }
+      if (payload.ambiguous) {
+        setFailure("这个设计文件里已经登记过多个区域（或并列），不敢替你猜：请在候选里点一下这一页的区域，确认后这一页以后就自动了。")
         return
       }
       if (automation === "auto") {
@@ -347,6 +352,10 @@ export function PipelinePage({ taskId }: { taskId: string }) {
       let finalUi = ui.trim()
       if (!finalTarget && !finalUi && automation === "auto") {
         const payload = await api.identityCandidates({ projectRoot: projectRoot.trim(), pageName: identityName.trim(), useAi: true })
+        if (payload.ambiguous) {
+          setFailure("这个设计文件里已经登记过多个区域（或并列）：请先点「自动补 Target / 区域」选一次，这一页登记后就会全自动。")
+          return
+        }
         const list: IdentityCandidate[] = [...(payload.ai.items ?? []), ...(payload.candidates ?? [])]
         const pick = list.find((item) => item.target && !item.needsSemanticName) ?? list.find((item) => item.target)
         if (!pick) {
@@ -608,23 +617,34 @@ export function PipelinePage({ taskId }: { taskId: string }) {
             {pages && !pages.exists && <span>{pages.problem}</span>}
             {pages && pages.exists && pages.pages.length === 0 && <span>登记表里还没有可用的页面条目。</span>}
             {pages && pages.exists && pages.pages.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span>登记表里登记的页面（点一下填上 Target；条目里写了 Ui 就连 Ui 一起填）：</span>
-                {pages.pages.map((page, index) => (
-                  <Button
-                    key={page.target + index}
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      if (page.target) setTarget(page.target)
-                      // 登记表条目没写 ui 时也照实留空：区域由插件按 Target 前缀自己推，前端不替它算。
-                      setUi(page.ui)
-                    }}
-                  >
-                    {page.target || page.layerId}
-                    {page.ui ? "（UI " + page.ui + "）" : ""}
-                  </Button>
+              <div className="flex flex-col gap-1">
+                {/* 按 UI 区域分组：同一区域下的页面放在一起，点一下就切到那个区域的流程。 */}
+                <span>
+                  登记表里登记的页面（按 UI 分组；点一下填上 Target，条目里写了 Ui 就连 Ui 一起填）
+                  {ui.trim() ? "　当前：UI " + ui.trim() : ""}
+                  {target.trim() ? " · " + target.trim() : ""}
+                </span>
+                {[...new Set(pages.pages.map((page) => page.ui || "（未写 Ui）"))].sort().map((group) => (
+                  <div key={group} className="flex flex-wrap items-center gap-2">
+                    <Badge variant={ui.trim() === group ? "default" : "outline"}>{group}</Badge>
+                    {pages.pages
+                      .filter((page) => (page.ui || "（未写 Ui）") === group)
+                      .map((page, index) => (
+                        <Button
+                          key={page.target + index}
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            if (page.target) setTarget(page.target)
+                            // 登记表条目没写 ui 时照实留空：区域由插件按 Target 前缀自己推。
+                            setUi(page.ui)
+                          }}
+                        >
+                          {page.target || page.layerId}
+                        </Button>
+                      ))}
+                  </div>
                 ))}
               </div>
             )}

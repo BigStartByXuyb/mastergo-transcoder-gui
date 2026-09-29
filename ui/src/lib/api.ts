@@ -441,6 +441,8 @@ export type IdentityCandidates = {
   uiCandidates: { ui: string; count: number; basis: string }[]
   candidates: IdentityCandidate[]
   ai: { used: boolean; items: IdentityCandidate[] }
+  /** 同一设计文件里区域不唯一或并列：界面必须让人点一次，不许自动采用。 */
+  ambiguous: boolean
 }
 
 export class ApiFailure extends Error {
@@ -570,7 +572,7 @@ export const api = {
   /** 从链接取设计页名（中文原名，如「停止调整」）：Target 由它翻译 + 区域前缀得到。 */
   designPageName: (link: string) =>
     post<{ ok: true; pageName: string; rootId: string }>("/api/design/page-name", { link }),
-  identityCandidates: (body: { projectRoot: string; pageName: string; useAi?: boolean; ui?: string }) =>
+  identityCandidates: (body: { projectRoot: string; pageName: string; useAi?: boolean; ui?: string; link?: string }) =>
     post<{ ok: true } & IdentityCandidates>("/api/identity/candidates", body),
   identityApply: (body: {
     projectRoot: string
