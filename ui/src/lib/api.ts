@@ -556,6 +556,8 @@ export const api = {
     target: string
     /** 看板任务 id：运行管理器里那次运行没了，也按任务把续跑重建出来。 */
     taskId?: string
+    /** 来源运行 id：没有 taskId 的条目（流水线直跑、任务已移除）靠它续跑。 */
+    runId?: string
     naming?: { index: number; name: string; comment: string; fromDsl?: boolean }[]
     translations?: Record<string, string>
     glossary?: Record<string, string>

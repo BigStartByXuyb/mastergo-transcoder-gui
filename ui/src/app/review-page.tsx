@@ -211,6 +211,7 @@ export function ReviewPage() {
               projectRoot={active.projectRoot}
               target={active.target}
               taskId={active.taskId}
+              runId={active.runId}
               automation={automation}
               onResumed={() => void load()}
             />

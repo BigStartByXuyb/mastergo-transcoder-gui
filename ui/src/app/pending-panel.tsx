@@ -55,6 +55,7 @@ export function PendingPanel({
   projectRoot,
   target,
   taskId,
+  runId,
   reloadKey,
   automation,
   onResumed,
@@ -64,6 +65,8 @@ export function PendingPanel({
   target: string
   /** 看板任务 id：续跑按它落回那一行，拿 jobId 当钥匙会在运行被换掉后失效。 */
   taskId: string
+  /** 来源运行 id：非看板来源（流水线直跑、任务已移除）没有 taskId，续跑只有它能用。 */
+  runId: string
   /** 运行状态指纹（如 `<jobId>:<state>`）。状态变化要重读清单——否则「跑着 → 停下」后看不见新出现的待办。 */
   reloadKey?: string
   automation: string
@@ -200,6 +203,7 @@ export function PendingPanel({
           projectRoot: pending.projectRoot,
           target: pending.target,
           taskId,
+          runId,
           naming: pending.icons.available && pending.icons.needsNaming ? naming : undefined,
           translations: pending.translations.available ? translations : undefined,
           glossary: pending.translations.available ? glossaryMap : undefined,
@@ -219,7 +223,7 @@ export function PendingPanel({
         setBusy("")
       }
     },
-    [pending, taskId, allowEmptyLedger, load, onResumed]
+    [pending, taskId, runId, allowEmptyLedger, load, onResumed]
   )
 
   const submit = useCallback(

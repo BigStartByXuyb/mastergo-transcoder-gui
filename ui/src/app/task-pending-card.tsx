@@ -58,6 +58,7 @@ export function TaskPendingCard(props: Props) {
             projectRoot={task.workDir}
             target={task.request.target}
             taskId={task.id}
+            runId={task.jobId}
             reloadKey={task.id + ":" + task.updatedAt}
             automation={automation}
             onResumed={props.onResumed}
