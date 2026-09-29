@@ -17,6 +17,7 @@ import { api, type Board, type BoardTask } from "@/lib/api"
 import { parseBoardItems } from "@/lib/board-items"
 import { boardStateVariant } from "@/lib/board-state"
 import { ClampText } from "@/app/clamp-text"
+import { IdentifierText } from "@/app/identifier-text"
 import { describeFailure } from "@/lib/describe-failure"
 import { readStored, writeStored } from "@/lib/storage"
 import { FINISHED_STATES, POLL_MS, canStop, isSettled } from "@/lib/task-state"
@@ -359,7 +360,9 @@ function TaskRow({
       <TableCell>
         <Badge variant={boardStateVariant(task.state)}>{task.stateLabel}</Badge>
       </TableCell>
-      <TableCell className="font-mono text-xs break-all">{task.request.target || "（按设计稿推导）"}</TableCell>
+      <TableCell className="text-xs">
+        <IdentifierText text={task.request.target || "（按设计稿推导）"} />
+      </TableCell>
       <TableCell className="text-sm">{task.request.mode}</TableCell>
       <TableCell>
         {progress ? (
@@ -386,9 +389,7 @@ function TaskRow({
                 lines={2}
               />
               {task.failure.logPath && (
-                <span className="text-muted-foreground block font-mono" title={task.failure.logPath}>
-                  {task.failure.logPath}
-                </span>
+                <IdentifierText text={task.failure.logPath} className="text-muted-foreground block" />
               )}
             </span>
           )}

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { StepFlow } from "@/app/task-steps"
 import { ClampText } from "@/app/clamp-text"
+import { IdentifierText } from "@/app/identifier-text"
 import type { BoardTask, PipelineStep } from "@/lib/api"
 import { boardStateVariant } from "@/lib/board-state"
 import { isBusyState } from "@/lib/task-state"
@@ -76,9 +77,8 @@ export function TaskDetailCard(props: Props) {
             <AlertDescription className="flex flex-col gap-2">
               {task.failure.message && <ClampText text={task.failure.message} />}
               {task.failure.logPath && (
-                // 日志路径是标识符（不是提示句）：按容器宽折行、title 给全文，与看板那一处同形态。
-                <span className="text-muted-foreground break-all font-mono text-xs" title={task.failure.logPath}>
-                  这一步的日志：{task.failure.logPath}
+                <span className="text-muted-foreground text-xs">
+                  这一步的日志：<IdentifierText text={task.failure.logPath} />
                 </span>
               )}
               {contractStep && (

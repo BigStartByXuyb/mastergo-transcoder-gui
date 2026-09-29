@@ -4,6 +4,7 @@ import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ClampText } from "@/app/clamp-text"
+import { IdentifierText } from "@/app/identifier-text"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -183,7 +184,7 @@ export function SettingsPage() {
                   <Badge variant={health.plugin.engineExists ? "secondary" : "destructive"}>
                     {health.plugin.engineExists ? "已找到" : "缺失"}
                   </Badge>
-                  <span className="break-all">{health.plugin.engine}</span>
+                  <IdentifierText text={health.plugin.engine} />
                 </dd>
               </div>
               <div>

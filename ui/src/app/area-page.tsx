@@ -4,6 +4,7 @@ import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ClampText } from "@/app/clamp-text"
+import { IdentifierText } from "@/app/identifier-text"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -55,7 +56,9 @@ export function AreaPage(props: Props) {
             <Badge variant="outline">任务 {area.tasks.length}</Badge>
             {area.running > 0 && <Badge variant="default">{area.running} 个跑着</Badge>}
           </CardTitle>
-          <CardDescription className="break-all font-mono">{area.projectRoot}</CardDescription>
+          <CardDescription>
+            <IdentifierText text={area.projectRoot} />
+          </CardDescription>
           <div className="flex flex-wrap items-center gap-2 pt-2">
             <Button size="sm" onClick={props.onNewTask}>
               <Copy className="size-4" />

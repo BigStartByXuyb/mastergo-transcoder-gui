@@ -3,6 +3,7 @@ import { RefreshCw } from "lucide-react"
 
 import { PendingPanel } from "@/app/pending-panel"
 import { ClampText } from "@/app/clamp-text"
+import { IdentifierText } from "@/app/identifier-text"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -202,7 +203,9 @@ export function ReviewPage() {
               {active.target || "（未指定 Target）"}
               {!queue.some((item) => keyOf(item) === selected) && manualRoot.trim() ? " —— 手填" : ""}
             </CardTitle>
-            <CardDescription className="font-mono text-xs break-all">{active.projectRoot}</CardDescription>
+            <CardDescription className="text-xs">
+              <IdentifierText text={active.projectRoot} />
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <PendingPanel
