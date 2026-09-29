@@ -16,6 +16,49 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-09-30 复核：同页重复合并只留一份 + Layout 语言名 + 看板定宽
+
+### 改了什么
+
+- `lib/plugin-layout.js`：重新注册 Layout 用的清单改从本页 Bundle 审计 `Generated/<Target>.bundle.manifest.json` 的 `inputs` 取
+  —— 插件第 10 步喂给 `gen-mtslg-layout.js` 的就是这份，含语言绑定产出的 `MenuItem.langName`。原来取第 8 步
+  `Generated/_inputs/<Target>.layout-manifest.json`，那份只有机械推导结果、没有 `langName`，注册进主工程的 `MenuItem` 全是
+  `LangName=""`，与插件单独跑不一致。
+- `lib/workdir.js`：建工作目录不再跳过 `Generated/`。`Generated/_inputs` 里的命名表/译文/术语是本次运行的输入，不复制会让插件
+  退回「待命名」重新猜键名，猜出来的与上一版不同就覆盖掉已确认的产物。
+- `lib/merge.js`：`Generated/_work/**` 这类运行临时账在本任务里被插件清掉时，主工程里同步清掉（被人在跑完之后改过的留着不动）。
+
+### 结论
+
+- 反复跑同一页不会留两份：主工程 `D:\ttt` 的 `Resources\Pages\F4TargetTeaching\`、`Generated\runs\F4TargetTeaching\` 各只有一个 ——
+  后一次合并是覆盖。界面上靠「生效中 / 已被覆盖」区分：同一（工程 + Ui + Target + 模式）里合并时间最新的是「生效中」，
+  其余已合并的是「已被覆盖」，默认藏起来，只在开关标签里报条数。
+- Layout 与插件单独跑逐字节一致：`Resources\Layout\Layout.xml` 两侧 sha256 都是 `8047B949…B2FC`，F4 页 10 个 MenuItem 里 9 个带
+  `LangName`（`MenuItemUpArrow`、`MenuItemCurrentPosition` …），剩下 1 个在设计稿里本来就是空槽位（`Name=""`）。
+- 看板表格宽 = 内容区宽 = 窗口宽减侧边栏，文档横向滚动宽恒等于窗口宽。
+
+### 点过的东西
+
+| 页面 | 操作 | 观察到 | 结论 |
+| --- | --- | --- | --- |
+| 看板 | 打开 `#board`（1280 宽） | 徽标「正在跑 0 / 待合并 0 / 任务 9」；「只看生效（已藏起 6 条被覆盖的）」默认勾选，表里 3 行（HH/A 生效中、F4/B 冲突、F4/B 生效中） | 通过 |
+| 看板 | 量 1280 / 1000 / 860 三档 | `table == box` 均为 910、630、490，`doc == win`，无横向溢出 | 通过 |
+| 看板 | 量行高与长文本格 | 普通行 85px；冲突行 897px（4 条待裁决堆叠，是内容高度不是被撑宽）；「工作目录」clamp 3 行、「冲突理由」clamp 2 行，都挂 `title` | 通过 |
+| 看板 | 关掉「只看生效」 | 9 行 = 2 条「生效中」+ 6 条「已被覆盖」（徽标 `title` 带「覆盖」）+ 1 条「合并冲突」 | 通过 |
+| 看板 | 点 `90547f7c` 那行的「详情」 | 跳到 `#pipeline?task=90547f7c-62c6-4922-bbd4-4e12443d5113` | 通过 |
+| 流水线详情 | 看 12 步与产物表 | 12/12 全「完成」；第 7、9 步挂「人/AI 语义输入」；产物 10 行，`Resources/Layout/Layout.xml` 哈希 `8047b949bffd…` 与磁盘一致；运行标识 `20260930-030454-dd8916a5` | 通过 |
+| 映射表 | 打开 `#mapping` | 模板族 10 / 底部栏变体 17 / 必写字段 15，写入规则与共享类型表都指向插件 1.0.369 | 通过 |
+| 映射表 | 搜索框填「底部栏」 | 族表变「没有匹配的族（底部栏变体见下一张卡片）」，布局规则卡只留底部栏那条 | 通过 |
+| 待确认 | 打开 `#review` | 「当前没有待确认的页面。」 | 通过 |
+| 设置 | 打开 `#settings` | 模型卡（厂商 / 模型名 `deepseek-chat` / Base URL / API key）+「key 已保存（DPAPI 加密）」；Codex 引擎钉 `v0.159.0`、会话目录 `agents\codex\home` | 通过 |
+| 主工程 | `Get-ChildItem D:\ttt\Resources\Pages`、`D:\ttt\Generated\runs` | 两个位置各只有一个 `F4TargetTeaching`，没有第二份 | 通过 |
+
+### 没点的
+
+- 「启动全部 / 合并全部 / 清掉已结束」这次没点，逻辑由 `tests/board.test.js` 覆盖。
+- 冲突行的「以本任务为准 / 保留主工程」没点：会真写主工程，留给要合并的那次。
+- 设置页保存模型表单、切换 Codex 版本没点：会真写 `local.json` 与触发下载。
+
 ## 2026-09-30 表格不再被裁 + 设置页模型卡片自动恢复
 
 ### 改了什么
