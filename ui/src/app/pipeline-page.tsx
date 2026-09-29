@@ -145,32 +145,46 @@ export function PipelinePage({ taskId }: { taskId: string }) {
       .catch(() => undefined)
   }, [])
 
-  // 工程目录一改就去读登记表：把插件取值链第 2/3 级的候选页面列出来给人选。
-  // 读不到（没有登记表或坏 JSON）也不拦，只把原因显示出来——命令行给 Target 一样能跑。
-  useEffect(() => {
-    const root = projectRoot.trim()
+  /*
+   * 登记表与「Target → 区域」预览是两件独立的事，分两条取值路径：
+   *   · 候选页面列表只跟工程目录有关；
+   *   · 预览只跟 Target 有关（后端算，前端不持规则），工程目录空着也要能显示。
+   * 之前把两者塞进同一个 effect，会因为「目录为空就提前 return」让预览停留在上一次的值，
+   * 提示就会说反话（能推的说推不出来、推不出来的说成会推出）。
+   */
+  function loadPages(root: string) {
     if (!root) {
       setPages(null)
       return
     }
-    let alive = true
-    const timer = window.setTimeout(() => {
-      api
-        .projectPages(root, target.trim())
-        .then((payload) => {
-          if (!alive) return
-          setPages(payload.pages)
-          setPreviewUi(payload.previewUi)
-        })
-        .catch(() => {
-          if (alive) setPages(null)
-        })
-    }, 600)
-    return () => {
-      alive = false
-      window.clearTimeout(timer)
+    api
+      .projectPages(root, "")
+      .then((payload) => setPages(payload.pages))
+      .catch(() => setPages(null))
+  }
+
+  function loadPreview(nextTarget: string) {
+    api
+      .projectPages(projectRoot.trim(), nextTarget)
+      .then((payload) => setPreviewUi(payload.previewUi))
+      .catch(() => setPreviewUi(""))
+  }
+
+  useEffect(() => {
+    const root = projectRoot.trim()
+    const timer = window.setTimeout(() => loadPages(root), 600)
+    return () => window.clearTimeout(timer)
+  }, [projectRoot])
+
+  useEffect(() => {
+    const next = target.trim()
+    if (!next) {
+      setPreviewUi("")
+      return
     }
-  }, [projectRoot, target])
+    const timer = window.setTimeout(() => loadPreview(next), 600)
+    return () => window.clearTimeout(timer)
+  }, [target, projectRoot])
 
   const derivedUi = ui.trim() ? "" : previewUi
   const needsIdentityHint = !ui.trim() && !target.trim()
@@ -226,13 +240,8 @@ export function PipelinePage({ taskId }: { taskId: string }) {
       setUi(item.ui)
       toast.success("已写入登记表（" + (written.replaced ? "替换" : "新增") + "）：" + item.target + " · UI " + item.ui)
       setIdentityCandidates([])
-      api
-        .projectPages(projectRoot.trim(), item.target)
-        .then((payload) => {
-          setPages(payload.pages)
-          setPreviewUi(payload.previewUi)
-        })
-        .catch(() => undefined)
+      loadPages(projectRoot.trim())
+      loadPreview(item.target)
     } catch (error) {
       setFailure(error instanceof ApiFailure ? error.message + (error.hint ? "：" + error.hint : "") : String(error))
     } finally {
@@ -551,7 +560,7 @@ export function PipelinePage({ taskId }: { taskId: string }) {
             {pages && pages.exists && pages.pages.length === 0 && <span>登记表里还没有可用的页面条目。</span>}
             {pages && pages.exists && pages.pages.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
-                <span>登记表里登记的页面（点一下自动填好）：</span>
+                <span>登记表里登记的页面（点一下填上 Target；条目里写了 Ui 就连 Ui 一起填）：</span>
                 {pages.pages.map((page, index) => (
                   <Button
                     key={page.target + index}
