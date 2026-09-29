@@ -84,6 +84,8 @@ function caseDiscoverFrames() {
     write(path.join(root, "Generated", "runs", "F3Align", "manifest.json"), JSON.stringify({
       schemaVersion: "mastergo-dsl-run/1", fileId: "111", layerId: "3:1", pageName: "对焦"
     }));
+    // F3Align 目录里也有一份快照：这样无论两个来源谁先被扫到，111 的快照路径都必须非空
+    write(path.join(root, "Generated", "runs", "F3Align", "dsl.snapshot.json"), "{}\n");
     write(path.join(root, "Generated", "runs", "F5Plain", "manifest.json"), JSON.stringify({
       schemaVersion: "mastergo-dsl-run/2", fileId: "555", layerId: "5:1"
     }));
@@ -107,10 +109,14 @@ function caseDiscoverFrames() {
     assert.deepStrictEqual(sources, ["manifest", "page-registry"]);
     assert.strictEqual(frames.find((frame) => frame.fileId === "111").name, "对焦", "页面名来自登记表或运行登记表");
     assert.ok(
-      frames.some((frame) => frame.snapshotPath.endsWith("dsl.snapshot.json")),
-      "同目录存在快照时要带上路径"
+      frames.find((frame) => frame.fileId === "111").snapshotPath.endsWith("dsl.snapshot.json"),
+      "旁边有快照的页面帧要带上快照路径（与扫描顺序无关）"
     );
-    assert.ok(frames.every((frame) => frame.snapshotPath === "" || frame.snapshotPath.endsWith("dsl.snapshot.json")));
+    assert.strictEqual(
+      frames.find((frame) => frame.fileId === "555").snapshotPath,
+      "",
+      "旁边没有快照的页面帧留空"
+    );
 
     // 深度限制：maxDepth 0 时连根目录的文件都不看
     assert.deepStrictEqual(discoverFrames([root], { maxDepth: 0 }), []);
