@@ -28,11 +28,13 @@ export type ToolKey = (typeof TOOLS)[number]["key"]
 type Props = {
   areas: AreaEntry[]
   activeAreaKey: string
-  activeTool: ToolKey
+  /** 非工具页（区域详情、任务详情）不点亮任何工具项。 */
+  activeTool: ToolKey | null
   title: string
   status: ReactNode
   onGoTool: (key: ToolKey) => void
   onGoArea: (area: AreaEntry) => void
+  onForgetProject: (projectRoot: string) => void
   onNewTask: () => void
   children: ReactNode
 }
@@ -72,8 +74,21 @@ export function AppShell(props: Props) {
 
           {projects.map((projectRoot) => (
             <div key={projectRoot} className="flex flex-col gap-1">
-              <div className="text-muted-foreground truncate px-2 font-mono text-xs" title={projectRoot}>
-                {projectRoot}
+              <div className="flex items-center gap-1 px-2">
+                <span className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-xs" title={projectRoot}>
+                  {projectRoot}
+                </span>
+                {/* 只有这个工程已经没有任务时才给「移除」：删除只清本地记忆，任务还在时移除会被下一轮拉回来。 */}
+                {!props.areas.some((area) => area.projectRoot === projectRoot && area.tasks.length > 0) && (
+                  <button
+                    type="button"
+                    title="从侧边栏移除（不动工程与登记表）"
+                    className="text-muted-foreground hover:text-sidebar-accent-foreground px-1 text-xs"
+                    onClick={() => props.onForgetProject(projectRoot)}
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
               {props.areas
                 .filter((area) => area.projectRoot === projectRoot)

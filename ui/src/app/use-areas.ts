@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react"
 
 import { api, type BoardTask } from "@/lib/api"
-import { buildAreas, type AreaEntry, type AreaPage } from "@/lib/areas"
-import { readRecentProjects, rememberProject } from "@/lib/recent-projects"
+import { buildAreas, collectProjectRoots, type AreaEntry, type AreaPage } from "@/lib/areas"
+import { forgetProject, readRecentProjects, rememberProject } from "@/lib/recent-projects"
 import { POLL_MS } from "@/lib/task-state"
 
 /*
@@ -23,7 +23,7 @@ export function useAreas() {
       const payload = await api.board()
       setTasks(payload.board.tasks)
       // 任务里出现过的工程也算「用过」：任务列表与侧边栏用同一份记忆。
-      const roots = [...new Set(payload.board.tasks.map((task) => String(task.request?.projectRoot || "").trim()).filter(Boolean))]
+      const roots = collectProjectRoots(payload.board.tasks)
       const before = readRecentProjects().join("|")
       for (const root of roots) rememberProject(root)
       const after = readRecentProjects()
@@ -45,7 +45,7 @@ export function useAreas() {
     const wanted = [
       ...new Set([
         ...projects,
-        ...tasks.map((task) => String(task.request?.projectRoot || "").trim()).filter(Boolean)
+        ...collectProjectRoots(tasks)
       ])
     ].filter((root) => !(root in pagesByProject))
     if (wanted.length === 0) return
@@ -78,7 +78,21 @@ export function useAreas() {
     }
   }, [projects, tasks, pagesByProject])
 
+  /*
+   * 任务账变了（新建一条、跑完、被清掉）就作废登记表缓存：新建任务时界面会把区域写进登记表，
+   * 只缓存一次的话这一会话里就永远看不到新条目。任务账没变时不重拉（轮询 1.5s 一次，只比字符串）。
+   */
+  const taskSignature = tasks.map((task) => task.id + ":" + task.state).sort().join("|")
+  useEffect(() => {
+    setPagesByProject({})
+  }, [taskSignature])
+
   const areas: AreaEntry[] = buildAreas({ projects: projects, pagesByProject: pagesByProject, tasks: tasks })
 
-  return { areas: areas, tasks: tasks, projects: projects, loaded: loaded, reload: loadBoard }
+  /* 从侧边栏移除一个工程：只动本地记忆，不碰工程里的任何文件（界面只在它没有任务时才给这个入口）。 */
+  function forget(projectRoot: string) {
+    setProjects(forgetProject(projectRoot))
+  }
+
+  return { areas: areas, tasks: tasks, projects: projects, loaded: loaded, reload: loadBoard, forget: forget }
 }

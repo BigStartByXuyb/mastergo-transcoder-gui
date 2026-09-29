@@ -26,6 +26,16 @@ export function areaKey(projectRoot: string, ui: string): string {
   return projectRoot + "|" + ui
 }
 
+/** 任务挂在哪个工程：这是「任务 → 工程」的唯一取法，取数层与归并层共用。 */
+export function projectRootOf(task: BoardTask): string {
+  return String(task.request?.projectRoot || "").trim()
+}
+
+/** 一组任务涉及哪些工程（去重、去掉空值）：侧边栏、登记表取数、归并模型共用同一套归一化。 */
+export function collectProjectRoots(tasks: BoardTask[]): string[] {
+  return [...new Set(tasks.map(projectRootOf).filter(Boolean))].sort()
+}
+
 /** 没写区域的条目挂在同一个空 ui 下：界面显示成「未定区域」，不允许出现两条空区域。 */
 export function buildAreas(input: {
   projects: string[]
@@ -37,10 +47,7 @@ export function buildAreas(input: {
     const root = String(item || "").trim()
     if (root) projects.add(root)
   }
-  for (const task of input.tasks) {
-    const root = String(task.request?.projectRoot || "").trim()
-    if (root) projects.add(root)
-  }
+  for (const root of collectProjectRoots(input.tasks)) projects.add(root)
 
   const areas: AreaEntry[] = []
   for (const projectRoot of [...projects].sort()) {
@@ -48,12 +55,12 @@ export function buildAreas(input: {
     const uis = new Set<string>()
     for (const page of pages) uis.add(String(page.ui ?? ""))
     for (const task of input.tasks) {
-      if (String(task.request?.projectRoot || "").trim() !== projectRoot) continue
+      if (projectRootOf(task) !== projectRoot) continue
       uis.add(String(task.request?.ui || ""))
     }
     for (const ui of [...uis].sort()) {
       const areaTasks = input.tasks.filter(
-        (task) => String(task.request?.projectRoot || "").trim() === projectRoot && String(task.request?.ui || "") === ui
+        (task) => projectRootOf(task) === projectRoot && String(task.request?.ui || "") === ui
       )
       areas.push({
         key: areaKey(projectRoot, ui),

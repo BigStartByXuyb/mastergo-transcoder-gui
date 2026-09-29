@@ -87,11 +87,12 @@ export default function App() {
     <AppShell
       areas={areas.areas}
       activeAreaKey={activeKey}
-      activeTool={TOOL_KEYS.includes(route.page) ? (route.page as ToolKey) : ("board" as ToolKey)}
+      activeTool={TOOL_KEYS.includes(route.page) ? (route.page as ToolKey) : null}
       title={title}
       status={<StatusBadges />}
       onGoTool={(key) => go(key)}
       onGoArea={(area) => go("area?key=" + encodeURIComponent(area.key))}
+      onForgetProject={(projectRoot) => areas.forget(projectRoot)}
       onNewTask={() => go(activeArea ? "pipeline?key=" + encodeURIComponent(activeArea.key) : "pipeline")}
     >
       {route.page === "area" &&

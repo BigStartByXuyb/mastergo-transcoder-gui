@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { BoardTask } from "@/lib/api"
-import { areaKey, areaLabel, buildAreas } from "@/lib/areas"
+import { areaKey, areaLabel, buildAreas, collectProjectRoots, projectRootOf } from "@/lib/areas"
 
 function task(patch: { id: string; projectRoot: string; ui: string; state?: string }): BoardTask {
   return {
@@ -93,5 +93,17 @@ describe("buildAreas", () => {
   it("区域显示名：没登记区域时给一个能点的名字", () => {
     expect(areaLabel("F1")).toBe("F1")
     expect(areaLabel("")).toBe("未定区域")
+  })
+
+  it("「任务 → 工程」只有一套归一化：去空白、去空值、去重、排序", () => {
+    expect(projectRootOf(task({ id: "t1", projectRoot: "  /a  ", ui: "F1" }))).toBe("/a")
+    expect(
+      collectProjectRoots([
+        task({ id: "t1", projectRoot: "/b", ui: "F1" }),
+        task({ id: "t2", projectRoot: " /a ", ui: "F1" }),
+        task({ id: "t3", projectRoot: "   ", ui: "F1" }),
+        task({ id: "t4", projectRoot: "/b", ui: "F2" })
+      ])
+    ).toEqual(["/a", "/b"])
   })
 })

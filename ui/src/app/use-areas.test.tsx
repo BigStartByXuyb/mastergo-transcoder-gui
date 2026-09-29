@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react"
+import { act, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { useAreas } from "@/app/use-areas"
@@ -60,6 +60,11 @@ describe("useAreas", () => {
     expect(result.current.areas[0].tasks.map((task) => task.id)).toEqual(["t1"])
     expect(result.current.areas[1].pages.map((page) => page.target)).toEqual(["F2Align"])
     expect(readRecentProjects()).toEqual(["/project"])
+
+    // 侧边栏工程行上的「移除」：只清本地记忆（界面只在它没有任务时才给这个入口）。
+    act(() => result.current.forget("/project"))
+    expect(result.current.projects).toEqual([])
+    expect(readRecentProjects()).toEqual([])
   })
 
   it("没有任务也没有登记表时，区域列表是空的", async () => {
@@ -81,5 +86,26 @@ describe("useAreas", () => {
     await waitFor(() => expect(result.current.areas.length).toBe(1), { timeout: 3000 })
     expect(result.current.areas[0].ui).toBe("HH")
     expect(result.current.areas[0].pages).toEqual([])
+  })
+
+  it("任务账变了就重新拉登记表：新建任务写进登记表的区域这一会话里能看到", async () => {
+    let pages = [{ target: "F1StopAdjust", ui: "F1", layerId: "1:2", designPageName: "停止调整" }]
+    let tasks = [boardTask({})]
+    vi.stubGlobal("fetch", (url: string) => {
+      const href = String(url)
+      if (href.includes("/api/board")) return ok({ ok: true, board: { tasks: tasks } })
+      if (href.includes("/api/project/pages")) {
+        return ok({ ok: true, pages: { exists: true, registryPath: "", problem: "", pages: pages } })
+      }
+      return ok({ ok: true })
+    })
+
+    const { result } = renderHook(() => useAreas())
+    await waitFor(() => expect(result.current.areas.map((area) => area.ui)).toEqual(["F1"]), { timeout: 3000 })
+
+    // 跑完一轮之后登记表多了一页、任务账也变了（新任务进来）→ 缓存作废并重拉。
+    pages = pages.concat([{ target: "F2Align", ui: "F2", layerId: "1:3", designPageName: "对位" }])
+    tasks = tasks.concat([boardTask({ id: "t2", request: { projectRoot: "/project", ui: "F2", target: "F2Align", mode: "A" } })])
+    await waitFor(() => expect(result.current.areas.map((area) => area.ui)).toEqual(["F1", "F2"]), { timeout: 4000 })
   })
 })
