@@ -1,5 +1,7 @@
 /* 后端接口的类型与调用封装。接口形状以 server.js / lib/routes.js 为准。 */
 
+import { parseAgentStreamLine, type AgentStreamEvent } from "@/lib/agent-stream"
+
 export type PluginSummary = {
   root: string
   version: string
@@ -133,6 +135,8 @@ export type Settings = {
   providers: ProviderPreset[]
   ai: { provider: string; baseUrl: string; model: string; hasKey: boolean }
   automation: "off" | "assist" | "auto"
+  /** 对话/自动模式的写盘开关：关着时 Codex 只读，开着才允许它直接改工程文件。 */
+  agent: { allowWrite: boolean }
 }
 
 export type IconCandidate = {
@@ -513,6 +517,40 @@ export type UpdateStatus = {
   repo: string
 }
 
+export type CodexState = "verified" | "untested" | "broken"
+
+export type CodexEngine = {
+  version: string
+  source: "managed" | "system"
+  path: string
+  state: CodexState
+}
+
+export type CodexVersion = {
+  version: string
+  path: string
+  state: CodexState
+  note: string
+  active: boolean
+  ready: boolean
+}
+
+export type CodexStatus = {
+  /** 我们钉死的那一版；本机没有别的版本时就用它。 */
+  pinned: string
+  engine: CodexEngine | null
+  versions: CodexVersion[]
+  /** 本机自己装的 Codex：只检测，不动它。 */
+  system: { version: string; path: string; active: boolean }[]
+  isolated: { codexHome: string; exists: boolean; keyEnv: string }
+  /** 切版本留下的指针：previous 有值就说明还能回退一次。 */
+  pointer: { version?: string; previous?: string; switchedAt?: string } | null
+  release: { version: string; tag: string; checkedAt: string; missing: string[]; newer: boolean } | null
+  busy: string
+  error: UpdateFailure | null
+  task: UpdateTask
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response
   try {
@@ -669,5 +707,71 @@ export const api = {
       { version }
     ),
   updateRollback: () =>
-    post<{ ok: true; version: string; restartRequired: boolean; status: UpdateStatus }>("/api/update/rollback", {})
+    post<{ ok: true; version: string; restartRequired: boolean; status: UpdateStatus }>("/api/update/rollback", {}),
+  codexStatus: () => request<{ ok: true; status: CodexStatus }>("/api/codex/status"),
+  /** 拉远端发行版描述：失败也回 200，原因在 status.error 里。 */
+  codexCheck: () => post<{ ok: true; status: CodexStatus }>("/api/codex/check", {}),
+  codexDownload: () =>
+    post<{ ok: true; started: boolean; version: string; note: string; status: CodexStatus }>("/api/codex/download", {}),
+  /** 版本号为空串 = 用本机检测到的那个。 */
+  codexSwitch: (version = "") =>
+    post<{ ok: true; version: string; previous: string; status: CodexStatus }>("/api/codex/switch", { version }),
+  codexRollback: () => post<{ ok: true; version: string; status: CodexStatus }>("/api/codex/rollback", {})
+}
+
+/*
+ * 对话：一次提问就是一次 codex exec，后端把进程输出按行写成 NDJSON。
+ * 这里逐行读、逐行回调 —— request() 是按整包 JSON 解析的，读不了这条流。
+ */
+export async function agentChatStream(
+  body: { prompt: string; resume?: string; projectRoot?: string; write?: boolean },
+  onEvent: (event: AgentStreamEvent) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  let response: Response
+  try {
+    response = await fetch("/api/agent/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal
+    })
+  } catch (error) {
+    throw new ApiFailure("OFFLINE", "连不上本地服务", String(error instanceof Error ? error.message : error))
+  }
+
+  if (!response.ok) {
+    const text = await response.text()
+    let failure: { code?: string; message?: string; hint?: string } | null = null
+    try {
+      failure = (JSON.parse(text) as { error?: { code?: string; message?: string; hint?: string } }).error ?? null
+    } catch {
+      failure = null
+    }
+    throw new ApiFailure(failure?.code ?? "HTTP_" + response.status, failure?.message ?? "这次对话没起来", failure?.hint ?? "")
+  }
+
+  const reader = response.body?.getReader()
+  if (!reader) throw new ApiFailure("NO_STREAM", "这次响应没有可读的流", "")
+  const decoder = new TextDecoder()
+  let buffer = ""
+  const drain = () => {
+    let at = buffer.indexOf("\n")
+    while (at >= 0) {
+      const event = parseAgentStreamLine(buffer.slice(0, at))
+      if (event) onEvent(event)
+      buffer = buffer.slice(at + 1)
+      at = buffer.indexOf("\n")
+    }
+  }
+  for (;;) {
+    const chunk = await reader.read()
+    if (chunk.done) break
+    buffer += decoder.decode(chunk.value, { stream: true })
+    drain()
+  }
+  buffer += decoder.decode()
+  drain()
+  const tail = parseAgentStreamLine(buffer)
+  if (tail) onEvent(tail)
 }

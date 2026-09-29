@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { AppShell, TOOLS, type ToolKey } from "@/app/app-shell"
 import { AreaPage } from "@/app/area-page"
 import { BoardPage } from "@/app/board-page"
+import { ChatPage } from "@/app/chat-page"
 import { MappingPage } from "@/app/mapping-page"
 import { PipelinePage } from "@/app/pipeline-page"
 import { QueryPage } from "@/app/query-page"
@@ -118,6 +119,7 @@ export default function App() {
         />
       )}
       {route.page === "board" && <BoardPage />}
+      {route.page === "chat" && <ChatPage />}
       {route.page === "review" && <ReviewPage />}
       {route.page === "query" && <QueryPage />}
       {route.page === "mapping" && <MappingPage />}

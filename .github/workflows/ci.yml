@@ -26,3 +26,51 @@ jobs:
       FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
       FEISHU_DEFAULT_CHAT_ID: ${{ secrets.FEISHU_DEFAULT_CHAT_ID }}
       FEISHU_RECIPIENT_MAP_JSON: ${{ secrets.FEISHU_RECIPIENT_MAP_JSON }}
+
+  # 打 v* tag 才发版：产物是 Release 上的 manifest.json + 按内容哈希命名的文件。
+  # 客户端不查 API，直接读 releases/latest/download/manifest.json，所以 tag 必须先过。
+  release:
+    needs: ci
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Require tag and package.json to declare the same version
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          pkg_version="$(node -p "require('./package.json').version")"
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "::error title=版本号不一致::tag 是 v$tag_version，package.json 是 $pkg_version"
+            exit 1
+          fi
+
+      - name: Build frontend
+        run: |
+          npm ci --ignore-scripts
+          npm --prefix ui ci --ignore-scripts
+          npm run build:ui
+
+      # 产物与源码不一致就说明这版打出来的界面不是仓库里那一份，宁可发不出去。
+      - name: Require the built output to match the commit
+        run: |
+          if ! git diff --quiet -- public; then
+            echo "::error title=构建产物与源码不一致::先本地 npm run build:ui 并提交 public/，再打 tag。"
+            git --no-pager diff --stat -- public
+            exit 1
+          fi
+
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/publish.js --upload

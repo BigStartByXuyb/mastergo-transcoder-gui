@@ -11,9 +11,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { api, type Settings } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { useHealth } from "@/lib/use-health"
+import { CodexCard } from "@/app/codex-card"
 import { UpdateCard } from "@/app/update-card"
 
 const CUSTOM = "custom"
@@ -26,6 +28,7 @@ export function SettingsPage() {
   const [model, setModel] = useState("")
   const [apiKey, setApiKey] = useState("")
   const [busy, setBusy] = useState(false)
+  const [writing, setWriting] = useState(false)
   const [failure, setFailure] = useState("")
 
   useEffect(() => {
@@ -68,6 +71,21 @@ export function SettingsPage() {
       setFailure(describeFailure(error))
     } finally {
       setBusy(false)
+    }
+  }
+
+  /* 写盘开关是即时生效的单个布尔，不走「保存」按钮。 */
+  async function toggleWrite(checked: boolean) {
+    setWriting(true)
+    setFailure("")
+    try {
+      const payload = await api.settingsSave({ agent: { allowWrite: checked } })
+      setSettings(payload.settings)
+      toast.success(checked ? "已允许 agent 改工程文件" : "已恢复只读")
+    } catch (error) {
+      setFailure(describeFailure(error))
+    } finally {
+      setWriting(false)
     }
   }
 
@@ -155,6 +173,28 @@ export function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Agent 写盘</CardTitle>
+          <CardDescription>
+            关着时只读；开着才允许它在「对话」里直接改工程文件。Windows 上 Codex 沙箱不放行只读命令，
+            所以只读是给它的约定，不是系统隔离。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <label className="flex items-center gap-2 text-sm">
+            <Switch checked={Boolean(settings?.agent.allowWrite)} onCheckedChange={(checked) => void toggleWrite(checked)} />
+            允许 agent 直接改工程文件
+            {writing && <Loader2 className="size-3 animate-spin" />}
+          </label>
+          <p className="text-muted-foreground text-xs">
+            关着时它也能帮你读代码、看日志、给方案，只是不去改文件。
+          </p>
+        </CardContent>
+      </Card>
+
+      <CodexCard />
 
       <Card>
         <CardHeader>

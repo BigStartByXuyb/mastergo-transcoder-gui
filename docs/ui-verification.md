@@ -16,6 +16,50 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-09-30 Codex 集成（对话 / 引擎版本 / 写盘）
+
+### 改了什么
+
+- `lib/codex.js`：`execArgs` 固定带 `-s danger-full-access`；写盘权限改成提示词前缀 `[只读]` / `[可写]`。
+  实测依据：Windows 上 `read-only` 与 `workspace-write` 会把所有 shell 调用都拒掉（连 `Get-Date`、`echo hi`
+  都是 `rejected: blocked by policy`，工作目录设在工程内也一样），只有 `danger-full-access` 真能读能跑。
+  也就是说 Windows 上做不到「只读但能读」，只读只能是给它的约定。
+- `ui/src/app/settings-page.tsx`：Agent 写盘卡片写明这一点，正文与副说明都不再承诺系统级只读。
+- `.gitignore`：加 `agents/`（Codex 引擎按需下载的运行文件与隔离会话目录）。
+- `tests/codex.test.js`：断言改成「带 danger-full-access」「写盘走提示词前缀」。
+
+### 点过的东西
+
+| 页面 | 操作 | 观察到 | 结论 |
+| --- | --- | --- | --- |
+| 设置 | 打开 `#settings` | Agent 写盘卡片默认关；Codex 引擎徽标「本机装的 v0.158.0-alpha.2.1 / 没验证过」，正文「远端有 v0.159.0，比现在用的新。」，按钮「检查版本」「下载 v0.159.0」，本机三份都列出来并带完整路径 | 通过 |
+| 设置 | 点「下载 v0.159.0」 | 先出「正在下载 1/4（其中新内容 1 个）」，进度 1/4→4/4；完成后徽标变「客户端下载的 v0.159.0 / 自检通过」、正文「已是最新 v0.159.0。」，本机三份的「正在用」标记消失 | 通过 |
+| — | 落盘核对 | `agents/codex/versions/0.159.0/` 四个程序齐（codex / code-mode-host / command-runner / windows-sandbox-setup）；`agents/codex/blobs/` 四份按 sha256 命名；`codex.exe --version` 回 `codex-cli 0.159.0`；`known.json` 记 `0.159.0: verified` | 通过 |
+| 设置 | 点「用本机那份」 | 徽标回到「本机装的 v0.158.0-alpha.2.1 / 没验证过」，出现「退回 v0.159.0」，下载版那行变「切到这一版」；`agents/codex/current.json` = `{version:"", previous:"0.159.0"}` | 通过 |
+| 设置 | 点「退回 v0.159.0」 | 徽标回到「客户端下载的 v0.159.0 / 自检通过」，「退回」按钮消失；指针 = `{version:"0.159.0", previous:""}` | 通过 |
+| 设置 | Agent 写盘开关开→关 | 开着时 `local.json` 落 `agent.allowWrite: true`，关回去落 `false`，接口回读一致 | 通过 |
+| 对话 | 打开 `#chat` | 工程目录默认 `D:\ttt`；写盘开关禁用并带「（先在设置里开写盘开关）」；没输入时「发送」禁用 | 通过 |
+| 对话 | 输入问题后点「发送」（只读） | 徽标从「还没开始」变「Codex v0.159.0（managed）」+「对话 01a0ee62」；回答列出 `docs / Generated / Resources / UI`，和 `D:\ttt` 顶层实际一致 | 通过 |
+| 对话 | 设置里的写盘关着时看对话页开关 | 开关禁用；设置里打开后同一个开关可以勾 | 通过 |
+| 对话 | 勾上写盘，发「新建 agent-write-check.txt，内容写 ok」 | 记录里出现命令块 `Set-Content -LiteralPath 'D:\ttt\agent-write-check.txt' -Value 'ok'`、`exit 0`、输出 `ok`、助手小结与「一轮结束」；磁盘上文件真的在且内容为 ok | 通过 |
+| — | 清场 | 删掉 `D:\ttt\agent-write-check.txt`，写盘开关关回 false | 通过 |
+| 设置 | 页面开着时把后端停掉 | Codex 卡片出「读不到 Codex 状态 / 连不上本地服务：Failed to fetch」，程序更新卡片出「读不到更新状态」，页面其余部分不白屏 | 通过 |
+| 设置 | 后端起来后等一次轮询 | Codex 卡片回到「客户端下载的 v0.159.0 / 自检通过」，更新卡片回到「已是最新 v0.1.0」 | 通过 |
+
+每轮都会有一条「Codex 报错」提醒 `Model metadata for deepseek-chat not found`：codex 手里没有 DeepSeek 的模型元数据，
+这是它的提醒，命令与回答照常跑完 —— 判据是同一轮里命令 `exit 0`、结论正确。
+
+### 没点的
+
+- 程序更新（差分下载 / 切换 / 回退）这次没重跑，下面那条记录仍然有效。
+- 「有任务在跑时禁止切版本」没点：要真跑一次流水线才撞得上，拒绝逻辑由 `tests/codex.test.js` 覆盖。
+- 对话续跑（`resume`）没点：这一页只问了一轮。
+
+### 发现没改
+
+- 设置页「模型」卡片在后端恢复后仍留着「连不上本地服务」的告警，要刷新页面才消失（这张卡片只在挂载时取一次，
+  Codex 与程序更新两张是轮询的）。
+
 ## 2026-09-30 程序更新（差分下载 / 切换 / 回退）
 
 ### 改了什么

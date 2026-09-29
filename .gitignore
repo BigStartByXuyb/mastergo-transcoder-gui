@@ -24,3 +24,6 @@ current.json
 
 # 发布产物（scripts/publish.js 生成，上传到 GitHub Release）
 dist/
+
+# Codex 引擎：按需下载的运行文件与隔离的会话目录
+agents/

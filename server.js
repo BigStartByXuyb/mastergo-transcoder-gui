@@ -43,6 +43,7 @@ const { createLayoutRegistrar } = require("./lib/plugin-layout.js");
 const { createPendingQueue } = require("./lib/pending-queue.js");
 const { createMapping } = require("./lib/mapping.js");
 const { createUpdate } = require("./lib/update.js");
+const { createCodex } = require("./lib/codex.js");
 
 const HERE = __dirname;
 const PUBLIC_DIR = path.join(HERE, "public");
@@ -140,18 +141,24 @@ const board = createBoard({
 });
 const pendingQueue = createPendingQueue({ runs: runs, board: board, pending: pending });
 const mapping = createMapping({ plugin: PLUGIN });
+
+// 「现在能不能换版本」只有一个判据：流水线和看板任务都空着。程序更新与 Codex 共用这一份。
+function busyReason() {
+  const live = runs.list().filter(function (job) { return job.state === "running" || job.state === "stopping"; });
+  if (live.length) return live.length + " 次流水线正在跑";
+  const running = board.snapshot().running;
+  return running ? running + " 个看板任务在跑（含建目录与合并）" : "";
+}
+
 // 程序更新：运行树是这一份（HERE），用户状态与已下载的版本都在安装根（HOME）。
 const update = createUpdate({
   root: HERE,
   home: HOME,
   version: VERSION,
-  isBusy: function () {
-    const live = runs.list().filter(function (job) { return job.state === "running" || job.state === "stopping"; });
-    if (live.length) return live.length + " 次流水线正在跑";
-    const running = board.snapshot().running;
-    return running ? running + " 个看板任务在跑（含建目录与合并）" : "";
-  }
+  isBusy: busyReason
 });
+// Codex 引擎：只下载进安装根，用户的 ~/.codex 一概不动；对话与写盘由插件脚本负责。
+const codex = createCodex({ home: HOME, settings: settings, isBusy: busyReason });
 const routes = createRoutes({
   resolver: resolver,
   plugin: PLUGIN,
@@ -166,7 +173,8 @@ const routes = createRoutes({
   confirm: confirm,
   pendingQueue: pendingQueue,
   mapping: mapping,
-  update: update
+  update: update,
+  codex: codex
 });
 
 // ---- 服务 ----
@@ -224,5 +232,6 @@ server.listen(options.port, options.host, function () {
     + (frames.length ? " → " + frames.map((frame) => frame.fileId + "/" + frame.layerId + "(" + frame.from + ")").join(", ") : "") + "\n");
   // 后台自动检测新版：失败不出声，设置页自己按离线状态显示。
   void update.check({ silent: true });
+  void codex.check({ silent: true });
   if (options.open) openBrowser(url);
 });

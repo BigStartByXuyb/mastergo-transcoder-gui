@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { Boxes, LayoutGrid, ListChecks, Plus, Search, Settings, Table2 } from "lucide-react"
+import { Boxes, LayoutGrid, ListChecks, MessagesSquare, Plus, Search, Settings, Table2 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils"
 
 export const TOOLS = [
   { key: "board", label: "看板", icon: LayoutGrid },
+  { key: "chat", label: "对话", icon: MessagesSquare },
   { key: "review", label: "待确认", icon: ListChecks },
   { key: "query", label: "控件 ID 查询", icon: Search },
   { key: "mapping", label: "映射表", icon: Table2 },
