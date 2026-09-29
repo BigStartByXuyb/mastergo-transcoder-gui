@@ -239,7 +239,7 @@ export function PipelinePage({
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       <NewTaskCard
         form={form}
         onForm={patchForm}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { RefreshCw } from "lucide-react"
 
 import { PendingPanel } from "@/app/pending-panel"
+import { ClampText } from "@/app/clamp-text"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -93,11 +94,13 @@ export function ReviewPage() {
   }, [queue, selected, manualRoot, manualTarget])
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       {problem && (
         <Alert variant="destructive">
           <AlertTitle>待确认列表没读到最新状态</AlertTitle>
-          <AlertDescription>{problem}</AlertDescription>
+              <AlertDescription>
+                <ClampText text={problem} />
+              </AlertDescription>
         </Alert>
       )}
 

@@ -2,6 +2,7 @@ import { Fragment } from "react"
 import { CheckCircle2, Circle, Loader2, MinusCircle, XCircle } from "lucide-react"
 
 import { AiFillLine } from "@/app/ai-fill-line"
+import { ClampText } from "@/app/clamp-text"
 import { Badge } from "@/components/ui/badge"
 import type { BoardTask } from "@/lib/api"
 
@@ -68,7 +69,7 @@ export function StepFlow({ task, stepTitles }: { task: BoardTask; stepTitles: Ma
               </span>
               <span className="min-w-0 flex-1">
                 {step.humanInput && <Badge variant="outline">人/AI 语义输入</Badge>}
-                {step.note && <span className="text-muted-foreground ml-2 break-all">{step.note}</span>}
+                {step.note && <ClampText text={step.note} className="text-muted-foreground ml-2" />}
               </span>
             </li>
           </Fragment>

@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { api, type Board, type BoardTask } from "@/lib/api"
 import { parseBoardItems } from "@/lib/board-items"
 import { boardStateVariant } from "@/lib/board-state"
+import { ClampText } from "@/app/clamp-text"
 import { describeFailure } from "@/lib/describe-failure"
 import { readStored, writeStored } from "@/lib/storage"
 import { FINISHED_STATES, POLL_MS, canStop, isSettled } from "@/lib/task-state"
@@ -144,11 +145,13 @@ export function BoardPage() {
   const readyCount = tasks.filter((task) => task.state === "ready").length
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       {problem && (
         <Alert variant="destructive">
           <AlertTitle>看板没读到最新状态</AlertTitle>
-          <AlertDescription>{problem}</AlertDescription>
+              <AlertDescription>
+                <ClampText text={problem} />
+              </AlertDescription>
         </Alert>
       )}
 
@@ -405,7 +408,7 @@ function TaskRow({
               <span className="text-destructive text-xs">默认不猜：停下等人处理。冲突 {task.merge.conflicts.length} 处</span>
               {task.merge.conflicts.map((conflict) => (
                 <span key={conflict.path} className="text-xs">
-                  <span className="font-mono">{conflict.path}</span> —— {conflict.reason}
+                <span className="font-mono">{conflict.path}</span> —— <ClampText text={conflict.reason} lines={2} />
                 </span>
               ))}
             </div>

@@ -66,7 +66,7 @@ export function MappingPage() {
   const bottomBarVariants = Object.entries(bottomBar?.variants ?? {})
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       <Card>
         <CardHeader>
           <CardTitle>映射表</CardTitle>

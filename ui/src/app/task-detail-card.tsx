@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { StepFlow } from "@/app/task-steps"
+import { ClampText } from "@/app/clamp-text"
 import type { BoardTask, PipelineStep } from "@/lib/api"
 import { boardStateVariant } from "@/lib/board-state"
 import { isBusyState } from "@/lib/task-state"
@@ -73,7 +74,7 @@ export function TaskDetailCard(props: Props) {
                 : "停在语义判断点，不是错误：" + (task.failure.title || task.failure.stepName)}
             </AlertTitle>
             <AlertDescription className="flex flex-col gap-2">
-              {task.failure.message && <p className="break-all">{task.failure.message}</p>}
+              {task.failure.message && <ClampText text={task.failure.message} />}
               {task.failure.logPath && (
                 <p className="text-muted-foreground break-all text-xs">这一步的日志：{task.failure.logPath}</p>
               )}

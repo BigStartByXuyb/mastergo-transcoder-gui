@@ -43,8 +43,9 @@ export function AppShell(props: Props) {
   const groups = groupByProject(props.areas)
 
   return (
-    <div className="bg-background text-foreground flex min-h-svh">
-      <aside className="bg-sidebar text-sidebar-foreground flex w-72 shrink-0 flex-col border-r">
+    <div className="bg-background text-foreground flex h-svh overflow-hidden">
+      {/* 侧边栏固定宽（w-72）、固定高（h-svh）：中间内容再长也只在右边滚，不把它撑开。 */}
+      <aside className="bg-sidebar text-sidebar-foreground flex w-72 shrink-0 flex-col overflow-hidden border-r">
         <div className="flex items-center gap-3 px-4 py-5">
           <div className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-lg text-sm font-semibold">
             MG
@@ -57,7 +58,7 @@ export function AppShell(props: Props) {
         <Separator />
 
         {/* 区域：一个工程一段，段里一个区域一行。点了就进这个区域的详情。 */}
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-2">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-2">
           <div className="flex items-center justify-between gap-2 px-2 pt-1">
             <span className="text-muted-foreground text-xs font-medium">区域</span>
             <Button variant="ghost" size="sm" className="h-7 px-2" onClick={props.onNewTask}>
@@ -145,12 +146,15 @@ export function AppShell(props: Props) {
         </nav>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex items-center justify-between gap-4 border-b px-6 py-3">
           <div className="min-w-0 truncate text-sm font-medium">{props.title}</div>
           {props.status}
         </header>
-        <main className="min-w-0 flex-1 overflow-auto p-6">{props.children}</main>
+        {/* 内容宽度固定在一处：所有页面一样宽，窗口再宽也不跟着拉长。 */}
+        <main className="min-w-0 flex-1 overflow-y-auto p-6">
+          <div className="mx-auto w-full max-w-5xl">{props.children}</div>
+        </main>
       </div>
     </div>
   )

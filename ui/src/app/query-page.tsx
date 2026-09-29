@@ -3,6 +3,7 @@ import { Copy, Loader2, Search } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { ClampText } from "@/app/clamp-text"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -127,7 +128,7 @@ export function QueryPage() {
   const selected = nodes.find((node) => node.ref === selectedRef) ?? null
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       <Card>
         <CardHeader>
           <CardTitle>MasterGo 链接</CardTitle>
@@ -189,8 +190,14 @@ export function QueryPage() {
           )}
           {failure && (
             <Alert variant="destructive">
-              <AlertTitle>{failure.message}</AlertTitle>
-              {failure.hint && <AlertDescription>{failure.hint}</AlertDescription>}
+              <AlertTitle>
+                <ClampText text={failure.message} className="break-words" />
+              </AlertTitle>
+              {failure.hint && (
+                <AlertDescription>
+                  <ClampText text={failure.hint} />
+                </AlertDescription>
+              )}
             </Alert>
           )}
         </CardContent>

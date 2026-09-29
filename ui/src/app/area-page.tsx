@@ -46,7 +46,7 @@ export function AreaPage(props: Props) {
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       <Card>
         <CardHeader>
           <CardTitle className="flex flex-wrap items-center gap-2">
