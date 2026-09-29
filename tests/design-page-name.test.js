@@ -33,7 +33,7 @@ const stub = [
 
 function caseSuccess() {
   const root = pluginWith(stub);
-  const info = resolveDesignPageName({ pluginRoot: root, fileId: "181586559903927", layerId: "124:077162" });
+  const info = resolveDesignPageName({ pluginRoot: root, fileId: "181586559903927", layerId: "124:077162", token: "mg_test" });
   assert.strictEqual(info.pageName, "停止调整", "设计页名原样取回（中文）");
   assert.strictEqual(info.rootId, "124:077162");
   fs.rmSync(root, { recursive: true, force: true });
@@ -41,9 +41,14 @@ function caseSuccess() {
 
 function caseFailures() {
   const missing = pluginWith(null);
-  assert.throws(() => resolveDesignPageName({ pluginRoot: missing, fileId: "1", layerId: "1:1" }), /找不到取数脚本/);
-  assert.throws(() => resolveDesignPageName({ pluginRoot: missing, fileId: "", layerId: "1:1" }), /缺 file=/);
+  assert.throws(() => resolveDesignPageName({ pluginRoot: missing, fileId: "1", layerId: "1:1", token: "mg_test" }), /找不到取数脚本/);
+  assert.throws(() => resolveDesignPageName({ pluginRoot: missing, fileId: "", layerId: "1:1", token: "mg_test" }), /缺 file=/);
   assert.throws(() => resolveDesignPageName({ pluginRoot: "", fileId: "1", layerId: "1:1" }), /还没有定位到插件目录/);
+  // 缺 token 给可照做的提示（与控件查询同一口径），而不是丢给子进程拼一句含糊的退出码
+  assert.throws(
+    () => resolveDesignPageName({ pluginRoot: missing, fileId: "1", layerId: "1:1", token: "" }),
+    (error) => error.code === "NEED_TOKEN" && /config\.toml/.test(error.hint)
+  );
 
   const empty = pluginWith([
     "\"use strict\";",
@@ -53,10 +58,10 @@ function caseFailures() {
     "fs.writeFileSync(at(\"--out\"), JSON.stringify({ dsl: { nodes: [] } }));",
     ""
   ].join("\n"));
-  assert.throws(() => resolveDesignPageName({ pluginRoot: empty, fileId: "1", layerId: "1:1" }), /没有 dsl\.nodes/);
+  assert.throws(() => resolveDesignPageName({ pluginRoot: empty, fileId: "1", layerId: "1:1", token: "mg_test" }), /没有 dsl\.nodes/);
 
   const boom = pluginWith("process.exit(9)\n");
-  assert.throws(() => resolveDesignPageName({ pluginRoot: boom, fileId: "1", layerId: "1:1" }), /exit 9/);
+  assert.throws(() => resolveDesignPageName({ pluginRoot: boom, fileId: "1", layerId: "1:1", token: "mg_test" }), /exit 9/);
 
   fs.rmSync(missing, { recursive: true, force: true });
   fs.rmSync(empty, { recursive: true, force: true });
