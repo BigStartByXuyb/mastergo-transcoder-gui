@@ -351,8 +351,9 @@ export function PipelinePage({ taskId }: { taskId: string }) {
         const pick = list.find((item) => item.target && !item.needsSemanticName) ?? list.find((item) => item.target)
         if (!pick) {
           setFailure(
-            "这个工程还没有任何区域约定（登记表里没有页面、也没有带前缀的 Target）：区域是项目事实，设计稿里没有这个信息，"
-            + "需要先手工填一次 Ui 前缀；之后这个项目就有约定了，自动层级会一直沿用。"
+            "这一步只做一次：请在「UI 区域」里填一个区域前缀（例如 F1），再点「自动补 Target / 区域」。"
+            + "区域是团队对项目的约定，设计稿里没有这条信息（取数结果里没有 ui 字段），这个工程又还没登记过任何页面，"
+            + "所以第一次必须由人给一次；给过就写进该工程的 docs/page-registry.json，之后同一页贴链接就能全自动。"
           )
           return
         }

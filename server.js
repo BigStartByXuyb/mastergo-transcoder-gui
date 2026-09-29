@@ -142,6 +142,7 @@ const mapping = createMapping({ plugin: PLUGIN });
 const routes = createRoutes({
   resolver: resolver,
   plugin: PLUGIN,
+  token: TOKEN,
   version: VERSION,
   runs: runs,
   settings: settings,
