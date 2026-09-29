@@ -142,7 +142,10 @@ export function PendingPanel({
     pending?.translations.available && pending.translations.needsGlossary
       ? pending.translations.glossaryRequired.length
       : 0
-  const waiting = iconCount + langCount + glossaryCount + staleCount + duplicateCount
+  // 与后端同一口径：两节的 waiting 相加（图标那节还含旧下标与重名组）。
+  const waiting =
+    (pending?.icons.available ? pending.icons.waiting : 0) +
+    (pending?.translations.available ? pending.translations.waiting : 0)
 
   /*
    * 「本页没有图标槽位」只有一种情形：插件判定必须登记的候选一条都没有。

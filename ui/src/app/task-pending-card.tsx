@@ -30,8 +30,8 @@ export function TaskPendingCard(props: Props) {
           只能由人或 AI 给——这几步永远绕不过去。补完从断点继续。
         </CardDescription>
         <div className="flex flex-wrap items-center gap-2 pt-2">
-          {counts.icons > 0 && <Badge variant="secondary">图标定名 {counts.icons} 条</Badge>}
-          {counts.translations > 0 && <Badge variant="secondary">文案译文 {counts.translations} 条</Badge>}
+          {counts.icons > 0 && <Badge variant="secondary">图标待办 {counts.icons} 条</Badge>}
+          {counts.translations > 0 && <Badge variant="secondary">文案待办 {counts.translations} 条</Badge>}
         </div>
       </CardHeader>
       <CardContent>

@@ -206,8 +206,16 @@ export function PipelinePage({
           payload.mode +
           (payload.resumedFrom === "起点" ? "（从起点）" : "（从 " + payload.resumedFrom + "）") +
           (payload.recomputedManifest ? "；已有页面 → 回到生成 Bundle 清单的那一步重算" : "") +
-          (payload.reconciled && payload.reconciled.removed > 0
-            ? "；命名表裁掉 " + payload.reconciled.removed + " 条当前不登记的下标"
+          (payload.reconciled && (payload.reconciled.removed > 0 || payload.reconciled.renamed > 0)
+            ? "；命名表已修回台账口径：" +
+              [
+                payload.reconciled.removed > 0
+                  ? "裁掉 " + payload.reconciled.removed + " 条当前不登记的下标"
+                  : "",
+                payload.reconciled.renamed > 0 ? "改掉 " + payload.reconciled.renamed + " 条重名资源名" : ""
+              ]
+                .filter(Boolean)
+                .join("、")
             : "")
       )
     } catch (error) {

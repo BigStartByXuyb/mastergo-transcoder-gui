@@ -179,6 +179,8 @@ export type PendingIcons = {
   needsNaming: boolean
   /** 命名表要重写才符合台账口径：留着插件当前不认的旧下标，或资源名有重复。 */
   needsRepair: boolean
+  /** 这一节要处理多少条：缺名字 + 旧下标 + 重名组。 */
+  waiting: number
 }
 
 export type PendingText = { key: string; locale: string; text: string; sourceRef: string }
@@ -195,6 +197,8 @@ export type PendingTranslations = {
   glossary: Record<string, string>
   needsTranslation: boolean
   needsGlossary: boolean
+  /** 这一节要处理多少条：待译 + 待补术语。 */
+  waiting: number
 }
 
 export type Pending = {

@@ -63,12 +63,12 @@ export function canStop(state: string): boolean {
   return occupiesSlot(state) && !isMerging(state)
 }
 
-/** 待确认条目计数：命名表与译文各自独立，界面按这两类分别给徽标。 */
+/*
+ * 待确认条目计数：两节各自的 waiting 由后端 lib/pending.js 算一次（图标那节还含
+ * 命名表写歪的旧下标与重名组），这里只取数、不再按 needsXxx 重算一遍。
+ */
 export function waitingCounts(pending: Pending | null): { icons: number; translations: number; total: number } {
-  const icons = pending?.icons.available && pending.icons.needsNaming ? pending.icons.mustName.length : 0
-  const translations =
-    pending?.translations.available && pending.translations.needsTranslation
-      ? pending.translations.pendingTranslations.length
-      : 0
+  const icons = pending?.icons.available ? pending.icons.waiting : 0
+  const translations = pending?.translations.available ? pending.translations.waiting : 0
   return { icons, translations, total: icons + translations }
 }

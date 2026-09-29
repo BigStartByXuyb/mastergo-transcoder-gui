@@ -17,24 +17,13 @@ import {
  * 这里只验证计数口径，条目的其它字段与本判定无关：按条数造空壳，
  * 造全字段会把用例变成「照抄类型定义」。
  */
-function pending(patch: {
-  mustName?: number
-  needsNaming?: boolean
-  translations?: number
-  needsTranslation?: boolean
-}): Pending {
-  const icons = Array.from({ length: patch.mustName ?? 0 }, () => ({}))
-  const texts = Array.from({ length: patch.translations ?? 0 }, () => ({}))
+function pending(patch: { icons?: number; translations?: number }): Pending {
   return {
     projectRoot: "",
     target: "F1Align",
     summary: null,
-    icons: { available: true, mustName: icons, needsNaming: patch.needsNaming ?? false },
-    translations: {
-      available: true,
-      pendingTranslations: texts,
-      needsTranslation: patch.needsTranslation ?? false
-    }
+    icons: { available: true, waiting: patch.icons ?? 0 },
+    translations: { available: true, waiting: patch.translations ?? 0 }
   } as unknown as Pending
 }
 
@@ -70,17 +59,10 @@ describe("task-state", () => {
     expect(canStop("merged")).toBe(false)
   })
 
-  it("只数真正待补的条目：needsNaming / needsTranslation 为假时不计数", () => {
-    expect(waitingCounts(pending({ mustName: 3, needsNaming: true }))).toEqual({
-      icons: 3,
-      translations: 0,
-      total: 3
-    })
-    expect(waitingCounts(pending({ mustName: 3, needsNaming: false, translations: 2, needsTranslation: true }))).toEqual({
-      icons: 0,
-      translations: 2,
-      total: 2
-    })
+  it("只数后端给出的待办条数：哪一节为 0 就只算另一节", () => {
+    expect(waitingCounts(pending({ icons: 3 }))).toEqual({ icons: 3, translations: 0, total: 3 })
+    expect(waitingCounts(pending({ translations: 2 }))).toEqual({ icons: 0, translations: 2, total: 2 })
+    expect(waitingCounts(pending({ icons: 2, translations: 5 }))).toEqual({ icons: 2, translations: 5, total: 7 })
   })
 
   it("没有待确认清单时全是 0", () => {
