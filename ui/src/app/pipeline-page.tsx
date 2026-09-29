@@ -26,7 +26,6 @@ import {
 } from "@/lib/api"
 import { readStored, writeStored } from "@/lib/storage"
 import { boardStateVariant } from "@/lib/board-state"
-import { deriveUiPrefix } from "@/lib/ui-prefix"
 
 /*
  * 流水线：新建任务 + 看某个任务的详情。
@@ -67,6 +66,7 @@ export function PipelinePage({ taskId }: { taskId: string }) {
   const [busy, setBusy] = useState("")
   const [automation, setAutomation] = useState("assist")
   const [pages, setPages] = useState<ProjectPages | null>(null)
+  const [previewUi, setPreviewUi] = useState("")
   const [identityName, setIdentityName] = useState("")
   const [identityCandidates, setIdentityCandidates] = useState<IdentityCandidate[]>([])
   const [identityBusy, setIdentityBusy] = useState("")
@@ -156,9 +156,11 @@ export function PipelinePage({ taskId }: { taskId: string }) {
     let alive = true
     const timer = window.setTimeout(() => {
       api
-        .projectPages(root)
+        .projectPages(root, target.trim())
         .then((payload) => {
-          if (alive) setPages(payload.pages)
+          if (!alive) return
+          setPages(payload.pages)
+          setPreviewUi(payload.previewUi)
         })
         .catch(() => {
           if (alive) setPages(null)
@@ -168,9 +170,9 @@ export function PipelinePage({ taskId }: { taskId: string }) {
       alive = false
       window.clearTimeout(timer)
     }
-  }, [projectRoot])
+  }, [projectRoot, target])
 
-  const derivedUi = ui.trim() ? "" : deriveUiPrefix(target)
+  const derivedUi = ui.trim() ? "" : previewUi
   const needsIdentityHint = !ui.trim() && !target.trim()
   // 填了 Target 但仍推不出区域：这是最容易被误判成「插件坏了」的情况，必须提前说清原因。
   const targetWithoutPrefix = !ui.trim() && Boolean(target.trim()) && !derivedUi
@@ -190,7 +192,7 @@ export function PipelinePage({ taskId }: { taskId: string }) {
         useAi: automation !== "off"
       })
       const list: IdentityCandidate[] = [
-        ...(payload.ai.items ?? []).map((item) => ({ ...item, basis: item.reason || "模型按设计页名与既有区域约定给出" })),
+        ...(payload.ai.items ?? []),
         ...(payload.candidates ?? [])
       ]
       setIdentityCandidates(list)
@@ -225,8 +227,11 @@ export function PipelinePage({ taskId }: { taskId: string }) {
       toast.success("已写入登记表（" + (written.replaced ? "替换" : "新增") + "）：" + item.target + " · UI " + item.ui)
       setIdentityCandidates([])
       api
-        .projectPages(projectRoot.trim())
-        .then((payload) => setPages(payload.pages))
+        .projectPages(projectRoot.trim(), item.target)
+        .then((payload) => {
+          setPages(payload.pages)
+          setPreviewUi(payload.previewUi)
+        })
         .catch(() => undefined)
     } catch (error) {
       setFailure(error instanceof ApiFailure ? error.message + (error.hint ? "：" + error.hint : "") : String(error))
@@ -555,7 +560,8 @@ export function PipelinePage({ taskId }: { taskId: string }) {
                     variant="outline"
                     onClick={() => {
                       if (page.target) setTarget(page.target)
-                      setUi(page.ui || deriveUiPrefix(page.target))
+                      // 登记表条目没写 ui 时也照实留空：区域由插件按 Target 前缀自己推，前端不替它算。
+                      setUi(page.ui)
                     }}
                   >
                     {page.target || page.layerId}

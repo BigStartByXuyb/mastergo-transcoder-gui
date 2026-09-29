@@ -9,7 +9,8 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { candidatesFor, writeRegistryEntry, uiPrefixOf, pascalFromPageName } = require("../lib/identity.js");
+const { candidatesFor, writeRegistryEntry, pascalFromPageName } = require("../lib/identity.js");
+const { readRegistryDocument } = require("../lib/project-pages.js");
 
 function write(file, text) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -23,13 +24,19 @@ function project(registry) {
 }
 
 function casePrefixAndPascal() {
-  assert.strictEqual(uiPrefixOf("F3Align"), "F3");
-  assert.strictEqual(uiPrefixOf("HomeContent"), "Home");
-  assert.strictEqual(uiPrefixOf("test_mastergp"), "", "小写 + 下划线推不出来");
   assert.strictEqual(pascalFromPageName("手动对准 （2.2.1）"), "", "中文页名转不出英文");
   assert.strictEqual(pascalFromPageName("Manual Align (2.2.1)"), "ManualAlign");
   assert.strictEqual(pascalFromPageName("laser-focus"), "LaserFocus");
   assert.strictEqual(pascalFromPageName(""), "");
+  // 区域前缀规则由后端持有（写盘校验与界面预览同一份）：这里断言「候选的 target 一定能推出它的 ui」。
+  const root = project({ pages: [{ target: "F3Align", ui: "F3", designSource: { fileId: "1", layerId: "3:1" } }] });
+  const info = candidatesFor({ projectRoot: root, pageName: "Manual Align" });
+  for (const candidate of info.candidates) {
+    if (!candidate.target || candidate.needsSemanticName) continue;
+    const written = writeRegistryEntry({ projectRoot: root, target: candidate.target, ui: candidate.ui, fileId: "1", layerId: "9:9" });
+    assert.ok(written.entry.target.startsWith(candidate.ui), "候选必须满足「Target 前缀 = 区域」");
+  }
+  fs.rmSync(root, { recursive: true, force: true });
 }
 
 function caseCandidates() {
@@ -85,6 +92,21 @@ function caseWrite() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+// 原始文档读取只此一份：坏 JSON 的文案与 identity 写回用的是同一处。
+function caseRegistryDocument() {
+  const root = project();
+  assert.deepStrictEqual(readRegistryDocument(root), {
+    registryPath: path.join(root, "docs", "page-registry.json"),
+    document: null
+  });
+  write(path.join(root, "docs", "page-registry.json"), JSON.stringify({ pages: [{ target: "F2X", ui: "F2" }], keep: 1 }));
+  const raw = readRegistryDocument(root);
+  assert.strictEqual(raw.document.keep, 1, "原始文档要原样给出（写回时保留未识别字段）");
+  write(path.join(root, "docs", "page-registry.json"), "{ not json");
+  assert.throws(() => readRegistryDocument(root), /不是合法 JSON/);
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 function caseWriteRejections() {
   const root = project();
   assert.throws(() => writeRegistryEntry({ projectRoot: root, target: "F3X", ui: "" }), /缺少区域前缀/);
@@ -107,6 +129,7 @@ function main() {
   const cases = [
     ["区域前缀与 PascalCase", casePrefixAndPascal],
     ["候选推导", caseCandidates],
+    ["原始登记表读取只此一份", caseRegistryDocument],
     ["写登记表：追加与替换", caseWrite],
     ["写登记表：拒绝不合法输入", caseWriteRejections]
   ];
