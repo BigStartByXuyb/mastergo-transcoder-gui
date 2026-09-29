@@ -589,5 +589,8 @@ export const api = {
   boardRemove: (id: string) => post<{ ok: true; board: Board }>("/api/board/remove", { id }),
   boardMerge: (id: string) => post<{ ok: true; board: Board; task: BoardTask }>("/api/board/merge", { id }),
   boardMergeAll: (projectRoot: string) => post<{ ok: true; board: Board }>("/api/board/merge-all", { projectRoot }),
-  boardClear: (states: string[]) => post<{ ok: true; board: Board }>("/api/board/clear", { states })
+  boardClear: (states: string[]) => post<{ ok: true; board: Board }>("/api/board/clear", { states }),
+  /** 清空一个「工程 + 区域」下的任务（侧边栏区域行的动作）；有任务在跑时后端会拒绝。 */
+  boardClearArea: (projectRoot: string, ui: string) =>
+    post<{ ok: true; board: Board }>("/api/board/clear-area", { projectRoot, ui })
 }

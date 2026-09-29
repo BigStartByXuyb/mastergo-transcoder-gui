@@ -11,3 +11,7 @@ work/
 
 # 前端覆盖率报告（每次由 vitest 生成，不进仓库）
 ui/coverage/
+
+# 界面验收截图（playwright 产物，不进仓库）
+output/
+.playwright-cli/

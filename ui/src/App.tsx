@@ -1,49 +1,45 @@
 import { useEffect, useState } from "react"
-import { Boxes, LayoutGrid, ListChecks, Search, Settings, Table2 } from "lucide-react"
 
+import { AppShell, TOOLS, type ToolKey } from "@/app/app-shell"
+import { AreaPage } from "@/app/area-page"
 import { BoardPage } from "@/app/board-page"
 import { MappingPage } from "@/app/mapping-page"
-import { QueryPage } from "@/app/query-page"
 import { PipelinePage } from "@/app/pipeline-page"
+import { QueryPage } from "@/app/query-page"
 import { ReviewPage } from "@/app/review-page"
 import { SettingsPage } from "@/app/settings-page"
+import { useAreas } from "@/app/use-areas"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
+import { areaKey, areaLabel } from "@/lib/areas"
 import { useHealth } from "@/lib/use-health"
-import { cn } from "@/lib/utils"
 
-const NAV = [
-  { key: "query", label: "控件 ID 查询", icon: Search },
-  { key: "board", label: "看板", icon: LayoutGrid },
-  { key: "pipeline", label: "流水线", icon: Boxes },
-  { key: "review", label: "待确认", icon: ListChecks },
-  { key: "mapping", label: "映射表", icon: Table2 },
-  { key: "settings", label: "设置", icon: Settings }
-] as const
+/*
+ * 路由：`#<页面>?<查询串>`。
+ *   #area?key=<工程>|<区域>    区域详情（侧边栏点进来的地方）
+ *   #pipeline?task=<id>        某条任务的详情；带 project/ui 时同时当作「新建任务」的模板
+ *   #board / #review / #query / #mapping / #settings   工具页
+ */
 
-type PageKey = (typeof NAV)[number]["key"]
+const TOOL_KEYS = TOOLS.map((item) => item.key) as readonly string[]
+const PAGE_KEYS = ["area", "pipeline", ...TOOL_KEYS] as readonly string[]
 
-const PAGE_KEYS = NAV.map((item) => item.key) as readonly string[]
+type Route = { page: string; params: URLSearchParams }
 
-// 页面记在 hash 上：刷新或直接给链接都能落到同一页。
-// 带参数的形式是 `#<页面>?<查询串>`（例如 `#pipeline?task=<任务 id>`，看板的「详情」跳这里）。
-function readRoute(): { page: PageKey; params: URLSearchParams } {
+function readRoute(): Route {
   const raw = window.location.hash.replace(/^#\/?/, "")
   const at = raw.indexOf("?")
   const key = at < 0 ? raw : raw.slice(0, at)
-  const params = new URLSearchParams(at < 0 ? "" : raw.slice(at + 1))
-  return { page: (PAGE_KEYS.includes(key) ? key : "query") as PageKey, params: params }
+  return {
+    page: PAGE_KEYS.includes(key) ? key : "board",
+    params: new URLSearchParams(at < 0 ? "" : raw.slice(at + 1))
+  }
 }
 
 function StatusBadges() {
   const { health, offline } = useHealth()
 
-  if (offline) {
-    return <Badge variant="destructive">服务未就绪</Badge>
-  }
-  if (!health) {
-    return <Badge variant="outline">连接中…</Badge>
-  }
+  if (offline) return <Badge variant="destructive">服务未就绪</Badge>
+  if (!health) return <Badge variant="outline">连接中…</Badge>
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Badge variant="secondary">v{health.version}</Badge>
@@ -51,13 +47,13 @@ function StatusBadges() {
         引擎{health.plugin.engineExists ? "就绪" : "缺失"}
       </Badge>
       <Badge variant="outline">插件 {health.plugin.version ? "v" + health.plugin.version : "未知版本"}</Badge>
-      {health.frames.length > 0 && <Badge variant="outline">已登记页面帧 {health.frames.length}</Badge>}
     </div>
   )
 }
 
 export default function App() {
-  const [route, setRoute] = useState(readRoute)
+  const [route, setRoute] = useState<Route>(readRoute)
+  const areas = useAreas()
 
   useEffect(() => {
     const onHashChange = () => setRoute(readRoute())
@@ -65,65 +61,63 @@ export default function App() {
     return () => window.removeEventListener("hashchange", onHashChange)
   }, [])
 
-  function go(key: PageKey) {
-    window.location.hash = key
+  function go(hash: string) {
+    window.location.hash = hash
     setRoute(readRoute())
   }
 
-  const page = route.page
+  const areaKeyParam = route.page === "area" || route.page === "pipeline" ? (route.params.get("key") ?? "") : ""
+  const projectParam = route.params.get("project") ?? ""
+  const uiParam = route.params.get("ui") ?? ""
+  const activeKey = areaKeyParam || (projectParam ? areaKey(projectParam, uiParam) : "")
+  const activeArea = areas.areas.find((area) => area.key === activeKey) ?? null
   const taskId = route.page === "pipeline" ? (route.params.get("task") ?? "") : ""
 
-  return (
-    <div className="bg-background text-foreground flex min-h-svh">
-      <aside className="bg-sidebar text-sidebar-foreground flex w-60 shrink-0 flex-col border-r">
-        <div className="flex items-center gap-3 px-4 py-5">
-          <div className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-lg text-sm font-semibold">
-            MG
-          </div>
-          <div className="leading-tight">
-            <div className="text-sm font-medium">MasterGo 转码</div>
-            <div className="text-muted-foreground text-xs">本地客户端</div>
-          </div>
-        </div>
-        <Separator />
-        <nav className="flex flex-col gap-1 p-2">
-          {NAV.map((item) => {
-            const Icon = item.icon
-            const active = page === item.key
-            return (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => go(item.key)}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
-                )}
-              >
-                <Icon className="size-4" />
-                {item.label}
-              </button>
-            )
-          })}
-        </nav>
-      </aside>
+  const areaLabelText = activeArea ? activeArea.projectRoot + " · " + areaLabel(activeArea.ui) : ""
+  const title =
+    route.page === "area"
+      ? areaLabelText || "区域"
+      : route.page === "pipeline"
+        ? taskId
+          ? "任务详情" + (areaLabelText ? " · " + areaLabelText : "")
+          : "新建转码任务" + (areaLabelText ? " · " + areaLabelText : "")
+        : (TOOLS.find((item) => item.key === route.page)?.label ?? "")
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-4 border-b px-6 py-3">
-          <div className="text-sm font-medium">{NAV.find((item) => item.key === page)?.label}</div>
-          <StatusBadges />
-        </header>
-        <main className="min-w-0 flex-1 overflow-auto p-6">
-          {page === "query" && <QueryPage />}
-          {page === "board" && <BoardPage />}
-          {page === "pipeline" && <PipelinePage taskId={taskId} />}
-          {page === "review" && <ReviewPage />}
-          {page === "mapping" && <MappingPage />}
-          {page === "settings" && <SettingsPage />}
-        </main>
-      </div>
-    </div>
+  return (
+    <AppShell
+      areas={areas.areas}
+      activeAreaKey={activeKey}
+      activeTool={TOOL_KEYS.includes(route.page) ? (route.page as ToolKey) : ("board" as ToolKey)}
+      title={title}
+      status={<StatusBadges />}
+      onGoTool={(key) => go(key)}
+      onGoArea={(area) => go("area?key=" + encodeURIComponent(area.key))}
+      onNewTask={() => go(activeArea ? "pipeline?key=" + encodeURIComponent(activeArea.key) : "pipeline")}
+    >
+      {route.page === "area" &&
+        (activeArea ? (
+          <AreaPage
+            area={activeArea}
+            onOpenTask={(id) => go("pipeline?task=" + encodeURIComponent(id) + "&key=" + encodeURIComponent(activeArea.key))}
+            onNewTask={() => go("pipeline?key=" + encodeURIComponent(activeArea.key))}
+            onChanged={() => void areas.reload()}
+          />
+        ) : areas.loaded ? (
+          <p className="text-muted-foreground text-sm">这个区域已经不在列表里了（任务被清掉或工程被移除）。</p>
+        ) : (
+          <p className="text-muted-foreground text-sm">正在读取区域…</p>
+        ))}
+      {route.page === "pipeline" && (
+        <PipelinePage
+          taskId={taskId}
+          initialArea={activeArea ? { projectRoot: activeArea.projectRoot, ui: activeArea.ui } : null}
+        />
+      )}
+      {route.page === "board" && <BoardPage />}
+      {route.page === "review" && <ReviewPage />}
+      {route.page === "query" && <QueryPage />}
+      {route.page === "mapping" && <MappingPage />}
+      {route.page === "settings" && <SettingsPage />}
+    </AppShell>
   )
 }

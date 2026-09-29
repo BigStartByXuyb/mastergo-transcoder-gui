@@ -23,7 +23,14 @@ import { POLL_MS, canStop, hasProducts, isBusyState, waitingCounts } from "@/lib
  * 身份补全在 useIdentity，运行日志在 useRunLog，判定逻辑在 src/lib。
  */
 
-export function PipelinePage({ taskId }: { taskId: string }) {
+export function PipelinePage({
+  taskId,
+  initialArea
+}: {
+  taskId: string
+  /** 从某个区域点「复制区域模板并新建任务」进来时，回填工程目录与区域。 */
+  initialArea?: { projectRoot: string; ui: string } | null
+}) {
   const [plugin, setPlugin] = useState<PluginSummary | null>(null)
   const [contract, setContract] = useState<PipelineStep[]>([])
   const [board, setBoard] = useState<Board | null>(null)
@@ -33,6 +40,12 @@ export function PipelinePage({ taskId }: { taskId: string }) {
   const [busy, setBusy] = useState("")
   const [automation, setAutomation] = useState("assist")
   const [form, setForm] = useState<TaskForm>(() => readTaskForm())
+
+  // 区域模板：工程与区域是团队/项目约定，不来自设计稿，所以可以整条回填（Target 与链接不回填）。
+  useEffect(() => {
+    if (!initialArea) return
+    setForm((current) => ({ ...current, projectRoot: initialArea.projectRoot, ui: initialArea.ui }))
+  }, [initialArea?.projectRoot, initialArea?.ui])
 
   function patchForm(patch: Partial<TaskForm>) {
     setForm((current) => ({ ...current, ...patch }))

@@ -144,6 +144,31 @@ async function caseStart(fx) {
   assert.strictEqual(request.layerId, "1872:60904");
 }
 
+// 清空一个「工程 + 区域」：只清这个区域；有任务在跑就整体拒绝。
+async function caseClearArea(fx) {
+  const board = fx.board();
+  const f1a = board.add({ projectRoot: fx.project, ui: "F1", items: [{ link: LINK, target: "A1" }] });
+  const f1b = board.add({ projectRoot: fx.project, ui: "F1", items: [{ link: LINK, target: "A2" }] });
+  const f2 = board.add({ projectRoot: fx.project, ui: "F2", items: [{ link: LINK, target: "B1" }] });
+
+  const snapshot = board.clearArea(fx.project, "F1");
+  const ids = snapshot.tasks.map((item) => item.id);
+  assert.ok(!ids.includes(f1a.created[0]) && !ids.includes(f1b.created[0]), "F1 的两条都要清掉");
+  assert.ok(ids.includes(f2.created[0]), "别的区域不许动");
+  assert.strictEqual(board.clearArea(fx.project, "F9").tasks.length, snapshot.tasks.length, "没有这个区域时是空操作");
+  assert.throws(function () { board.clearArea("", "F1"); }, /工程目录/, "缺工程目录要拒绝");
+
+  // 有任务在跑：整体拒绝，不静默跳过（否则用户以为清干净了，其实还剩一条占着位子）。
+  const running = board.add({ projectRoot: fx.project, ui: "F3", items: [{ link: LINK, target: "Run1" }] });
+  board.start(running.created[0]);
+  await waitFor(function () {
+    const task = taskOf(board, running.created[0]);
+    return task && task.state === "running";
+  }, "任务进入运行中");
+  assert.throws(function () { board.clearArea(fx.project, "F3"); }, /在跑/, "有任务在跑时拒绝清空");
+  assert.ok(taskOf(board, running.created[0]), "拒绝之后任务还在");
+}
+
 async function main() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-test-"));
   const project = path.join(root, "project");
@@ -152,7 +177,8 @@ async function main() {
 
   const cases = [
     ["加任务与参数", caseAdd],
-    ["启动走工作目录", caseStart]
+    ["启动走工作目录", caseStart],
+    ["清空一个区域的任务", caseClearArea]
   ];
   try {
     for (const [name, run] of cases) {
