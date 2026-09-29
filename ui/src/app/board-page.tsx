@@ -18,6 +18,7 @@ import { parseBoardItems } from "@/lib/board-items"
 import { boardStateVariant } from "@/lib/board-state"
 import { coverageOf, type Coverage } from "@/lib/board-effective"
 import { ClampText } from "@/app/clamp-text"
+import { EffectiveToggle } from "@/app/effective-toggle"
 import { IdentifierText } from "@/app/identifier-text"
 import { MergeConflicts } from "@/app/merge-conflicts"
 import { describeFailure } from "@/lib/describe-failure"
@@ -215,15 +216,13 @@ export function BoardPage() {
               清掉已结束
             </Button>
             {/* 同一页面只留当前生效那一行，被后一次合并覆盖的默认藏起来；要看历史就关掉它。 */}
-            <div className="ml-auto flex items-center gap-2">
-              <Switch
+            <div className="ml-auto">
+              <EffectiveToggle
                 id="board-only-effective"
                 checked={form.onlyEffective}
-                onCheckedChange={(value) => setForm({ ...form, onlyEffective: value })}
+                hidden={coveredCount}
+                onChange={(value) => setForm({ ...form, onlyEffective: value })}
               />
-              <Label htmlFor="board-only-effective" className="text-xs">
-                只看生效{coveredCount > 0 ? `（已藏起 ${coveredCount} 条被覆盖的）` : ""}
-              </Label>
             </div>
           </div>
         </CardContent>

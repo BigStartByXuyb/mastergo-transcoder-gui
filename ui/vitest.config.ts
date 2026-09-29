@@ -9,7 +9,7 @@ const here = path.dirname(fileURLToPath(import.meta.url))
  * 前端单测与覆盖率口径。
  *
  * 覆盖率只统计“有单元测试意义的表面”：src/lib/**（纯逻辑）、src/app 里的两个 hook
- * （useIdentity / useRunLog，取数与轮询都在这里）与两个共用的展示组件。
+ * （useIdentity / useRunLog，取数与轮询都在这里）与三个共用的展示组件。
  * 页面级组件（pipeline/board/query/settings…）是编排与渲染，已经薄到只剩拼装，不进分母。
  */
 export default defineConfig({
@@ -27,7 +27,13 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reportsDirectory: path.resolve(here, "coverage"),
-      include: ["src/lib/**/*.ts", "src/app/use-*.ts", "src/app/task-steps.tsx", "src/app/ai-fill-line.tsx"],
+      include: [
+        "src/lib/**/*.ts",
+        "src/app/use-*.ts",
+        "src/app/task-steps.tsx",
+        "src/app/ai-fill-line.tsx",
+        "src/app/effective-toggle.tsx"
+      ],
       exclude: ["src/**/*.test.ts", "src/**/*.test.tsx", "src/lib/api.ts"],
       reporter: ["text"],
       thresholds: {
