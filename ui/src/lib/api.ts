@@ -567,6 +567,9 @@ export const api = {
   /** Target → 区域前缀的预览：规则在后端，界面上只显示结论。 */
   identityPrefix: (target: string) =>
     request<{ ok: true; previewUi: string }>("/api/identity/prefix?target=" + encodeURIComponent(target)),
+  /** 从链接取设计页名（中文原名，如「停止调整」）：Target 由它翻译 + 区域前缀得到。 */
+  designPageName: (link: string) =>
+    post<{ ok: true; pageName: string; rootId: string }>("/api/design/page-name", { link }),
   identityCandidates: (body: { projectRoot: string; pageName: string; useAi?: boolean; ui?: string }) =>
     post<{ ok: true } & IdentityCandidates>("/api/identity/candidates", body),
   identityApply: (body: {

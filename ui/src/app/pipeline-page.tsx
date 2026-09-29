@@ -540,6 +540,28 @@ export function PipelinePage({ taskId }: { taskId: string }) {
                 {identityBusy === "candidates" ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                 自动补 Target / 区域
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={identityBusy !== "" || !link.trim()}
+                onClick={() => {
+                  setIdentityBusy("name")
+                  setFailure("")
+                  api
+                    .designPageName(link.trim())
+                    .then((payload) => {
+                      setIdentityName(payload.pageName)
+                      toast.success("设计页名：" + (payload.pageName || "（设计稿里没有名字）"))
+                    })
+                    .catch((error) =>
+                      setFailure(error instanceof ApiFailure ? error.message + (error.hint ? "：" + error.hint : "") : String(error))
+                    )
+                    .finally(() => setIdentityBusy(""))
+                }}
+              >
+                {identityBusy === "name" ? <Loader2 className="size-4 animate-spin" /> : null}
+                从链接取设计页名
+              </Button>
               <span>
                 按项目既有区域约定 + 设计页名给出候选并写进工程登记表；
                 当前自动化层级：
