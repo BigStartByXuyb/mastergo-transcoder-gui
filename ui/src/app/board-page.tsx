@@ -14,6 +14,9 @@ import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
 import { ApiFailure, api, type Board, type BoardTask } from "@/lib/api"
+import { parseBoardItems } from "@/lib/board-items"
+import { boardStateVariant } from "@/lib/board-state"
+import { readStored, writeStored } from "@/lib/storage"
 
 /*
  * 看板：一屏同时跑多个页面。
@@ -26,7 +29,7 @@ const STORAGE_KEY = "mastergo-transcoder-gui.board"
 const POLL_MS = 1500
 
 const BUSY_STATES = ["queued", "preparing", "running", "waiting", "merging"]
-const FAILED_STATES = ["failed", "conflict"]
+const EMPTY_FORM: Form = { projectRoot: "", ui: "", mode: "B", autoMerge: true, overwrite: false, stopAfter: "", links: "" }
 
 type Form = {
   projectRoot: string
@@ -39,44 +42,15 @@ type Form = {
 }
 
 function readForm(): Form {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "")
-    if (parsed && typeof parsed === "object") {
-      return {
-        projectRoot: String(parsed.projectRoot ?? ""),
-        ui: String(parsed.ui ?? ""),
-        mode: parsed.mode === "A" || parsed.mode === "AB" ? parsed.mode : "B",
-        autoMerge: parsed.autoMerge !== false,
-        overwrite: parsed.overwrite === true,
-        stopAfter: String(parsed.stopAfter ?? ""),
-        links: String(parsed.links ?? "")
-      }
-    }
-  } catch {
-    /* 没存过或存坏了都从空白开始 */
-  }
-  return { projectRoot: "", ui: "", mode: "B", autoMerge: true, overwrite: false, stopAfter: "", links: "" }
-}
-
-// 一行一个任务：`链接` 或 `链接 | Target`（Target 省略时由插件按设计稿推导）。
-function parseItems(text: string, mode: "A" | "B" | "AB") {
-  const items: { link: string; target: string; mode: "A" | "B" | "AB" }[] = []
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim()
-    if (!line) continue
-    const [linkPart, targetPart] = line.split("|")
-    const link = (linkPart ?? "").trim()
-    if (!link) continue
-    items.push({ link, target: (targetPart ?? "").trim(), mode })
-  }
-  return items
-}
-
-function variantOf(state: string) {
-  if (state === "merged") return "secondary" as const
-  if (FAILED_STATES.includes(state)) return "destructive" as const
-  if (state === "running" || state === "merging") return "default" as const
-  return "outline" as const
+  return readStored(STORAGE_KEY, EMPTY_FORM, (raw) => ({
+    projectRoot: String(raw.projectRoot ?? ""),
+    ui: String(raw.ui ?? ""),
+    mode: raw.mode === "A" || raw.mode === "AB" ? raw.mode : "B",
+    autoMerge: raw.autoMerge !== false,
+    overwrite: raw.overwrite === true,
+    stopAfter: String(raw.stopAfter ?? ""),
+    links: String(raw.links ?? "")
+  }))
 }
 
 export function BoardPage() {
@@ -86,7 +60,7 @@ export function BoardPage() {
   const [busy, setBusy] = useState("")
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(form))
+    writeStored(STORAGE_KEY, form)
   }, [form])
 
   useEffect(() => {
@@ -146,7 +120,7 @@ export function BoardPage() {
   }, [])
 
   function addTasks() {
-    const items = parseItems(form.links, form.mode)
+    const items = parseBoardItems(form.links, form.mode)
     if (!form.projectRoot.trim()) {
       toast.error("先填工程目录")
       return
@@ -375,7 +349,7 @@ function TaskRow({
     <>
     <TableRow>
       <TableCell>
-        <Badge variant={variantOf(task.state)}>{task.stateLabel}</Badge>
+        <Badge variant={boardStateVariant(task.state)}>{task.stateLabel}</Badge>
       </TableCell>
       <TableCell className="font-mono text-xs break-all">{task.request.target || "（按设计稿推导）"}</TableCell>
       <TableCell className="text-sm">{task.request.mode}</TableCell>

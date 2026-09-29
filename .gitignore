@@ -8,3 +8,6 @@ credentials
 # 看板状态与任务工作目录（方案 B 的产物隔离区）
 board.json
 work/
+
+# 前端覆盖率报告（每次由 vitest 生成，不进仓库）
+ui/coverage/

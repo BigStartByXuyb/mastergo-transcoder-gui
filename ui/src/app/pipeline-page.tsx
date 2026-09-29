@@ -22,6 +22,7 @@ import {
   type PipelineStep,
   type PluginSummary
 } from "@/lib/api"
+import { readStored, writeStored } from "@/lib/storage"
 
 /*
  * 流水线：新建任务 + 看某个任务的详情。
@@ -87,16 +88,18 @@ export function PipelinePage({ taskId }: { taskId: string }) {
   const contractStep = task?.failure ? contract.find((step) => step.Name === task.failure?.stepName) ?? null : null
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}")
-      if (saved.link) setLink(String(saved.link))
-      if (saved.projectRoot) setProjectRoot(String(saved.projectRoot))
-      if (saved.target) setTarget(String(saved.target))
-      if (saved.ui) setUi(String(saved.ui))
-      if (saved.mode) setMode(String(saved.mode))
-    } catch {
-      /* 存储不可用就忽略 */
-    }
+    const saved = readStored(STORAGE_KEY, { link: "", projectRoot: "", target: "", ui: "", mode: "" }, (raw) => ({
+      link: String(raw.link ?? ""),
+      projectRoot: String(raw.projectRoot ?? ""),
+      target: String(raw.target ?? ""),
+      ui: String(raw.ui ?? ""),
+      mode: String(raw.mode ?? "")
+    }))
+    if (saved.link) setLink(saved.link)
+    if (saved.projectRoot) setProjectRoot(saved.projectRoot)
+    if (saved.target) setTarget(saved.target)
+    if (saved.ui) setUi(saved.ui)
+    if (saved.mode) setMode(saved.mode)
   }, [])
 
   // 看板是任务的唯一登记：详情页的状态一律从它的快照读，不自己推。
@@ -219,11 +222,7 @@ export function PipelinePage({ taskId }: { taskId: string }) {
   // 开始 = 新建看板任务 + 启动它；看板负责建工作目录、并发与合并。
   async function start() {
     setFailure("")
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ link, projectRoot, target, ui, mode }))
-    } catch {
-      /* 忽略 */
-    }
+    writeStored(STORAGE_KEY, { link, projectRoot, target, ui, mode })
     setBusy("start")
     try {
       const added = await api.boardAdd({
