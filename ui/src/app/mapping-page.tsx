@@ -116,23 +116,24 @@ export function MappingPage() {
         </CardHeader>
         <CardContent>
           <div className="overflow-hidden rounded-md border">
-            <Table>
+            {/* 列宽按比例给：键再长也只换行，不把整张表撑出容器。 */}
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-56">族</TableHead>
-                  <TableHead className="w-56">匹配键</TableHead>
+                  <TableHead className="w-[28%]">族</TableHead>
+                  <TableHead className="w-[32%]">匹配键</TableHead>
                   <TableHead>变体</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {families.map((family) => (
                   <TableRow key={family.key}>
-                    <TableCell className="font-mono text-xs break-all">{family.key}</TableCell>
-                    <TableCell className="text-xs">{describeMatch(family.match)}</TableCell>
-                    <TableCell>
+                    <TableCell className="font-mono text-xs break-all whitespace-normal">{family.key}</TableCell>
+                    <TableCell className="text-xs whitespace-normal">{describeMatch(family.match)}</TableCell>
+                    <TableCell className="whitespace-normal">
                       <div className="flex flex-wrap gap-1">
                         {family.variants.map((variant) => (
-                          <Badge key={variant.name} variant="outline">
+                          <Badge key={variant.name} variant="outline" className="max-w-full" title={variant.name}>
                             {variant.name}
                           </Badge>
                         ))}
@@ -207,18 +208,18 @@ export function MappingPage() {
         </CardHeader>
         <CardContent>
           <div className="overflow-hidden rounded-md border">
-            <Table>
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-56">ControlType</TableHead>
+                  <TableHead className="w-[24%]">ControlType</TableHead>
                   <TableHead>必写字段</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {Object.entries(mapping.requiredAttrs ?? {}).map(([type, attrs]) => (
                   <TableRow key={type}>
-                    <TableCell className="font-mono text-xs">{type}</TableCell>
-                    <TableCell className="font-mono text-xs break-all">
+                    <TableCell className="font-mono text-xs whitespace-normal">{type}</TableCell>
+                    <TableCell className="font-mono text-xs break-all whitespace-normal">
                       {Array.isArray(attrs) ? attrs.join(" / ") : String(attrs)}
                     </TableCell>
                   </TableRow>

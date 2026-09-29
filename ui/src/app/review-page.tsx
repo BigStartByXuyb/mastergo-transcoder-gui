@@ -123,15 +123,16 @@ export function ReviewPage() {
           </div>
 
           <div className="overflow-hidden rounded-md border">
-            <Table>
+            {/* 列宽按比例给：中间内容再长也只换行或截断，不把整张表撑出容器。 */}
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-28">来源</TableHead>
-                  <TableHead className="w-40">Target</TableHead>
-                  <TableHead className="w-24">运行状态</TableHead>
-                  <TableHead className="w-56">待填</TableHead>
+                  <TableHead className="w-[11%] whitespace-normal">来源</TableHead>
+                  <TableHead className="w-[15%]">Target</TableHead>
+                  <TableHead className="w-[10%] whitespace-normal">运行状态</TableHead>
+                  <TableHead className="w-[12%] whitespace-normal">待填</TableHead>
                   <TableHead>工程 / 工作目录</TableHead>
-                  <TableHead className="w-20 text-right">操作</TableHead>
+                  <TableHead className="w-[10%] text-right whitespace-normal">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -140,7 +141,7 @@ export function ReviewPage() {
                   const isActive = key === selected
                   return (
                     <TableRow key={key} className={isActive ? "bg-muted/50" : undefined}>
-                      <TableCell>
+                      <TableCell className="align-top whitespace-normal">
                         <Badge variant={entry.source === "board" ? "secondary" : "outline"}>
                           {entry.source === "board" ? "看板" : "流水线"}
                         </Badge>
@@ -153,10 +154,10 @@ export function ReviewPage() {
                       <TableCell className="font-mono text-xs break-all">
                         {entry.target || "（未指定）"}
                       </TableCell>
-                      <TableCell className="text-xs">
+                      <TableCell className="align-top text-xs whitespace-normal">
                         {RUN_STATE_TEXT[entry.runState] ?? entry.runState ?? "—"}
                       </TableCell>
-                      <TableCell className="text-xs">
+                      <TableCell className="align-top text-xs whitespace-normal">
                         {entry.counts.icons > 0 && <span className="mr-2">图标 {entry.counts.icons}</span>}
                         {entry.counts.translations > 0 && <span>文案 {entry.counts.translations}</span>}
                       </TableCell>
@@ -166,7 +167,7 @@ export function ReviewPage() {
                       >
                         {entry.projectRoot}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="align-top text-right whitespace-normal">
                         <Button
                           size="sm"
                           variant={isActive ? "secondary" : "outline"}

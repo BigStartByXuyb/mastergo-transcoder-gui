@@ -40,18 +40,19 @@ export function DoneBoard({ projectRoot, target }: { projectRoot: string; target
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="overflow-hidden rounded-md border">
-          <Table>
+          {/* 列宽按比例给：产物路径再长也只换行，不把整张表撑出容器。 */}
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead>产物</TableHead>
-                <TableHead className="w-40">SHA256</TableHead>
+                <TableHead className="w-[72%]">产物</TableHead>
+                <TableHead className="w-[28%]">SHA256</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {artifacts.project.map((item) => (
                 <TableRow key={item.file}>
-                  <TableCell className="font-mono text-xs break-all">{item.file}</TableCell>
-                  <TableCell className="text-muted-foreground font-mono text-xs">
+                  <TableCell className="font-mono text-xs break-all whitespace-normal">{item.file}</TableCell>
+                  <TableCell className="text-muted-foreground font-mono text-xs whitespace-normal">
                     {item.sha256 ? item.sha256.slice(0, 12) : "—"}
                   </TableCell>
                 </TableRow>

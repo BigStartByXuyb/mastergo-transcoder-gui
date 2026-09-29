@@ -30,18 +30,29 @@ export function SettingsPage() {
   const [busy, setBusy] = useState(false)
   const [writing, setWriting] = useState(false)
   const [failure, setFailure] = useState("")
+  const [probe, setProbe] = useState("")
 
+  /* 读设置失败与保存失败分开记：后端回来之后自己重读一次，不用刷新页面。 */
   useEffect(() => {
+    if (offline) return
+    let stopped = false
     api
       .settingsGet()
       .then((payload) => {
+        if (stopped) return
         setSettings(payload.settings)
         setProvider(payload.settings.ai.provider || CUSTOM)
         setBaseUrl(payload.settings.ai.baseUrl)
         setModel(payload.settings.ai.model)
+        setProbe("")
       })
-      .catch((error) => setFailure(describeFailure(error)))
-  }, [])
+      .catch((error) => {
+        if (!stopped) setProbe(describeFailure(error))
+      })
+    return () => {
+      stopped = true
+    }
+  }, [offline])
 
   function pickProvider(id: string) {
     setProvider(id)
@@ -156,11 +167,11 @@ export function SettingsPage() {
             </p>
           </div>
 
-          {failure && (
+          {(offline || probe || failure) && (
             <Alert variant="destructive">
               <AlertTitle>出错了</AlertTitle>
               <AlertDescription>
-                <ClampText text={failure} />
+                <ClampText text={offline ? "连不上本地服务，暂时读不到设置。" : probe || failure} />
               </AlertDescription>
             </Alert>
           )}

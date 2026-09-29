@@ -330,16 +330,16 @@ export function BoardPage() {
         </CardHeader>
         <CardContent>
           <div className="overflow-hidden rounded-md border">
-            {/* 固定列宽：中间内容再长也只换行，不把整张表撑宽。 */}
+            {/* 列宽按比例给：中间内容再长也只换行，不把整张表撑宽；窗口变窄时整表跟着容器缩，不会被裁掉。 */}
             <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-32">状态</TableHead>
-                  <TableHead className="w-36">Target</TableHead>
-                  <TableHead className="w-16">模式</TableHead>
-                  <TableHead className="w-52">进度</TableHead>
+                  <TableHead className="w-[13%]">状态</TableHead>
+                  <TableHead className="w-[15%]">Target</TableHead>
+                  <TableHead className="w-[7%]">模式</TableHead>
+                  <TableHead className="w-[18%]">进度</TableHead>
                   <TableHead>工作目录 / 说明</TableHead>
-                  <TableHead className="w-48 text-right">操作</TableHead>
+                  <TableHead className="w-[15%] text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
