@@ -16,6 +16,7 @@ import { api, type Settings } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { useHealth } from "@/lib/use-health"
 import { CodexCard } from "@/app/codex-card"
+import { RuntimeCard } from "@/app/runtime-card"
 import { UpdateCard } from "@/app/update-card"
 
 const CUSTOM = "custom"
@@ -206,6 +207,8 @@ export function SettingsPage() {
       </Card>
 
       <CodexCard />
+
+      <RuntimeCard />
 
       <Card>
         <CardHeader>

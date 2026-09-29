@@ -27,3 +27,6 @@ dist/
 
 # Codex 引擎：按需下载的运行文件与隔离的会话目录
 agents/
+
+# 运行时：客户端自带并解压出来的 Node / PowerShell 7 与它们的安装包
+runtime/

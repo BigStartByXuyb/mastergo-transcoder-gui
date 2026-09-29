@@ -551,6 +551,48 @@ export type CodexStatus = {
   task: UpdateTask
 }
 
+/** 能下载的两个运行时；claude 只检测，不进下载入口。 */
+export type RuntimeId = "node" | "pwsh"
+
+export type RuntimeTool = {
+  id: RuntimeId | "claude"
+  label: string
+  /** 钉死的那一版；claude 不钉，恒为空串。 */
+  pinned: string
+  path: string
+  /** 自带那份解压好且存在。claude 恒为 false。 */
+  installed: boolean
+  /** bundled = 用客户端自带那份 / system = 用系统上那份 / "" = 没有可用的。 */
+  source: "bundled" | "system" | ""
+  version: string
+  ready: boolean
+  /** 恒为 false：这两份在关键路径上，不提供版本切换。 */
+  switchable: boolean
+  note: string
+}
+
+export type RuntimeTask = {
+  /** 下载 → 解压 → 自检；下载那一段按 received/size 给界面出进度。 */
+  phase: "idle" | "downloading" | "extracting" | "verifying" | "done" | "error"
+  tool: string
+  /** 已收字节；解压、自检阶段不再增长。 */
+  received: number
+  /** 总字节；服务器没给 Content-Length 时恒为 0，界面据此退回不确定态。 */
+  size: number
+  error: UpdateFailure | null
+  version: string
+  startedAt: string
+}
+
+export type RuntimeStatus = {
+  root: string
+  tools: RuntimeTool[]
+  /** 有任务在跑时是不能换运行时的，这里放原因（空串表示空闲）。 */
+  busy: string
+  error: UpdateFailure | null
+  task: RuntimeTask
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response
   try {
@@ -716,7 +758,13 @@ export const api = {
   /** 版本号为空串 = 用本机检测到的那个。 */
   codexSwitch: (version = "") =>
     post<{ ok: true; version: string; previous: string; status: CodexStatus }>("/api/codex/switch", { version }),
-  codexRollback: () => post<{ ok: true; version: string; status: CodexStatus }>("/api/codex/rollback", {})
+  codexRollback: () => post<{ ok: true; version: string; status: CodexStatus }>("/api/codex/rollback", {}),
+  runtimeStatus: () => request<{ ok: true; status: RuntimeStatus }>("/api/runtime/status"),
+  /** 缺哪份下哪份；上一次没结束或在跑流水线时 started 为 false，原因在 note。 */
+  runtimeDownload: (tool: RuntimeId) =>
+    post<{ ok: true; started: boolean; tool: string; note: string; status: RuntimeStatus }>("/api/runtime/download", {
+      tool
+    })
 }
 
 /*

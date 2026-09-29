@@ -16,6 +16,52 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-09-30 运行时钉死：Node / PowerShell 7 自带，下载按字节出进度
+
+### 改了什么
+
+- `lib/runtime.js`（新增）：Node.js `24.21.0`、PowerShell 7 `7.6.6` 各钉一版，装到安装根 `runtime\`；
+  下载 → 解压 → 自检三步，坏包按清单哈希拦下；claude 只检测，不代下载。这两份在关键路径上，不提供版本切换。
+- `lib/download.js`：`fetchBuffer` 支持 `onProgress(received, size)`，读流式 body 分段回调；
+  带 `content-encoding` 时长度按 0 报（那长度是压缩前的，拿来算进度是错的）。
+- `lib/plugin.js`、`lib/run.js`：子进程一律走 `childEnv()`，PATH 里优先自带运行时。
+- `lib/routes.js`、`server.js`：`GET /api/runtime/status`、`POST /api/runtime/download`。
+- `start.cmd`：优先用 `runtime\node\node.exe`。
+- `ui/src/lib/runtime-state.ts`、`ui/src/app/runtime-card.tsx`：设置页的运行时卡片，三行各自说清现在用的是哪份、缺不缺、给不给下载入口。
+- 修掉一个真 bug：`childEnv()` 原来写 `env.PATH`，Windows 上变量真名是 `Path`，等于造出两个同名变量；改成大小写不敏感地改原来那条。
+- 进度口径：任务形状从 `done/total`（三步计数，大包几百兆也是 0/3 一动不动）换成 `received/size`；
+  服务器没给 Content-Length 就退回不确定态，不编一个假百分比。
+
+### 点过的东西
+
+| 页面 | 操作 | 观察到 | 结论 |
+| --- | --- | --- | --- |
+| 设置 | 1280 宽打开 `#settings` | 徽标「自带 2 份 / 用系统的 0 份」；Node `钉 v24.21.0` + `自带 v24.21.0`；pwsh `钉 v7.6.6` + `自带 v7.6.6`；Claude `只检测` + `系统 v2.1.278`，无按钮 | 通过 |
+| 设置 | 把 `runtime\node` 改名移走再刷新 | 徽标变「自带 1 份 / 用系统的 1 份」+「现在能跑；下成自带的就不用管本机装没装。」；Node 行变 `系统 v24.14.0` + `下载 v24.21.0` | 通过 |
+| 设置 | 点「下载 v24.21.0」，`MutationObserver` 记进度条与文案 | 起手 `正在下载 Node.js…`（总长度还没到）；随后 `正在下载 Node.js（32.9 MB / 35.9 MB）`；进度条 transform 依次 -100% → -99 → -98 → -97 → -94 → -92 → -89 → -85 → -80 → -76 → -70 → -65 → -60 → -55 → -50 → -44 → -38 → -32 → -26 → -17 → -8（0% → 92%，真的在走） | 通过（本轮要修的就是这个） |
+| 设置 | 等下载落盘 | 回到 `自带 v24.21.0`，徽标回「自带 2 份 / 用系统的 0 份」，进度条与说明行消失 | 通过 |
+| 命令行 | `runtime\node\node.exe --version` / `runtime\pwsh\pwsh.exe -NoProfile -Command $PSVersionTable.PSVersion` | `v24.21.0` / `7.6.6`，与钉死版本一致 | 通过 |
+| 看板 | 1280 宽打开 `#board` | 表格 `910 == 容器 910`，文档宽 `== 窗口宽 1280`，无横向溢出 | 通过 |
+| 映射表 | 打开 `#mapping` | 25 行数据渲染；页脚显示来源 `插件 v1.0.369`、模板族 10 / 底部栏变体 17 / 必写字段表 15 | 通过 |
+| 新建任务 | 打开 `#pipeline` | `共 12 步` 契约与表单（链接、工程目录、Target、路线、UI 区域、停在某一步）都渲染 | 通过 |
+
+### 没点的
+
+- Claude 那一行本来就没有按钮（只检测），没点。
+- 「重下」路径（自带那份坏了）：要先故意弄坏 `runtime\node`，跟上面「移走再下」共用同一条下载与解压链路，没重复跑。
+- 窄窗（<768）侧边栏仍固定 256px，是已知项，这轮没管。
+
+### 自动化门禁
+
+| 命令 | 结果 |
+| --- | --- |
+| `npm run test:coverage` | 通过，lines 96.81 / branch 82.51 / funcs 96.37（门禁 90/75/90） |
+| `npm --prefix ui run test:coverage` | 通过，stmts 99.28 / branch 91.47 / funcs 100（`runtime-state.ts` 满分） |
+| `npm --prefix ui run lint` | 通过（0 error，只剩既有的 hooks warning） |
+| `npx tsc -b` | 通过 |
+| `npm run build:ui` | 通过 |
+| `node <cicd>/check-app-structure.mjs --root .` | PASS（硬编码路径 / 孤儿导出 / 分层 / CI 钉死 均 0 条） |
+
 ## 2026-09-30 对话页：Codex 自动/对话模式端到端（含「停下」真杀进程）
 
 ### 改了什么

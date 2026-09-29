@@ -44,6 +44,7 @@ const { createPendingQueue } = require("./lib/pending-queue.js");
 const { createMapping } = require("./lib/mapping.js");
 const { createUpdate } = require("./lib/update.js");
 const { createCodex } = require("./lib/codex.js");
+const { createRuntime } = require("./lib/runtime.js");
 
 const HERE = __dirname;
 const PUBLIC_DIR = path.join(HERE, "public");
@@ -159,6 +160,8 @@ const update = createUpdate({
 });
 // Codex 引擎：只下载进安装根，用户的 ~/.codex 一概不动；对话与写盘由插件脚本负责。
 const codex = createCodex({ home: HOME, settings: settings, isBusy: busyReason });
+// 运行时：客户端自带的 Node / PowerShell 7 与 claude 的检测结果，设置页的运行时卡片读它。
+const runtime = createRuntime({ home: HOME, isBusy: busyReason });
 const routes = createRoutes({
   resolver: resolver,
   plugin: PLUGIN,
@@ -174,7 +177,8 @@ const routes = createRoutes({
   pendingQueue: pendingQueue,
   mapping: mapping,
   update: update,
-  codex: codex
+  codex: codex,
+  runtime: runtime
 });
 
 // ---- 服务 ----
@@ -223,6 +227,9 @@ server.listen(options.port, options.host, function () {
   process.stdout.write("插件: " + PLUGIN_ROOT + (PLUGIN.version ? "（v" + PLUGIN.version + "）" : "") + "\n");
   process.stdout.write("引擎: " + (PLUGIN.engineExists ? "已找到" : "缺失") + " → " + PLUGIN.engine
     + (PLUGIN.queryMissing.length ? "（插件缺 " + PLUGIN.queryMissing.join("、") + "）" : "") + "\n");
+  process.stdout.write("运行时: " + runtime.status().tools.map(function (item) {
+    return item.label + " " + (item.source ? (item.source === "bundled" ? "自带" : "系统") + " " + (item.version || "?") : "缺失");
+  }).join(" / ") + "\n");
   process.stdout.write("token: " + (TOKEN ? "已就绪" : "缺失（只有本地快照模式可用）") + "\n");
   if (!fs.existsSync(path.join(PUBLIC_DIR, "index.html"))) {
     process.stdout.write("界面: 未构建 —— 先跑 npm run build:ui，或开发时用 npm run dev:ui。\n");
