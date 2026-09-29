@@ -196,36 +196,47 @@ export function PipelinePage({ taskId }: { taskId: string }) {
    * 「Target + 区域」候选，写进工程登记表，再回填表单。
    * 自动化层级是 auto 时直接采用第一条（不人工确认）；assist/off 时列出来等人点。
    */
+  /*
+   * 身份补全的唯一入口：按钮点击与「自动层级启动前自动补」都走这里。
+   * 之前这两条各写了一份，改了一处漏一处 —— 分叉会让两条入口对同一页给出不同结论。
+   * 返回选中的候选；要人决策的情况返回 null 并把原因写进 failure。
+   */
+  async function pickIdentity(): Promise<IdentityCandidate | null> {
+    const payload = await api.identityCandidates({
+      projectRoot: projectRoot.trim(),
+      pageName: identityName.trim() || target.trim(),
+      useAi: automation !== "off",
+      // 已经在 UI 区域框里写了区域（例如 F1）时，就按你给的那个算候选。
+      ui: ui.trim(),
+      link: link.trim()
+    })
+    const list: IdentityCandidate[] = [...(payload.ai.items ?? []), ...(payload.candidates ?? [])]
+    setIdentityCandidates(list)
+    const pick = list.find((item) => item.target && !item.needsSemanticName) ?? list.find((item) => item.target) ?? null
+    if (pick && !payload.ambiguous && list.length > 0) return pick
+    if (list.length === 0) {
+      setFailure(
+        "这个工程还没有任何区域约定（登记表里没有页面、也没有带前缀的 Target）。"
+        + "区域是团队对项目的约定，设计稿里没有这条信息，所以第一次要人给一次："
+        + "在「UI 区域」里填一个区域前缀（例如 F1），再点「自动补 Target / 区域」；给过就写进该工程的 docs/page-registry.json，之后同一页全自动。"
+      )
+      return null
+    }
+    setFailure(
+      payload.ambiguous
+        ? "这个设计文件里登记过的区域不是恰好一个（可能还没有先例，也可能出现了 F1/F3 这种分歧）：不敢替你猜，请在候选里点一下这一页的区域，确认后这一页以后就自动了。"
+        : "候选里还没有拼好的 Target，需要先给语义名（或把自动化层级降到辅助，手工确认一次）。"
+    )
+    return null
+  }
+
+  // 手动入口：列候选；自动化层级是「自动」时直接采用第一条。
   async function fillIdentity() {
     setIdentityBusy("candidates")
     setFailure("")
     try {
-      const payload = await api.identityCandidates({
-        projectRoot: projectRoot.trim(),
-        pageName: identityName.trim() || target.trim(),
-        useAi: automation !== "off",
-        // 你已经在 UI 区域框里写了区域（例如 F1）时，就按你给的那个算候选。
-        ui: ui.trim(),
-        link: link.trim()
-      })
-      const list: IdentityCandidate[] = [
-        ...(payload.ai.items ?? []),
-        ...(payload.candidates ?? [])
-      ]
-      setIdentityCandidates(list)
-      if (list.length === 0) {
-        setFailure("这个工程里还没有任何区域约定（登记表里没有页面、也没有带前缀的 Target），先手工填一次 Ui 前缀，之后就能自动补了。")
-        return
-      }
-      if (payload.ambiguous) {
-        setFailure("这个设计文件里已经登记过多个区域（或并列），不敢替你猜：请在候选里点一下这一页的区域，确认后这一页以后就自动了。")
-        return
-      }
-      if (automation === "auto") {
-        const first = list.find((item) => item.target && !item.needsSemanticName) ?? list.find((item) => item.target)
-        if (first) await applyIdentity(first)
-        else setFailure("候选里还没有拼好的 Target，需要先给语义名（或把自动化层级降到辅助，手工确认一次）。")
-      }
+      const pick = await pickIdentity()
+      if (pick && automation === "auto") await applyIdentity(pick)
     } catch (error) {
       setFailure(error instanceof ApiFailure ? error.message + (error.hint ? "：" + error.hint : "") : String(error))
     } finally {
@@ -353,27 +364,12 @@ export function PipelinePage({ taskId }: { taskId: string }) {
       let finalTarget = target.trim()
       let finalUi = ui.trim()
       if (!finalTarget && !finalUi && automation === "auto") {
-        const payload = await api.identityCandidates({ projectRoot: projectRoot.trim(), pageName: identityName.trim(), useAi: true })
-        if (payload.ambiguous) {
-          setFailure("这个设计文件里已经登记过多个区域（或并列）：请先点「自动补 Target / 区域」选一次，这一页登记后就会全自动。")
-          return
-        }
-        const list: IdentityCandidate[] = [...(payload.ai.items ?? []), ...(payload.candidates ?? [])]
-        const pick = list.find((item) => item.target && !item.needsSemanticName) ?? list.find((item) => item.target)
-        if (!pick) {
-          setFailure(
-            "这一步只做一次：请在「UI 区域」里填一个区域前缀（例如 F1），再点「自动补 Target / 区域」。"
-            + "区域是团队对项目的约定，设计稿里没有这条信息（取数结果里没有 ui 字段），这个工程又还没登记过任何页面，"
-            + "所以第一次必须由人给一次；给过就写进该工程的 docs/page-registry.json，之后同一页贴链接就能全自动。"
-          )
-          return
-        }
-        await api.identityApply({ projectRoot: projectRoot.trim(), target: pick.target, ui: pick.ui, designPageName: identityName.trim() })
+        // 与按钮同一条实现：选出候选 → 写登记表 → 回填；要人决策时 pickIdentity 已经把原因写进 failure。
+        const pick = await pickIdentity()
+        if (!pick) return
+        await applyIdentity(pick)
         finalTarget = pick.target
         finalUi = pick.ui
-        setTarget(pick.target)
-        setUi(pick.ui)
-        toast.success("已自动补身份：" + pick.target + "（UI " + pick.ui + "）")
       }
       const added = await api.boardAdd({
         projectRoot,
