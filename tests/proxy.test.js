@@ -36,7 +36,7 @@ function main() {
 
   // 环境是空的、系统开着代理：补齐三个变量，fetch 才认。
   const filled = {};
-  assert.deepStrictEqual(applyProxy({ env: filled, run: registry(ON), setProxy: enabledOnly() }), {
+  assert.deepStrictEqual(applyProxy({ env: filled, run: registry(ON), platform: "win32", setProxy: enabledOnly() }), {
     enabled: true,
     filled: ["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"]
   });
@@ -48,19 +48,22 @@ function main() {
 
   // 已经有 NO_PROXY 就别覆盖用户写的绕过清单。
   const keepNoProxy = { NO_PROXY: "*.corp.example" };
-  assert.deepStrictEqual(applyProxy({ env: keepNoProxy, run: registry(ON), setProxy: enabledOnly() }).filled,
+  assert.deepStrictEqual(applyProxy({ env: keepNoProxy, run: registry(ON), platform: "win32", setProxy: enabledOnly() }).filled,
     ["HTTP_PROXY", "HTTPS_PROXY"]);
   assert.strictEqual(keepNoProxy.NO_PROXY, "*.corp.example");
 
   // 分协议写法取 https 那一项。
   const perProtocol = {};
-  applyProxy({ env: perProtocol, run: registry(PER_PROTOCOL), setProxy: enabledOnly() });
+  applyProxy({ env: perProtocol, run: registry(PER_PROTOCOL), platform: "win32", setProxy: enabledOnly() });
   assert.strictEqual(perProtocol.HTTPS_PROXY, "http://10.0.0.9:8443");
 
   // 开关关着、地址不像代理、非 Windows、注册表读不到：直连，不抛。
   for (const run of [registry(OFF), registry(GARBAGE), registry("", 1)]) {
     const env = {};
-    assert.deepStrictEqual(applyProxy({ env: env, run: run, setProxy: enabledOnly() }), { enabled: true, filled: [] });
+    assert.deepStrictEqual(
+      applyProxy({ env: env, run: run, platform: "win32", setProxy: enabledOnly() }),
+      { enabled: true, filled: [] }
+    );
     assert.deepStrictEqual(env, {});
   }
   const foreign = {};
@@ -73,7 +76,7 @@ function main() {
 
   // 老引擎没有 setGlobalProxyFromEnv：环境照补，但不谎报已经生效。
   const legacy = {};
-  assert.deepStrictEqual(applyProxy({ env: legacy, run: registry(ON), setProxy: null }), {
+  assert.deepStrictEqual(applyProxy({ env: legacy, run: registry(ON), platform: "win32", setProxy: null }), {
     enabled: false,
     filled: ["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"]
   });
