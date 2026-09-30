@@ -6,7 +6,6 @@ import { PixelLoader } from "@/app/pixel-loader"
 import { AreaPage } from "@/app/area-page"
 import { BoardPage } from "@/app/board-page"
 import { ChatPage } from "@/app/chat-page"
-import { CodebasesPage } from "@/app/codebases-page"
 import { MappingPage } from "@/app/mapping-page"
 import { PipelinePage } from "@/app/pipeline-page"
 import { QueryPage } from "@/app/query-page"
@@ -129,7 +128,6 @@ export default function App() {
       {route.page === "review" && <ReviewPage />}
       {route.page === "query" && <QueryPage />}
       {route.page === "mapping" && <MappingPage />}
-      {route.page === "codebases" && <CodebasesPage />}
       {route.page === "settings" && (
         <SettingsPage
           tab={route.params.get("tab") ?? ""}

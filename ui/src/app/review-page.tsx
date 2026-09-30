@@ -3,6 +3,7 @@ import { RefreshCw } from "lucide-react"
 
 import { PendingPanel } from "@/app/pending-panel"
 import { ClampText } from "@/app/clamp-text"
+import { PixelLoader } from "@/app/pixel-loader"
 import { IdentifierText } from "@/app/identifier-text"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -181,8 +182,12 @@ export function ReviewPage() {
                 })}
                 {queue.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-muted-foreground py-8 text-center text-sm">
-                      {loaded ? "当前没有待确认的页面。" : "正在读取…"}
+                    <TableCell colSpan={6} className="py-8 text-center text-sm">
+                      {loaded ? (
+                        <span className="text-muted-foreground">当前没有待确认的页面。</span>
+                      ) : (
+                        <PixelLoader text="请稍等，正在读取待确认的页面" className="py-4" />
+                      )}
                     </TableCell>
                   </TableRow>
                 )}

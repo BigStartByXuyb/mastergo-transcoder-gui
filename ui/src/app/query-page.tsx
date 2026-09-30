@@ -4,6 +4,7 @@ import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ClampText } from "@/app/clamp-text"
+import { PixelLoader } from "@/app/pixel-loader"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -202,6 +203,15 @@ export function QueryPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* 查询要跑插件那几步，等的时候让小狐狸顶着，别只把按钮改成「查询中…」。 */}
+      {loading && !result && (
+        <Card>
+          <CardContent className="pt-6">
+            <PixelLoader text="请稍等，正在查询控件" className="py-6" />
+          </CardContent>
+        </Card>
+      )}
 
       {result && (
         <Card>

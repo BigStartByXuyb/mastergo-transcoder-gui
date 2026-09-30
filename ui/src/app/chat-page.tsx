@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { FileUp, FolderUp, ImagePlus, Loader2, Plus, Paperclip, Send, Square, Trash2, X } from "lucide-react"
+import { FileUp, FolderUp, ImagePlus, Loader2, Plus, Paperclip, Send, Settings2, Square, Trash2, X } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -8,8 +8,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ChatTranscript, type Turn } from "@/app/chat-transcript"
 import { ClampText } from "@/app/clamp-text"
+import { TemplateDialog } from "@/app/template-dialog"
 import { agentChatStream, api, type ChatSummary, type Settings, type UploadedFile } from "@/lib/api"
 import { readCodexLine, type AgentItem } from "@/lib/agent-stream"
 import { replayConversation, upsertTurn } from "@/lib/chat-replay"
@@ -46,6 +48,9 @@ export function ChatPage() {
   const [failure, setFailure] = useState("")
   // 这次要一起发给它的东西：图片会被 Codex 直接看，别的给路径让它去读。
   const [attachments, setAttachments] = useState<UploadedFile[]>([])
+  // 这条对话用哪份提示词模板（代码库 + 系统提示词一起生效）。
+  const [templateId, setTemplateId] = useState("")
+  const [templatesOpen, setTemplatesOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [dragging, setDragging] = useState(false)
   const imageInput = useRef<HTMLInputElement | null>(null)
@@ -71,6 +76,7 @@ export function ChatPage() {
       setTurns(replayed.turns)
       setThread(replayed.thread)
       setAgentName(payload.conversation.agent)
+      setTemplateId(payload.conversation.templateId || "")
       if (payload.conversation.projectRoot) setProjectRoot(payload.conversation.projectRoot)
     } catch (error) {
       setFailure(describeFailure(error))
@@ -120,6 +126,7 @@ export function ChatPage() {
   function startNew() {
     if (running) return
     setActiveId("")
+    setTemplateId("")
     setTurns([])
     setThread("")
     setAgentName("")
@@ -171,6 +178,7 @@ export function ChatPage() {
           resume: thread,
           conversationId: activeId,
           attachments: sending.map((item) => ({ path: item.path, name: item.name, kind: item.kind })),
+          templateId: templateId,
           projectRoot: projectRoot.trim(),
           write: write && allowWrite,
           writeConfirm: projectRoot.trim()
@@ -314,6 +322,27 @@ export function ChatPage() {
           <span className="min-w-0 flex-1 truncate text-sm font-medium">{active?.title ?? "新对话"}</span>
           {agentName ? <Badge variant="secondary">{agentName}</Badge> : <Badge variant="outline">还没开始</Badge>}
           {thread && <Badge variant="outline">对话 {thread.slice(0, 8)}</Badge>}
+          {/* 提示词模板：一条对话用一份，代码库与系统提示词一起生效。 */}
+          {settings && (
+            <div className="flex items-center gap-1">
+              <Select value={templateId || settings.activeTemplateId} onValueChange={(value) => setTemplateId(value)}>
+                <SelectTrigger size="sm" className="w-44" title="这条对话用哪份提示词模板">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {settings.templates.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button size="sm" variant="ghost" title="管理模板" onClick={() => setTemplatesOpen(true)}>
+                <Settings2 className="size-3.5" />
+                模板
+              </Button>
+            </div>
+          )}
           <span className="text-muted-foreground text-xs">
             {settings?.ai.model || "没配模型"}
             {settings?.ai.hasKey === false ? "（没有 key，去设置里填）" : ""}
@@ -494,6 +523,16 @@ export function ChatPage() {
           )}
         </div>
       </section>
+
+      {settings && (
+        <TemplateDialog
+          open={templatesOpen}
+          settings={settings}
+          save={(patch) => api.settingsSave(patch).then((payload) => payload.settings)}
+          onSaved={(saved) => setSettings(saved)}
+          onOpenChange={setTemplatesOpen}
+        />
+      )}
     </div>
   )
 }

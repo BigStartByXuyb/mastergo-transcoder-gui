@@ -6,7 +6,16 @@
 
 const assert = require("assert");
 
-const { buildContext, imagePaths } = require("../lib/agent-context.js");
+const { buildContext, imagePaths, pickTemplate } = require("../lib/agent-context.js");
+
+function casePickTemplate() {
+  const list = [{ id: "t1" }, { id: "t2" }];
+  assert.strictEqual(pickTemplate(list, "t2").id, "t2", "点名的那份");
+  assert.strictEqual(pickTemplate(list, "nope").id, "t1", "名字对不上就落回第一份");
+  assert.strictEqual(pickTemplate(list, "").id, "t1", "没点名也是第一份");
+  assert.strictEqual(pickTemplate([], "t1"), null, "一份都没有就是空");
+  assert.strictEqual(pickTemplate(null, "t1"), null, "传空也不炸");
+}
 
 function caseEmpty() {
   assert.strictEqual(buildContext({}), "", "什么都没有就是空串，调用方不用判断");
@@ -57,6 +66,7 @@ function caseOrder() {
 
 try {
   const cases = [
+    ["选模板", casePickTemplate],
     ["空输入", caseEmpty],
     ["代码库清单", caseCodebases],
     ["附加文件", caseAttachments],

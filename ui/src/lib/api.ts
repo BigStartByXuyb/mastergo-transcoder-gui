@@ -138,9 +138,11 @@ export type Settings = {
   ai: { provider: string; baseUrl: string; model: string; hasKey: boolean }
   automation: "off" | "assist" | "auto"
   /** 对话/自动模式的写盘开关：关着时 Codex 只读，开着才允许它直接改工程文件。 */
-  agent: { allowWrite: boolean; /** 每次提问都拼在最前面的那段（用户自己写）。 */ systemPrompt: string }
-  /** 可参考的代码库：路径 + 是什么库 + 说明，随每次提问一起给 AI。 */
-  codebases: CodebaseEntry[]
+  agent: { allowWrite: boolean }
+  /** 提示词模板：一份「代码库清单 + 系统提示词」，可以存多份。 */
+  templates: PromptTemplate[]
+  /** 没指定模板时用哪一份。 */
+  activeTemplateId: string
   /**
    * MasterGo token：hasToken 是「本机存过没有」，source/sourceLabel 是「现在实际生效的是哪一份」。
    * 两者可以不一致 —— 命令行或环境变量会盖住本机保存的那份，界面必须能把这个差别说出来。
@@ -155,6 +157,15 @@ export type CodebaseEntry = {
   /** 给 AI 看的补充说明（可选）。 */
   note: string
   enabled: boolean
+}
+
+export type PromptTemplate = {
+  id: string
+  name: string
+  /** 每次提问都拼在最前面的那段（用户自己写）。 */
+  systemPrompt: string
+  /** 可参考的代码库：路径 + 是什么库 + 说明，随每次提问一起给 AI。 */
+  codebases: CodebaseEntry[]
 }
 
 /** 一次上传存下来的附件：path 是后端落盘的绝对路径。 */
@@ -583,6 +594,8 @@ export type ChatConversation = {
   id: string
   title: string
   agent: string
+  /** 这条对话用哪份提示词模板；空串表示还没选过，按设置里的默认那份走。 */
+  templateId: string
   projectRoot: string
   createdAt: string
   updatedAt: string
@@ -863,6 +876,8 @@ export async function agentChatStream(
     conversationId?: string
     /** 这次附上的文件（后端只认自己落下的那些路径）。 */
     attachments?: { path: string; name: string; kind: string }[]
+    /** 这次用哪份提示词模板（代码库与系统提示词一起生效）。 */
+    templateId?: string
     projectRoot?: string
     write?: boolean
     writeConfirm?: string
