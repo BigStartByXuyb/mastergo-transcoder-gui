@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress"
 import { api, type UpdateStatus } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
-import { startUpdateDownload } from "@/lib/update-download"
+import { startUpdateDownload, type DownloadOutcome } from "@/lib/update-download"
 import { runSwitch } from "@/lib/update-switch"
 import { missingFeatures } from "@/lib/version-features"
 import {
@@ -89,19 +89,17 @@ export function UpdateCard() {
    * 页面上的每个动作都走这里：置 working → 清旧错 → 跑 → 套用返回的状态 → 提示 → 收尾。
    * 「怎么提示」由调用方给一个函数：有的看响应里的 started/note 才决定说什么。
    */
-  async function act(
+  async function act<T extends { status: UpdateStatus | null }>(
     key: string,
-    run: () => Promise<{ status: UpdateStatus | null; started?: boolean; note?: string; error?: string }>,
-    done: string | ((payload: { status: UpdateStatus | null; started?: boolean; note?: string }) => void) = ""
+    run: () => Promise<T>,
+    done: string | ((payload: T) => void) = ""
   ) {
     setWorking(key)
     setFailure("")
     try {
       const payload = await run()
       if (payload.status) setStatus(payload.status)
-      // 返回里已经带了失败原因（例如「没开始下载」）：先说出来，不再往下走。
-      if (payload.error) setFailure(payload.error)
-      else if (typeof done === "function") done(payload)
+      if (typeof done === "function") done(payload)
       else if (done) toast.success(done)
     } catch (error) {
       setFailure(describeFailure(error))
@@ -119,7 +117,11 @@ export function UpdateCard() {
       "stage:" + version,
       // 与顶栏红点共用同一处「发起下载」。
       () => startUpdateDownload(version),
-      (payload) => (payload.started ? toast.success("正在下载 v" + version) : toast.info(payload.note || "本地已经有这一版"))
+      (payload: DownloadOutcome) => {
+        if (payload.kind === "failed") setFailure(payload.message)
+        else if (payload.kind === "started") toast.success("正在下载 v" + version)
+        else toast.info(payload.message)
+      }
     )
   }
 

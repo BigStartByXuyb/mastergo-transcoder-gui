@@ -32,11 +32,12 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
       setBusy("download")
       const got = await startUpdateDownload(target)
       setBusy("")
-      if (got.error || !got.started) {
+      if (got.kind === "failed") {
         // 没起来就留在原地把原因说清，不再把人带走。
-        setFailure(got.error || got.note || "这次没开始下载")
+        setFailure(got.message)
         return
       }
+      // 本机已经有这一版（状态过期一类的竞争）：带去更新页，那行会显示「切换」。
       props.onOpenUpdatePage()
       return
     }

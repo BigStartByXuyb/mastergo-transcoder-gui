@@ -7,18 +7,19 @@ import { describeFailure } from "@/lib/describe-failure"
  */
 
 export type DownloadOutcome = {
-  started: boolean
-  /** 没起来时的说明，例如「已经在下载了」。 */
-  note: string
+  /** started：真下起来了；already：本机已经有这一版；failed：没起来（message 是原因）。 */
+  kind: "started" | "already" | "failed"
+  /** 给用户的一句话：already 说「本地已经有这一版」，failed 说原因，started 为空。 */
+  message: string
   status: UpdateStatus | null
-  error: string
 }
 
 export async function startUpdateDownload(version: string): Promise<DownloadOutcome> {
   try {
     const payload = await api.updateStage(version)
-    return { started: payload.started, note: payload.note || "", status: payload.status, error: "" }
+    if (payload.started) return { kind: "started", message: "", status: payload.status }
+    return { kind: "already", message: payload.note || "本地已经有这一版", status: payload.status }
   } catch (error) {
-    return { started: false, note: "", status: null, error: describeFailure(error) }
+    return { kind: "failed", message: describeFailure(error), status: null }
   }
 }
