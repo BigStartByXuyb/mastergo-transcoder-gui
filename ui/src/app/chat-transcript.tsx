@@ -23,8 +23,14 @@ export type Turn =
  * 正文（message）不进这个组，它就按原顺序夹在组与组之间，读起来还是「说了什么 → 做了什么 → 又说了什么」。
  */
 export function ChatTranscript(props: { turns: Turn[]; agentName: string; empty?: string }) {
-  const firstAgentAt = props.turns.findIndex((turn) => turn.kind === "agent")
   const blocks = groupSteps(props.turns)
+  /*
+   * 头像标识挂在「它第一次开口」那块上。分组以后轮序号与块序号不是一回事，
+   * 所以这里在**块**这一套坐标里找第一个「消息」块 —— 早先拿轮序号比块序号，标识会错位或整段不出现。
+   */
+  const leadAt = blocks.findIndex(
+    (block) => block.kind === "single" && block.turn.kind === "agent" && block.turn.item.kind === "message"
+  )
   return (
     <div className="flex flex-col gap-3">
       {props.turns.length === 0 && (
@@ -38,7 +44,7 @@ export function ChatTranscript(props: { turns: Turn[]; agentName: string; empty?
         ) : block.turn.kind === "log" ? (
           <EngineLog key={index} text={block.turn.text} open={block.turn.open} />
         ) : (
-          <AgentItemView key={index} item={block.turn.item} agentName={props.agentName} lead={index === firstAgentAt} />
+          <AgentItemView key={index} item={block.turn.item} agentName={props.agentName} lead={index === leadAt} />
         )
       )}
     </div>
@@ -75,7 +81,7 @@ function StepGroup({ items }: { items: AgentItem[] }) {
         aria-expanded={shown}
         onClick={() => setShown((current) => !current)}
         title="展开看每一步；每一步还能再点开看详情"
-        className="hover:bg-card/80 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors"
+        className="border-border/70 bg-card/60 hover:bg-card flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-left text-xs transition-colors"
       >
         <ChevronRight className={cn("text-muted-foreground size-3.5 shrink-0 transition-transform", shown && "rotate-90")} />
         <span className="shrink-0 font-medium">调用过程 {items.length} 步</span>
@@ -140,9 +146,11 @@ function AgentItemView({ item, agentName, lead }: { item: AgentItem; agentName: 
 
 /* 每一步一行：图标 + 一句话 + 状态，点开才铺细节。 */
 function StepRow({ item }: { item: AgentItem }) {
+  // 标题只认 stepTitle 一处，展开与收起说的是同一句话。
+  const title = stepTitle(item)
   if (item.kind === "reasoning") {
     return (
-      <Step icon={<Sparkles className="size-3.5" />} title="思考过程" running={item.running}>
+      <Step icon={<Sparkles className="size-3.5" />} title={title} running={item.running}>
         <pre className="bg-muted max-h-80 overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">
           {item.text}
         </pre>
@@ -153,7 +161,7 @@ function StepRow({ item }: { item: AgentItem }) {
     return (
       <Step
         icon={<Terminal className="size-3.5" />}
-        title={prettyCommand(item.command)}
+        title={title}
         mono
         running={item.running}
         status={item.running ? "" : item.exitCode === null ? "没退出码" : "exit " + item.exitCode}
@@ -170,7 +178,7 @@ function StepRow({ item }: { item: AgentItem }) {
     return (
       <Step
         icon={<FileCode2 className="size-3.5" />}
-        title={"改了 " + item.changes.length + " 个文件"}
+        title={title}
         running={item.running}
         status={item.changes.map((change) => changeLabel(change.action)).join(" ")}
       >
@@ -189,7 +197,7 @@ function StepRow({ item }: { item: AgentItem }) {
     return (
       <Step
         icon={<Bot className="size-3.5" />}
-        title={[item.server, item.tool].filter(Boolean).join(" · ") || "工具调用"}
+        title={title}
         running={item.running}
       >
         {item.args && (
@@ -203,7 +211,7 @@ function StepRow({ item }: { item: AgentItem }) {
   }
   if (item.kind === "search") {
     return (
-      <Step icon={<Globe className="size-3.5" />} title={"搜索 " + item.query} running={item.running}>
+      <Step icon={<Globe className="size-3.5" />} title={title} running={item.running}>
         <p className="bg-muted rounded-md p-3 text-xs break-words">{item.query}</p>
       </Step>
     )

@@ -22,6 +22,24 @@ describe("ChatTranscript", () => {
     expect(screen.getByText("停在第 7 步")).toBeTruthy()
   })
 
+  // 分组以后「轮序号」和「块序号」不是一回事：标识要挂在它第一次开口的那条正文上。
+  it("先跑命令再说话时，AI 标识挂在正文上", () => {
+    show([
+      agent({ kind: "command", itemId: "item_0", command: "ls", output: "", exitCode: 0, running: false }),
+      agent({ kind: "message", itemId: "item_1", text: "看完了" })
+    ])
+    expect(screen.getByText("调用过程 1 步")).toBeTruthy()
+    expect(screen.getByText("AI")).toBeTruthy()
+  })
+
+  it("标识只出现在第一次开口那条上", () => {
+    show([
+      agent({ kind: "message", itemId: "item_0", text: "第一句" }),
+      agent({ kind: "message", itemId: "item_1", text: "第二句" })
+    ])
+    expect(screen.getAllByText("AI")).toHaveLength(1)
+  })
+
   it("非致命提示按浅色一行给，不弹报错卡片", () => {
     show([agent({ kind: "notice", itemId: "item_0", text: "Model metadata for `deepseek-chat` not found." })])
     expect(screen.getByText("Model metadata for `deepseek-chat` not found.")).toBeTruthy()
