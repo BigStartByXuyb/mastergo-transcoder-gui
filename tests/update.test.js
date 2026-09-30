@@ -161,6 +161,21 @@ async function main() {
   assert.strictEqual(broken.state, "update_available", "退回「有新版本待下载」");
   assert.strictEqual(update.hint().state, "update_available", "探活快照说同一句话");
 
+  // 重新下一份就恢复「可切换」：坏掉的记号要跟着下载成功一起摘掉。
+  const again = update.startDownload();
+  assert.strictEqual(again.started, true, "坏了的那一份可以重下");
+  const repaired = await settle(update);
+  assert.strictEqual(repaired.ready, "0.2.0", "重下之后又可切换");
+  assert.strictEqual(repaired.state, "download_ready");
+  assert.strictEqual(update.hint().state, "download_ready");
+
+  // 本地已经是最新时不重复下载：这条分支不能因为判据改名而断掉。
+  const alreadyNew = createUpdate({ root: next, home: next, version: "0.2.0", fetchImpl: server.fetchImpl });
+  await alreadyNew.check();
+  const noop = alreadyNew.startDownload();
+  assert.strictEqual(noop.started, false);
+  assert.strictEqual(noop.reason, "本地已经有这一版");
+
   // 外壳下限：清单要求比当前更高的客户端外壳时，下载与切换都拒。
   const gated = remote(next, "0.2.1", { minClientVersion: "9.9.9" });
   const gatedHome = makeTree({ "server.js": "旧客户端", "package.json": "{\"version\":\"0.1.0\"}" });
@@ -225,6 +240,12 @@ async function main() {
   // 顶上那个红点读的是探活快照：它必须与设置页说同一句话，否则会把「可切换」说成「有新版」。
   assert.strictEqual(rootUpdate.hint().state, "download_ready", "探活快照也要认安装根那一份");
   assert.strictEqual(rootUpdate.hint().ready, "0.2.0");
+
+  // 安装根那一份（就是「本地这一版」）同样要按清单校验：被改过就不许切过去。
+  fs.writeFileSync(path.join(rootNewer, "lib", "a.js"), "被人改过", "utf8");
+  assert.throws(function () { rootUpdate.apply("0.2.0"); }, /和清单对不上/, "安装根那一份也要校验");
+  fs.writeFileSync(path.join(rootNewer, "lib", "a.js"), "a", "utf8");
+
   const switched = rootUpdate.apply("0.2.0");
   assert.strictEqual(switched.version, "0.2.0");
 
