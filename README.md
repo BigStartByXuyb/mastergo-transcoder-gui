@@ -20,7 +20,7 @@ node server.js --port 9000 --no-open
 node server.js --project <工程目录>            # 从工程的 DSL 快照与登记表自动发现页面帧（离线优先）
 node server.js --snapshot <dsl.snapshot.json>  # 完全离线：只用一份快照
 node server.js --plugin <插件目录>             # 显式指定插件根
-node server.js --token mg_xxx                  # 缺省取 env MASTERGO_MCP_TOKEN，再取 ~/.codex/config.toml
+node server.js --token mg_xxx                  # 覆盖取值链第一级；不传就按后面四级顺序取
 ```
 
 ## 开发
@@ -50,6 +50,7 @@ lib/routes.js       路由表与分发
 lib/plugin-root.js  插件定位
 lib/plugin.js       插件信息与步骤契约
 lib/resolve.js      控件查询
+lib/mcp-token.js    MasterGo 取数凭证的取值链（命令行 / 环境变量 / 本机保存 / config.toml）
 lib/node-controls.js 控件查询引擎（客户端编排，ID 与控件代码取插件的实现）
 lib/xml-chunk.js    从整页 XML 里取单个控件片段
 lib/run.js          流水线运行管理（进度、日志、失败契约）
@@ -67,11 +68,34 @@ lib/update.js       差分更新：拉清单 → 只下变了的 → 落版本�
 lib/launch.js       读 current.json，判断那一份能不能跑
 ```
 
+## 设置页
+
+左侧二级菜单四项，当前子页写在 hash 里（`#settings?tab=ai|mastergo|agent|update`），复制链接可以直接进对应子页。
+
+| 子页 | 内容 |
+| --- | --- |
+| AI token | 厂商 / base_url / 模型名 / API key |
+| MasterGo token | 设计稿取数凭证（取值链里的「本机保存」那一级） |
+| AI Agent | Agent 写盘开关、Codex 引擎版本、运行时（Node / PowerShell 7 / Claude Code 检测） |
+| 更新 | 程序更新（检查 / 下载 / 切换 / 回退）与运行环境明细 |
+
 ## 模型凭据
 
 在「设置」页填厂商 / base_url / 模型名 / API key。key 用 Windows DPAPI（当前用户）加密后存在安装目录的 `credentials`，不写进任何产物、不进日志。
 
 厂商表只列**核实过**的默认值（当前只有 DeepSeek，取自 `~/.codex/config.toml` 的 `model_providers.deepseek`）；其余厂商走「自定义」，填 OpenAI 兼容的 base_url。
+
+## MasterGo 取数凭证
+
+取设计稿（页面名、图层、图标几何）要用，取值顺序只有一处实现（`lib/mcp-token.js`）：
+
+1. 启动参数 `--token`
+2. 环境变量 `MASTERGO_MCP_TOKEN`
+3. 本机保存：设置页填的，DPAPI 加密后存在安装根的 `mastergo-credentials`
+4. `~/.codex/config.toml` 里的 `--token=mg_xxx`
+
+每次用之前现取，所以设置页保存后立刻生效，不用重启客户端。设置页会显示当前生效的是哪一级；
+本机保存了却不是它在生效时给出提示。值只经环境变量交给子进程，不进命令行也不落产物。
 
 ## 口径来自插件，本仓库只做编排
 

@@ -16,6 +16,43 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-09-30 设置页拆四个子页 + MasterGo token 落盘 + 区域行三态计数
+
+### 改了什么
+
+- 设置页（`ui/src/app/settings-page.tsx`）：单页堆叠改成左侧二级菜单，四项是 AI token（厂商 / 地址 / 模型 / key）、
+  MasterGo token（设计稿取数凭证）、AI Agent（写盘开关 + Codex 引擎 + 运行时）、更新（程序更新 + 运行环境）。
+  当前子页写进 hash：`#settings?tab=ai|mastergo|agent|update`，浏览器前进后退能回到对应子页。
+- 四个子页各自成文件（`settings-ai-panel.tsx` / `-mastergo-panel` / `-agent-panel` / `-update-panel`），
+  读写设置共用 `ui/src/lib/use-settings.ts`。原来堆在设置根页的「运行环境」明细搬进更新子页。
+- MasterGo token 从只认命令行和环境变量，扩成四级取值链：`--token` → `MASTERGO_MCP_TOKEN` →
+  本机保存（DPAPI，新文件 `mastergo-credentials`）→ `~/.codex/config.toml`。
+  `lib/mcp-token.js` 新增 `readConfigToken()` / `createTokenSource()` / `SOURCE_LABELS`；
+  `lib/settings.js` 读写第三份落盘文件；`server.js` 去掉启动时算一次的 `const TOKEN`，改成每次现取，
+  启动日志打出来源中文标签；`lib/resolve.js` 的 `tokenOf()` 支持传函数。
+- 区域行（`app-shell.tsx`）右侧数字从「任务总数」改成三态：有在跑的显示 `N 跑着`，有等人的显示 `N 待处理`，
+  全部结束了才显示灰字总数；三种都带 tooltip 说明口径。口径常量在 `ui/src/lib/areas.ts` 的
+  `ATTENTION_STATES` / `areaAttention()`。
+
+### 为什么
+
+设置页原来所有卡片堆在一起，用户要求按功能拆成菜单；区域行那个数字一直是任务总数，
+F4 累积到 8 条历史记录后看着像待办，需要区分「要你动手的」和「跑过多少条」。
+
+### 点过的东西
+
+后端 8787，Playwright 开 `http://127.0.0.1:8787/#settings`。
+
+| 操作 | 观察到 | 结论 |
+| --- | --- | --- |
+| 打开设置页 | 左侧四项菜单，默认 AI token；右栏模型卡片显示 key 已保存（DPAPI 加密） | 通过 |
+| 点 MasterGo token | hash 变 `?tab=mastergo`；卡片显示「本机没存过 / 当前生效：~/.codex/config.toml」，清除按钮 disabled | 通过 |
+| 填 token 点保存 | 变「本机已保存（DPAPI 加密）/ 当前生效：本机保存」，出「已保存」提示 | 通过 |
+| 点清除本机保存 | 回到「本机没存过 / 当前生效：~/.codex/config.toml」，清除按钮 disabled，出「已清除」提示 | 通过 |
+| 点 AI Agent | hash 变 `?tab=agent`；Agent 写盘开关（checked）、Codex 引擎卡片（当前 v0.159.0 自检通过、远端有 v0.159.2）、运行时卡片（自带 Node v24.21.0 / pwsh v7.6.6，Claude Code 只检测） | 通过 |
+| 点更新 | hash 变 `?tab=update`；程序更新卡片（已是最新 v0.2.1）+ 运行环境明细（插件 1.0.369、控件查询引擎已找到、流水线入口已找到、已登记页面帧 2） | 通过 |
+| 看区域行 | F4 显示灰字 8，悬停提示「该区域共 8 条任务，都已结束」 | 通过，与设计一致 |
+
 ## 2026-09-30 出网代理兜底 + v0.2.1 发布与更新/回退演练
 
 ### 改了什么

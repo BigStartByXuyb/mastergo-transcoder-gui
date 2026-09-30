@@ -123,7 +123,12 @@ export default function App() {
       {route.page === "review" && <ReviewPage />}
       {route.page === "query" && <QueryPage />}
       {route.page === "mapping" && <MappingPage />}
-      {route.page === "settings" && <SettingsPage />}
+      {route.page === "settings" && (
+        <SettingsPage
+          tab={route.params.get("tab") ?? ""}
+          onPickTab={(tab) => go("settings?tab=" + tab)}
+        />
+      )}
     </AppShell>
   )
 }

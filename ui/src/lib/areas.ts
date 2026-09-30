@@ -80,6 +80,17 @@ export function areaLabel(ui: string): string {
   return ui || "未定区域"
 }
 
+/*
+ * 侧边栏区域行右边那个数只数「停下来等人」的任务：等语义输入 / 待合并 / 冲突 / 失败 / 被停掉。
+ * 跑着的有自己的徽标（area.running），已经结束的不占数字 —— 否则那个数只会随时间涨，
+ * 变成「这里跑过多少次」，跟当前该做什么无关。
+ */
+const ATTENTION_STATES = ["waiting", "ready", "conflict", "failed", "stopped"]
+
+export function areaAttention(area: AreaEntry): number {
+  return area.tasks.filter((task) => ATTENTION_STATES.includes(task.state)).length
+}
+
 /** 按工程分好组的区域：侧边栏直接渲染，不再自己 Set/filter/some 扫一遍。 */
 export type ProjectGroup = { projectRoot: string; areas: AreaEntry[]; hasTasks: boolean }
 

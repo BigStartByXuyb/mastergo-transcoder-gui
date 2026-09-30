@@ -137,6 +137,11 @@ export type Settings = {
   automation: "off" | "assist" | "auto"
   /** 对话/自动模式的写盘开关：关着时 Codex 只读，开着才允许它直接改工程文件。 */
   agent: { allowWrite: boolean }
+  /**
+   * MasterGo token：hasToken 是「本机存过没有」，source/sourceLabel 是「现在实际生效的是哪一份」。
+   * 两者可以不一致 —— 命令行或环境变量会盖住本机保存的那份，界面必须能把这个差别说出来。
+   */
+  mastergo: { hasToken: boolean; source: string; sourceLabel: string }
 }
 
 export type IconCandidate = {

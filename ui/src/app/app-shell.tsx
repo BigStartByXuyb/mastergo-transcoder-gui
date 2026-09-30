@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import type { AreaEntry } from "@/lib/areas"
-import { areaLabel, groupByProject } from "@/lib/areas"
+import { areaAttention, areaLabel, groupByProject } from "@/lib/areas"
 import { cn } from "@/lib/utils"
 
 /*
@@ -97,6 +97,7 @@ export function AppShell(props: Props) {
               </div>
               {group.areas.map((area) => {
                 const active = area.key === props.activeAreaKey
+                const attention = areaAttention(area)
                 return (
                   <button
                     key={area.key}
@@ -111,9 +112,27 @@ export function AppShell(props: Props) {
                   >
                     <Boxes className="size-4 shrink-0" />
                     <span className="min-w-0 flex-1 truncate">{areaLabel(area.ui)}</span>
-                    {area.running > 0 && <Badge variant="default">{area.running} 跑着</Badge>}
-                    {area.running === 0 && area.tasks.length > 0 && (
-                      <span className="text-muted-foreground text-xs tabular-nums">{area.tasks.length}</span>
+                    {/* 三个数各有各的口径：跑着的、要你动手的、纯历史总数。 */}
+                    {area.running > 0 && (
+                      <Badge variant="default" title={"该区域有 " + area.running + " 条任务正在跑"}>
+                        {area.running} 跑着
+                      </Badge>
+                    )}
+                    {area.running === 0 && attention > 0 && (
+                      <Badge
+                        variant="secondary"
+                        title={"该区域有 " + attention + " 条任务在等你处理（共 " + area.tasks.length + " 条）"}
+                      >
+                        {attention} 待处理
+                      </Badge>
+                    )}
+                    {area.running === 0 && attention === 0 && area.tasks.length > 0 && (
+                      <span
+                        className="text-muted-foreground text-xs tabular-nums"
+                        title={"该区域共 " + area.tasks.length + " 条任务，都已结束"}
+                      >
+                        {area.tasks.length}
+                      </span>
                     )}
                   </button>
                 )

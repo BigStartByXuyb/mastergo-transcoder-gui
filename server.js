@@ -16,7 +16,7 @@
  *   node server.js --project D:\SomeProject         # 从工程目录自动发现页面帧（离线优先）
  *   node server.js --snapshot <dsl.snapshot.json>    # 完全离线：只用一份快照
  *   node server.js --plugin <插件目录>               # 显式指定 mastergo-wpf-transcoder 插件根
- *   node server.js --token mg_xxx                    # 缺省取 env MASTERGO_MCP_TOKEN，再取 ~/.codex/config.toml
+ *   node server.js --token mg_xxx                    # 缺省按 env、本机保存、~/.codex/config.toml 的顺序找
  *
  * 引擎一律来自插件：找不到就停，不用自带副本（同一逻辑只有一个实现）。
  */
@@ -46,6 +46,7 @@ const { createUpdate } = require("./lib/update.js");
 const { createCodex } = require("./lib/codex.js");
 const { createRuntime } = require("./lib/runtime.js");
 const { applyProxy } = require("./lib/proxy.js");
+const { createTokenSource, SOURCE_LABELS } = require("./lib/mcp-token.js");
 
 const HERE = __dirname;
 const PUBLIC_DIR = path.join(HERE, "public");
@@ -79,21 +80,17 @@ const options = {
   open: argv.indexOf("--no-open") < 0
 };
 
-// token：命令行 > 环境变量 > ~/.codex/config.toml（不写进任何产物）
-function resolveToken() {
-  if (options.token) return options.token;
-  if (process.env.MASTERGO_MCP_TOKEN) return process.env.MASTERGO_MCP_TOKEN;
-  const home = process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
-  try {
-    const hit = /--token=(mg_[A-Za-z0-9_\-]+)/.exec(fs.readFileSync(path.join(home, "config.toml"), "utf8"));
-    if (hit) return hit[1];
-  }
-  catch {
-    return "";
-  }
-  return "";
-}
-const TOKEN = resolveToken();
+// 用户状态与凭据都在安装根（HOME）；settings 要早于 token 取值链建好。
+const HOME = process.env.MASTERGO_HOME || HERE;
+const settings = createSettings(HOME);
+
+// token 的来源与顺序只有 lib/mcp-token.js 一处：启动参数 > 环境变量 > 本机保存 > config.toml。
+// 取值不缓存 —— 设置页里保存完立刻按新值走。
+const tokenSource = createTokenSource({
+  cli: options.token,
+  home: process.env.CODEX_HOME || path.join(os.homedir(), ".codex"),
+  settings: settings
+});
 
 // ---- 装配 ----
 // 出网要走代理才有更新：先按环境变量/系统设置把代理立起来，后面的下载与 pwsh 子进程都跟着走。
@@ -116,7 +113,7 @@ const resolver = createResolver({
   engine: PLUGIN.engine,
   pluginRoot: PLUGIN.root,
   pwsh: PLUGIN.pwsh,
-  token: TOKEN,
+  token: function () { return tokenSource.value(); },
   project: options.project,
   snapshot: options.snapshot,
   workRoot: workRoot
@@ -124,8 +121,6 @@ const resolver = createResolver({
 resolver.refreshProjectFrames();
 
 const runs = createRunManager({ plugin: PLUGIN });
-const HOME = process.env.MASTERGO_HOME || HERE;
-const settings = createSettings(HOME);
 const pending = createPending({ plugin: PLUGIN });
 const ai = createAi({ settings: settings });
 const artifacts = createArtifacts();
@@ -169,7 +164,8 @@ const runtime = createRuntime({ home: HOME, isBusy: busyReason });
 const routes = createRoutes({
   resolver: resolver,
   plugin: PLUGIN,
-  token: TOKEN,
+  token: function () { return tokenSource.value(); },
+  tokenSource: tokenSource,
   version: VERSION,
   runs: runs,
   settings: settings,
@@ -237,7 +233,9 @@ server.listen(options.port, options.host, function () {
   process.stdout.write("代理: " + (proxy.filled.length
     ? "已按 Windows 系统设置补上 " + proxy.filled.join("、")
     : (proxy.enabled ? "按环境变量" : "未启用（直连）")) + "\n");
-  process.stdout.write("token: " + (TOKEN ? "已就绪" : "缺失（只有本地快照模式可用）") + "\n");
+  process.stdout.write("token: " + (tokenSource.value()
+    ? "已就绪（来源：" + (SOURCE_LABELS[tokenSource.source()] || "未知") + "）"
+    : "缺失（只有本地快照模式可用）") + "\n");
   if (!fs.existsSync(path.join(PUBLIC_DIR, "index.html"))) {
     process.stdout.write("界面: 未构建 —— 先跑 npm run build:ui，或开发时用 npm run dev:ui。\n");
   }

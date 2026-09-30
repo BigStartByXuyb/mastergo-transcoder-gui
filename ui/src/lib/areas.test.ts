@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { BoardTask } from "@/lib/api"
-import { areaKey, areaLabel, buildAreas, collectProjectRoots, projectRootOf } from "@/lib/areas"
+import { areaAttention, areaKey, areaLabel, buildAreas, collectProjectRoots, projectRootOf } from "@/lib/areas"
 
 function task(patch: { id: string; projectRoot: string; ui: string; state?: string }): BoardTask {
   return {
@@ -93,6 +93,22 @@ describe("buildAreas", () => {
   it("区域显示名：没登记区域时给一个能点的名字", () => {
     expect(areaLabel("F1")).toBe("F1")
     expect(areaLabel("")).toBe("未定区域")
+  })
+
+  it("待处理只数停下来等人的任务：跑着的、已结束的都不算", () => {
+    const areas = buildAreas({
+      projects: [],
+      pagesByProject: {},
+      tasks: [
+        task({ id: "t1", projectRoot: "/a", ui: "F1", state: "waiting" }),
+        task({ id: "t2", projectRoot: "/a", ui: "F1", state: "conflict" }),
+        task({ id: "t3", projectRoot: "/a", ui: "F1", state: "running" }),
+        task({ id: "t4", projectRoot: "/a", ui: "F1", state: "merged" }),
+        task({ id: "t5", projectRoot: "/b", ui: "F1", state: "failed" })
+      ]
+    })
+    expect(areaAttention(areas[0])).toBe(2)
+    expect(areaAttention(areas[1])).toBe(1)
   })
 
   it("「任务 → 工程」只有一套归一化：去空白、去空值、去重、排序", () => {

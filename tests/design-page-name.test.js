@@ -47,7 +47,7 @@ function caseFailures() {
   // 缺 token 给可照做的提示（与控件查询同一口径），而不是丢给子进程拼一句含糊的退出码
   assert.throws(
     () => resolveDesignPageName({ pluginRoot: missing, fileId: "1", layerId: "1:1", token: "" }),
-    (error) => error.code === "NEED_TOKEN" && /config\.toml/.test(error.hint)
+    (error) => error.code === "NEED_TOKEN" && /MasterGo token/.test(error.hint)
   );
 
   const empty = pluginWith([
