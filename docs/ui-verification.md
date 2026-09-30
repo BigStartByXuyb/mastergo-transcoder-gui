@@ -16,6 +16,65 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-09-30 出网代理兜底 + v0.2.1 发布与更新/回退演练
+
+### 改了什么
+
+- `lib/proxy.js`：新增 `applyProxy()`。环境里已经有 `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` 就一个字不动，只调
+  `http.setGlobalProxyFromEnv()`；一个都没有才去读 Windows 注册表 `HKCU\...\Internet Settings`（`ProxyEnable` / `ProxyServer`，
+  支持 `http=;https=` 分协议写法，取 https 优先），补齐 `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` 再调 `setGlobalProxyFromEnv()`；
+  非 Windows、注册表读不到、老 Node 没这个函数，一律直连，不抛错。
+- `server.js`：装配段最前面调 `applyProxy()`，启动日志多一行 `代理: ...`。
+- `package.json`：0.2.0 -> 0.2.1（演练要一次真的版本升级）。
+- `tests/proxy.test.js`：新增；读注册表那几条断言显式传 `platform: "win32"`，另加一条只在真 Windows 上跑的真读注册表断言（只读）。
+- `README.md`：补 `lib/proxy.js` 说明和「出网代理」一段。
+
+### 为什么
+
+客户端 `POST /api/update/check` 报 `DOWNLOAD_FAILED ... fetch failed`。原因是 Node 的全局 `fetch` 只认环境变量代理，
+不认 Windows 注册表 / Internet 选项，而本机必须走 `127.0.0.1:7890`。实测两点：进程内再设 `process.env.NODE_USE_ENV_PROXY`
+无效（undici 已经初始化）；只有框架级代理能同时覆盖服务进程和 pwsh / node 子进程。
+
+### 点过的东西
+
+发布：v0.2.1 tag 推上去后，main CI run 36653893425 和 tag CI run 36654053824 都 success（release 作业出 53 个资产）；
+`releases/latest/download/manifest.json` 回 version=0.2.1、52 个文件、minClientVersion 为空、freshRunRequired=true。
+
+更新/回退用老客户端真跑：`git archive 043a005` 解到 `%TEMP%\gui-old-0.1.0-*`，node_modules 走 junction，端口 8788。
+
+| 步骤 | 操作 | 观察到 | 结论 |
+| --- | --- | --- | --- |
+| 1 | 0.1.0（还没代理兜底）`POST /api/update/check` | `state=error`、`DOWNLOAD_FAILED` | 对照证据，失败态可复现 |
+| 2 | 0.1.0 加临时 `NODE_USE_ENV_PROXY=1` 启动，再 `check` | `update_available`，目标 v0.2.1，changed 3 / total 52 | 通过 |
+| 3 | `POST /api/update/download` | `started=true`；轮询到 `phase=done 3/3`、`state=download_ready`，`staged` 出现 0.2.1 | 通过，差分只下拉 3 个文件 |
+| 4 | `POST /api/update/apply` 传 0.2.1 | `ok`、`restartRequired=true`；`current.json` 变 0.2.1、previous 是 0.1.0 | 通过 |
+| 5 | 重启 8788（不带任何代理变量）再 `check` | 日志 `版本: v0.2.1（current.json）`、引擎指向 `versions\0.2.1\lib\node-controls.js`；`up_to_date`、`rollback:"0.1.0"` | 通过，代理兜底真生效 |
+| 6 | `POST /api/update/rollback` | `ok`、`version=0.1.0`；重启后 `版本: 本地这一份（无指针）`、v0.1.0 | 通过 |
+
+设置页（`http://127.0.0.1:8788/#settings` 的程序更新卡片，Playwright）：
+
+| 操作 | 观察到 | 结论 |
+| --- | --- | --- |
+| 点「检查更新」 | 卡片变「v0.2.1 已下载」，提示「运行树 52 个文件，要比对替换 3 个；这版要求新开一次运行」 | 通过 |
+| 点「重启后用 v0.2.1」 | 界面出「已切到 v0.2.1，下次启动生效」；`current.json` 变 0.2.1 | 通过 |
+| 再看卡片 | 版本列表 0.1.0 标「正在用」、0.2.1 带「切到这一版」；按钮组是 检查更新 / 重启后用 v0.2.1 / 退回 v0.1.0 | 通过 |
+
+### 没点的
+
+- 界面上那个「退回」按钮没点，回退走接口验的（同一个 rollback handler）。
+- 断网没模拟：读不到代理时的直连分支由单测覆盖，真机断网没试。
+
+### 自动化门禁
+
+| 命令 | 结果 |
+| --- | --- |
+| `npm test`（仓库根） | 通过 30/30 |
+| `npm run test:coverage`（仓库根，`lib/**`） | 通过，all files 96.95 / 83.15 / 96.48，`proxy.js` 100 / 83.93 / 100（门禁 90/75/90） |
+| `npx tsc -b`（`ui\`） | exit 0 |
+| `npm --prefix ui run test:coverage` | 通过，27 文件 / 153 用例；all files 99.29 / 91.63 / 100 / 99.29 |
+| `npm run lint --prefix ui` | 0 error（仅既存 hooks warning） |
+| `check-app-structure.mjs` | PASS（hardcoded-paths / orphan-exports / layering / ci-pin 各 0 条） |
+
 ## 2026-09-30 插件目录纳入写盘拦截
 
 ### 改了什么
