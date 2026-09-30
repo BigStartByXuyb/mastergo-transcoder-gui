@@ -498,6 +498,37 @@ async function main() {
   assert.throws(function () { fencedCodex.execArgs({ prompt: "x", write: true, projectRoot: pluginSub, confirmRoot: pluginSub }); }, /不能是插件目录/);
   assert.throws(function () { fencedCodex.execArgs({ prompt: "x", write: true, projectRoot: path.join(pluginHome, "..", path.basename(pluginHome)), confirmRoot: pluginHome }); }, /不能是插件目录/, "换个写法指向同一个目录也要拦");
 
+  // 自定插件根（--plugin / 设置里选的）同样在保护清单里：真清单、真判据走一遍。
+  const customRoot = fs.mkdtempSync(path.join(os.tmpdir(), "gui-custom-plugin-"));
+  tempDirs.push(customRoot);
+  const byArgCodex = createCodex({
+    home: home,
+    settings: fakeSettings(),
+    env: cleanEnv(home),
+    fetchImpl: remote.fetchImpl,
+    spawnSyncImpl: probe(),
+    pluginExplicitDir: customRoot
+  });
+  assert.throws(
+    function () { byArgCodex.execArgs({ prompt: "x", write: true, projectRoot: customRoot, confirmRoot: customRoot }); },
+    /不能是插件目录/,
+    "--plugin 指的那份不能被当成工程目录"
+  );
+  const pickedSettings = fakeSettings();
+  pickedSettings.read = function () { return { agent: { allowWrite: true }, pluginRoot: customRoot }; };
+  const bySettingCodex = createCodex({
+    home: home,
+    settings: pickedSettings,
+    env: cleanEnv(home),
+    fetchImpl: remote.fetchImpl,
+    spawnSyncImpl: probe()
+  });
+  assert.throws(
+    function () { bySettingCodex.execArgs({ prompt: "x", write: true, projectRoot: customRoot, confirmRoot: customRoot }); },
+    /不能是插件目录/,
+    "设置里选的那份也不能被当成工程目录"
+  );
+
   // 直接给了不可用的厂商名以外，配置缺项要能原样报出来。
   const noKey = createCodex({
     home: home,

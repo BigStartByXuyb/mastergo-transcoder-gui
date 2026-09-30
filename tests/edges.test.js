@@ -44,6 +44,27 @@ function casePluginRootErrors() {
     ],
     "显式指定的那份排最前，没给 CODEX_HOME 就退回 ~/.codex"
   );
+  // 自定插件根也要算「插件的地盘」：写盘防线读的是同一份，缺了它插件本体能被当成工程目录。
+  assert.deepStrictEqual(
+    pluginHomes({
+      env: {},
+      home: path.join(tmp, "home"),
+      explicitDir: path.join(tmp, "arg"),
+      chosenRoot: path.join(tmp, "picked")
+    }),
+    [
+      path.resolve(path.join(tmp, "arg")),
+      path.resolve(path.join(tmp, "picked")),
+      path.join(tmp, "home", ".codex", "plugins"),
+      path.join(tmp, "home", ".claude", "plugins")
+    ],
+    "--plugin 与设置里选的那份都进保护清单"
+  );
+  assert.strictEqual(
+    pluginHomes({ env: {}, home: path.join(tmp, "home"), explicitDir: path.join(tmp, "picked"), chosenRoot: path.join(tmp, "picked") }).length,
+    3,
+    "两处指到同一个目录时只留一条"
+  );
 
   assert.throws(
     () => resolvePluginRoot(tmp),

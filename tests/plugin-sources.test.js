@@ -190,6 +190,25 @@ function caseSetting() {
   fs.rmSync(box.tmp, { recursive: true, force: true });
 }
 
+// 两条来源指到同一个插件根（例如设置里选的正好是 Codex 缓存那一处）时，只标一条「正在用」。
+function caseActiveOnce() {
+  const box = sandbox();
+  const fx = fixture(box);
+  const settings = createSettings(box.home);
+  settings.write({ pluginRoot: fx.codexNew });
+  const runtime = createPluginRuntime({
+    installRoot: box.install,
+    settings: settings,
+    home: box.home,
+    env: { CODEX_HOME: box.codex }
+  });
+
+  const active = runtime.sources().filter((item) => item.active);
+  assert.strictEqual(active.length, 1, "同一个插件根只标一条");
+  assert.strictEqual(active[0].id, "chosen", "标在真正被取用的那一条上");
+  fs.rmSync(box.tmp, { recursive: true, force: true });
+}
+
 // 「列出来」与「用哪一份」必须是同一判据：指到装着插件的父目录时，两边都认。
 function caseParentDir() {
   const box = sandbox();
@@ -230,6 +249,7 @@ try {
     ["换一份立刻生效", caseRuntime],
     ["一处都没有", caseMissing],
     ["设置里选的那一份", caseSetting],
+    ["同一个插件根只标一条正在用", caseActiveOnce],
     ["父目录里装着插件", caseParentDir]
   ];
   for (const [name, run] of cases) {

@@ -161,7 +161,13 @@ const update = createUpdate({
   isBusy: busyReason
 });
 // Codex 引擎：只下载进安装根，用户的 ~/.codex 一概不动；对话与写盘由插件脚本负责。
-const codex = createCodex({ home: HOME, settings: settings, isBusy: busyReason });
+const codex = createCodex({
+  home: HOME,
+  settings: settings,
+  isBusy: busyReason,
+  // 写盘防线要知道自定插件根在哪儿，不然「工程目录」填成插件本体就没人拦。
+  pluginExplicitDir: options.plugin
+});
 // 运行时：客户端自带的 Node / PowerShell 7 与 claude 的检测结果，设置页的运行时卡片读它。
 const runtime = createRuntime({ home: HOME, isBusy: busyReason });
 // 对话存档：chats.json 在安装根，属于用户状态，不随程序版本走。
