@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress"
 import { api, type UpdateStatus } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
-import { applyDownload } from "@/lib/download-run"
+import { finishDownload } from "@/app/download-actions"
 import { startUpdateDownload } from "@/lib/update-download"
 import { runSwitch } from "@/lib/update-switch"
 import { missingFeatures } from "@/lib/version-features"
@@ -119,9 +119,9 @@ export function UpdateCard() {
       // 与顶栏红点共用同一处「发起下载」。
       () => startUpdateDownload(version),
       (payload) =>
-        applyDownload(payload, {
+        // act 已经套过状态，这里只按 kind 落地（失败写红字、起步报一句）。
+        finishDownload(payload, {
           setFailure,
-          onAlready: (message) => toast.info(message),
           onStarted: () => toast.success("正在下载 v" + version)
         })
     )
