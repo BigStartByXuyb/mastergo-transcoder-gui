@@ -32,9 +32,7 @@ export type Health = {
 /** /api/health 带回来的新版状态：state 与设置页的更新四态同一套口径。 */
 export type UpdateHint = {
   state: string
-  current: string
   ready: string
-  busy: string
   availableVersion: string
 }
 

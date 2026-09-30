@@ -52,7 +52,7 @@ function StatusBadges(props: { onOpenUpdatePage: () => void }) {
       </Badge>
       <Badge variant="outline">插件 {health.plugin.version ? "v" + health.plugin.version : "未知版本"}</Badge>
       <UpdateBadge
-        update={health.update ?? null}
+        update={health.update}
         supervised={health.supervised}
         onOpenUpdatePage={props.onOpenUpdatePage}
       />

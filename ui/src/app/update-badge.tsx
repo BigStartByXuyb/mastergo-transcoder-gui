@@ -3,8 +3,9 @@ import { Loader2 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { BusyOverlay } from "@/app/busy-overlay"
-import { api, type UpdateHint } from "@/lib/api"
+import type { UpdateHint } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
+import { startUpdateDownload } from "@/lib/update-download"
 import { switchVersionAndWait } from "@/lib/update-switch"
 
 /*
@@ -12,15 +13,15 @@ import { switchVersionAndWait } from "@/lib/update-switch"
  * 点它：还没下载就先开始下载（后台跑，进度在设置页看），已经下载好就直接切过去 —— 切完界面自己回来。
  */
 
-export function UpdateBadge(props: { update: UpdateHint | null; supervised: boolean; onOpenUpdatePage: () => void }) {
+export function UpdateBadge(props: { update: UpdateHint | undefined; supervised: boolean; onOpenUpdatePage: () => void }) {
   const [busy, setBusy] = useState("")
   const [failure, setFailure] = useState("")
   const hint = props.update
-  const target = hint && hint.ready ? hint.ready : hint ? hint.availableVersion : ""
+  const target = hint ? hint.ready || hint.availableVersion : ""
 
   if (!hint || !target || hint.state === "up_to_date" || hint.state === "error") return null
 
-  const downloaded = hint.state === "download_ready" && hint.ready === target
+  const downloaded = hint.state === "download_ready"
 
   async function open() {
     if (!hint) return
@@ -28,13 +29,12 @@ export function UpdateBadge(props: { update: UpdateHint | null; supervised: bool
     // 还没下载：先开始下载（后台任务），并把人带到更新页看进度。
     if (!downloaded) {
       setBusy("download")
-      try {
-        const started = await api.updateDownload()
-        if (!started.started) setFailure(started.note || "这次没开始下载")
-      } catch (error) {
-        setFailure(describeFailure(error))
-      } finally {
-        setBusy("")
+      const got = await startUpdateDownload()
+      setBusy("")
+      if (got.error || !got.started) {
+        // 没起来就留在原地把原因说清，不再把人带走。
+        setFailure(got.error || got.note || "这次没开始下载")
+        return
       }
       props.onOpenUpdatePage()
       return

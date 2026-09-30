@@ -9,7 +9,7 @@ import type { UpdateHint } from "@/lib/api"
  */
 
 function hint(patch: Partial<UpdateHint> = {}): UpdateHint {
-  return { state: "update_available", current: "0.6.11", ready: "", busy: "", availableVersion: "0.6.12", ...patch }
+  return { state: "update_available", ready: "", availableVersion: "0.6.12", ...patch }
 }
 
 function ok(body: unknown) {
@@ -39,7 +39,7 @@ describe("UpdateBadge", () => {
   })
 
   it("service 没读到状态也不挂", () => {
-    const { container } = render(<UpdateBadge update={null} supervised onOpenUpdatePage={vi.fn()} />)
+    const { container } = render(<UpdateBadge update={undefined} supervised onOpenUpdatePage={vi.fn()} />)
     expect(container.textContent).toBe("")
   })
 

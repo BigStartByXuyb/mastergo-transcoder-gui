@@ -116,9 +116,7 @@ async function main() {
   const hinted = update.hint();
   assert.deepStrictEqual(hinted, {
     state: "update_available",
-    current: "0.1.0",
     ready: "",
-    busy: "",
     availableVersion: "0.2.0"
   });
 

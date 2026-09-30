@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress"
 import { api, type UpdateStatus } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
+import { startUpdateDownload } from "@/lib/update-download"
 import { switchVersionAndWait } from "@/lib/update-switch"
 import {
   blockedNote,
@@ -98,11 +99,10 @@ export function UpdateCard() {
     setWorking("download")
     setFailure("")
     try {
-      const payload = await api.updateDownload()
-      setStatus(payload.status)
-      if (!payload.started) toast.info(payload.note)
-    } catch (error) {
-      setFailure(describeFailure(error))
+      const got = await startUpdateDownload()
+      if (got.status) setStatus(got.status)
+      if (got.error) setFailure(got.error)
+      else if (!got.started) toast.info(got.note)
     } finally {
       setWorking("")
     }
