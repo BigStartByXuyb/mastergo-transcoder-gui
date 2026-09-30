@@ -18,7 +18,7 @@ function ok(body: unknown) {
 
 function stub() {
   const mock = vi.fn((url: string) => {
-    if (String(url).includes("/api/update/download")) return ok({ ok: true, started: true, version: "0.6.12", status: {} })
+    if (String(url).includes("/api/update/stage")) return ok({ ok: true, started: true, version: "0.6.12", status: {} })
     return ok({ ok: true })
   })
   vi.stubGlobal("fetch", mock)
@@ -50,7 +50,7 @@ describe("UpdateBadge", () => {
     expect(screen.getByText("有新版 v0.6.12")).toBeTruthy()
     fireEvent.click(screen.getByRole("button"))
     await waitFor(() => expect(onOpenUpdatePage).toHaveBeenCalled())
-    expect(mock.mock.calls.some((call) => String(call[0]).includes("/api/update/download"))).toBe(true)
+    expect(mock.mock.calls.some((call) => String(call[0]).includes("/api/update/stage"))).toBe(true)
   })
 
   it("下载好了：文字变成可切换", () => {
