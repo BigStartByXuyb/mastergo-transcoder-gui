@@ -86,6 +86,17 @@ CI 的语义审计给了 `result: PASS`、0 阻断 + 4 条复核，四条都按�
 两条观察一并处理：同一个插件根被两条来源同时命中时只标「正在用」在真正取用的那一条（测试补一条）；
 两处描述同一规则的中文句子措辞对齐。
 
+第四轮复核 2 条，都是「同一条规则又写了一遍」，收口后插件这块只剩三处判据：
+
+9. **「设置里选的那一份」被 codex 与 plugin 各读一遍** → 不再由 codex 自己读设置：装配处（`server.js`）
+   把 `pluginHomes()` 拼好后交给它（`chosenRoot` 取自插件运行时的 `chosen()`），读设置只剩插件运行时一处。
+10. **「哪条来源生效」在 `plugin.js` 又推了一遍** → 新增 `activePluginSource()`（`plugin-root.js`）：
+    顺序、`--plugin` 的特殊分支、`exists` 判据都在这一个函数里，`resolvePluginRoot()` 与界面标「正在用」
+    都读它的返回值。
+
+至此三处判据各自只有一处实现：`pluginSources()`（列出）、`activePluginSource()`（取用与标注）、
+`pluginHomes()`（写盘防线），且后者由装配处用前两者的同一份输入拼出来。
+
 截图（`D:\MasterGoData\Temp\ui-shots\`）：
 
 - `2026-10-01-plugin-page.png` —— 设置里的「插件」页（与 AI Agent 平级）

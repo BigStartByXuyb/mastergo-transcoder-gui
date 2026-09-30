@@ -15,6 +15,7 @@ const zlib = require("zlib");
 
 const { createCodex } = require("../lib/codex.js");
 const { describeRelease, fetchRelease, versionOfTag } = require("../lib/codex-release.js");
+const { pluginHomes } = require("../lib/plugin-root.js");
 
 const CHANNEL = "x86_64-pc-windows-msvc";
 const BINARIES = ["codex", "codex-command-runner", "codex-code-mode-host", "codex-windows-sandbox-setup"];
@@ -501,27 +502,27 @@ async function main() {
   // 自定插件根（--plugin / 设置里选的）同样在保护清单里：真清单、真判据走一遍。
   const customRoot = fs.mkdtempSync(path.join(os.tmpdir(), "gui-custom-plugin-"));
   tempDirs.push(customRoot);
+  // 装配处（server.js）就是这么做这道防线的：把自定插件根并进同一份清单。
   const byArgCodex = createCodex({
     home: home,
     settings: fakeSettings(),
     env: cleanEnv(home),
     fetchImpl: remote.fetchImpl,
     spawnSyncImpl: probe(),
-    pluginExplicitDir: customRoot
+    pluginHomes: function () { return pluginHomes({ env: cleanEnv(home), explicitDir: customRoot }); }
   });
   assert.throws(
     function () { byArgCodex.execArgs({ prompt: "x", write: true, projectRoot: customRoot, confirmRoot: customRoot }); },
     /不能是插件目录/,
     "--plugin 指的那份不能被当成工程目录"
   );
-  const pickedSettings = fakeSettings();
-  pickedSettings.read = function () { return { agent: { allowWrite: true }, pluginRoot: customRoot }; };
   const bySettingCodex = createCodex({
     home: home,
-    settings: pickedSettings,
+    settings: fakeSettings(),
     env: cleanEnv(home),
     fetchImpl: remote.fetchImpl,
-    spawnSyncImpl: probe()
+    spawnSyncImpl: probe(),
+    pluginHomes: function () { return pluginHomes({ env: cleanEnv(home), chosenRoot: customRoot }); }
   });
   assert.throws(
     function () { bySettingCodex.execArgs({ prompt: "x", write: true, projectRoot: customRoot, confirmRoot: customRoot }); },
