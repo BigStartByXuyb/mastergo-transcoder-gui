@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { Download, Loader2, Terminal } from "lucide-react"
+import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -65,7 +66,8 @@ export function RuntimeCard() {
     const got = await startDownload(function () {
       return api.runtimeDownload(tool)
     })
-    applyDownload(got, { setStatus, setFailure })
+    if (got.status) setStatus(got.status)
+    applyDownload(got, { setFailure, onAlready: (message) => toast.info(message) })
     setWorking("")
   }
 

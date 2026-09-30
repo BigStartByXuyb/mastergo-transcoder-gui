@@ -72,7 +72,8 @@ export function CodexCard() {
     const got = await startDownload(function () {
       return api.codexDownload()
     })
-    applyDownload(got, { setStatus, setFailure })
+    if (got.status) setStatus(got.status)
+    applyDownload(got, { setFailure, onAlready: (message) => toast.info(message) })
     setWorking("")
   }
 

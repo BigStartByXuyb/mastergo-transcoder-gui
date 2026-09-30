@@ -35,7 +35,6 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
       setBusy("")
       // 这条入口没有自己的状态可套：起来了或本来就有，都带去更新页；失败留在原地把原因说清。
       applyDownload(got, {
-        setStatus: () => undefined,
         setFailure,
         onStarted: props.onOpenUpdatePage,
         onAlready: props.onOpenUpdatePage

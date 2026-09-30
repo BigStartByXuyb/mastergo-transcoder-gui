@@ -120,8 +120,8 @@ export function UpdateCard() {
       () => startUpdateDownload(version),
       (payload) =>
         applyDownload(payload, {
-          setStatus,
           setFailure,
+          onAlready: (message) => toast.info(message),
           onStarted: () => toast.success("正在下载 v" + version)
         })
     )
