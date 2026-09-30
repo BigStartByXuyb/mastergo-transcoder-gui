@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { EngineLog } from "@/app/chat-engine-log"
 import { ClampText } from "@/app/clamp-text"
 import type { AgentItem } from "@/lib/agent-stream"
+import { groupSteps } from "@/lib/chat-blocks"
 import { cn } from "@/lib/utils"
 
 export type Turn =
@@ -16,37 +17,35 @@ export type Turn =
 /*
  * 对话记录：按顺序贴出来的一轮。
  *
- * 说话分左右：你说的话靠右、带身份气泡；它说的话靠左。
- * 工具调用不占正文位置：每一次调用收成一行（图标 + 一句话 + 状态），点开才铺细节，
- * 默认全收起 —— 一屏都是命令输出就看不见答案了。
- *
- * 条目只在这里定性，别处不再判断：
- *   message   正文
- *   notice    引擎自己报的提示（这一轮照样跑完），浅色一行
- *   failure   这一轮没跑完，红色卡片
- *   command / fileChange / tool / search / reasoning   工具调用，各自一行
+ * 说话分左右：你说的话靠右（深色气泡），它说的话靠左（白底描边气泡）。
+ * 过程类条目（命令 / 文件改动 / 工具 / 搜索 / 思考）连着出现时**先合成一条**「调用过程 N 步」，
+ * 展开才看是哪几步，每一步再点开才看详情 —— 两折，默认全收起。
+ * 正文（message）不进这个组，它就按原顺序夹在组与组之间，读起来还是「说了什么 → 做了什么 → 又说了什么」。
  */
 export function ChatTranscript(props: { turns: Turn[]; agentName: string; empty?: string }) {
   const firstAgentAt = props.turns.findIndex((turn) => turn.kind === "agent")
+  const blocks = groupSteps(props.turns)
   return (
     <div className="flex flex-col gap-3">
       {props.turns.length === 0 && (
         <p className="text-muted-foreground text-sm">{props.empty ?? "还没有对话。"}</p>
       )}
-      {props.turns.map((turn, index) =>
-        turn.kind === "you" ? (
-          <YouBubble key={index} text={turn.text} />
-        ) : turn.kind === "log" ? (
-          <EngineLog key={index} text={turn.text} open={turn.open} />
+      {blocks.map((block, index) =>
+        block.kind === "steps" ? (
+          <StepGroup key={index} items={block.items} />
+        ) : block.turn.kind === "you" ? (
+          <YouBubble key={index} text={block.turn.text} />
+        ) : block.turn.kind === "log" ? (
+          <EngineLog key={index} text={block.turn.text} open={block.turn.open} />
         ) : (
-          <AgentItemView key={index} item={turn.item} agentName={props.agentName} lead={index === firstAgentAt} />
+          <AgentItemView key={index} item={block.turn.item} agentName={props.agentName} lead={index === firstAgentAt} />
         )
       )}
     </div>
   )
 }
 
-/* 你说的话：靠右，气泡旁边挂一个身份标识。 */
+/* 你说的话：靠右，深色气泡 + 一个身份标识。 */
 function YouBubble({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
@@ -58,6 +57,40 @@ function YouBubble({ text }: { text: string }) {
           你
         </span>
       </div>
+    </div>
+  )
+}
+
+/*
+ * 一组过程：收起时只有一行（几步 + 第一步是什么），点开才列出每一步；
+ * 每一步仍是可展开的一行，详情（命令原文、输出、改动的文件）在第二层。
+ */
+function StepGroup({ items }: { items: AgentItem[] }) {
+  const [shown, setShown] = useState(false)
+  const running = items.some((item) => "running" in item && item.running)
+  return (
+    <div className="flex flex-col gap-1 pl-8">
+      <button
+        type="button"
+        aria-expanded={shown}
+        onClick={() => setShown((current) => !current)}
+        title="展开看每一步；每一步还能再点开看详情"
+        className="hover:bg-card/80 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors"
+      >
+        <ChevronRight className={cn("text-muted-foreground size-3.5 shrink-0 transition-transform", shown && "rotate-90")} />
+        <span className="shrink-0 font-medium">调用过程 {items.length} 步</span>
+        {/* 展开后就不再重复第一步的名字了（下面每一行自己写着）。 */}
+        {!shown && <span className="text-muted-foreground min-w-0 flex-1 truncate">{stepTitle(items[0])}</span>}
+        {shown && <span className="flex-1" />}
+        {running && <Loader2 className="text-muted-foreground size-3 shrink-0 animate-spin" />}
+      </button>
+      {shown && (
+        <div className="bg-card/70 flex flex-col gap-0.5 rounded-md border p-1">
+          {items.map((item, index) => (
+            <StepRow key={item.itemId || index} item={item} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -102,10 +135,15 @@ function AgentItemView({ item, agentName, lead }: { item: AgentItem; agentName: 
   if (item.kind === "thread") {
     return <p className="text-muted-foreground pl-8 text-xs">对话 {item.threadId.slice(0, 8)} 已开</p>
   }
+  return <StepGroup items={[item]} />
+}
+
+/* 每一步一行：图标 + 一句话 + 状态，点开才铺细节。 */
+function StepRow({ item }: { item: AgentItem }) {
   if (item.kind === "reasoning") {
     return (
       <Step icon={<Sparkles className="size-3.5" />} title="思考过程" running={item.running}>
-        <pre className="bg-muted text-muted-foreground max-h-80 overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">
+        <pre className="bg-muted max-h-80 overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">
           {item.text}
         </pre>
       </Step>
@@ -163,11 +201,25 @@ function AgentItemView({ item, agentName, lead }: { item: AgentItem; agentName: 
       </Step>
     )
   }
-  return (
-    <Step icon={<Globe className="size-3.5" />} title={"搜索 " + item.query} running={item.running}>
-      <p className="bg-muted rounded-md p-3 text-xs break-words">{item.query}</p>
-    </Step>
-  )
+  if (item.kind === "search") {
+    return (
+      <Step icon={<Globe className="size-3.5" />} title={"搜索 " + item.query} running={item.running}>
+        <p className="bg-muted rounded-md p-3 text-xs break-words">{item.query}</p>
+      </Step>
+    )
+  }
+  return null
+}
+
+/* 收起那一行显示「第一步是什么」，让人不用展开也知道它干了什么。 */
+function stepTitle(item: AgentItem | undefined): string {
+  if (!item) return ""
+  if (item.kind === "command") return prettyCommand(item.command)
+  if (item.kind === "fileChange") return "改了 " + item.changes.length + " 个文件"
+  if (item.kind === "tool") return [item.server, item.tool].filter(Boolean).join(" · ") || "工具调用"
+  if (item.kind === "search") return "搜索 " + item.query
+  if (item.kind === "reasoning") return "思考过程"
+  return ""
 }
 
 function AgentChip({ name }: { name: string }) {
@@ -181,10 +233,7 @@ function AgentChip({ name }: { name: string }) {
   )
 }
 
-/*
- * 一次工具调用占一行：图标 + 一句话 + 状态，点开才铺细节。
- * 折叠状态在本地，不进存档 —— 重开页面回到「全收起」。
- */
+/* 一行 = 图标 + 一句话 + 状态；展开才铺细节。 */
 function Step(props: {
   icon: ReactNode
   title: string
@@ -196,7 +245,7 @@ function Step(props: {
 }) {
   const [shown, setShown] = useState(false)
   return (
-    <div className="flex flex-col gap-1.5 pl-8">
+    <div className="flex flex-col gap-1.5">
       <button
         type="button"
         aria-expanded={shown}
@@ -215,7 +264,7 @@ function Step(props: {
           </Badge>
         ) : null}
       </button>
-      {shown && <div className="flex flex-col gap-2">{props.children}</div>}
+      {shown && <div className="flex flex-col gap-2 pl-8">{props.children}</div>}
     </div>
   )
 }
@@ -235,3 +284,4 @@ function changeLabel(action: string) {
   if (action === "update") return "修改"
   return action || "改动"
 }
+

@@ -34,14 +34,30 @@ describe("ChatTranscript", () => {
     expect(screen.getByText("模型拒了")).toBeTruthy()
   })
 
-  // 主对话里工具调用默认只占一行：不点开就看不到命令输出。
-  it("命令默认收起，点开才铺命令与输出", () => {
+  // 两折：过程先合成一条，点开才是每一步，再点开才看详情。
+  it("过程先合成一条，点开才是每一步，再点开才看详情", () => {
     show([agent({ kind: "command", itemId: "item_0", command: "Get-Date", output: "2026-09-30", exitCode: 1, running: false })])
+    expect(screen.getByText("调用过程 1 步")).toBeTruthy()
+    expect(screen.queryByText("exit 1")).toBeNull()
+    expect(screen.queryByText("2026-09-30")).toBeNull()
+    fireEvent.click(screen.getByText("调用过程 1 步"))
     expect(screen.getByText("Get-Date")).toBeTruthy()
     expect(screen.getByText("exit 1")).toBeTruthy()
     expect(screen.queryByText("2026-09-30")).toBeNull()
-    fireEvent.click(screen.getByRole("button"))
+    fireEvent.click(screen.getByText("Get-Date"))
     expect(screen.getByText("2026-09-30")).toBeTruthy()
+  })
+
+  it("连着几步合成一条，中间夹着正文就分成两组", () => {
+    show([
+      agent({ kind: "command", itemId: "item_0", command: "ls", output: "", exitCode: 0, running: false }),
+      agent({ kind: "command", itemId: "item_1", command: "pwd", output: "", exitCode: 0, running: false }),
+      agent({ kind: "message", itemId: "item_2", text: "先看这两个" }),
+      agent({ kind: "command", itemId: "item_3", command: "git status", output: "", exitCode: 0, running: false })
+    ])
+    expect(screen.getByText("调用过程 2 步")).toBeTruthy()
+    expect(screen.getByText("调用过程 1 步")).toBeTruthy()
+    expect(screen.getByText("先看这两个")).toBeTruthy()
   })
 
   it("跑着的命令只出转圈，不给退出码", () => {
@@ -62,9 +78,12 @@ describe("ChatTranscript", () => {
         ]
       })
     ])
+    expect(screen.getByText("调用过程 1 步")).toBeTruthy()
+    expect(screen.queryByText("src/a.ts")).toBeNull()
+    fireEvent.click(screen.getByText("调用过程 1 步"))
     expect(screen.getByText("改了 2 个文件")).toBeTruthy()
     expect(screen.queryByText("src/a.ts")).toBeNull()
-    fireEvent.click(screen.getByRole("button"))
+    fireEvent.click(screen.getByText("改了 2 个文件"))
     expect(screen.getByText("src/a.ts")).toBeTruthy()
     expect(screen.getByText("src/b.ts")).toBeTruthy()
     expect(screen.getByText("新增")).toBeTruthy()
@@ -75,12 +94,15 @@ describe("ChatTranscript", () => {
       agent({ kind: "tool", itemId: "item_2", server: "mastergo", tool: "getDsl", args: "{\"id\":1}", output: "ok", running: false }),
       agent({ kind: "search", itemId: "item_3", query: "codex exec json", running: false })
     ])
+    expect(screen.getByText("调用过程 2 步")).toBeTruthy()
+    fireEvent.click(screen.getByText("调用过程 2 步"))
     expect(screen.getByText("mastergo · getDsl")).toBeTruthy()
     expect(screen.getByText("搜索 codex exec json")).toBeTruthy()
   })
 
   it("思考过程收成一行", () => {
     show([agent({ kind: "reasoning", itemId: "item_4", text: "先看日志再决定", running: false })])
+    fireEvent.click(screen.getByText("调用过程 1 步"))
     expect(screen.getByText("思考过程")).toBeTruthy()
     expect(screen.queryByText("先看日志再决定")).toBeNull()
   })

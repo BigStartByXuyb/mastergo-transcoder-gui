@@ -273,7 +273,7 @@ export function ChatPage() {
   return (
     <div className="flex h-full min-h-0 gap-3">
       {/* 对话记录：标题 + 来源，够认出是哪一条就行；正文不进这一列。 */}
-      <aside className="bg-muted/40 flex w-64 shrink-0 flex-col gap-2 rounded-lg border p-2">
+      <aside className="bg-muted/60 flex w-64 shrink-0 flex-col gap-2 rounded-lg border p-2">
         <Button variant="outline" className="justify-start" onClick={startNew} disabled={running}>
           <Plus className="size-4" />
           新建对话
@@ -352,7 +352,7 @@ export function ChatPage() {
         </header>
 
         {/* 消息区自己是一块：底色调浅一档，白色气泡与深色气泡都跳得出来。 */}
-        <div className="bg-muted/40 min-h-0 flex-1 overflow-y-auto rounded-lg border p-4">
+        <div className="bg-muted/60 min-h-0 flex-1 overflow-y-auto rounded-lg border p-4">
           <ChatTranscript
             turns={turns}
             agentName={agentName || "Codex"}

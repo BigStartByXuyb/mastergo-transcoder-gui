@@ -255,7 +255,7 @@ function VersionTable(props: {
   if (props.total === 0) return <p className="text-muted-foreground text-xs">还没有版本记录。</p>
   return (
     <div className="overflow-hidden rounded-md border">
-      <div className="bg-muted/40 text-muted-foreground flex items-center gap-2 border-b px-2 py-1.5 text-xs">
+      <div className="bg-muted/60 text-muted-foreground flex items-center gap-2 border-b px-2 py-1.5 text-xs">
         <span className="size-3.5 shrink-0" />
         <span className={COL.version}>版本</span>
         <span className={COL.state}>状态</span>
