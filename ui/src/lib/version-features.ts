@@ -18,7 +18,9 @@ export type FeatureHistoryEntry = {
 /** 到 upTo 这一版为止具备的能力（按能力 id 去重，后加的 label 覆盖先加的）。 */
 export function featuresUpTo(history: FeatureHistoryEntry[], upTo: string): Map<string, VersionFeature> {
   const known = new Map<string, VersionFeature>()
-  for (const entry of history) {
+  // 文件里的顺序是从新到旧：先按版本升序排一遍，「加入」才会发生在「drops」之前。
+  const ascending = [...history].sort((left, right) => compareVersions(left.version, right.version))
+  for (const entry of ascending) {
     if (compareVersions(entry.version, upTo) > 0) continue
     for (const feature of entry.features ?? []) known.set(feature.id, feature)
     for (const id of entry.drops ?? []) known.delete(id)

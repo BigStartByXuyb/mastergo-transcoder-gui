@@ -9,6 +9,7 @@ import {
   DialogTitle
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { compareVersions } from "@/lib/update-state"
 
 /*
  * 换版本前确认：把「回退到旧版意味着什么」「这一版要不要新开一次运行」「现在有没有任务在跑」
@@ -24,12 +25,13 @@ export function ConfirmSwitchDialog(props: {
   freshRunRequired: boolean | null
   /** 有任务在跑时的一句话（空串表示没在跑）。 */
   busy: string
-  /** 回退之后会缺掉的能力（当前有、目标没有的那几样）。 */
-  missing: string[]
+  /** 回退之后会缺掉的能力（当前有、目标没有的那几样）；只有能出现回退的入口才传。 */
+  missing?: string[]
   onCancel: () => void
   onConfirm: () => void
 }) {
-  const downgrade = isOlder(props.target, props.current)
+  const downgrade = compareVersions(props.target, props.current) < 0
+  const missing = props.missing ?? []
   const notes: string[] = []
   if (downgrade) notes.push("这是回退到旧版；要再用新版，得把它重新下回来。")
   if (props.freshRunRequired === true) {
@@ -61,11 +63,11 @@ export function ConfirmSwitchDialog(props: {
         )}
 
         {/* 回退要说清缺了什么：来源是每个版本自己记的「从这一版起具备的能力」。 */}
-        {props.missing.length > 0 && (
+        {missing.length > 0 && (
           <div className="flex flex-col gap-2 rounded-md border px-3 py-2">
             <span className="text-sm font-medium">回退之后没有的能力</span>
             <ul className="text-muted-foreground flex list-disc flex-col gap-1 pl-5 text-xs">
-              {props.missing.map((line) => (
+              {missing.map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ul>
@@ -85,15 +87,3 @@ export function ConfirmSwitchDialog(props: {
   )
 }
 
-/* 版本号只按数字段比：段数不齐时短的补 0。 */
-function isOlder(candidate: string, current: string): boolean {
-  const left = candidate.split(".")
-  const right = current.split(".")
-  const length = Math.max(left.length, right.length)
-  for (let index = 0; index < length; index += 1) {
-    const x = Number(left[index] ?? 0)
-    const y = Number(right[index] ?? 0)
-    if (x !== y) return x < y
-  }
-  return false
-}

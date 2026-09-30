@@ -565,7 +565,14 @@ export type UpdateStatus = {
   /** 现在这一版能做什么。 */
   currentNotes: string[]
   /** 这一份运行树自带的版本历史：按版本号找「改了什么」。 */
-  history: { version: string; date: string; notes: string[] }[]
+  /** 版本历史：features / drops 是「从这一版起具备的能力」与「去掉了哪些能力」，回退前列缺什么靠它。 */
+  history: {
+    version: string
+    date: string
+    notes: string[]
+    features?: { id: string; label: string }[]
+    drops?: string[]
+  }[]
   root: string
   pointer: { version?: string; previous?: string; switchedAt?: string } | null
   /** 有任务在跑时是不能切版本的，这里放原因（空串表示空闲）。 */

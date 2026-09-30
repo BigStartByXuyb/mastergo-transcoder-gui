@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest"
 
 import { featuresUpTo, missingFeatures, type FeatureHistoryEntry } from "@/lib/version-features"
 
+// 顺序与真实的 changelog.json 一致：从新到旧 —— 容易被写成「升序才正确」的地方，测试就该用真实顺序。
 const history: FeatureHistoryEntry[] = [
-  { version: "0.6.0", features: [{ id: "chat", label: "对话页" }] },
-  { version: "0.6.12", features: [{ id: "auto-update", label: "自己发现新版" }] },
+  { version: "0.6.22", features: [{ id: "switch-confirm", label: "换版本先确认" }] },
   { version: "0.6.20", features: [{ id: "history-download", label: "历史版本可下载" }] },
-  { version: "0.6.22", features: [{ id: "switch-confirm", label: "换版本先确认" }] }
+  { version: "0.6.12", features: [{ id: "auto-update", label: "自己发现新版" }] },
+  { version: "0.6.0", features: [{ id: "chat", label: "对话页" }] }
 ]
 
 describe("featuresUpTo", () => {
@@ -19,7 +20,8 @@ describe("featuresUpTo", () => {
   })
 
   it("drops 里的能力被去掉", () => {
-    const withDrop: FeatureHistoryEntry[] = [...history, { version: "0.6.30", drops: ["chat"] }]
+    // 新版去掉：不管文件顺序如何，drops 都要生效。
+    const withDrop: FeatureHistoryEntry[] = [{ version: "0.6.30", drops: ["chat"] }, ...history]
     expect(featuresUpTo(withDrop, "0.6.30").has("chat")).toBe(false)
     expect(featuresUpTo(withDrop, "0.6.22").has("chat")).toBe(true)
   })

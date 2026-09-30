@@ -49,11 +49,15 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | `npm run vendor` | `vendor/openai.tgz`（2.1 MB）+ 解开的 `vendor/openai`；`lib/ai.js` 能加载 | 通过 |
 | `npm run pack` | 铺出 59 个文件（含 `vendor/openai.tgz` 与《安装与首次配置.md》）并压成 2.5 MB 的 zip | 通过 |
 | 后端用例 `vendor.test.js` | 清单里有 `vendor/openai.tgz`、没有解出来的目录；版本与 package.json 声明一致；`lib/ai.js` 能加载 | 通过 |
-| 前端用例 `confirm-switch-dialog` | 回退提示、新开运行提示、有任务在跑挡住确认、确认/取消回调（6 条） | 通过 |
-| 前端用例 `version-features` | 能力累加、比目标新的不算、`drops` 生效、回退缺哪几样、升级不缺（6 条） | 通过 |
+| 前端用例 `confirm-switch-dialog` | 回退提示 + 缺什么、升级不列缺什么、新开运行提示、有任务在跑挡住确认、确认/取消回调（7 条） | 通过 |
+| 前端用例 `version-features` | 能力累加、比目标新的不算、`drops` 生效（夹具按真实的倒序）、回退缺哪几样、升级不缺（6 条） | 通过 |
 | 全量门禁 | 后端 38 条、前端 43 文件 / 258 条、`tsc`、oxlint、结构检查 | 通过 |
 
 > 注：v0.6.22 只在 main 上（没打 tag、没发 release），它的内容并进了这一版，所以版本表里没有 0.6.22 这一行。
+>
+> 这一版还按审计的四条复核意见收了口：顶栏红点不再算「回退缺什么」（那条路只有升级）、能力表内部先按版本升序排
+> （文件是倒序，否则 `drops` 会静默失效）、弹窗的升级/回退判定改用全仓唯一的 `compareVersions`、
+> `UpdateStatus.history` 的类型补上 `features`/`drops`。
 
 ## 2026-09-30 下载只剩一个入口 + 历史版本也校验（v0.6.21）
 

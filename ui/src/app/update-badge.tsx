@@ -4,11 +4,10 @@ import { Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { BusyOverlay } from "@/app/busy-overlay"
 import { ConfirmSwitchDialog } from "@/app/confirm-switch-dialog"
-import { api, type UpdateHint } from "@/lib/api"
+import type { UpdateHint } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { startUpdateDownload } from "@/lib/update-download"
 import { switchVersionAndWait } from "@/lib/update-switch"
-import { missingFeatures } from "@/lib/version-features"
 
 /*
  * 顶上的新版标注：后台每 10 分钟查一次，查到新版就在这儿挂个红点。
@@ -19,7 +18,6 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
   const [busy, setBusy] = useState("")
   const [failure, setFailure] = useState("")
   const [confirming, setConfirming] = useState(false)
-  const [missing, setMissing] = useState<string[]>([])
   const hint = props.update
   const target = hint ? hint.ready || hint.availableVersion : ""
 
@@ -48,13 +46,7 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
       props.onOpenUpdatePage()
       return
     }
-    // 顺手把「回退会缺什么」算出来：能力表在本地状态里，不额外联网。
-    try {
-      const payload = await api.updateStatus()
-      setMissing(missingFeatures(payload.status.history, target, payload.status.current).map((item) => item.label))
-    } catch {
-      setMissing([])
-    }
+    // 这条入口只可能是升级（红点只在有更新版时出现），所以不用列「回退会缺什么」。
     setConfirming(true)
   }
 
@@ -97,7 +89,6 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
           current={hint ? hint.current : ""}
           freshRunRequired={hint ? hint.stagedFreshRunRequired : null}
           busy=""
-          missing={missing}
           onCancel={() => setConfirming(false)}
           onConfirm={() => void confirmSwitch()}
         />
