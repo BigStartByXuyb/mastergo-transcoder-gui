@@ -13,7 +13,6 @@ import { Progress } from "@/components/ui/progress"
 import { api, type UpdateStatus } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
-import { startUpdateDownload } from "@/lib/update-download"
 import { switchVersionAndWait } from "@/lib/update-switch"
 import {
   blockedNote,
@@ -81,28 +80,24 @@ export function UpdateCard() {
     }
   }, [transferring])
 
-  async function act(key: string, run: () => Promise<{ status: UpdateStatus }>, done = "") {
+  /*
+   * 页面上的每个动作都走这里：置 working → 清旧错 → 跑 → 套用返回的状态 → 提示 → 收尾。
+   * 「怎么提示」由调用方给一个函数：有的看响应里的 started/note 才决定说什么。
+   */
+  async function act(
+    key: string,
+    run: () => Promise<{ status: UpdateStatus }>,
+    done: string | ((payload: { status: UpdateStatus; started?: boolean; note?: string }) => void) = ""
+  ) {
     setWorking(key)
     setFailure("")
     try {
       const payload = await run()
       setStatus(payload.status)
-      if (done) toast.success(done)
+      if (typeof done === "function") done(payload)
+      else if (done) toast.success(done)
     } catch (error) {
       setFailure(describeFailure(error))
-    } finally {
-      setWorking("")
-    }
-  }
-
-  async function download() {
-    setWorking("download")
-    setFailure("")
-    try {
-      const got = await startUpdateDownload()
-      if (got.status) setStatus(got.status)
-      if (got.error) setFailure(got.error)
-      else if (!got.started) toast.info(got.note)
     } finally {
       setWorking("")
     }
@@ -113,18 +108,11 @@ export function UpdateCard() {
    * 下完这一行就从「历史版本」变成「可切换」。
    */
   async function stage(version: string) {
-    setWorking("stage:" + version)
-    setFailure("")
-    try {
-      const payload = await api.updateStage(version)
-      setStatus(payload.status)
-      if (payload.started) toast.success("正在下载 v" + version)
-      else toast.info(payload.note || "本地已经有这一版")
-    } catch (error) {
-      setFailure(describeFailure(error))
-    } finally {
-      setWorking("")
-    }
+    await act(
+      "stage:" + version,
+      () => api.updateStage(version),
+      (payload) => (payload.started ? toast.success("正在下载 v" + version) : toast.info(payload.note || "本地已经有这一版"))
+    )
   }
 
   /*
@@ -162,9 +150,6 @@ export function UpdateCard() {
   const busy = Boolean(status && status.busy)
   const rows = status ? versionList(status) : []
   const shown = pageSlice(rows, page, PAGE_SIZE)
-  const canDownload = Boolean(
-    status && status.state === "update_available" && status.available && !status.available.blocked && !working
-  )
   // 下载/拼装进行中也不许再点别的版本：同一时刻只跑一条下载。
   const frozen = Boolean(working) || busy || transferring
 
@@ -221,12 +206,8 @@ export function UpdateCard() {
             {working === "check" ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
             检查更新
           </Button>
-          {canDownload && (
-            <Button disabled={Boolean(working)} onClick={() => void download()}>
-              {working === "download" ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-              下载 v{status?.available?.version}
-            </Button>
-          )}
+          {/* 下载只有一个入口：版本表里那一行的「下载」——有新版时就是最上面那一行。 */}
+          <span className="text-muted-foreground text-xs">要下哪一版，点那一行的「下载」</span>
         </div>
 
         <div className="flex items-center justify-between gap-2">
@@ -343,17 +324,21 @@ function VersionLine(props: {
               切换
             </Button>
           )}
-          {/* 本机没有这一份、也不是正在跑的那一版：把它下回来，下完就能切。 */}
-          {!switchable && !row.current && !row.installed && (
+          {/* 本机没有这一份（或那份不完整）、也不是正在跑的那一版：下回来，下完就能切。 */}
+          {!switchable && !row.current && (!row.installed || !row.ready) && (
             <Button
               size="sm"
               variant="ghost"
               disabled={props.frozen}
-              title={"把 v" + row.version + " 下载到本机（下完就能切过去）"}
+              title={
+                row.installed
+                  ? "本机这一份不完整，重新下回来（下完就能切过去）"
+                  : "把 v" + row.version + " 下载到本机（下完就能切过去）"
+              }
               onClick={props.onStage}
             >
               <Download className="size-3" />
-              下载
+              {row.installed ? "重下" : "下载"}
             </Button>
           )}
         </span>

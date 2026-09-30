@@ -47,7 +47,8 @@ function remote(root, version, extra) {
     urls: urls,
     fetchImpl: async function (url) {
       urls.push(url);
-      if (url.endsWith("/releases/latest/download/manifest.json")) {
+      // 每个 release 都带自己的 manifest.json：latest 那个是同一份内容。
+      if (url.endsWith("/releases/latest/download/manifest.json") || url.endsWith("/releases/download/v" + version + "/manifest.json")) {
         return ok(JSON.stringify(manifest));
       }
       const hit = /\/releases\/download\/v([^/]+)\/([0-9a-f]{64})$/.exec(url);
@@ -121,9 +122,10 @@ async function main() {
   });
 
   // 下载：只下缺的内容，落进 versions/0.2.0，进度一路报上来。
-  const started = update.startDownload();
+  const started = await update.stage("0.2.0");
   assert.strictEqual(started.started, true);
-  assert.throws(function () { update.startDownload(); }, /已经在下载了/);
+  // 同一时刻只跑一条下载：还没拼完就再点，会被拒。
+  await assert.rejects(function () { return update.stage("0.2.0"); }, /已经在下载了/);
   const done = await settle(update);
   assert.strictEqual(done.state, "download_ready");
   assert.strictEqual(done.ready, "0.2.0");
@@ -162,7 +164,7 @@ async function main() {
   assert.strictEqual(update.hint().state, "update_available", "探活快照说同一句话");
 
   // 重新下一份就恢复「可切换」：坏掉的记号要跟着下载成功一起摘掉。
-  const again = update.startDownload();
+  const again = await update.stage("0.2.0");
   assert.strictEqual(again.started, true, "坏了的那一份可以重下");
   const repaired = await settle(update);
   assert.strictEqual(repaired.ready, "0.2.0", "重下之后又可切换");
@@ -172,7 +174,7 @@ async function main() {
   // 本地已经是最新时不重复下载：这条分支不能因为判据改名而断掉。
   const alreadyNew = createUpdate({ root: next, home: next, version: "0.2.0", fetchImpl: server.fetchImpl });
   await alreadyNew.check();
-  const noop = alreadyNew.startDownload();
+  const noop = await alreadyNew.stage("0.2.0");
   assert.strictEqual(noop.started, false);
   assert.strictEqual(noop.reason, "本地已经有这一版");
 
@@ -218,6 +220,10 @@ async function main() {
   assert.strictEqual(stagedDone.ready, "", "它比当前版本旧，不算「有新版可切」");
   const stagedRow = stagedDone.staged.find(function (item) { return item.version === "0.0.9"; });
   assert.ok(stagedRow && stagedRow.ready, "下完之后本机就有这一份，可以切过去");
+  // 历史版本切换前也要按它自己的清单逐文件校验（清单是 stage 下载时留下的那一份）。
+  fs.writeFileSync(path.join(olderHome, "versions", "0.0.9", "lib", "a.js"), "被人改过", "utf8");
+  assert.throws(function () { stageUpdate.apply("0.0.9"); }, /和清单对不上/, "历史版本也要校验");
+  fs.writeFileSync(path.join(olderHome, "versions", "0.0.9", "lib", "a.js"), "a", "utf8");
   assert.strictEqual(stageUpdate.apply("0.0.9").version, "0.0.9", "能切到历史版本");
   await assert.rejects(function () { return stageUpdate.stage("9.9.9"); }, /远端没有 v9.9.9/);
 
@@ -228,13 +234,13 @@ async function main() {
   const gatedStatus = await gatedUpdate.check();
   assert.strictEqual(gatedStatus.state, "update_available");
   assert.strictEqual(gatedStatus.available.blocked.code, "CLIENT_TOO_OLD");
-  assert.throws(function () { gatedUpdate.startDownload(); }, /要求客户端至少/);
+  await assert.rejects(function () { return gatedUpdate.stage("0.2.1"); }, /要求客户端至少/);
   assert.strictEqual(gatedUpdate.status().state, "error", "拒绝之后界面要显示原因");
 
-  // 还没查过就点下载 / 没下过就点切换。
+  // 远端没有这一版就下不了 / 没下过就点切换。
   const blank = makeTree({ "server.js": "空白", "package.json": "{\"version\":\"0.1.0\"}" });
   const blankUpdate = createUpdate({ root: blank, home: blank, version: "0.1.0", fetchImpl: server.fetchImpl });
-  assert.throws(function () { blankUpdate.startDownload(); }, /还没有检查过更新/);
+  await assert.rejects(function () { return blankUpdate.stage("9.9.9"); }, /远端没有 v9.9.9/);
   assert.throws(function () { blankUpdate.apply(); }, /还没有下载好的新版本/);
 
   // 联网失败：显式检查报 error，启动时的静默检查不打扰。

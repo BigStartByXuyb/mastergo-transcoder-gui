@@ -29,7 +29,7 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
     // 还没下载：先开始下载（后台任务），并把人带到更新页看进度。
     if (!downloaded) {
       setBusy("download")
-      const got = await startUpdateDownload()
+      const got = await startUpdateDownload(target)
       setBusy("")
       if (got.error || !got.started) {
         // 没起来就留在原地把原因说清，不再把人带走。

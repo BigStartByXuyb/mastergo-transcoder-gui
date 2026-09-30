@@ -831,11 +831,7 @@ export const api = {
   updateStatus: () => request<{ ok: true; status: UpdateStatus }>("/api/update/status"),
   /** 拉远端清单：失败也回 200，原因在 status.error 里。 */
   updateCheck: () => post<{ ok: true; status: UpdateStatus }>("/api/update/check", {}),
-  updateDownload: () => post<{ ok: true; started: boolean; version: string; note: string; status: UpdateStatus }>(
-    "/api/update/download",
-    {}
-  ),
-  /** 下某一版（含历史版本）：清单按那一版的 tag 取，之后同一条下载流程。 */
+  /** 下某一版（新版与历史版本都走它）：清单按那一版的 tag 取，之后同一条下载流程。 */
   updateStage: (version: string) =>
     post<{ ok: true; started: boolean; version: string; note: string; status: UpdateStatus }>("/api/update/stage", {
       version
