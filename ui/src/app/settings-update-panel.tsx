@@ -5,18 +5,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useHealth } from "@/lib/use-health"
 
 /*
- * 更新这一页：左边是客户端自己的版本（检查 / 下载 / 切换 / 回退），
- * 右边是当前在用的插件与引擎 —— 出了问题先看这里。
+ * 更新这一页：上面是当前在用的运行环境，下面是客户端自己的版本
+ * （检查 / 下载 / 逐版切换）。两块竖着排，一屏放得下。
  */
 export function SettingsUpdatePanel() {
   const { health, offline } = useHealth(10000)
 
   return (
-    // 左边版本、右边运行环境：同一屏放得下，不用往下拖。
-    <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
-      <UpdateCard />
-
-      <Card className="flex h-full flex-col">
+    <div className="flex flex-col gap-4">
+      <Card>
         <CardHeader>
           <CardTitle>运行环境</CardTitle>
           <CardDescription>当前使用的插件与引擎。</CardDescription>
@@ -64,6 +61,8 @@ export function SettingsUpdatePanel() {
           )}
         </CardContent>
       </Card>
+
+      <UpdateCard />
     </div>
   )
 }
