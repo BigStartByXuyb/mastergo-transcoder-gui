@@ -220,8 +220,20 @@ async function main() {
   assert.ok(rootRow, "安装根那一份要出现在本地版本里");
   assert.strictEqual(rootRow.ready, true, "安装根那一份与清单一致就是可切换");
   assert.strictEqual(rootStatus.ready, "0.2.0", "可以切过去");
+  // 顶上那个红点读的是探活快照：它必须与设置页说同一句话，否则会把「可切换」说成「有新版」。
+  assert.strictEqual(rootUpdate.hint().state, "download_ready", "探活快照也要认安装根那一份");
+  assert.strictEqual(rootUpdate.hint().ready, "0.2.0");
   const switched = rootUpdate.apply("0.2.0");
   assert.strictEqual(switched.version, "0.2.0");
+
+  /*
+   * 监督进程按指针把新的那一份拉起来之后（同一份 home，跑的是 0.2.0）：
+   * 它既不该说「有新版」，也不该说「可切换到 0.2.0」——那是自己正在跑的版本，点下去只会得到 SAME_VERSION。
+   */
+  const restarted = createUpdate({ root: rootNewer, home: rootNewer, version: "0.2.0", fetchImpl: rootServer.fetchImpl });
+  assert.strictEqual(restarted.status().state, "up_to_date", "重启后设置页不再说可切换");
+  assert.strictEqual(restarted.hint().state, "up_to_date", "探活快照同样不再说可切换");
+  assert.strictEqual(restarted.hint().ready, "");
 
   for (const dir of [home, next, gatedHome, blank, rootNewer]) fs.rmSync(dir, { recursive: true, force: true });
   process.stdout.write("update ok\n");
