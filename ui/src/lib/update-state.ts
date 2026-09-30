@@ -101,15 +101,24 @@ export type UpdateSummary = { label: string; tone: UpdateTone; note: string }
 export function describeUpdate(status: UpdateStatus | null): UpdateSummary {
   if (!status) return { label: "读取中…", tone: "outline", note: "" }
   if (status.state === "download_ready") {
-    return { label: "v" + status.ready + " 已就绪", tone: "secondary", note: "" }
+    // 已经有下载好的版本时，上一次检查失败过也要说出来 —— 不然人以为检查是成功的。
+    return { label: "v" + status.ready + " 已就绪", tone: "secondary", note: failedNote(status) }
   }
   if (status.state === "error") {
     return { label: "更新检查失败", tone: "destructive", note: status.error ? status.error.message : "" }
   }
   if (status.state === "update_available") {
-    return { label: "有新版本 v" + (status.available ? status.available.version : ""), tone: "secondary", note: "" }
+    return {
+      label: "有新版本 v" + (status.available ? status.available.version : ""),
+      tone: "secondary",
+      note: failedNote(status)
+    }
   }
-  return { label: "已是最新 v" + status.current, tone: "outline", note: "" }
+  return { label: "已是最新 v" + status.current, tone: "outline", note: failedNote(status) }
+}
+
+function failedNote(status: UpdateStatus): string {
+  return status.error ? "上次检查更新没成功：" + status.error.message : ""
 }
 
 /* 只有一种情况需要先告诉人：这版要求更新的客户端外壳。其余一律不说过程。 */

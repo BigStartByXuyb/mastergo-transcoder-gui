@@ -68,6 +68,20 @@ describe("describeUpdate", () => {
   it("没有原因的错误不编一句话出来", () => {
     expect(describeUpdate(status({ state: "error" })).note).toBe("")
   })
+
+  // 有下载好的版本时，上一次检查失败过也要说出来，不然人以为检查成功了。
+  it("已就绪时照样报上一次检查的失败", () => {
+    const ready = describeUpdate(
+      status({
+        state: "download_ready",
+        ready: "0.2.0",
+        error: { code: "DOWNLOAD_FAILED", message: "下载失败", hint: "" }
+      })
+    )
+    expect(ready.label).toBe("v0.2.0 已就绪")
+    expect(ready.note).toBe("上次检查更新没成功：下载失败")
+    expect(describeUpdate(status({ state: "up_to_date" })).note).toBe("")
+  })
 })
 
 describe("blockedNote", () => {

@@ -181,7 +181,41 @@ async function main() {
   const silent = await offline.check({ silent: true });
   assert.strictEqual(silent.state, "error", "已经记下的错误不因为一次静默检查就消失");
 
-  for (const dir of [home, next, gatedHome, blank]) fs.rmSync(dir, { recursive: true, force: true });
+  /*
+   * 新版本就住在安装根那一份里（界面上的「本地这一份」）：装了新版、又切回旧版之后，
+   * 新版没有 versions/<版本> 目录，但它本来就跑得起来 —— 这一份必须仍然算「可切换」。
+   * 曾经的错法：拿 versions/<版本> 去校验，校验不通过就当没下载，切换按钮不出现。
+   */
+  const rootNewer = makeTree({
+    "server.js": "server 0.2.0",
+    "launch.js": "launch",
+    "package.json": "{\"version\":\"0.2.0\"}",
+    "lib/a.js": "a",
+    "public/index.html": "html"
+  });
+  const runningOld = path.join(rootNewer, "versions", "0.1.0");
+  for (const rel of ["server.js", "launch.js", "package.json", "lib/a.js", "public/index.html"]) {
+    const abs = path.join(runningOld, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, rel === "package.json" ? "{\"version\":\"0.1.0\"}" : "old", "utf8");
+  }
+  const rootServer = remote(rootNewer, "0.2.0");
+  const rootUpdate = createUpdate({
+    root: rootNewer,
+    home: rootNewer,
+    version: "0.1.0",
+    fetchImpl: rootServer.fetchImpl
+  });
+  await rootUpdate.check();
+  const rootStatus = rootUpdate.status();
+  const rootRow = rootStatus.staged.find(function (item) { return item.version === "0.2.0"; });
+  assert.ok(rootRow, "安装根那一份要出现在本地版本里");
+  assert.strictEqual(rootRow.ready, true, "安装根那一份与清单一致就是可切换");
+  assert.strictEqual(rootStatus.ready, "0.2.0", "可以切过去");
+  const switched = rootUpdate.apply("0.2.0");
+  assert.strictEqual(switched.version, "0.2.0");
+
+  for (const dir of [home, next, gatedHome, blank, rootNewer]) fs.rmSync(dir, { recursive: true, force: true });
   process.stdout.write("update ok\n");
 }
 
