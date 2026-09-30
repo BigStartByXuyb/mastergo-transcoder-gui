@@ -87,7 +87,7 @@ export function UpdateCard() {
 
   /*
    * 页面上的每个动作都走这里：置 working → 清旧错 → 跑 → 套用返回的状态 → 提示 → 收尾。
-   * 「怎么提示」由调用方给一个函数：有的看响应里的 started/note 才决定说什么。
+   * 「怎么提示」由调用方给一个函数：有的要按结果（DownloadOutcome 的 kind/message）才决定说什么。
    */
   async function act<T extends { status: UpdateStatus | null }>(
     key: string,

@@ -10,6 +10,7 @@ import { ClampText } from "@/app/clamp-text"
 import { Progress } from "@/components/ui/progress"
 import { api, type CodexStatus } from "@/lib/api"
 import { canDownload, canRollback, canSwitchTo, describeEngine, describeRelease, describeVersion } from "@/lib/codex-state"
+import { startDownload } from "@/lib/download-run"
 import { describeFailure } from "@/lib/describe-failure"
 import { describeTask, isDownloading, taskPercent } from "@/lib/update-state"
 
@@ -68,15 +69,13 @@ export function CodexCard() {
   async function download() {
     setWorking("download")
     setFailure("")
-    try {
-      const payload = await api.codexDownload()
-      setStatus(payload.status)
-      if (!payload.started) toast.info(payload.note)
-    } catch (error) {
-      setFailure(describeFailure(error))
-    } finally {
-      setWorking("")
-    }
+    const got = await startDownload(function () {
+      return api.codexDownload()
+    })
+    if (got.status) setStatus(got.status)
+    if (got.kind === "failed") setFailure(got.message)
+    else if (got.kind === "already") toast.info(got.message)
+    setWorking("")
   }
 
   const summary = describeEngine(status)

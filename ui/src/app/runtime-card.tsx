@@ -10,6 +10,7 @@ import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
 import { Progress } from "@/components/ui/progress"
 import { api, type RuntimeId, type RuntimeStatus, type RuntimeTool } from "@/lib/api"
+import { startDownload } from "@/lib/download-run"
 import {
   describeRuntime,
   describeTool,
@@ -62,15 +63,13 @@ export function RuntimeCard() {
   async function download(tool: RuntimeId) {
     setWorking(tool)
     setFailure("")
-    try {
-      const payload = await api.runtimeDownload(tool)
-      setStatus(payload.status)
-      if (!payload.started) toast.info(payload.note)
-    } catch (error) {
-      setFailure(describeFailure(error))
-    } finally {
-      setWorking("")
-    }
+    const got = await startDownload(function () {
+      return api.runtimeDownload(tool)
+    })
+    if (got.status) setStatus(got.status)
+    if (got.kind === "failed") setFailure(got.message)
+    else if (got.kind === "already") toast.info(got.message)
+    setWorking("")
   }
 
   const summary = describeRuntime(status)
