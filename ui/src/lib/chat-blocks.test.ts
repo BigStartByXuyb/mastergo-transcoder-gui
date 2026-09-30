@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { AgentItem } from "@/lib/agent-stream"
-import { groupSteps, isStep } from "@/lib/chat-blocks"
+import { groupSteps, isStep, leadFlags } from "@/lib/chat-blocks"
 import type { Turn } from "@/app/chat-transcript"
 
 const command = (id: string): AgentItem => ({
@@ -50,6 +50,40 @@ describe("groupSteps", () => {
 
   it("没有条目就是空的", () => {
     expect(groupSteps([])).toEqual([])
+  })
+})
+
+describe("leadFlags", () => {
+  const you = (text: string): Turn => ({ kind: "you", text })
+
+  it("每一轮的第一个正文都带头像", () => {
+    const turns: Turn[] = [
+      you("第一问"),
+      { kind: "agent", item: message("a", "第一答") },
+      { kind: "agent", item: message("b", "补充") },
+      you("第二问"),
+      { kind: "agent", item: message("c", "第二答") }
+    ]
+    expect(leadFlags(groupSteps(turns))).toEqual([false, true, false, false, true])
+  })
+
+  it("一轮里先跑命令再说话，头像挂在正文上", () => {
+    const turns: Turn[] = [you("问"), { kind: "agent", item: command("a") }, { kind: "agent", item: message("b", "答") }]
+    expect(leadFlags(groupSteps(turns))).toEqual([false, false, true])
+  })
+
+  it("一轮里只有动作没说话，头像挂在过程组上", () => {
+    const turns: Turn[] = [you("问"), { kind: "agent", item: command("a") }, you("又问"), { kind: "agent", item: command("b") }]
+    expect(leadFlags(groupSteps(turns))).toEqual([false, true, false, true])
+  })
+
+  it("你还没说话时它先开口的那一轮也带头像", () => {
+    const turns: Turn[] = [{ kind: "agent", item: message("a", "开场") }]
+    expect(leadFlags(groupSteps(turns))).toEqual([true])
+  })
+
+  it("只有日志时不挂头像", () => {
+    expect(leadFlags(groupSteps([{ kind: "log", text: "噪音", open: false }]))).toEqual([false])
   })
 })
 

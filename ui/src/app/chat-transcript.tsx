@@ -7,7 +7,7 @@ import { AgentAvatar, UserAvatar } from "@/app/agent-avatar"
 import { EngineLog } from "@/app/chat-engine-log"
 import { ClampText } from "@/app/clamp-text"
 import type { AgentItem } from "@/lib/agent-stream"
-import { groupSteps } from "@/lib/chat-blocks"
+import { groupSteps, leadFlags } from "@/lib/chat-blocks"
 import { cn } from "@/lib/utils"
 
 export type Turn =
@@ -25,13 +25,8 @@ export type Turn =
  */
 export function ChatTranscript(props: { turns: Turn[]; agentName: string; empty?: string }) {
   const blocks = groupSteps(props.turns)
-  /*
-   * 头像标识挂在「它第一次开口」那块上。分组以后轮序号与块序号不是一回事，
-   * 所以这里在**块**这一套坐标里找第一个「消息」块 —— 早先拿轮序号比块序号，标识会错位或整段不出现。
-   */
-  const leadAt = blocks.findIndex(
-    (block) => block.kind === "single" && block.turn.kind === "agent" && block.turn.item.kind === "message"
-  )
+  // 头像按轮给：每一轮它第一次开口的那一块带一次（怎么判定在 lib/chat-blocks.ts 的 leadFlags）。
+  const leads = leadFlags(blocks)
   return (
     <div className="flex flex-col gap-3">
       {props.turns.length === 0 && (
@@ -39,13 +34,13 @@ export function ChatTranscript(props: { turns: Turn[]; agentName: string; empty?
       )}
       {blocks.map((block, index) =>
         block.kind === "steps" ? (
-          <StepGroup key={index} items={block.items} />
+          <StepGroup key={index} items={block.items} agentName={props.agentName} lead={leads[index]} />
         ) : block.turn.kind === "you" ? (
           <YouBubble key={index} text={block.turn.text} />
         ) : block.turn.kind === "log" ? (
           <EngineLog key={index} text={block.turn.text} open={block.turn.open} />
         ) : (
-          <AgentItemView key={index} item={block.turn.item} agentName={props.agentName} lead={index === leadAt} />
+          <AgentItemView key={index} item={block.turn.item} agentName={props.agentName} lead={leads[index]} />
         )
       )}
     </div>
@@ -70,11 +65,14 @@ function YouBubble({ text }: { text: string }) {
  * 一组过程：收起时只有一行（几步 + 第一步是什么），点开才列出每一步；
  * 每一步仍是可展开的一行，详情（命令原文、输出、改动的文件）在第二层。
  */
-function StepGroup({ items }: { items: AgentItem[] }) {
+function StepGroup({ items, agentName, lead }: { items: AgentItem[]; agentName: string; lead: boolean }) {
   const [shown, setShown] = useState(false)
   const running = items.some((item) => "running" in item && item.running)
   return (
-    <div className="flex flex-col gap-1 pl-8">
+    <div className="flex items-start gap-2">
+      {/* 这一轮只跑命令、没说话时，头像挂在这一组上：每一轮都露一次。 */}
+      {lead ? <AgentAvatar name={agentName} /> : <span className="size-8 shrink-0" />}
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
       <button
         type="button"
         aria-expanded={shown}
@@ -96,6 +94,7 @@ function StepGroup({ items }: { items: AgentItem[] }) {
           ))}
         </div>
       )}
+      </div>
     </div>
   )
 }
@@ -114,7 +113,7 @@ function AgentItemView({ item, agentName, lead }: { item: AgentItem; agentName: 
   }
   if (item.kind === "notice") {
     return (
-      <div className="text-muted-foreground flex items-start gap-2 pl-8 text-xs">
+      <div className="text-muted-foreground flex items-start gap-2 pl-10 text-xs">
         <Info className="mt-0.5 size-3 shrink-0" />
         <ClampText text={item.text} />
       </div>
@@ -132,15 +131,15 @@ function AgentItemView({ item, agentName, lead }: { item: AgentItem; agentName: 
   }
   if (item.kind === "turn") {
     return (
-      <p className="text-muted-foreground pl-8 text-xs">
+      <p className="text-muted-foreground pl-10 text-xs">
         一轮结束{item.tokens === null ? "" : "（用了 " + item.tokens + " tokens）"}
       </p>
     )
   }
   if (item.kind === "thread") {
-    return <p className="text-muted-foreground pl-8 text-xs">对话 {item.threadId.slice(0, 8)} 已开</p>
+    return <p className="text-muted-foreground pl-10 text-xs">对话 {item.threadId.slice(0, 8)} 已开</p>
   }
-  return <StepGroup items={[item]} />
+  return <StepGroup items={[item]} agentName={agentName} lead={lead} />
 }
 
 /* 每一步一行：图标 + 一句话 + 状态，点开才铺细节。 */

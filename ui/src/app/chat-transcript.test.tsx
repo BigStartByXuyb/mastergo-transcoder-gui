@@ -40,6 +40,17 @@ describe("ChatTranscript", () => {
     expect(screen.getAllByLabelText("Codex v0.159.0")).toHaveLength(1)
   })
 
+  // 头像按轮给：每一轮回复都露一次，不是整段对话只有最开头那一个。
+  it("每一轮回复都带头像", () => {
+    show([
+      { kind: "you", text: "第一问" },
+      agent({ kind: "message", itemId: "item_0", text: "第一答" }),
+      { kind: "you", text: "第二问" },
+      agent({ kind: "message", itemId: "item_1", text: "第二答" })
+    ])
+    expect(screen.getAllByLabelText("Codex v0.159.0")).toHaveLength(2)
+  })
+
   it("非致命提示按浅色一行给，不弹报错卡片", () => {
     show([agent({ kind: "notice", itemId: "item_0", text: "Model metadata for `deepseek-chat` not found." })])
     expect(screen.getByText("Model metadata for `deepseek-chat` not found.")).toBeTruthy()

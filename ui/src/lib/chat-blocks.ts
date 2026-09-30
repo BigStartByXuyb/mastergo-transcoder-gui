@@ -41,3 +41,39 @@ export function groupSteps(turns: Turn[]): Block[] {
   flush()
   return blocks
 }
+
+/*
+ * 哪一块该带头像：每一轮里它第一次开口的那一块带一次。
+ * 一轮 = 从你那句话到下一句话之间；开头（你还没说话时它的第一轮）也算一轮。
+ *
+ * 优先挂在正文上；这一轮只有动作没说话（只跑命令、只改文件）时挂在过程组上，
+ * 于是每一轮都露一次头像，而不是整段对话只有最开头那一个。
+ */
+export function leadFlags(blocks: Block[]): boolean[] {
+  const flags = blocks.map(() => false)
+  const mark = (from: number, to: number) => {
+    for (let index = from; index < to; index += 1) {
+      const block = blocks[index]
+      if (block.kind === "single" && block.turn.kind === "agent" && block.turn.item.kind === "message") {
+        flags[index] = true
+        return
+      }
+    }
+    for (let index = from; index < to; index += 1) {
+      if (blocks[index].kind === "steps") {
+        flags[index] = true
+        return
+      }
+    }
+  }
+  let start = 0
+  for (let index = 0; index < blocks.length; index += 1) {
+    const block = blocks[index]
+    if (block.kind === "single" && block.turn.kind === "you") {
+      mark(start, index)
+      start = index + 1
+    }
+  }
+  mark(start, blocks.length)
+  return flags
+}
