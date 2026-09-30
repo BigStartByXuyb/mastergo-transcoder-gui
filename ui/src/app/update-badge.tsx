@@ -5,9 +5,8 @@ import { Badge } from "@/components/ui/badge"
 import { BusyOverlay } from "@/app/busy-overlay"
 import { ConfirmSwitchDialog } from "@/app/confirm-switch-dialog"
 import type { UpdateHint } from "@/lib/api"
-import { describeFailure } from "@/lib/describe-failure"
 import { startUpdateDownload } from "@/lib/update-download"
-import { SWITCH_FAILED_NOTE, switchVersionAndWait } from "@/lib/update-switch"
+import { runSwitch } from "@/lib/update-switch"
 
 /*
  * 顶上的新版标注：后台每 10 分钟查一次，查到新版就在这儿挂个红点。
@@ -53,19 +52,15 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
   async function confirmSwitch() {
     setConfirming(false)
     setBusy("switch")
-    try {
-      const up = await switchVersionAndWait(target)
-      if (up) {
-        window.location.reload()
-        return
-      }
-      setBusy("")
-      setFailure(SWITCH_FAILED_NOTE)
-      props.onOpenUpdatePage()
-    } catch (error) {
-      setBusy("")
-      setFailure(describeFailure(error))
+    const outcome = await runSwitch(target)
+    if (outcome.ok) {
+      window.location.reload()
+      return
     }
+    setBusy("")
+    setFailure(outcome.note)
+    // 没起来就带人去更新页看原因（这条入口的展示差异，编排与设置页那一处相同）。
+    props.onOpenUpdatePage()
   }
 
   return (
@@ -86,9 +81,9 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
       {confirming && (
         <ConfirmSwitchDialog
           target={target}
-          current={hint ? hint.current : ""}
-          freshRunRequired={hint ? hint.stagedFreshRunRequired : null}
-          busy={hint ? hint.busy : ""}
+          current={hint.current}
+          freshRunRequired={hint.stagedFreshRunRequired}
+          busy={hint.busy}
           onCancel={() => setConfirming(false)}
           onConfirm={() => void confirmSwitch()}
         />

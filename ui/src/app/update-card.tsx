@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress"
 import { api, type UpdateStatus } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
-import { SWITCH_FAILED_NOTE, switchVersionAndWait } from "@/lib/update-switch"
+import { runSwitch } from "@/lib/update-switch"
 import { missingFeatures } from "@/lib/version-features"
 import {
   blockedNote,
@@ -131,21 +131,14 @@ export function UpdateCard() {
       return
     }
     setSwitching(version)
-    let up = false
-    try {
-      // 写指针 → 退出 → 等新的一份起来：与顶上标注点一下切换走同一处。
-      up = await switchVersionAndWait(version)
-    } catch (error) {
-      setSwitching("")
-      setFailure(describeFailure(error))
-      return
-    }
-    if (up) {
+    // 写指针 → 退出 → 等新的一份起来：与顶上标注点一下切换共用同一处编排。
+    const outcome = await runSwitch(version)
+    if (outcome.ok) {
       window.location.reload()
       return
     }
     setSwitching("")
-    setFailure(SWITCH_FAILED_NOTE)
+    setFailure(outcome.note)
   }
 
   const summary = describeUpdate(status)
