@@ -16,6 +16,46 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-09-30 插件目录纳入写盘拦截
+
+### 改了什么
+
+- `lib/plugin-root.js`：抽出 `pluginHomes()`（纯计算，不读盘）——`MASTERGO_PLUGIN_ROOT`、`<CODEX_HOME>/plugins`、`~/.claude/plugins`；
+  `candidateRoots()` 改成在它下面拼 `cache` / `marketplaces`，插件定位的目录口径收敛到这一处。
+- `lib/codex.js`：新增 `isInside()`（路径归属按字符串判，不读盘）；`writeScope()` 加一条拒绝 ——
+  工程目录落在插件目录树里一律不给开写盘（插件是引擎本体，改坏它等于拆掉流水线）；`createCodex()` 支持注入 `pluginHomes`，单测不用依赖真实机器路径。
+- `tests/codex.test.js`：补 3 条 —— 插件安装区本身、它的子目录、换个写法指向同一个目录，都要拒。
+- `tests/edges.test.js`：补 `pluginHomes()` 两条口径（显式指定的排最前、没给 `CODEX_HOME` 就退回 `~/.codex`）。
+
+### 点过的东西
+
+写盘开关临时打开（`POST /api/settings`），验完改回关；服务在 8787。
+
+| 页面／入口 | 操作 | 观察到 | 结论 |
+| --- | --- | --- | --- |
+| 对话页 | 工程目录填 `C:\Users\xuyb\.codex\plugins`，开写盘、勾确认、发送 | 回「这次不能开写盘：工程目录不能是插件目录」，codex 没有被拉起 | 通过 |
+| 接口 | `POST /api/agent/chat`，`projectRoot=C:\Users\xuyb\.codex\plugins` | `WRITE_SCOPE`「工程目录不能是插件目录」 | 通过 |
+| 接口 | 同上，指向插件版本目录 `...\mastergo-wpf-transcoder\1.0.369` | 同上 | 通过 |
+| 接口 | 同上，指向 `C:\Users\xuyb\.claude\plugins` | 同上 | 通过 |
+| 接口 | `projectRoot=D:\no-such-dir-xyz` | 「工程目录不存在」 | 通过（新判据没把别的目录一起否掉） |
+| 接口 | `projectRoot=D:\` | 「工程目录不能是盘根」 | 通过（同上） |
+
+### 没点的
+
+- 普通工程目录（`D:\ttt`）这轮没再真跑一次：放行路径由 `tests/codex.test.js` 的「合法目录 + 确认同一目录」断言覆盖，界面上轮点过。
+- 设置页的写盘开关形态没动，改设置走接口。
+
+### 自动化门禁
+
+| 命令 | 结果 |
+| --- | --- |
+| `npm test`（仓库根） | 通过 29/29 |
+| `npm run test:coverage`（仓库根，`lib/**`） | 通过，all files 96.89 / 83.12 / 96.41（门禁 90/75/90） |
+| `npx tsc -b`（`ui\`） | exit 0 |
+| `npm --prefix ui run test:coverage` | 通过，27 文件 / 153 用例；all files 99.29 / 91.63 / 100 / 99.29 |
+| `npm run lint --prefix ui` | 0 error（仅既存 hooks warning） |
+| `check-app-structure.mjs` | PASS（hardcoded-paths / orphan-exports / layering / ci-pin 各 0 条） |
+
 ## 2026-09-30 写盘白名单：可写范围只认这一次的工程目录
 
 ### 改了什么
@@ -48,7 +88,7 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 
 - 没在设置页里把写盘开关关掉再点一次：设置项的开关形态这轮没动，改设置走的是接口。
 - 客户端安装目录（`MASTERGO_HOME`）与相对路径只在单测和接口里验过，没在界面上造这两种输入。
-- 插件缓存目录（`~/.codex/plugins`）不在拦截范围：填它并确认后后端放行。这里只记录，判据没改。
+- 插件缓存目录（`~/.codex/plugins`）当轮还不在拦截范围（填它并确认后后端放行）；这条已在同日的「插件目录纳入写盘拦截」里补上。
 
 ### 自动化门禁
 

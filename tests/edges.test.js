@@ -12,7 +12,7 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 
 const { readPipelineSteps, resolvePwsh } = require("../lib/plugin.js");
-const { resolvePluginRoot } = require("../lib/plugin-root.js");
+const { resolvePluginRoot, pluginHomes } = require("../lib/plugin-root.js");
 
 function write(file, text) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -30,6 +30,21 @@ function makePlugin(body) {
 
 function casePluginRootErrors() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gui-edges-home-"));
+  // 插件地盘就这几处（纯计算）：写盘拦截与插件定位共用同一份判据。
+  assert.deepStrictEqual(
+    pluginHomes({ env: { CODEX_HOME: path.join(tmp, "codex") }, home: path.join(tmp, "home") }),
+    [path.join(tmp, "codex", "plugins"), path.join(tmp, "home", ".claude", "plugins")]
+  );
+  assert.deepStrictEqual(
+    pluginHomes({ env: { MASTERGO_PLUGIN_ROOT: path.join(tmp, "root") }, home: path.join(tmp, "home") }),
+    [
+      path.resolve(path.join(tmp, "root")),
+      path.join(tmp, "home", ".codex", "plugins"),
+      path.join(tmp, "home", ".claude", "plugins")
+    ],
+    "显式指定的那份排最前，没给 CODEX_HOME 就退回 ~/.codex"
+  );
+
   assert.throws(
     () => resolvePluginRoot(tmp),
     /不是 mastergo-wpf-transcoder 插件根/,

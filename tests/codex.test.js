@@ -481,6 +481,23 @@ async function main() {
   assert.throws(function () { customCodex.execArgs({ prompt: "x", write: true, projectRoot: path.parse(project).root, confirmRoot: project }); }, /不能是盘根/);
   assert.throws(function () { customCodex.execArgs({ prompt: "x", write: true, projectRoot: home, confirmRoot: home }); }, /本客户端自己的目录/);
 
+  // 插件目录是引擎本体：整棵树都拦，改坏它等于拆掉流水线。
+  const pluginHome = fs.mkdtempSync(path.join(os.tmpdir(), "gui-plugin-"));
+  tempDirs.push(pluginHome);
+  const pluginSub = path.join(pluginHome, "cache", "bigstart-plugins", "mastergo-wpf-transcoder");
+  fs.mkdirSync(pluginSub, { recursive: true });
+  const fencedCodex = createCodex({
+    home: home,
+    settings: fakeSettings(),
+    env: cleanEnv(home),
+    fetchImpl: remote.fetchImpl,
+    spawnSyncImpl: probe(),
+    pluginHomes: function () { return [pluginHome]; }
+  });
+  assert.throws(function () { fencedCodex.execArgs({ prompt: "x", write: true, projectRoot: pluginHome, confirmRoot: pluginHome }); }, /不能是插件目录/);
+  assert.throws(function () { fencedCodex.execArgs({ prompt: "x", write: true, projectRoot: pluginSub, confirmRoot: pluginSub }); }, /不能是插件目录/);
+  assert.throws(function () { fencedCodex.execArgs({ prompt: "x", write: true, projectRoot: path.join(pluginHome, "..", path.basename(pluginHome)), confirmRoot: pluginHome }); }, /不能是插件目录/, "换个写法指向同一个目录也要拦");
+
   // 直接给了不可用的厂商名以外，配置缺项要能原样报出来。
   const noKey = createCodex({
     home: home,
