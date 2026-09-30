@@ -34,3 +34,7 @@ agents/
 
 # 运行时：客户端自带并解压出来的 Node / PowerShell 7 与它们的安装包
 runtime/
+
+# 模型依赖：从 node_modules 收成的压缩件与解出来的那一份（发布时由 CI 现收，不入库）
+vendor/openai.tgz
+vendor/openai/

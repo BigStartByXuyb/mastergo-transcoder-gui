@@ -117,8 +117,10 @@ async function main() {
   const hinted = update.hint();
   assert.deepStrictEqual(hinted, {
     state: "update_available",
+    current: "0.1.0",
     ready: "",
-    availableVersion: "0.2.0"
+    availableVersion: "0.2.0",
+    stagedFreshRunRequired: null
   });
 
   // 下载：只下缺的内容，落进 versions/0.2.0，进度一路报上来。
@@ -220,6 +222,9 @@ async function main() {
   assert.strictEqual(stagedDone.ready, "", "它比当前版本旧，不算「有新版可切」");
   const stagedRow = stagedDone.staged.find(function (item) { return item.version === "0.0.9"; });
   assert.ok(stagedRow && stagedRow.ready, "下完之后本机就有这一份，可以切过去");
+  // 这一版要不要新开一次运行跟着清单一起留下来：界面在切换确认弹窗里要说明。
+  assert.strictEqual(stagedRow.freshRunRequired, true);
+  assert.strictEqual(stagedDone.ready, "", "比当前旧的版本不算「有新版可切」");
   // 历史版本切换前也要按它自己的清单逐文件校验（清单是 stage 下载时留下的那一份）。
   fs.writeFileSync(path.join(olderHome, "versions", "0.0.9", "lib", "a.js"), "被人改过", "utf8");
   assert.throws(function () { stageUpdate.apply("0.0.9"); }, /和清单对不上/, "历史版本也要校验");

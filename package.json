@@ -1,6 +1,6 @@
 {
   "name": "mastergo-transcoder-gui",
-  "version": "0.6.21",
+  "version": "0.6.22",
   "private": true,
   "description": "MasterGo 设计稿转 MTSLG IOContorl / MW WPF 的本地客户端",
   "scripts": {
@@ -9,6 +9,8 @@
     "dev:ui": "npm --prefix ui run dev",
     "build:ui": "npm --prefix ui run build",
     "publish:update": "node scripts/publish.js",
+    "vendor": "node scripts/vendor-openai.js",
+    "pack": "node scripts/pack-bundle.js",
     "test": "node --test \"tests/*.test.js\"",
     "test:coverage": "node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-include=\"lib/**\" --test-coverage-exclude=\"**/node_modules/**\" --test-coverage-lines=90 --test-coverage-functions=90 --test-coverage-branches=75 \"tests/*.test.js\""
   },

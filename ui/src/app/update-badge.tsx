@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { BusyOverlay } from "@/app/busy-overlay"
+import { ConfirmSwitchDialog } from "@/app/confirm-switch-dialog"
 import type { UpdateHint } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { startUpdateDownload } from "@/lib/update-download"
@@ -16,6 +17,7 @@ import { switchVersionAndWait } from "@/lib/update-switch"
 export function UpdateBadge(props: { update: UpdateHint | undefined; supervised: boolean; onOpenUpdatePage: () => void }) {
   const [busy, setBusy] = useState("")
   const [failure, setFailure] = useState("")
+  const [confirming, setConfirming] = useState(false)
   const hint = props.update
   const target = hint ? hint.ready || hint.availableVersion : ""
 
@@ -39,11 +41,16 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
       props.onOpenUpdatePage()
       return
     }
-    // 已经下载好：直接切过去，不用再去设置页点一遍。
+    // 已经下载好：确认过再切过去，不用再去设置页点一遍。
     if (!props.supervised) {
       props.onOpenUpdatePage()
       return
     }
+    setConfirming(true)
+  }
+
+  async function confirmSwitch() {
+    setConfirming(false)
     setBusy("switch")
     try {
       const up = await switchVersionAndWait(target)
@@ -75,6 +82,16 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
         </Badge>
       </button>
       {failure && <span className="text-destructive text-xs">{failure}</span>}
+      {confirming && (
+        <ConfirmSwitchDialog
+          target={target}
+          current={hint ? hint.current : ""}
+          freshRunRequired={hint ? hint.stagedFreshRunRequired : null}
+          busy=""
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => void confirmSwitch()}
+        />
+      )}
     </>
   )
 }

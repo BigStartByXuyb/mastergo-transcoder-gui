@@ -9,7 +9,14 @@ import type { UpdateHint } from "@/lib/api"
  */
 
 function hint(patch: Partial<UpdateHint> = {}): UpdateHint {
-  return { state: "update_available", ready: "", availableVersion: "0.6.12", ...patch }
+  return {
+    state: "update_available",
+    current: "0.6.11",
+    ready: "",
+    availableVersion: "0.6.12",
+    stagedFreshRunRequired: null,
+    ...patch
+  }
 }
 
 function ok(body: unknown) {

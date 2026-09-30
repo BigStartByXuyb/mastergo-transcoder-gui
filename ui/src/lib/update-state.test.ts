@@ -20,7 +20,7 @@ const status = (patch: Partial<UpdateStatus> = {}): UpdateStatus => ({
   root: "",
   pointer: null,
   busy: "",
-  staged: [{ version: "0.1.0", current: true, ready: true }],
+  staged: [{ version: "0.1.0", current: true, ready: true, freshRunRequired: null }],
   ready: "",
   rollback: "",
   available: null,
@@ -131,7 +131,7 @@ describe("describeTask", () => {
 })
 
 describe("canSwitch", () => {
-  const ready = { version: "0.2.0", current: false, ready: true }
+  const ready = { version: "0.2.0", current: false, ready: true, freshRunRequired: true }
 
   it("下载好了、空闲、不是当前这一版才让切", () => {
     expect(canSwitch(status({ state: "download_ready", ready: "0.2.0", staged: [ready] }))).toBe(true)
@@ -149,7 +149,13 @@ describe("canSwitch", () => {
     expect(canSwitch(status())).toBe(false)
     expect(canSwitch(status({ state: "download_ready", ready: "0.1.0", staged: [] }))).toBe(false)
     expect(
-      canSwitch(status({ state: "download_ready", ready: "0.3.0", staged: [{ version: "0.3.0", current: false, ready: false }] }))
+      canSwitch(
+        status({
+          state: "download_ready",
+          ready: "0.3.0",
+          staged: [{ version: "0.3.0", current: false, ready: false, freshRunRequired: null }]
+        })
+      )
     ).toBe(false)
   })
 })
@@ -165,8 +171,8 @@ describe("versionList", () => {
           { version: "0.2.0", date: "2026-09-30", notes: ["第一个可分发版本"] }
         ],
         staged: [
-          { version: "0.2.1", current: true, ready: true },
-          { version: "0.2.0", current: false, ready: true }
+          { version: "0.2.1", current: true, ready: true, freshRunRequired: null },
+          { version: "0.2.0", current: false, ready: true, freshRunRequired: null }
         ],
         available: available({ version: "0.3.0", notes: ["对话页重做"] })
       })
@@ -185,7 +191,7 @@ describe("versionList", () => {
           { version: "0.3.0", date: "2026-09-30", notes: ["本版"] },
           { version: "0.2.1", date: "2026-09-30", notes: ["代理兜底"] }
         ],
-        staged: [{ version: "0.3.0", current: true, ready: true }],
+        staged: [{ version: "0.3.0", current: true, ready: true, freshRunRequired: null }],
         available: available({ version: "0.2.1", notes: ["代理兜底"] })
       })
     )
@@ -200,8 +206,8 @@ describe("versionList", () => {
         current: "0.3.0",
         history: [{ version: "0.3.0", date: "2026-09-30", notes: ["设置页拆子页"] }],
         staged: [
-          { version: "0.3.0", current: true, ready: true },
-          { version: "0.9.9", current: false, ready: false }
+          { version: "0.3.0", current: true, ready: true, freshRunRequired: null },
+          { version: "0.9.9", current: false, ready: false, freshRunRequired: null }
         ],
         available: null
       })

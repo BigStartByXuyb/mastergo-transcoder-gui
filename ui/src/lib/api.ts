@@ -32,8 +32,12 @@ export type Health = {
 /** /api/health 带回来的新版状态：state 与设置页的更新四态同一套口径。 */
 export type UpdateHint = {
   state: string
+  /** 正在跑的版本：确认弹窗要说清是升级还是回退。 */
+  current: string
   ready: string
   availableVersion: string
+  /** 已经下载好的那一版要不要新开一次运行；没留清单就说 null。 */
+  stagedFreshRunRequired: boolean | null
 }
 
 export type PipelineStep = {
@@ -566,7 +570,8 @@ export type UpdateStatus = {
   pointer: { version?: string; previous?: string; switchedAt?: string } | null
   /** 有任务在跑时是不能切版本的，这里放原因（空串表示空闲）。 */
   busy: string
-  staged: { version: string; current: boolean; ready: boolean }[]
+  /** 本机已有的那几份：能不能切、要不要新开一次运行（没留清单的旧版说 null）。 */
+  staged: { version: string; current: boolean; ready: boolean; freshRunRequired: boolean | null }[]
   ready: string
   rollback: string
   available: UpdateAvailable | null

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ClampText } from "@/app/clamp-text"
+import { ConfirmSwitchDialog } from "@/app/confirm-switch-dialog"
 import { BusyOverlay } from "@/app/busy-overlay"
 import { Pager } from "@/app/pager"
 import { Progress } from "@/components/ui/progress"
@@ -46,6 +47,8 @@ export function UpdateCard() {
   const [openVersion, setOpenVersion] = useState("")
   // 正在切到哪一版：有值就铺遮罩、挡住一切操作。
   const [switching, setSwitching] = useState("")
+  // 等着人确认的那一版：确认弹窗里会先把回退 / 新开运行 / 有任务在跑说清楚。
+  const [confirming, setConfirming] = useState("")
   const [supervised, setSupervised] = useState(false)
 
   const transferring = status ? isDownloading(status.task) : false
@@ -221,13 +224,36 @@ export function UpdateCard() {
           frozen={frozen}
           status={status}
           onToggle={(version) => setOpenVersion(openVersion === version ? "" : version)}
-          onSwitch={(row) => void switchTo(row.version)}
+          onSwitch={(row) => setConfirming(row.version)}
           onStage={(row) => void stage(row.version)}
         />
       </CardContent>
     </Card>
+
+      {confirming && (
+        <ConfirmSwitchDialog
+          target={confirming}
+          current={status ? status.current : ""}
+          freshRunRequired={freshRunRequiredOf(status, confirming)}
+          busy={busy && status ? status.busy : ""}
+          onCancel={() => setConfirming("")}
+          onConfirm={() => {
+            const version = confirming
+            setConfirming("")
+            void switchTo(version)
+          }}
+        />
+      )}
     </>
   )
+}
+
+/** 目标那一版要不要新开一次运行：本机有它的清单就按清单说，没有就说不知道。 */
+function freshRunRequiredOf(status: UpdateStatus | null, version: string): boolean | null {
+  if (!status) return null
+  if (status.available && status.available.version === version) return status.available.freshRunRequired
+  const staged = status.staged.find((item) => item.version === version)
+  return staged && typeof staged.freshRunRequired === "boolean" ? staged.freshRunRequired : null
 }
 
 /* 一行的四列固定宽度，最后一列是切换按钮：点它就直接切到这一版。 */

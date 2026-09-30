@@ -62,6 +62,10 @@ jobs:
           npm --prefix ui ci --ignore-scripts
           npm run build:ui
 
+      # 模型依赖收成一份 vendor/openai.tgz：发布件与「解压即用」包里都带着它，首次用到时自己解开。
+      - name: Vendor the model dependency
+        run: npm run vendor
+
       # 产物与源码不一致就说明这版打出来的界面不是仓库里那一份，宁可发不出去。
       - name: Require the built output to match the commit
         run: |
@@ -75,3 +79,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/publish.js --upload
+
+      # 「解压即用」包：拿到的人双击 start.cmd 就能跑；清单最后传的不变式不受影响（它是额外资产）。
+      - name: Pack the unzip-and-run bundle
+        run: |
+          node scripts/pack-bundle.js --version "${GITHUB_REF_NAME#v}"
+          gh release upload "$GITHUB_REF_NAME" "dist/mastergo-transcoder-gui-${GITHUB_REF_NAME#v}.zip" --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
