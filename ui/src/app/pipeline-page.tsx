@@ -266,7 +266,6 @@ export function PipelinePage({
         onForm={patchForm}
         plugin={plugin}
         contract={contract}
-        automation={automation}
         identity={identity}
         busy={busy}
         failure={failure}

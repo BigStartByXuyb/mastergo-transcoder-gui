@@ -16,6 +16,28 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-09-30 补全面板接口对齐 + 两个新组件补测试（v0.6.9）
+
+### 改了什么
+
+- 审计的两条复核项：`IdentityFillPanel` 原来直接把 `useIdentity` 的返回对象当接口、并且自己又收一份 `link/target/ui/automation`。
+  现在它收「当前输入（`inputs`）+ 要画的状态（`state`）+ 回调（`actions`）」，与同批拆出的 `ProjectPagesPicker` 同一种写法；
+  `inputs` 由 `useIdentity` 返回（`use-identity.ts` 的 `IdentityInputs`），按钮能不能点、请求打哪个链接、提示怎么算都读同一份。
+- 给两个新组件补了用例：`identity-fill-panel`（按钮可用性、候选采纳、两条提示、UI 预览、自动层级文案）与
+  `project-pages-picker`（无登记表 / 没这一份 / 空表 / 按 UI 分组 / 未写 Ui 的条目 / 回填 Target 与 Ui）。
+
+### 为什么
+
+CI 的语义审计在这两项上给了复核意见（无阻断）。
+
+### 点过的东西
+
+| 操作 | 观察到 | 结论 |
+| --- | --- | --- |
+| 打开 #pipeline | 三个分组框与按钮位置不变 | 通过 |
+| 点「自动补 Target / 区域」 | 仍出候选，点一条仍能写登记表并回填 | 通过 |
+| 单测与构建 | 前端 40 文件 / 240 条、`tsc`、oxlint、结构检查、后端 37 条 | 通过 |
+
 ## 2026-09-30 补全区拆成独立组件（v0.6.8）
 
 ### 改了什么

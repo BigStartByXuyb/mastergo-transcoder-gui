@@ -25,7 +25,6 @@ type Props = {
   onForm: (patch: Partial<TaskForm>) => void
   plugin: PluginSummary | null
   contract: PipelineStep[]
-  automation: string
   identity: ReturnType<typeof useIdentity>
   busy: string
   failure: string
@@ -36,7 +35,8 @@ type Props = {
 }
 
 export function NewTaskCard(props: Props) {
-  const { form, onForm, plugin, contract, automation, identity, busy, failure } = props
+  const { form, onForm, plugin, contract, identity, busy, failure } = props
+  const { canStop, onStart, onStop, onReloadContract } = props
 
   return (
     <Card>
@@ -50,7 +50,7 @@ export function NewTaskCard(props: Props) {
           {plugin && <Badge variant="outline">插件 {plugin.version ? "v" + plugin.version : "未知版本"}</Badge>}
           {plugin && <Badge variant="secondary">共 {contract.length} 步</Badge>}
           {plugin && !plugin.runAllExists && <Badge variant="destructive">缺 run-all.ps1</Badge>}
-          <Button variant="outline" size="sm" onClick={props.onReloadContract}>
+          <Button variant="outline" size="sm" onClick={onReloadContract}>
             <RefreshCw className="size-4" />
             重读契约
           </Button>
@@ -145,12 +145,21 @@ export function NewTaskCard(props: Props) {
               </div>
 
               <IdentityFillPanel
-                identity={identity}
-                automation={automation}
-                link={form.link}
-                target={form.target}
-                ui={form.ui}
-                onPick={onForm}
+                inputs={identity.inputs}
+                state={{
+                  name: identity.name,
+                  candidates: identity.candidates,
+                  busy: identity.busy,
+                  derivedUi: identity.derivedUi,
+                  pages: identity.pages
+                }}
+                actions={{
+                  onName: identity.setName,
+                  onFill: () => void identity.fill(),
+                  onApply: (item) => void identity.apply(item),
+                  onTakePageName: identity.takeDesignPageName,
+                  onPick: onForm
+                }}
               />
             </FieldGroup>
           </div>
@@ -166,13 +175,13 @@ export function NewTaskCard(props: Props) {
             <Label htmlFor="run-overwrite">替换已有产物（默认不替换，同名就停）</Label>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            {props.canStop && (
-              <Button variant="outline" disabled={busy !== ""} onClick={props.onStop}>
+            {canStop && (
+              <Button variant="outline" disabled={busy !== ""} onClick={onStop}>
                 <Square className="size-4" />
                 停止
               </Button>
             )}
-            <Button disabled={busy !== ""} onClick={props.onStart}>
+            <Button disabled={busy !== ""} onClick={onStart}>
               {busy === "start" ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
               加入看板并开始
             </Button>

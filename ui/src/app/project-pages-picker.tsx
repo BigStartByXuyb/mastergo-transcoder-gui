@@ -6,11 +6,14 @@ import type { ProjectPages } from "@/lib/api"
  * 工程登记表里已登记的页面：按 UI 区域分组，点一下填上 Target（条目里写了 Ui 就连 Ui 一起填）。
  */
 
+/** 选了登记表里的一页要回填的东西：Target 与 UI 区域，缺哪个就填哪个。 */
+export type TargetPick = { target?: string; ui?: string }
+
 export function ProjectPagesPicker(props: {
   pages: ProjectPages | null
   target: string
   ui: string
-  onPick: (patch: { target?: string; ui?: string }) => void
+  onPick: (patch: TargetPick) => void
 }) {
   const pages = props.pages
   if (!pages) return null

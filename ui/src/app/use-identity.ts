@@ -25,6 +25,14 @@ export type IdentityOptions = {
   onPicked: (target: string, ui: string) => void
 }
 
+/** 这份 hook 当前认的输入：取值链、按钮能不能点、候选取哪个都按它算，展示层也从这一份取。 */
+export type IdentityInputs = {
+  link: string
+  target: string
+  ui: string
+  automation: string
+}
+
 export function useIdentity(options: IdentityOptions) {
   const { link, projectRoot, target, ui, automation, onFailure, onPicked } = options
   const [pages, setPages] = useState<ProjectPages | null>(null)
@@ -128,5 +136,17 @@ export function useIdentity(options: IdentityOptions) {
   /* 手填了区域就以手填的为准；预览只在没手填时用于提示。 */
   const derivedUi = ui.trim() ? "" : previewUi
 
-  return { pages, derivedUi, name, setName, candidates, busy, pick, apply, fill, takeDesignPageName }
+  return {
+    pages,
+    derivedUi,
+    name,
+    setName,
+    candidates,
+    busy,
+    pick,
+    apply,
+    fill,
+    takeDesignPageName,
+    inputs: { link, target, ui, automation } as IdentityInputs
+  }
 }
