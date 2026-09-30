@@ -152,12 +152,14 @@ async function main() {
   assert.throws(function () { update.apply("0.1.0"); }, /已经运行在/);
   assert.throws(function () { update.rollback(); }, /没有可回退的版本/);
 
-  // 本地这一版的字节被改过：校验能看出来，不许切过去。
+  // 本地这一版的字节被改过：切换时按清单校验能看出来，不许切过去；
+  // 被看出来之后，设置页与探活都不再说它可切换（免得点来点去都是同一条报错）。
   fs.writeFileSync(path.join(home, "versions", "0.2.0", "server.js"), "被人改过", "utf8");
-  const broken = update.status();
-  assert.strictEqual(broken.ready, "", "校验不过就不算下载好了");
-  assert.strictEqual(broken.state, "update_available", "退回「有新版本待下载」");
   assert.throws(function () { update.apply("0.2.0"); }, /和清单对不上/);
+  const broken = update.status();
+  assert.strictEqual(broken.ready, "", "对不上就不算可切换");
+  assert.strictEqual(broken.state, "update_available", "退回「有新版本待下载」");
+  assert.strictEqual(update.hint().state, "update_available", "探活快照说同一句话");
 
   // 外壳下限：清单要求比当前更高的客户端外壳时，下载与切换都拒。
   const gated = remote(next, "0.2.1", { minClientVersion: "9.9.9" });
