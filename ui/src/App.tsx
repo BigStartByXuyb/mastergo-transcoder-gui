@@ -92,6 +92,9 @@ export default function App() {
       activeTool={TOOL_KEYS.includes(route.page) ? (route.page as ToolKey) : null}
       title={title}
       status={<StatusBadges />}
+      // 对话要「上方滚动 + 下方固定输入」，设置是两栏，两者都不限宽。
+      wide={route.page === "chat" || route.page === "settings"}
+      fill={route.page === "chat"}
       onGoTool={(key) => go(key)}
       onGoArea={(area) => go("area?key=" + encodeURIComponent(area.key))}
       onForgetProject={(projectRoot) => {

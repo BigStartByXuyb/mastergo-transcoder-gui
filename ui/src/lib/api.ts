@@ -500,6 +500,8 @@ export type UpdateTask = {
 
 export type UpdateAvailable = {
   version: string
+  /** 这一版改了什么；来自发布清单（同一份 changelog.json），断网也能看到上次检查的结果。 */
+  notes: string[]
   releasedAt: string
   minClientVersion: string
   /** 这版要求新开一次运行（跨版本续跑过不了身份校验）。 */
@@ -515,6 +517,10 @@ export type UpdateAvailable = {
 export type UpdateStatus = {
   state: "up_to_date" | "update_available" | "download_ready" | "error"
   current: string
+  /** 现在这一版能做什么。 */
+  currentNotes: string[]
+  /** 这一份运行树自带的版本历史：按版本号找「改了什么」。 */
+  history: { version: string; date: string; notes: string[] }[]
   root: string
   pointer: { version?: string; previous?: string; switchedAt?: string } | null
   /** 有任务在跑时是不能切版本的，这里放原因（空串表示空闲）。 */
@@ -529,6 +535,38 @@ export type UpdateStatus = {
 }
 
 export type CodexState = "verified" | "untested" | "broken"
+
+/** 侧边栏一条对话：只有标题与来源，正文在 get 里取。 */
+export type ChatSummary = {
+  id: string
+  title: string
+  agent: string
+  projectRoot: string
+  createdAt: string
+  updatedAt: string
+  turnCount: number
+}
+
+export type ChatLine = { stream: string; line: string }
+
+/** 一轮 = 一次提问。lines 是引擎原始输出，解析只有前端那一份（buildTurns）。 */
+export type ChatTurn = {
+  at: string
+  prompt: string
+  exitCode: number | null
+  finished: boolean
+  lines: ChatLine[]
+}
+
+export type ChatConversation = {
+  id: string
+  title: string
+  agent: string
+  projectRoot: string
+  createdAt: string
+  updatedAt: string
+  turns: ChatTurn[]
+}
 
 export type CodexEngine = {
   version: string
@@ -775,7 +813,13 @@ export const api = {
   runtimeDownload: (tool: RuntimeId) =>
     post<{ ok: true; started: boolean; tool: string; note: string; status: RuntimeStatus }>("/api/runtime/download", {
       tool
-    })
+    }),
+  chatList: () => request<{ ok: true; conversations: ChatSummary[] }>("/api/agent/threads"),
+  chatGet: (id: string) =>
+    request<{ ok: true; conversation: ChatConversation }>("/api/agent/threads/get?id=" + encodeURIComponent(id)),
+  chatNew: (body: { title?: string; projectRoot?: string } = {}) =>
+    post<{ ok: true; conversation: ChatConversation; conversations: ChatSummary[] }>("/api/agent/threads/new", body),
+  chatRemove: (id: string) => post<{ ok: true; conversations: ChatSummary[] }>("/api/agent/threads/remove", { id })
 }
 
 /*
@@ -783,7 +827,16 @@ export const api = {
  * 这里逐行读、逐行回调 —— request() 是按整包 JSON 解析的，读不了这条流。
  */
 export async function agentChatStream(
-  body: { prompt: string; resume?: string; projectRoot?: string; write?: boolean; writeConfirm?: string },
+  body: {
+    prompt: string
+    /** 续跑认 thread id；新建的那条对话由后端在首轮里记下。 */
+    resume?: string
+    /** 落进哪条对话；空串＝后端现开一条并把它的 id 发回来。 */
+    conversationId?: string
+    projectRoot?: string
+    write?: boolean
+    writeConfirm?: string
+  },
   onEvent: (event: AgentStreamEvent) => void,
   signal?: AbortSignal
 ): Promise<void> {

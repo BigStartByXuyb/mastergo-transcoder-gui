@@ -16,11 +16,25 @@ import {
   describeTask,
   describeUpdate,
   isDownloading,
-  taskPercent
+  taskPercent,
+  versionList
 } from "@/lib/update-state"
 
 const IDLE_POLL_MS = 15000
 const WORKING_POLL_MS = 1500
+
+function Notes(props: { lines: string[]; empty?: string }) {
+  if (props.lines.length === 0) {
+    return props.empty ? <p className="text-muted-foreground text-xs">{props.empty}</p> : null
+  }
+  return (
+    <ul className="text-muted-foreground flex list-disc flex-col gap-1 pl-4 text-xs">
+      {props.lines.map((line, index) => (
+        <li key={index}>{line}</li>
+      ))}
+    </ul>
+  )
+}
 
 /*
  * 程序自身这一条版本线：检查 → 下载（只下变了的）→ 下次启动生效 → 回退。
@@ -99,7 +113,9 @@ export function UpdateCard() {
       <CardHeader>
         <CardTitle>程序更新</CardTitle>
         <CardDescription>
-          只比对运行树里变了的文件，整版落在安装目录的 versions 下；切版本只改指针，随时能退回去。
+          更新的是这个客户端自己（界面 + 编排 + 引擎集成），不含插件 ——
+          插件在「AI Agent」那一页按自己的版本走。只比对运行树里变了的文件，
+          整版落在安装目录的 versions 下；切版本只改指针，随时能退回去。
         </CardDescription>
         <div className="flex flex-wrap items-center gap-2 pt-2">
           <Badge variant={summary.tone}>{summary.label}</Badge>
@@ -109,6 +125,14 @@ export function UpdateCard() {
       <CardContent className="flex flex-col gap-4">
         {summary.note && <p className="text-muted-foreground text-sm">{summary.note}</p>}
         {available && <p className="text-sm">{available}</p>}
+
+        {/* 现在这一版是什么功能；下面那张表逐版列改了什么，回退时也能看出退回去少了什么。 */}
+        {status && (
+          <div className="flex flex-col gap-2 rounded-md border p-3">
+            <p className="text-xs font-medium">v{status.current} 这一版</p>
+            <Notes lines={status.currentNotes} empty="这一版没有留下说明。" />
+          </div>
+        )}
 
         {transferring && status && (
           <div className="flex flex-col gap-2">
@@ -176,35 +200,37 @@ export function UpdateCard() {
           )}
         </div>
 
-        {status && status.staged.length > 0 && (
+        {/* 逐版列改了什么：装了哪几版、远端那一版，同一个版本号只出一行。 */}
+        {status && versionList(status).length > 0 && (
           <div className="flex flex-col gap-2">
-            <p className="text-muted-foreground text-xs">安装目录里已有的版本</p>
-            {status.staged.map((item) => (
-              <div key={item.version} className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="w-20 tabular-nums">v{item.version}</span>
-                {item.current ? (
-                  <Badge variant="secondary">正在用</Badge>
-                ) : item.ready ? (
-                  <Badge variant="outline">可切换</Badge>
-                ) : (
-                  <Badge variant="destructive">文件不全</Badge>
-                )}
-                {!item.current && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={Boolean(working) || !canSwitch(status, item.version)}
-                    onClick={() =>
-                      void act(
-                        "switch:" + item.version,
-                        () => api.updateApply(item.version),
-                        "已切到 v" + item.version + "，下次启动生效"
-                      )
-                    }
-                  >
-                    切到这一版
-                  </Button>
-                )}
+            <p className="text-muted-foreground text-xs">版本</p>
+            {versionList(status).map((item) => (
+              <div key={item.version} className="flex flex-col gap-1 border-b pb-2 last:border-b-0">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="w-20 tabular-nums">v{item.version}</span>
+                  {item.current && <Badge variant="secondary">正在用</Badge>}
+                  {!item.current && item.installed && item.ready && <Badge variant="outline">可切换</Badge>}
+                  {!item.current && item.installed && !item.ready && <Badge variant="destructive">文件不全</Badge>}
+                  {!item.installed && item.remote && <Badge variant="outline">有新版</Badge>}
+                  {item.date && <span className="text-muted-foreground text-xs">{item.date}</span>}
+                  {!item.current && item.installed && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={Boolean(working) || !canSwitch(status, item.version)}
+                      onClick={() =>
+                        void act(
+                          "switch:" + item.version,
+                          () => api.updateApply(item.version),
+                          "已切到 v" + item.version + "，下次启动生效"
+                        )
+                      }
+                    >
+                      切到这一版
+                    </Button>
+                  )}
+                </div>
+                <Notes lines={item.notes} empty="这一版没有留下说明。" />
               </div>
             ))}
           </div>

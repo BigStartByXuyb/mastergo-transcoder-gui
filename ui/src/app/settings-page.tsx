@@ -26,8 +26,9 @@ export function SettingsPage(props: { tab: string; onPickTab: (tab: string) => v
   const active: TabKey = TAB_KEYS.includes(props.tab) ? (props.tab as TabKey) : "ai"
 
   return (
-    <div className="flex items-start gap-6">
-      <nav className="flex w-52 shrink-0 flex-col gap-1">
+    // 窄窗口先堆叠再分栏：两栏硬挤会把右栏压成一条竖缝。
+    <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-6">
+      <nav className="flex shrink-0 flex-row gap-1 overflow-x-auto md:w-56 md:flex-col md:overflow-x-visible">
         {TABS.map((tab) => {
           const Icon = tab.icon
           const selected = tab.key === active
@@ -53,8 +54,8 @@ export function SettingsPage(props: { tab: string; onPickTab: (tab: string) => v
         })}
       </nav>
 
-      {/* 右栏窄一点：设置全是表单，跟着窗口拉长只会让标签与输入框离得远。 */}
-      <div className="min-w-0 flex-1">
+      {/* 右栏吃掉剩下的宽度：卡片本来就该铺开，收窄只会让长路径与表格挤成一团。 */}
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
         {active === "ai" && <SettingsAiPanel />}
         {active === "mastergo" && <SettingsMastergoPanel />}
         {active === "agent" && <SettingsAgentPanel />}

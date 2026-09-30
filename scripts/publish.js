@@ -19,6 +19,7 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 
 const { buildManifest } = require("../lib/app-manifest.js");
+const { notesOf, notesText } = require("../lib/changelog.js");
 
 const ROOT = path.join(__dirname, "..");
 
@@ -50,6 +51,8 @@ function main() {
   manifest.releasedAt = new Date().toISOString();
   manifest.minClientVersion = argValue("min-client", "");
   manifest.freshRunRequired = process.argv.indexOf("--no-fresh-run") < 0;
+  // 这一版改了什么跟着清单一起发：客户端检查更新时就能显示，不用再多打一次 GitHub API。
+  manifest.notes = notesOf(ROOT, pkg.version);
 
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(filesDir, { recursive: true });
@@ -76,7 +79,8 @@ function main() {
     run("gh", ["release", "upload", tag].concat(blobs, ["--clobber"]));
   }
   else {
-    run("gh", ["release", "create", tag, "--title", tag, "--notes", "MasterGo 转码客户端 " + tag].concat(blobs));
+    const notes = notesText(ROOT, pkg.version) || "MasterGo 转码客户端 " + tag;
+    run("gh", ["release", "create", tag, "--title", tag, "--notes", notes].concat(blobs));
   }
   run("gh", ["release", "upload", tag, path.join(outDir, "manifest.json"), "--clobber"]);
   process.stdout.write("已上传 " + tag + "（manifest.json 最后传）\n");

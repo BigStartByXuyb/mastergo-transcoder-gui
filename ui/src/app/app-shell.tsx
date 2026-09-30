@@ -16,8 +16,9 @@ import { cn } from "@/lib/utils"
  */
 
 export const TOOLS = [
-  { key: "board", label: "看板", icon: LayoutGrid },
+  // 对话是跟人聊的地方，看板 / 待确认 / 查询 / 映射是同一类工具页，所以对话单列在最上面。
   { key: "chat", label: "对话", icon: MessagesSquare },
+  { key: "board", label: "看板", icon: LayoutGrid },
   { key: "review", label: "待确认", icon: ListChecks },
   { key: "query", label: "控件 ID 查询", icon: Search },
   { key: "mapping", label: "映射表", icon: Table2 },
@@ -37,6 +38,10 @@ type Props = {
   onGoArea: (area: AreaEntry) => void
   onForgetProject: (projectRoot: string) => void
   onNewTask: () => void
+  /** 内容不设宽度上限：整屏都是表格 / 多栏的页面用它，别的页面留阅读宽度。 */
+  wide?: boolean
+  /** 内容自己撑满一屏且不滚外层：对话这类「上方滚动 + 下方固定」的页面用它。 */
+  fill?: boolean
   children: ReactNode
 }
 
@@ -171,9 +176,11 @@ export function AppShell(props: Props) {
           <div className="min-w-0 truncate text-sm font-medium">{props.title}</div>
           {props.status}
         </header>
-        {/* 内容宽度固定在一处：所有页面一样宽，窗口再宽也不跟着拉长。 */}
-        <main className="min-w-0 flex-1 overflow-y-auto p-6">
-          <div className="mx-auto w-full max-w-5xl">{props.children}</div>
+        {/* 内容宽度固定在一处：默认 max-w-5xl，窗口再宽也不跟着拉长；wide / fill 的页面自己决定。 */}
+        <main className={cn("min-w-0 flex-1 p-6", props.fill ? "overflow-hidden" : "overflow-y-auto")}>
+          <div className={cn("w-full", props.wide ? "h-full" : "mx-auto max-w-5xl", props.fill && "h-full")}>
+            {props.children}
+          </div>
         </main>
       </div>
     </div>

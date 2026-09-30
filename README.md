@@ -38,6 +38,7 @@ npm run build:ui               # 构建前端 → public/
 ```
 ui/            前端源码（shadcn CLI 生成 components/ui/，源码入库）
 public/        前端构建产物（vite build --outDir ../public），不手工编辑
+changelog.json 每个版本改了什么（进运行树）：客户端更新页显示，发布清单与 Release 说明也读它
 launch.js      启动入口：按 current.json 选版本，再拉起那一份的 server.js
 server.js      入口：命令行、装配、监听
 scripts/       发布工具（不进运行树）
@@ -56,6 +57,8 @@ lib/xml-chunk.js    从整页 XML 里取单个控件片段
 lib/run.js          流水线运行管理（进度、日志、失败契约）
 lib/board.js        看板：任务的唯一登记（工作目录、并发、AI 补输入、自动合并）
 lib/pending.js      待确认清单的读写
+lib/chat.js         对话存档：chats.json 的建 / 取 / 删与一轮的起止
+lib/changelog.js    版本更新内容：读 changelog.json，客户端与发布共用一份
 lib/artifacts.js    产物台账（读插件运行登记表的 outputs，供「已完成」看板用）
 lib/settings.js     用户设置与模型凭据
 lib/dpapi.ps1       凭据加解密（PowerShell + Windows DPAPI）
@@ -132,6 +135,17 @@ lib/launch.js       读 current.json，判断那一份能不能跑
 
 界面功能点每次改完的实点结论记在 `docs/ui-verification.md`。
 
+## 对话
+
+左边的对话列表来自 `lib/chat.js` 的存档：一次提问一条记录，按对话归堆，落在安装根的 `chats.json`，
+重开页面还在；标题取第一句，来源那一行是这次跑的是哪份 Codex。删除只删这一条记录。
+
+存的是引擎原始输出行，解析只有前端一处（`ui/src/lib/agent-stream.ts`）：重放存档与实时收流走同一条解析，
+换引擎输出格式时只改那一处。续跑认 thread id（`codex exec resume`），所以在同一条对话里接着说就是接着上次的上下文。
+
+工具调用每次占一行（命令 / 文件改动 / MCP 工具 / 联网搜索 / 思考），点开才铺细节，默认全收起；
+命令行一开跑就出现，跑完才补上退出码。引擎只给「改了哪些文件（路径 + add/update/delete）」，不给行数。
+
 ## 程序更新
 
 版本线只有客户端自己这一条，远端是 GitHub Releases（公开仓库，不需要自建服务端）。
@@ -149,6 +163,12 @@ node scripts/publish.js --no-fresh-run      # 声明这版不要求新开一次�
 
 清单是 `{version, files: {路径: sha256}, releasedAt, minClientVersion, freshRunRequired}`，版本号只有一个来源：`package.json`。
 文件按内容哈希命名，改一个文件只传/只下那一个：客户端先把本地同哈希的文件放进内容库，缺的才下载。
+清单里还带 `notes`（这一版改了什么）与 `changelog.json`：更新页显示每个版本的内容，断网也看得到。
+发版时 `scripts/publish.js` 同时用 `changelog.json` 写上 GitHub Release 说明，一处内容三个出口。
+
+更新页更新的是**客户端自己**（界面 + 编排 + 引擎集成），不含插件 —— 插件按自己的版本走，
+在「AI Agent」那页看。版本列表按版本号从新到旧列：装好的标「正在用 / 可切换 / 文件不全」，
+远端清单里那一版标「有新版」，每一行下面就是这一版改了什么。
 
 出网代理：Node 的 `fetch` 只认环境变量，不认 Windows「Internet 选项」，所以启动时 `lib/proxy.js` 会先看环境里有没有代理，
 没有就用系统里配的补上 `HTTP_PROXY / HTTPS_PROXY / NO_PROXY`，再让 `fetch` 按它走；两处都没有就是直连。
@@ -172,7 +192,7 @@ node scripts/publish.js --no-fresh-run      # 声明这版不要求新开一次�
 | 配置 / 映射层 | 走插件版本，不在这条线上 | 不适用 |
 | Node / PowerShell 7 | 在关键路径上，坏了整个客户端起不来 | 不参与切换 |
 
-用户状态（`local.json`、`credentials`、`board.json`、`work/`）永远在安装根，不随版本目录走。
+用户状态（`local.json`、`credentials`、`board.json`、`chats.json`、`work/`）永远在安装根，不随版本目录走。
 
 ## 依赖
 

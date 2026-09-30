@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest"
 
 import type { UpdateStatus, UpdateTask } from "@/lib/api"
-import { canSwitch, describeAvailable, describeTask, describeUpdate, isDownloading, taskPercent } from "@/lib/update-state"
+import {
+  canSwitch,
+  describeAvailable,
+  describeTask,
+  describeUpdate,
+  isDownloading,
+  taskPercent,
+  versionList
+} from "@/lib/update-state"
 
 const task = (patch: Partial<UpdateTask> = {}): UpdateTask => ({
   phase: "idle",
@@ -15,6 +23,8 @@ const task = (patch: Partial<UpdateTask> = {}): UpdateTask => ({
 const status = (patch: Partial<UpdateStatus> = {}): UpdateStatus => ({
   state: "up_to_date",
   current: "0.1.0",
+  currentNotes: [],
+  history: [],
   root: "",
   pointer: null,
   busy: "",
@@ -30,6 +40,7 @@ const status = (patch: Partial<UpdateStatus> = {}): UpdateStatus => ({
 
 const available = (patch: Partial<NonNullable<UpdateStatus["available"]>> = {}) => ({
   version: "0.2.0",
+  notes: [],
   releasedAt: "2026-09-30T00:00:00.000Z",
   minClientVersion: "",
   freshRunRequired: true,
@@ -87,6 +98,11 @@ describe("describeAvailable", () => {
   it("没有远端清单就什么都不说", () => {
     expect(describeAvailable(status())).toBe("")
   })
+
+  // 清单是上一次检查留下的旧数据时，别把「要不要换 11 个文件」摆出来吓人。
+  it("远端那一版不比现在新就不说差分", () => {
+    expect(describeAvailable(status({ current: "0.3.0", available: available({ version: "0.2.1" }) }))).toBe("")
+  })
 })
 
 describe("describeTask", () => {
@@ -137,5 +153,64 @@ describe("canSwitch", () => {
     expect(
       canSwitch(status({ state: "download_ready", ready: "0.3.0", staged: [{ version: "0.3.0", current: false, ready: false }] }))
     ).toBe(false)
+  })
+})
+
+describe("versionList", () => {
+  it("版本历史、装好的那几份、远端那一版合成一张表，同一个版本号只出一行", () => {
+    const rows = versionList(
+      status({
+        current: "0.2.1",
+        currentNotes: ["代理兜底"],
+        history: [
+          { version: "0.2.1", date: "2026-09-30", notes: ["代理兜底"] },
+          { version: "0.2.0", date: "2026-09-30", notes: ["第一个可分发版本"] }
+        ],
+        staged: [
+          { version: "0.2.1", current: true, ready: true },
+          { version: "0.2.0", current: false, ready: true }
+        ],
+        available: available({ version: "0.3.0", notes: ["对话页重做"] })
+      })
+    )
+    expect(rows.map((row) => row.version)).toEqual(["0.3.0", "0.2.1", "0.2.0"])
+    expect(rows[0]).toMatchObject({ installed: false, remote: true, notes: ["对话页重做"] })
+    expect(rows[1]).toMatchObject({ current: true, installed: true, notes: ["代理兜底"] })
+    expect(rows[2]).toMatchObject({ current: false, installed: true, ready: true })
+  })
+
+  it("清单里那一版不比现在新，就不算「有新版」", () => {
+    const rows = versionList(
+      status({
+        current: "0.3.0",
+        history: [
+          { version: "0.3.0", date: "2026-09-30", notes: ["本版"] },
+          { version: "0.2.1", date: "2026-09-30", notes: ["代理兜底"] }
+        ],
+        staged: [{ version: "0.3.0", current: true, ready: true }],
+        available: available({ version: "0.2.1", notes: ["代理兜底"] })
+      })
+    )
+    expect(rows.map((row) => row.version)).toEqual(["0.3.0", "0.2.1"])
+    expect(rows[1].remote).toBe(false)
+    expect(rows[1].notes).toEqual(["代理兜底"])
+  })
+
+  it("本地历史里没有的版本照样列出来，说明留空不编", () => {
+    const rows = versionList(
+      status({
+        current: "0.3.0",
+        history: [{ version: "0.3.0", date: "2026-09-30", notes: ["设置页拆子页"] }],
+        staged: [
+          { version: "0.3.0", current: true, ready: true },
+          { version: "0.9.9", current: false, ready: false }
+        ],
+        available: null
+      })
+    )
+    expect(rows.map((row) => row.version)).toEqual(["0.9.9", "0.3.0"])
+    expect(rows[0].notes).toEqual([])
+    expect(rows[0].installed).toBe(true)
+    expect(rows[1].notes).toEqual(["设置页拆子页"])
   })
 })

@@ -2,38 +2,92 @@ import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
 import { ChatTranscript, type Turn } from "@/app/chat-transcript"
+import type { AgentItem } from "@/lib/agent-stream"
 
 function show(turns: Turn[]) {
-  render(<ChatTranscript turns={turns} />)
+  render(<ChatTranscript turns={turns} agentName="Codex v0.159.0" />)
+}
+
+function agent(item: AgentItem): Turn {
+  return { kind: "agent", item }
 }
 
 describe("ChatTranscript", () => {
   it("正文与提问各自成条", () => {
     show([
       { kind: "you", text: "F1 生成到哪一步了" },
-      { kind: "agent", item: { kind: "message", text: "停在第 7 步" } }
+      agent({ kind: "message", itemId: "item_0", text: "停在第 7 步" })
     ])
     expect(screen.getByText("F1 生成到哪一步了")).toBeTruthy()
     expect(screen.getByText("停在第 7 步")).toBeTruthy()
   })
 
   it("非致命提示按浅色一行给，不弹报错卡片", () => {
-    show([{ kind: "agent", item: { kind: "notice", text: "Model metadata for `deepseek-chat` not found." } }])
+    show([agent({ kind: "notice", itemId: "item_0", text: "Model metadata for `deepseek-chat` not found." })])
     expect(screen.getByText("Model metadata for `deepseek-chat` not found.")).toBeTruthy()
     expect(screen.queryByText("Codex 报错")).toBeNull()
   })
 
   it("真失败才出报错卡片", () => {
-    show([{ kind: "agent", item: { kind: "failure", text: "模型拒了" } }])
+    show([agent({ kind: "failure", itemId: "turn.failed", text: "模型拒了" })])
     expect(screen.getByText("Codex 报错")).toBeTruthy()
     expect(screen.getByText("模型拒了")).toBeTruthy()
   })
 
-  it("命令条目带退出码与输出", () => {
-    show([{ kind: "agent", item: { kind: "command", command: "Get-Date", output: "2026-09-30", exitCode: 1 } }])
+  // 主对话里工具调用默认只占一行：不点开就看不到命令输出。
+  it("命令默认收起，点开才铺命令与输出", () => {
+    show([agent({ kind: "command", itemId: "item_0", command: "Get-Date", output: "2026-09-30", exitCode: 1, running: false })])
     expect(screen.getByText("Get-Date")).toBeTruthy()
     expect(screen.getByText("exit 1")).toBeTruthy()
+    expect(screen.queryByText("2026-09-30")).toBeNull()
+    fireEvent.click(screen.getByRole("button"))
     expect(screen.getByText("2026-09-30")).toBeTruthy()
+  })
+
+  it("跑着的命令只出转圈，不给退出码", () => {
+    show([agent({ kind: "command", itemId: "item_0", command: "npm test", output: "", exitCode: null, running: true })])
+    expect(screen.getByText("npm test")).toBeTruthy()
+    expect(screen.queryByText(/没退出码/)).toBeNull()
+  })
+
+  it("文件改动一行说出改了哪几个，点开列路径与动作", () => {
+    show([
+      agent({
+        kind: "fileChange",
+        itemId: "item_1",
+        running: false,
+        changes: [
+          { path: "src/a.ts", action: "update" },
+          { path: "src/b.ts", action: "add" }
+        ]
+      })
+    ])
+    expect(screen.getByText("改了 2 个文件")).toBeTruthy()
+    expect(screen.queryByText("src/a.ts")).toBeNull()
+    fireEvent.click(screen.getByRole("button"))
+    expect(screen.getByText("src/a.ts")).toBeTruthy()
+    expect(screen.getByText("src/b.ts")).toBeTruthy()
+    expect(screen.getByText("新增")).toBeTruthy()
+  })
+
+  it("MCP 工具与联网搜索各自一行", () => {
+    show([
+      agent({ kind: "tool", itemId: "item_2", server: "mastergo", tool: "getDsl", args: "{\"id\":1}", output: "ok", running: false }),
+      agent({ kind: "search", itemId: "item_3", query: "codex exec json", running: false })
+    ])
+    expect(screen.getByText("mastergo · getDsl")).toBeTruthy()
+    expect(screen.getByText("搜索 codex exec json")).toBeTruthy()
+  })
+
+  it("思考过程收成一行", () => {
+    show([agent({ kind: "reasoning", itemId: "item_4", text: "先看日志再决定", running: false })])
+    expect(screen.getByText("思考过程")).toBeTruthy()
+    expect(screen.queryByText("先看日志再决定")).toBeNull()
+  })
+
+  it("一轮收尾带上 token 数", () => {
+    show([agent({ kind: "turn", itemId: "turn", tokens: 1234 })])
+    expect(screen.getByText("一轮结束（用了 1234 tokens）")).toBeTruthy()
   })
 
   it("引擎日志默认收着，点按钮才铺开", () => {
@@ -64,10 +118,10 @@ describe("ChatTranscript", () => {
   it("每一轮的日志各留各的", () => {
     show([
       { kind: "you", text: "第一问" },
-      { kind: "agent", item: { kind: "message", text: "第一答" } },
+      agent({ kind: "message", itemId: "item_0", text: "第一答" }),
       { kind: "log", text: "第一轮噪音\n", open: false },
       { kind: "you", text: "第二问" },
-      { kind: "agent", item: { kind: "message", text: "第二答" } },
+      agent({ kind: "message", itemId: "item_0", text: "第二答" }),
       { kind: "log", text: "第二轮噪音\n", open: false }
     ])
     expect(screen.getAllByText("引擎日志（1 行）")).toHaveLength(2)

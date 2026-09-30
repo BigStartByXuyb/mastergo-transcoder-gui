@@ -9,6 +9,9 @@ credentials
 board.json
 work/
 
+# 对话存档
+chats.json
+
 # 前端覆盖率报告（每次由 vitest 生成，不进仓库）
 ui/coverage/
 
