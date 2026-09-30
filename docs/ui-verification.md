@@ -20,7 +20,7 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 
 ### 改了什么
 
-- **六处查找位置逐条列出来**：设置 → AI Agent → 插件来源列出启动参数 `--plugin` / 这里选的 /
+- **插件在设置里单开一页**（与 AI Agent 分开，插件不是它的附件）：六处查找位置逐条列出来 —— 启动参数 `--plugin` / 这里选的 /
   环境变量 `MASTERGO_PLUGIN_ROOT` / Codex 缓存与市场 / Claude 缓存与市场 / 客户端自带，
   每条都有路径、有没有、是哪一版、是不是此刻生效的那一条。同一处有多份时标「共 N 份，用最高版本」。
 - **可以选用其中任意一份，立刻生效**：点「用这份」把选择记进 `local.json` 的 `pluginRoot` 并原地重新定位；
@@ -43,14 +43,29 @@ Claude 缓存 4 个版本最高 1.0.245、Claude 市场还有一份），以前�
 
 | 操作 | 观察到 | 结论 |
 | --- | --- | --- |
-| 设置 → AI Agent → 插件来源 | 六条逐条列出：Codex 缓存（正在用 v1.0.369）、Codex 市场（没有）、Claude 缓存（v1.0.245，共 4 份，用最高版本）、Claude 市场（v1.0.245）、客户端自带（没有）；环境变量那行写「未设置」 | 通过 |
+| 点设置里的「插件」 | hash 变 `?tab=plugin`，六条逐条列出：Codex 缓存（正在用 v1.0.369）、Codex 市场（没有）、Claude 缓存（v1.0.245，共 4 份，用最高版本）、Claude 市场（v1.0.245）、客户端自带（没有）；环境变量那行写「未设置」 | 通过 |
 | 点 Claude 缓存那行的「用这份」 | 顶栏插件徽标立刻从 v1.0.369 变 v1.0.245，多出一条「设置里选的 · 正在用」并带上完整路径，Codex 缓存那行改为给「用这份」 | 通过 |
 | 点「用自动」 | 顶栏回到 v1.0.369，选择那行消失，`local.json` 里 `pluginRoot` 变回空串 | 通过 |
+| 点 AI Agent 那一页 | 只剩 Agent 写盘 / Codex 引擎 / 运行时 —— 插件不再挤在里面 | 通过 |
 | `POST /api/plugin/choose` 传一个不是插件根的目录 | 400 + `BAD_PLUGIN_DIR`，hint 写明缺 `skills\mastergo-to-wpf\SKILL.md` 与那个目录 | 通过 |
-| 全量门禁 | 后端 39 条（新增 `plugin-sources.test.js` 5 条）、前端 44 文件 / 264 条、`tsc`、oxlint、结构检查 | 通过 |
+| 全量门禁 | 后端 39 条（新增 `plugin-sources.test.js` 6 条）、前端 44 文件 / 264 条、`tsc`、oxlint、结构检查 | 通过 |
+
+### 复核处置
+
+CI 的语义审计给了 `result: PASS`、0 阻断 + 4 条复核，四条都按「有没有真收益」处理，全部采纳：
+
+1. **插件版本读两遍** → 只留 `lib/plugin-root.js` 的 `pluginVersionOf()`，「这一条是哪一版」与
+   「现在生效的是哪一版」共用它，`readPluginInfo()` 改为引用。
+2. **「列出来」与「用哪一份」判据不同**（真问题：选的那一份指向装着插件的父目录时，界面标「有」、
+   自动顺序却跳过它） → `resolvePluginRoot()` 就按 `pluginSources()` 的顺序取第一个 `exists` 的
+   `pluginRoot`，同一判据、同一结果；测试补了「父目录里装着插件」这一例。
+3. **`SKILL.md` 路标又写了一遍** → `plugin-root.js` 导出 `PLUGIN_MARKER`，`BAD_PLUGIN_DIR` 的提示复用它。
+4. **对 `pluginRuntime` 为空的防御没有失败路径** → 删掉空值分支（`createRoutes` 只有 `server.js` 一个装配点）；
+   顺带把「界面显示的环境变量」与「判据用的环境变量」收成同一个取值（`pluginRuntime.environment()`）。
 
 截图（`D:\MasterGoData\Temp\ui-shots\`）：
 
+- `2026-10-01-plugin-page.png` —— 设置里的「插件」页（与 AI Agent 平级）
 - `2026-10-01-plugin-sources-auto.png` —— 六条列全，自动那行标「正在用」
 - `2026-10-01-plugin-sources-picked.png` —— 换用「设置里选的」之后，顶栏与列表同时改了
 

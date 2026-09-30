@@ -1,5 +1,6 @@
-import { Bot, FileKey, KeyRound, RefreshCw } from "lucide-react"
+import { Bot, FileKey, KeyRound, Puzzle, RefreshCw } from "lucide-react"
 
+import { PluginCard } from "@/app/plugin-card"
 import { SettingsAgentPanel } from "@/app/settings-agent-panel"
 import { SettingsAiPanel } from "@/app/settings-ai-panel"
 import { SettingsMastergoPanel } from "@/app/settings-mastergo-panel"
@@ -14,7 +15,8 @@ import { cn } from "@/lib/utils"
 const TABS = [
   { key: "ai", label: "AI token", hint: "厂商 · 地址 · 模型 · key", icon: KeyRound },
   { key: "mastergo", label: "MasterGo token", hint: "设计稿取数凭证", icon: FileKey },
-  { key: "agent", label: "AI Agent", hint: "引擎 · 插件 · 运行环境", icon: Bot },
+  { key: "agent", label: "AI Agent", hint: "引擎与运行环境", icon: Bot },
+  { key: "plugin", label: "插件", hint: "来源 · 版本 · 换一份", icon: Puzzle },
   { key: "update", label: "更新", hint: "客户端版本与回退", icon: RefreshCw }
 ] as const
 
@@ -62,6 +64,8 @@ export function SettingsPage(props: { tab: string; onPickTab: (tab: string) => v
         {active === "ai" && <SettingsAiPanel />}
         {active === "mastergo" && <SettingsMastergoPanel />}
         {active === "agent" && <SettingsAgentPanel />}
+        {/* 插件是一件事，不是 Agent 的附件：单独一页，将来这块长大也不挤别人。 */}
+        {active === "plugin" && <PluginCard />}
         {active === "update" && <SettingsUpdatePanel />}
       </div>
     </div>

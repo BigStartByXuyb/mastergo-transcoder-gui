@@ -14,7 +14,7 @@ import { describeFailure } from "@/lib/describe-failure"
 
 /*
  * 插件来源：转码引擎来自 mastergo-wpf-transcoder 插件，客户端不自带。
- * 这一块把「都查过哪些路径、各自有没有、正在用哪一份」摆出来，并且能换一份 —— 换完立刻生效。
+ * 这一页把「都查过哪些路径、各自有没有、正在用哪一份」摆出来，并且能换一份 —— 换完立刻生效。
  * 一个客户机上可能同时装着好几份（Codex 缓存、Claude 缓存、自己指定的目录），选错了跑出来的东西不一样。
  */
 export function PluginCard() {
@@ -72,7 +72,7 @@ export function PluginCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>插件来源</CardTitle>
+        <CardTitle>插件</CardTitle>
         <CardDescription>转码引擎来自插件；下面这些位置都查过，用的是标「正在用」的那一份。</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">

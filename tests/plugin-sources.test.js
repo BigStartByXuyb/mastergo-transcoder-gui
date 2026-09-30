@@ -190,13 +190,43 @@ function caseSetting() {
   fs.rmSync(box.tmp, { recursive: true, force: true });
 }
 
+// 「列出来」与「用哪一份」必须是同一判据：指到装着插件的父目录时，两边都认。
+function caseParentDir() {
+  const box = sandbox();
+  const fx = fixture(box);
+  const parent = path.join(box.tmp, "picked");
+  const inside = makePlugin(path.join(parent, "mastergo-wpf-transcoder", "1.5.0"), "1.5.0");
+  const options = { env: {}, home: box.home, codexHome: box.codex, installRoot: box.install, chosenRoot: parent };
+
+  const listed = pluginSources(options).find((item) => item.id === "chosen");
+  assert.strictEqual(listed.exists, true, "父目录里那个同名插件要认出来");
+  assert.strictEqual(listed.pluginRoot, inside);
+  assert.strictEqual(listed.version, "1.5.0");
+  assert.strictEqual(resolvePluginRoot("", options), inside, "取的那一份与列出来的那一份是同一个");
+
+  const settings = createSettings(box.home);
+  settings.write({ pluginRoot: parent });
+  const runtime = createPluginRuntime({
+    installRoot: box.install,
+    settings: settings,
+    home: box.home,
+    env: { CODEX_HOME: box.codex }
+  });
+  assert.strictEqual(runtime.current().root, inside, "换成父目录之后照样能定位到插件");
+  assert.strictEqual(runtime.sources().find((item) => item.active).id, "chosen");
+  assert.notStrictEqual(runtime.current().root, fx.codexNew, "指定的那一份优先于缓存里的副本");
+
+  fs.rmSync(box.tmp, { recursive: true, force: true });
+}
+
 try {
   const cases = [
     ["来源清单", caseSources],
     ["取值顺序", caseOrder],
     ["换一份立刻生效", caseRuntime],
     ["一处都没有", caseMissing],
-    ["设置里选的那一份", caseSetting]
+    ["设置里选的那一份", caseSetting],
+    ["父目录里装着插件", caseParentDir]
   ];
   for (const [name, run] of cases) {
     run();
