@@ -8,11 +8,11 @@ import { waitForClientVersion } from "@/lib/restart-watch"
  */
 
 /** 切过去但没起来时的一句统一提示（两个入口都读它，免得同一件事两种说法）。 */
-export const SWITCH_FAILED_NOTE = "换版本没起来：打开设置 → 更新看原因；还不行就关掉窗口重新双击一次 start.cmd。"
+const SWITCH_FAILED_NOTE = "换版本没起来：打开设置 → 更新看原因；还不行就关掉窗口重新双击一次 start.cmd。"
 
-export type SwitchOutcome = { ok: boolean; note: string }
+type SwitchOutcome = { ok: boolean; note: string }
 
-export async function switchVersionAndWait(version: string): Promise<boolean> {
+async function switchVersionAndWait(version: string): Promise<boolean> {
   await api.updateApply(version)
   try {
     await api.clientRestart()

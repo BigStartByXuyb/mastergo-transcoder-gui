@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress"
 import { api, type UpdateStatus } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
+import { startUpdateDownload } from "@/lib/update-download"
 import { runSwitch } from "@/lib/update-switch"
 import { missingFeatures } from "@/lib/version-features"
 import {
@@ -90,15 +91,17 @@ export function UpdateCard() {
    */
   async function act(
     key: string,
-    run: () => Promise<{ status: UpdateStatus }>,
-    done: string | ((payload: { status: UpdateStatus; started?: boolean; note?: string }) => void) = ""
+    run: () => Promise<{ status: UpdateStatus | null; started?: boolean; note?: string; error?: string }>,
+    done: string | ((payload: { status: UpdateStatus | null; started?: boolean; note?: string }) => void) = ""
   ) {
     setWorking(key)
     setFailure("")
     try {
       const payload = await run()
-      setStatus(payload.status)
-      if (typeof done === "function") done(payload)
+      if (payload.status) setStatus(payload.status)
+      // 返回里已经带了失败原因（例如「没开始下载」）：先说出来，不再往下走。
+      if (payload.error) setFailure(payload.error)
+      else if (typeof done === "function") done(payload)
       else if (done) toast.success(done)
     } catch (error) {
       setFailure(describeFailure(error))
@@ -114,7 +117,8 @@ export function UpdateCard() {
   async function stage(version: string) {
     await act(
       "stage:" + version,
-      () => api.updateStage(version),
+      // 与顶栏红点共用同一处「发起下载」。
+      () => startUpdateDownload(version),
       (payload) => (payload.started ? toast.success("正在下载 v" + version) : toast.info(payload.note || "本地已经有这一版"))
     )
   }
