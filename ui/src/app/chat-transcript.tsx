@@ -51,7 +51,7 @@ function YouBubble({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
       <div className="flex max-w-[85%] items-start gap-2">
-        <div className="bg-primary text-primary-foreground rounded-2xl rounded-tr-sm px-3.5 py-2 text-sm break-words whitespace-pre-wrap">
+        <div className="bg-primary text-primary-foreground rounded-2xl rounded-tr-sm px-3.5 py-2 text-sm break-words whitespace-pre-wrap shadow-sm">
           {text}
         </div>
         <span className="bg-muted text-muted-foreground mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[10px]">
@@ -67,7 +67,8 @@ function AgentItemView({ item, agentName, lead }: { item: AgentItem; agentName: 
     return (
       <div className="flex max-w-[85%] items-start gap-2">
         {lead ? <AgentChip name={agentName} /> : <span className="size-6 shrink-0" />}
-        <div className="bg-muted rounded-2xl rounded-tl-sm px-3.5 py-2 text-sm break-words whitespace-pre-wrap">
+        {/* 它说的话：白底 + 描边，坐在浅一档的消息区上，和你那条深色气泡分得开。 */}
+        <div className="bg-card rounded-2xl rounded-tl-sm border px-3.5 py-2 text-sm break-words whitespace-pre-wrap">
           {item.text}
         </div>
       </div>

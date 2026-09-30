@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -270,9 +271,9 @@ export function ChatPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 gap-4">
+    <div className="flex h-full min-h-0 gap-3">
       {/* 对话记录：标题 + 来源，够认出是哪一条就行；正文不进这一列。 */}
-      <aside className="flex w-64 shrink-0 flex-col gap-2 border-r pr-3">
+      <aside className="bg-muted/40 flex w-64 shrink-0 flex-col gap-2 rounded-lg border p-2">
         <Button variant="outline" className="justify-start" onClick={startNew} disabled={running}>
           <Plus className="size-4" />
           新建对话
@@ -317,8 +318,9 @@ export function ChatPage() {
         </div>
       </aside>
 
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-center gap-2 border-b pb-3">
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+        {/* 这一条对话的身份与设置：标题、来源、模板。 */}
+        <header className="bg-card flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2">
           <span className="min-w-0 flex-1 truncate text-sm font-medium">{active?.title ?? "新对话"}</span>
           {agentName ? <Badge variant="secondary">{agentName}</Badge> : <Badge variant="outline">还没开始</Badge>}
           {thread && <Badge variant="outline">对话 {thread.slice(0, 8)}</Badge>}
@@ -349,7 +351,8 @@ export function ChatPage() {
           </span>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto py-4">
+        {/* 消息区自己是一块：底色调浅一档，白色气泡与深色气泡都跳得出来。 */}
+        <div className="bg-muted/40 min-h-0 flex-1 overflow-y-auto rounded-lg border p-4">
           <ChatTranscript
             turns={turns}
             agentName={agentName || "Codex"}
@@ -358,11 +361,11 @@ export function ChatPage() {
           <div ref={bottomRef} />
         </div>
 
-        {/* 输入区固定在下方：消息区自己滚，输入框不跟着走。 */}
+        {/* 你操作的那一块：自己成一张卡，边框 + 卡片底，跟上面的消息区分开。 */}
         <div
           className={cn(
-            "flex flex-col gap-2 border-t pt-3",
-            dragging && "bg-accent/40 rounded-md outline-2 outline-offset-4 outline-dashed"
+            "bg-card flex flex-col gap-3 rounded-lg border p-3",
+            dragging && "border-primary outline-2 outline-offset-2 outline-dashed"
           )}
           onDragOver={(event) => {
             event.preventDefault()
@@ -375,7 +378,9 @@ export function ChatPage() {
             void attach(Array.from(event.dataTransfer.files).map((file) => ({ file })))
           }}
         >
-          {/* 附件：图片会被它直接看，文件和文件夹给路径让它去读。 */}
+          {/* 第一组：附件（图片会被它直接看，文件和文件夹给路径让它去读）。 */}
+          <div className="flex flex-col gap-2">
+            <span className="text-muted-foreground text-xs font-medium">附件</span>
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {attachments.map((item) => (
@@ -440,34 +445,49 @@ export function ChatPage() {
               <span className="text-muted-foreground text-xs">也可以把文件直接拖到这里</span>
             )}
           </div>
+          </div>
 
-          <Input
-            spellCheck={false}
-            list="chat-projects"
-            className="font-mono text-xs"
-            placeholder="工程目录（可选；给了它才能读这个目录里的文件）"
-            value={projectRoot}
-            onChange={(event) => {
-              setProjectRoot(event.target.value)
-              // 换了目录，上一次的确认就不算数了。
-              setWriteConfirmed(false)
-            }}
-          />
-          <datalist id="chat-projects">
-            {readRecentProjects().map((item) => (
-              <option key={item} value={item} />
-            ))}
-          </datalist>
+          {/* 第二组：这次让它读哪个工程目录。 */}
+          <div className="grid gap-1.5">
+            <Label htmlFor="chat-project" className="text-muted-foreground text-xs font-medium">
+              工程目录（可选）
+            </Label>
+            <Input
+              id="chat-project"
+              spellCheck={false}
+              list="chat-projects"
+              className="font-mono text-xs"
+              placeholder="给了它才能读这个目录里的文件"
+              value={projectRoot}
+              onChange={(event) => {
+                setProjectRoot(event.target.value)
+                // 换了目录，上一次的确认就不算数了。
+                setWriteConfirmed(false)
+              }}
+            />
+            <datalist id="chat-projects">
+              {readRecentProjects().map((item) => (
+                <option key={item} value={item} />
+              ))}
+            </datalist>
+          </div>
 
-          <Textarea
-            rows={3}
-            placeholder="例如：看一下 F1 这个页面生成到哪一步了，缺什么？"
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) void send()
-            }}
-          />
+          {/* 第三组：要问什么。 */}
+          <div className="grid gap-1.5">
+            <Label htmlFor="chat-prompt" className="text-muted-foreground text-xs font-medium">
+              要问什么
+            </Label>
+            <Textarea
+              id="chat-prompt"
+              rows={3}
+              placeholder="例如：看一下 F1 这个页面生成到哪一步了，缺什么？"
+              value={prompt}
+              onChange={(event) => setPrompt(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) void send()
+              }}
+            />
+          </div>
 
           {write && allowWrite && (
             <div className="flex flex-col gap-2 rounded-md border px-3 py-2">
