@@ -210,8 +210,11 @@ export function UpdateCard() {
                   <span className="w-20 tabular-nums">v{item.version}</span>
                   {item.current && <Badge variant="secondary">正在用</Badge>}
                   {!item.current && item.installed && item.ready && <Badge variant="outline">可切换</Badge>}
-                  {!item.current && item.installed && !item.ready && <Badge variant="destructive">文件不全</Badge>}
-                  {!item.installed && item.remote && <Badge variant="outline">有新版</Badge>}
+                  {/* 比现在新的那一版还没拉下来不是「坏了」，别拿「文件不全」吓人。 */}
+                  {!item.current && !item.ready && item.remote && <Badge variant="outline">有新版</Badge>}
+                  {!item.current && !item.ready && !item.remote && item.installed && (
+                    <Badge variant="destructive">文件不全</Badge>
+                  )}
                   {item.date && <span className="text-muted-foreground text-xs">{item.date}</span>}
                   {!item.current && item.installed && (
                     <Button
