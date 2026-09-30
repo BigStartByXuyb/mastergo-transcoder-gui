@@ -15,6 +15,7 @@ import { useAreas } from "@/app/use-areas"
 import { Badge } from "@/components/ui/badge"
 import { areaKey, areaLabel } from "@/lib/areas"
 import { useHealth } from "@/lib/use-health"
+import { UpdateBadge } from "@/app/update-badge"
 
 /*
  * 路由：`#<页面>?<查询串>`。
@@ -38,7 +39,7 @@ function readRoute(): Route {
   }
 }
 
-function StatusBadges() {
+function StatusBadges(props: { onOpenUpdatePage: () => void }) {
   const { health, offline } = useHealth()
 
   if (offline) return <Badge variant="destructive">服务未就绪</Badge>
@@ -50,6 +51,11 @@ function StatusBadges() {
         引擎{health.plugin.engineExists ? "就绪" : "缺失"}
       </Badge>
       <Badge variant="outline">插件 {health.plugin.version ? "v" + health.plugin.version : "未知版本"}</Badge>
+      <UpdateBadge
+        update={health.update ?? null}
+        supervised={health.supervised}
+        onOpenUpdatePage={props.onOpenUpdatePage}
+      />
     </div>
   )
 }
@@ -92,7 +98,7 @@ export default function App() {
       activeAreaKey={activeKey}
       activeTool={TOOL_KEYS.includes(route.page) ? (route.page as ToolKey) : null}
       title={title}
-      status={<StatusBadges />}
+      status={<StatusBadges onOpenUpdatePage={() => go("settings?tab=update")} />}
       // 对话要「上方滚动 + 下方固定输入」，设置是两栏，两者都不限宽。
       wide={route.page === "chat" || route.page === "settings" || route.page === "board"}
       // 两个页面都撑满这一屏：页面自己不滚，长内容交给页面内的列表分页 / 内部滚动。

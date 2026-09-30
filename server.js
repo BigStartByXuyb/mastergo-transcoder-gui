@@ -252,6 +252,8 @@ server.listen(options.port, options.host, function () {
     + (frames.length ? " → " + frames.map((frame) => frame.fileId + "/" + frame.layerId + "(" + frame.from + ")").join(", ") : "") + "\n");
   // 后台自动检测新版：失败不出声，设置页自己按离线状态显示。
   void update.check({ silent: true });
+  // 之后每 10 分钟再查一次：界面顶上的「有新版」标注靠它保持新鲜。
+  update.startWatch({});
   void codex.check({ silent: true });
   if (options.open) openBrowser(url);
 });

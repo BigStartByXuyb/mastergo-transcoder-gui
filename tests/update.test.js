@@ -112,6 +112,16 @@ async function main() {
   assert.strictEqual(checked.available.removed, 0);
   assert.strictEqual(checked.available.freshRunRequired, true, "默认要求新开一次运行");
 
+  // 界面上那个全局标注读的是这份精简快照：要有状态、当前版本、可切版本与目标版本，但不带版本历史。
+  const hinted = update.hint();
+  assert.deepStrictEqual(hinted, {
+    state: "update_available",
+    current: "0.1.0",
+    ready: "",
+    busy: "",
+    availableVersion: "0.2.0"
+  });
+
   // 下载：只下缺的内容，落进 versions/0.2.0，进度一路报上来。
   const started = update.startDownload();
   assert.strictEqual(started.started, true);

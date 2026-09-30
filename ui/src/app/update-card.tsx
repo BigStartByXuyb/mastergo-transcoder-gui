@@ -13,7 +13,7 @@ import { Progress } from "@/components/ui/progress"
 import { api, type UpdateStatus } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
-import { waitForClientVersion } from "@/lib/restart-watch"
+import { switchVersionAndWait } from "@/lib/update-switch"
 import {
   blockedNote,
   canSwitch,
@@ -120,22 +120,15 @@ export function UpdateCard() {
       return
     }
     setSwitching(version)
+    let up = false
     try {
-      await api.updateApply(version)
+      // 写指针 → 退出 → 等新的一份起来：与顶上标注点一下切换走同一处。
+      up = await switchVersionAndWait(version)
     } catch (error) {
       setSwitching("")
       setFailure(describeFailure(error))
       return
     }
-    try {
-      await api.clientRestart()
-    } catch {
-      // 这一份就是被它自己关掉的，请求断在半路属于预期。
-    }
-    const up = await waitForClientVersion({
-      target: version,
-      probe: async () => (await api.health()).version
-    })
     if (up) {
       window.location.reload()
       return

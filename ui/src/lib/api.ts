@@ -25,6 +25,17 @@ export type Health = {
   supervised: boolean
   plugin: PluginSummary
   frames: FrameEntry[]
+  /** 新版的精简快照：顶上的「有新版」标注用它，不带版本历史。 */
+  update: UpdateHint
+}
+
+/** /api/health 带回来的新版状态：state 与设置页的更新四态同一套口径。 */
+export type UpdateHint = {
+  state: string
+  current: string
+  ready: string
+  busy: string
+  availableVersion: string
 }
 
 export type PipelineStep = {
