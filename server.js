@@ -45,6 +45,7 @@ const { createMapping } = require("./lib/mapping.js");
 const { createUpdate } = require("./lib/update.js");
 const { createCodex } = require("./lib/codex.js");
 const { createRuntime } = require("./lib/runtime.js");
+const { applyProxy } = require("./lib/proxy.js");
 
 const HERE = __dirname;
 const PUBLIC_DIR = path.join(HERE, "public");
@@ -95,6 +96,9 @@ function resolveToken() {
 const TOKEN = resolveToken();
 
 // ---- 装配 ----
+// 出网要走代理才有更新：先按环境变量/系统设置把代理立起来，后面的下载与 pwsh 子进程都跟着走。
+const proxy = applyProxy();
+
 let PLUGIN_ROOT;
 try {
   PLUGIN_ROOT = resolvePluginRoot(options.plugin);
@@ -230,6 +234,9 @@ server.listen(options.port, options.host, function () {
   process.stdout.write("运行时: " + runtime.status().tools.map(function (item) {
     return item.label + " " + (item.source ? (item.source === "bundled" ? "自带" : "系统") + " " + (item.version || "?") : "缺失");
   }).join(" / ") + "\n");
+  process.stdout.write("代理: " + (proxy.filled.length
+    ? "已按 Windows 系统设置补上 " + proxy.filled.join("、")
+    : (proxy.enabled ? "按环境变量" : "未启用（直连）")) + "\n");
   process.stdout.write("token: " + (TOKEN ? "已就绪" : "缺失（只有本地快照模式可用）") + "\n");
   if (!fs.existsSync(path.join(PUBLIC_DIR, "index.html"))) {
     process.stdout.write("界面: 未构建 —— 先跑 npm run build:ui，或开发时用 npm run dev:ui。\n");

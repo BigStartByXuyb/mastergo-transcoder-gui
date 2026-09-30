@@ -62,6 +62,7 @@ lib/ai.js           模型调用（只出候选，从不写盘）
 lib/app-manifest.js 运行树清单（哪些文件、每个的 sha256；发布与更新共用这一份算法）
 lib/bundle-store.js 内容寻址库：blobs/ 与 versions/<版本>/ 的落盘、校验、指针
 lib/download.js     带重试与超时的取件
+lib/proxy.js        出网代理：环境里没有就用 Windows 系统设置补上
 lib/update.js       差分更新：拉清单 → 只下变了的 → 落版本目录 → 切指针
 lib/launch.js       读 current.json，判断那一份能不能跑
 ```
@@ -124,6 +125,9 @@ node scripts/publish.js --no-fresh-run      # 声明这版不要求新开一次�
 
 清单是 `{version, files: {路径: sha256}, releasedAt, minClientVersion, freshRunRequired}`，版本号只有一个来源：`package.json`。
 文件按内容哈希命名，改一个文件只传/只下那一个：客户端先把本地同哈希的文件放进内容库，缺的才下载。
+
+出网代理：Node 的 `fetch` 只认环境变量，不认 Windows「Internet 选项」，所以启动时 `lib/proxy.js` 会先看环境里有没有代理，
+没有就用系统里配的补上 `HTTP_PROXY / HTTPS_PROXY / NO_PROXY`，再让 `fetch` 按它走；两处都没有就是直连。
 
 界面上的四个动作对应四个接口：
 
