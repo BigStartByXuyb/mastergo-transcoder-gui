@@ -15,7 +15,7 @@ import { readCodexLine, type AgentItem } from "@/lib/agent-stream"
 import { replayConversation, upsertTurn } from "@/lib/chat-replay"
 import { describeFailure } from "@/lib/describe-failure"
 import { readRecentProjects, rememberProject } from "@/lib/recent-projects"
-import { attachmentUrl, humanSize, uploadAttachments } from "@/lib/upload-files"
+import { attachmentUrl, humanSize, uploadAttachments, type PickedFile } from "@/lib/upload-files"
 import { cn } from "@/lib/utils"
 
 /*
@@ -237,7 +237,7 @@ export function ChatPage() {
   }
 
   /* 选文件 / 选文件夹 / 拖进来，三条路都走同一个上传。 */
-  async function attach(picked: { file: File; relativePath?: string }[]) {
+  async function attach(picked: PickedFile[]) {
     if (picked.length === 0) return
     setUploading(true)
     setFailure("")

@@ -45,6 +45,21 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | 提问「我登记的代码库有哪些？」 | 它跑了 `Test-Path -LiteralPath 'D:\MTSSD\MaxWell.SSDPages'`，回答「登记的代码库只有 1 个：D:\MTSSD\MaxWell.SSDPages（已确认存在）：MTSLG IOContorl 页面工程，页面 XML 与 Layout 注册都在这里」 | 通过（代码库清单确实进了上下文） |
 | 单测 | `uploads` 5 条（相对路径 / 类型 / 落盘重名 / 只认自己的目录 / 大小限制）、`agent-context` 4 条（空输入 / 代码库 / 附件 / 拼装顺序） | 通过 |
 
+审计（CI 的 semantic-audit）在 v0.6.0 上报了一个 BLOCK：`lib/http.js` 把**所有**路由的请求体卡在 1 MiB，
+而上传接口声明的单文件上限是 25 MB —— 超过约 768 KB 的文件根本传不上来，实点只用一个 153 B 的文件所以没暴露。
+修法：请求体上限改成按路由声明（`route.bodyLimit`），上传那条用 `lib/uploads.js` 里由总量上限算出来的
+`MAX_BODY_BYTES`（约 56 MB），别的接口仍是 1 MiB。修完补了下面两条实点：
+
+| 操作 | 观察到 | 结论 |
+| --- | --- | --- |
+| 直接打 `POST /api/agent/upload` 传 2 MB（请求体 2.7 MB） | `status=200`、47 ms，文件按 2097152 字节落在 `chats/uploads/<批次>/big.bin` | 通过（旧代码在 1 MiB 就会被拒） |
+| 传 26 MB（超过单文件上限） | `400`、`FILE_TOO_BIG / 单个文件超过 25 MB：too-big.bin / 大文件先放工程里…` | 通过（上限文案由常量算出来，不写死） |
+
+同一轮审计还提了四条复核项，一并改了：扩展名→MIME 表收敛回 `lib/http.js` 的 `contentTypeOf`（路由不再自己抄一份）；
+README 里「对话」那段被抄了两遍已删掉重复；同一次提问里 `settings.read()` 读两遍改成读一次（写盘判定复用同一份快照）；
+附件类型不再采信界面上报的 `kind`，路由按路径重新判一次；`PickedFile` 让调用方直接 import 而不是各写一遍形状；
+`lib/pick-folder.js` 补了可注入的 `spawnImpl` 与 5 条单测（非 Windows / 选中 / 取消 / 打不开 / 超时）。
+
 ## 2026-09-30 修「切不回本地这一份」+ 检查失败不再被吞（v0.5.2）
 
 ### 改了什么
