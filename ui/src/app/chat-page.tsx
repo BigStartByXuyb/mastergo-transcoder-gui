@@ -236,7 +236,7 @@ export function ChatPage() {
         <div className="min-h-0 flex-1 overflow-y-auto">
           {conversations.length === 0 && (
             <p className="text-muted-foreground px-1 py-2 text-xs leading-relaxed">
-              还没有对话。问一句就会在这里留下一条，重开页面也还在。
+              还没有对话。问一句就会在这里留下一条。
             </p>
           )}
           <div className="flex flex-col gap-1">
@@ -288,7 +288,7 @@ export function ChatPage() {
           <ChatTranscript
             turns={turns}
             agentName={agentName || "Codex"}
-            empty="新建一条对话，问一句试试。它能在你给的工程目录里读文件、跑命令。"
+            empty="问一句试试。它能在你给的工程目录里读文件、跑命令。"
           />
           <div ref={bottomRef} />
         </div>
@@ -299,7 +299,7 @@ export function ChatPage() {
             spellCheck={false}
             list="chat-projects"
             className="font-mono text-xs"
-            placeholder="工程目录（可选，绝对路径；给了它才能读这个目录里的文件）"
+            placeholder="工程目录（可选；给了它才能读这个目录里的文件）"
             value={projectRoot}
             onChange={(event) => {
               setProjectRoot(event.target.value)

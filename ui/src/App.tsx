@@ -93,8 +93,9 @@ export default function App() {
       title={title}
       status={<StatusBadges />}
       // 对话要「上方滚动 + 下方固定输入」，设置是两栏，两者都不限宽。
-      wide={route.page === "chat" || route.page === "settings"}
-      fill={route.page === "chat"}
+      wide={route.page === "chat" || route.page === "settings" || route.page === "board"}
+      // 两个页面都撑满这一屏：页面自己不滚，长内容交给页面内的列表分页 / 内部滚动。
+      fill={route.page === "chat" || route.page === "settings" || route.page === "board"}
       onGoTool={(key) => go(key)}
       onGoArea={(area) => go("area?key=" + encodeURIComponent(area.key))}
       onForgetProject={(projectRoot) => {

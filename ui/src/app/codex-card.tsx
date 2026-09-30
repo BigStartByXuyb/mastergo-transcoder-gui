@@ -17,8 +17,8 @@ const IDLE_POLL_MS = 15000
 const WORKING_POLL_MS = 1000
 
 /*
- * Codex 引擎这一条版本线：检查发行版 → 按需下载（缺哪个程序下哪个）→ 下载完自检 → 切版本 / 回退。
- * 下载版与自检状态都落在安装目录的 agents\codex 下，用户的 ~/.codex 一概不动。
+ * Codex 引擎：检查有没有新版 → 下载 → 自检 → 切版本 / 回退。
+ * 默认用客户端自带那份，不碰用户本机装的。
  */
 export function CodexCard() {
   const [status, setStatus] = useState<CodexStatus | null>(null)
@@ -90,9 +90,7 @@ export function CodexCard() {
     <Card>
       <CardHeader>
         <CardTitle>Codex 引擎</CardTitle>
-        <CardDescription>
-          自动与对话模式用它跑 agent：按需下载到安装目录，用我们自己的 CODEX_HOME 隔离，不碰你本机装的那份。
-        </CardDescription>
+        <CardDescription>「对话」与自动补输入用它跑模型，默认自带一份，与你本机装的互不影响。</CardDescription>
         <div className="flex flex-wrap items-center gap-2 pt-2">
           <Badge variant={summary.tone}>
             <Bot className="size-3" />
@@ -103,10 +101,7 @@ export function CodexCard() {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <p className="text-sm">{release}</p>
-        <p className="text-muted-foreground text-xs">
-          钉死的一版：v{status?.pinned ?? ""}；会话目录 agents\codex\home；key 走环境变量
-          {status ? " " + status.isolated.keyEnv : ""}。
-        </p>
+        <p className="text-muted-foreground text-xs">默认用 v{status?.pinned ?? ""}，独立存放，与你本机装的互不影响。</p>
 
         {transferring && status && (
           <div className="flex flex-col gap-2">
@@ -118,7 +113,7 @@ export function CodexCard() {
         {busy && (
           <Alert>
             <AlertTitle>有任务在跑</AlertTitle>
-            <AlertDescription>{status?.busy}；跑完才能切版本。</AlertDescription>
+            <AlertDescription>{status?.busy}；跑完才能换版本。</AlertDescription>
           </Alert>
         )}
 
@@ -210,7 +205,7 @@ export function CodexCard() {
 
         {status && status.system.length > 0 && (
           <div className="flex flex-col gap-1">
-            <p className="text-muted-foreground text-xs">本机自己装的（只检测，不动它）</p>
+            <p className="text-muted-foreground text-xs">你本机装的（可选，不动它）</p>
             {status.system.map((item) => (
               <div key={item.path} className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="w-40 tabular-nums">v{item.version}</span>

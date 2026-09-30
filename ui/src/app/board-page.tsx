@@ -1,81 +1,44 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { ChevronRight, GitMerge, Loader2, Play, Square, Trash2 } from "lucide-react"
+import { GitMerge, Loader2, Play, Plus } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Progress } from "@/components/ui/progress"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Textarea } from "@/components/ui/textarea"
-import { api, type Board, type BoardTask } from "@/lib/api"
-import { parseBoardItems } from "@/lib/board-items"
-import { boardStateVariant } from "@/lib/board-state"
-import { coverageOf, type Coverage } from "@/lib/board-effective"
+import { Card, CardContent } from "@/components/ui/card"
+import { BoardNewTaskDialog } from "@/app/board-new-task-dialog"
+import { BoardTaskTable } from "@/app/board-task-table"
 import { ClampText } from "@/app/clamp-text"
 import { EffectiveToggle } from "@/app/effective-toggle"
-import { IdentifierText } from "@/app/identifier-text"
-import { MergeConflicts } from "@/app/merge-conflicts"
+import { Pager } from "@/app/pager"
+import { api, type Board } from "@/lib/api"
+import { parseBoardItems } from "@/lib/board-items"
+import { coverageOf, type Coverage } from "@/lib/board-effective"
+import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
-import { readStored, writeStored } from "@/lib/storage"
-import { FINISHED_STATES, POLL_MS, canStop, isSettled } from "@/lib/task-state"
+import { pageSlice } from "@/lib/paging"
+import { FINISHED_STATES, POLL_MS } from "@/lib/task-state"
 
 /*
  * 看板：一屏同时跑多个页面。
  *
- * 每个任务在自己的工作目录里跑流水线，跑完合回主工程 —— 隔离与合并都由后端做，
- * 这里只负责把状态显示出来、把动作传过去。状态一律读后端的快照，不自己推。
+ * 这一页的主体是任务表；工程、模式、链接只在要加任务时填，收进「创建任务」弹窗。
+ * 列表按页给，一页十条，页面本身不往下拖。
  */
 
-const STORAGE_KEY = "mastergo-transcoder-gui.board"
-const EMPTY_FORM: Form = {
-  projectRoot: "",
-  ui: "",
-  mode: "B",
-  autoMerge: true,
-  overwrite: false,
-  stopAfter: "",
-  links: "",
-  onlyEffective: true
-}
-
-type Form = {
-  projectRoot: string
-  ui: string
-  mode: "A" | "B" | "AB"
-  autoMerge: boolean
-  overwrite: boolean
-  stopAfter: string
-  links: string
-  onlyEffective: boolean
-}
-
-function readForm(): Form {
-  return readStored(STORAGE_KEY, EMPTY_FORM, (raw) => ({
-    projectRoot: String(raw.projectRoot ?? ""),
-    ui: String(raw.ui ?? ""),
-    mode: raw.mode === "A" || raw.mode === "AB" ? raw.mode : "B",
-    autoMerge: raw.autoMerge !== false,
-    overwrite: raw.overwrite === true,
-    stopAfter: String(raw.stopAfter ?? ""),
-    links: String(raw.links ?? ""),
-    onlyEffective: raw.onlyEffective !== false
-  }))
-}
+// 一页十条：一屏放得下，多出来的翻页。
+const PAGE_SIZE = 10
 
 export function BoardPage() {
   const [board, setBoard] = useState<Board | null>(null)
   const [problem, setProblem] = useState("")
-  const [form, setForm] = useState<Form>(readForm)
+  const [form, setForm] = useState<BoardTaskForm>(readBoardForm)
   const [busy, setBusy] = useState("")
+  const [adding, setAdding] = useState(false)
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
-    writeStored(STORAGE_KEY, form)
+    writeBoardForm(form)
   }, [form])
 
   useEffect(() => {
@@ -102,6 +65,7 @@ export function BoardPage() {
     }
   }, [])
 
+  // 合并全部要一个工程：取任务最多的那个，用不着人再填一遍。
   const projectRoot = useMemo(() => {
     const counts = new Map<string, number>()
     for (const task of board?.tasks ?? []) {
@@ -153,364 +117,91 @@ export function BoardPage() {
         stopAfter: form.stopAfter.trim(),
         items
       })
-    )
+    ).then(() => setAdding(false))
   }
 
   const tasks = board?.tasks ?? []
   const readyCount = tasks.filter((task) => task.state === "ready").length
-  const coverage = useMemo(() => coverageOf(tasks), [tasks])
+  const coverage: Map<string, Coverage> = useMemo(() => coverageOf(tasks), [tasks])
   const shown = form.onlyEffective ? tasks.filter((task) => coverage.get(task.id) !== "covered") : tasks
   const coveredCount = tasks.length - shown.length
 
   return (
-    <div className="flex w-full flex-col gap-4">
+    <div className="flex h-full min-h-0 flex-col gap-4">
       {problem && (
         <Alert variant="destructive">
           <AlertTitle>看板没读到最新状态</AlertTitle>
-              <AlertDescription>
-                <ClampText text={problem} />
-              </AlertDescription>
+          <AlertDescription>
+            <ClampText text={problem} />
+          </AlertDescription>
         </Alert>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>看板</CardTitle>
-          <CardDescription>
-            每个任务在自己的工作目录里跑完整流水线，跑完合回主工程。并发上限按本机逻辑核数给：
-            {board ? ` ${board.limits.limit} / ${board.limits.logical} 核` : " …"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">正在跑 {board?.running ?? 0}</Badge>
-            <Badge variant={readyCount > 0 ? "default" : "outline"}>待合并 {readyCount}</Badge>
-            <Badge variant="outline">任务 {tasks.length}</Badge>
-            {board?.workRoot && (
-              <span className="text-muted-foreground truncate font-mono text-xs" title={board.workRoot}>
-                工作目录 {board.workRoot}
-              </span>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              disabled={busy !== "" || !tasks.some((task) => task.state === "queued")}
-              onClick={() => void run("start-all", () => api.boardStart())}
-            >
-              {busy === "start-all" ? <Loader2 className="animate-spin" /> : <Play />}
-              启动全部
-            </Button>
-            <Button
-              variant="outline"
-              disabled={busy !== "" || readyCount === 0 || !projectRoot}
-              onClick={() => void run("merge-all", () => api.boardMergeAll(projectRoot))}
-            >
-              {busy === "merge-all" ? <Loader2 className="animate-spin" /> : <GitMerge />}
-              合并全部
-            </Button>
-            <Button
-              variant="ghost"
-              disabled={busy !== "" || tasks.length === 0}
-              onClick={() => void run("clear", () => api.boardClear(FINISHED_STATES))}
-            >
-              清掉已结束
-            </Button>
-            {/* 同一页面只留当前生效那一行，被后一次合并覆盖的默认藏起来；要看历史就关掉它。 */}
-            <div className="ml-auto">
-              <EffectiveToggle
-                id="board-only-effective"
-                checked={form.onlyEffective}
-                hidden={coveredCount}
-                onChange={(value) => setForm({ ...form, onlyEffective: value })}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="text-sm font-medium">任务</h2>
+        <Badge variant="secondary">正在跑 {board?.running ?? 0}</Badge>
+        <Badge variant={readyCount > 0 ? "default" : "outline"}>待合并 {readyCount}</Badge>
+        <Badge variant="outline">共 {tasks.length}</Badge>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <EffectiveToggle
+            id="board-only-effective"
+            checked={form.onlyEffective}
+            hidden={coveredCount}
+            onChange={(value) => setForm({ ...form, onlyEffective: value })}
+          />
+          <Button
+            variant="outline"
+            disabled={busy !== "" || !tasks.some((task) => task.state === "queued")}
+            onClick={() => void run("start-all", () => api.boardStart())}
+          >
+            {busy === "start-all" ? <Loader2 className="animate-spin" /> : <Play />}
+            启动全部
+          </Button>
+          <Button
+            variant="outline"
+            disabled={busy !== "" || readyCount === 0 || !projectRoot}
+            onClick={() => void run("merge-all", () => api.boardMergeAll(projectRoot))}
+          >
+            {busy === "merge-all" ? <Loader2 className="animate-spin" /> : <GitMerge />}
+            合并全部
+          </Button>
+          <Button
+            variant="ghost"
+            disabled={busy !== "" || tasks.length === 0}
+            onClick={() => void run("clear", () => api.boardClear(FINISHED_STATES))}
+          >
+            清掉已结束
+          </Button>
+          <Button onClick={() => setAdding(true)}>
+            <Plus />
+            创建任务
+          </Button>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>加入任务</CardTitle>
-          <CardDescription>
-            一行一个链接；要指定页面名就写 <span className="font-mono">链接 | Target</span>。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="board-project">工程目录</Label>
-              <Input
-                id="board-project"
-                spellCheck={false}
-                value={form.projectRoot}
-                onChange={(event) => setForm({ ...form, projectRoot: event.target.value })}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="board-ui">Ui 前缀</Label>
-              <Input
-                id="board-ui"
-                spellCheck={false}
-                placeholder="例如 Test —— Target 推不出来时必填"
-                value={form.ui}
-                onChange={(event) => setForm({ ...form, ui: event.target.value })}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>默认模式</Label>
-              <Select value={form.mode} onValueChange={(value) => setForm({ ...form, mode: value as Form["mode"] })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="B">B —— MTSLG IOContorl</SelectItem>
-                  <SelectItem value="A">A —— MW WPF</SelectItem>
-                  <SelectItem value="AB">AB —— 两条都跑</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2">
-              <div className="leading-tight">
-                <div className="text-sm">跑完自动合并</div>
-                <div className="text-muted-foreground text-xs">冲突时一律停下等人，不自动选边。</div>
-              </div>
-              <Switch checked={form.autoMerge} onCheckedChange={(value) => setForm({ ...form, autoMerge: value })} />
-            </div>
-            <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2">
-              <div className="leading-tight">
-                <div className="text-sm">替换已有产物</div>
-                <div className="text-muted-foreground text-xs">
-                  工程里已经有同名页面时才会用到；默认不替换，同名就停在 bundle。
-                </div>
-              </div>
-              <Switch checked={form.overwrite} onCheckedChange={(value) => setForm({ ...form, overwrite: value })} />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="board-stop">停在某一步（可选）</Label>
-              <Input
-                id="board-stop"
-                spellCheck={false}
-                placeholder="例如 discover —— 先出待命名清单"
-                value={form.stopAfter}
-                onChange={(event) => setForm({ ...form, stopAfter: event.target.value })}
-              />
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="board-links">MasterGo 链接</Label>
-            <Textarea
-              id="board-links"
-              rows={5}
-              spellCheck={false}
-              placeholder={"https://mastergo.com/goto/xxxx?file=…&layer_id=…\nhttps://mastergo.com/goto/yyyy?file=…&layer_id=… | F3Align"}
-              value={form.links}
-              onChange={(event) => setForm({ ...form, links: event.target.value })}
+      <Card className="flex min-h-0 flex-1 flex-col">
+        <CardContent className="flex min-h-0 flex-1 flex-col gap-2 pt-6">
+          <Pager page={page} total={shown.length} size={PAGE_SIZE} onPage={setPage} />
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <BoardTaskTable
+              tasks={pageSlice(shown, page, PAGE_SIZE)}
+              coverage={coverage}
+              busy={busy}
+              onRun={run}
+              onCreate={() => setAdding(true)}
             />
-            {/* 区域前缀的去向：Target 带前缀（F3Align）时插件会自己推出来；两处都空且工程没登记表就会在入口停下。 */}
-            <p className="text-muted-foreground text-xs">
-              链接里写的 Target（`链接 | F3Align`）带编号前缀、或大写开头（`HomeContent`）时，UI 前缀插件会自动推出来；
-              写成小写/下划线（如 `test_mastergp`）两条都推不出来，必须自己填 Ui 前缀。UI 与 Target 都空、
-              工程又没有 <span className="font-mono">docs/page-registry.json</span> 时，插件会在入口停下要求显式给出。
-            </p>
-          </div>
-          <div className="flex justify-end">
-            <Button disabled={busy !== ""} onClick={addTasks}>
-              {busy === "add" ? <Loader2 className="animate-spin" /> : null}
-              加入看板
-            </Button>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>任务</CardTitle>
-          <CardDescription>状态、进度、失败原因都来自后端快照；冲突不猜，停下等人。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-hidden rounded-md border">
-            {/* 列宽按比例给：中间内容再长也只换行，不把整张表撑宽；窗口变窄时整表跟着容器缩，不会被裁掉。 */}
-            <Table className="table-fixed">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[13%]">状态</TableHead>
-                  <TableHead className="w-[15%]">Target</TableHead>
-                  <TableHead className="w-[7%]">模式</TableHead>
-                  <TableHead className="w-[18%]">进度</TableHead>
-                  <TableHead>工作目录 / 说明</TableHead>
-                  <TableHead className="w-[15%] text-right">操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {shown.map((task) => (
-                  <TaskRow
-                    key={task.id}
-                    task={task}
-                    coverage={coverage.get(task.id)}
-                    busy={busy}
-                    run={run}
-                  />
-                ))}
-                {shown.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-muted-foreground py-8 text-center text-sm">
-                      还没有任务。填工程目录与链接，加进来再启动。
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+      <BoardNewTaskDialog
+        open={adding}
+        form={form}
+        busy={busy === "add"}
+        onChange={setForm}
+        onOpenChange={setAdding}
+        onSubmit={addTasks}
+      />
     </div>
   )
 }
-
-function TaskRow({
-  task,
-  coverage,
-  busy,
-  run
-}: {
-  task: BoardTask
-  coverage?: Coverage
-  busy: string
-  run: (key: string, action: () => Promise<{ board: Board }>) => Promise<void>
-}) {
-  const progress = task.progress
-  const done = progress?.done ?? 0
-  const total = progress?.total ?? 0
-  const percent = total > 0 ? Math.round((done / total) * 100) : 0
-  const blocked = busy !== ""
-
-  return (
-    <>
-    <TableRow>
-      <TableCell className="align-top whitespace-normal">
-        <div className="flex flex-col items-start gap-1">
-          <Badge variant={boardStateVariant(task.state)}>{task.stateLabel}</Badge>
-          {coverage === "effective" && <Badge variant="outline">生效中</Badge>}
-          {coverage === "covered" && (
-            <Badge variant="secondary" title="同一页面的后一次合并已经把它覆盖，工程里当前不是这一份">
-              已被覆盖
-            </Badge>
-          )}
-        </div>
-      </TableCell>
-      <TableCell className="align-top text-xs whitespace-normal">
-        <IdentifierText text={task.request.target || "（按设计稿推导）"} />
-      </TableCell>
-      <TableCell className="align-top text-sm">{task.request.mode}</TableCell>
-      <TableCell className="align-top">
-        {progress ? (
-          <div className="flex flex-col gap-1">
-            <Progress value={percent} />
-            <span className="text-muted-foreground block truncate text-xs" title={progress.currentTitle}>
-              {done}/{total} {progress.currentTitle ? "· " + progress.currentTitle : ""}
-            </span>
-          </div>
-        ) : (
-          <span className="text-muted-foreground text-xs">—</span>
-        )}
-      </TableCell>
-      <TableCell className="align-top whitespace-normal">
-        <div className="flex flex-col gap-1">
-          <ClampText
-            text={task.workDir || task.request.projectRoot}
-            lines={3}
-            className="text-muted-foreground font-mono text-xs"
-          />
-          {task.error && <ClampText text={task.error} lines={2} className="text-destructive text-xs" />}
-          {task.failure && task.failure.kind !== "semantic" && (
-            <span className="text-destructive text-xs">
-              <ClampText
-                text={(task.failure.title || task.failure.stepName) + "：" + task.failure.message}
-                lines={2}
-              />
-              {task.failure.logPath && (
-                <IdentifierText text={task.failure.logPath} className="text-muted-foreground block" />
-              )}
-            </span>
-          )}
-          {task.failure && task.failure.kind === "semantic" && (
-            <span className="text-muted-foreground text-xs">
-              <ClampText
-                text={
-                  "停在语义判断点，不是错误：" +
-                  (task.failure.title || task.failure.stepName) +
-                  (task.failure.message ? " —— " + task.failure.message : "")
-                }
-                lines={2}
-              />
-            </span>
-          )}
-          {task.state === "waiting" && (
-            <span className="text-muted-foreground text-xs">
-              AI 会自动补输入；补不动就去「待确认」列表处理（产物在它自己的工作目录里）。
-            </span>
-          )}
-          {task.merge && task.merge.conflicts.length === 0 && (
-            <span className="text-muted-foreground text-xs">已合并 {task.merge.applied.length} 个文件</span>
-          )}
-          {task.merge && task.merge.conflicts.length > 0 && (
-            <MergeConflicts
-              conflicts={task.merge.conflicts}
-              resolutions={task.resolutions}
-              busy={blocked}
-              onPick={(path, pick) =>
-                run(task.id + ":resolve:" + path, () => api.boardResolve(task.id, path, pick))
-              }
-            />
-          )}
-        </div>
-      </TableCell>
-      <TableCell className="align-top text-right whitespace-normal">
-        <div className="flex flex-wrap justify-end gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              window.location.hash = "pipeline?task=" + task.id
-            }}
-          >
-            <ChevronRight />
-            详情
-          </Button>
-          {task.state === "queued" && (
-            <Button size="sm" disabled={blocked} onClick={() => void run(task.id + ":start", () => api.boardStart(task.id))}>
-              <Play /> 启动
-            </Button>
-          )}
-          {canStop(task.state) && (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={blocked}
-              onClick={() => void run(task.id + ":stop", () => api.boardStop(task.id))}
-            >
-              <Square /> 停止
-            </Button>
-          )}
-          {(task.state === "ready" || task.state === "conflict") && (
-            <Button size="sm" disabled={blocked} onClick={() => void run(task.id + ":merge", () => api.boardMerge(task.id))}>
-              <GitMerge /> {task.state === "conflict" ? "重新合并" : "合并"}
-            </Button>
-          )}
-          {isSettled(task.state) && (
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={blocked}
-              onClick={() => void run(task.id + ":remove", () => api.boardRemove(task.id))}
-            >
-              <Trash2 /> 移除
-            </Button>
-          )}
-        </div>
-      </TableCell>
-    </TableRow>
-    </>
-  )
-}
-

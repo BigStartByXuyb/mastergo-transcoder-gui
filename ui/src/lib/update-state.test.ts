@@ -1,15 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { UpdateStatus, UpdateTask } from "@/lib/api"
-import {
-  canSwitch,
-  describeAvailable,
-  describeTask,
-  describeUpdate,
-  isDownloading,
-  taskPercent,
-  versionList
-} from "@/lib/update-state"
+import { blockedNote, canSwitch, describeTask, describeUpdate, isDownloading, taskPercent, versionList } from "@/lib/update-state"
 
 const task = (patch: Partial<UpdateTask> = {}): UpdateTask => ({
   phase: "idle",
@@ -57,13 +49,14 @@ describe("describeUpdate", () => {
     expect(describeUpdate(null)).toEqual({ label: "读取中…", tone: "outline", note: "" })
   })
 
-  it("四态各给人话，并说清下一步", () => {
+  it("四态各给人话", () => {
     expect(describeUpdate(status()).label).toBe("已是最新 v0.1.0")
     expect(describeUpdate(status({ state: "update_available", available: available() })).label).toBe("有新版本 v0.2.0")
 
     const ready = describeUpdate(status({ state: "download_ready", ready: "0.2.0" }))
-    expect(ready.label).toBe("v0.2.0 已下载")
-    expect(ready.note).toContain("start.cmd")
+    expect(ready.label).toBe("v0.2.0 已就绪")
+    // 面向用户的一句话里不解释怎么做的：换版本的过程不写进界面。
+    expect(ready.note).toBe("")
 
     const failed = describeUpdate(
       status({ state: "error", error: { code: "DOWNLOAD_FAILED", message: "下载失败", hint: "断网了" } })
@@ -77,31 +70,22 @@ describe("describeUpdate", () => {
   })
 })
 
-describe("describeAvailable", () => {
-  it("说清要换几个、删几个、要不要新开运行", () => {
-    expect(describeAvailable(status({ available: available() }))).toBe(
-      "运行树 43 个文件，要比对替换 4 个、删掉 1 个；这版要求新开一次运行。"
-    )
-  })
-
-  it("外壳有下限时先报下限，其余不提", () => {
-    const text = describeAvailable(
-      status({
-        available: available({
-          blocked: { code: "CLIENT_TOO_OLD", message: "v0.2.0 要求客户端至少 v0.3.0", hint: "先装新版安装包。" }
+describe("blockedNote", () => {
+  it("只有外壳有下限时才说一句", () => {
+    expect(
+      blockedNote(
+        status({
+          available: available({
+            blocked: { code: "CLIENT_TOO_OLD", message: "v0.2.0 要求客户端至少 v0.3.0", hint: "先装新版安装包。" }
+          })
         })
-      })
-    )
-    expect(text).toBe("v0.2.0 要求客户端至少 v0.3.0。先装新版安装包。")
+      )
+    ).toBe("v0.2.0 要求客户端至少 v0.3.0。先装新版安装包。")
   })
 
-  it("没有远端清单就什么都不说", () => {
-    expect(describeAvailable(status())).toBe("")
-  })
-
-  // 清单是上一次检查留下的旧数据时，别把「要不要换 11 个文件」摆出来吓人。
-  it("远端那一版不比现在新就不说差分", () => {
-    expect(describeAvailable(status({ current: "0.3.0", available: available({ version: "0.2.1" }) }))).toBe("")
+  it("其余情况一个字都不说", () => {
+    expect(blockedNote(status())).toBe("")
+    expect(blockedNote(status({ available: available() }))).toBe("")
   })
 })
 

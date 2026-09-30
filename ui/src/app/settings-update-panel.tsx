@@ -5,20 +5,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useHealth } from "@/lib/use-health"
 
 /*
- * 更新这一页：程序自身这条版本线（检查 → 下载 → 下次启动生效 → 回退），
- * 外加当前进程实际加载的那套环境 —— 出了问题先看这里：版本、插件、引擎、流水线入口各在哪一份。
+ * 更新这一页：左边是客户端自己的版本（检查 / 下载 / 切换 / 回退），
+ * 右边是当前在用的插件与引擎 —— 出了问题先看这里。
  */
 export function SettingsUpdatePanel() {
   const { health, offline } = useHealth(10000)
 
   return (
-    <div className="flex flex-col gap-4">
+    // 左边版本、右边运行环境：同一屏放得下，不用往下拖。
+    <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
       <UpdateCard />
 
-      <Card>
+      <Card className="flex h-full flex-col">
         <CardHeader>
           <CardTitle>运行环境</CardTitle>
-          <CardDescription>当前进程实际加载的插件与引擎。</CardDescription>
+          <CardDescription>当前使用的插件与引擎。</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {offline && <p className="text-destructive text-sm">连不上本地服务。</p>}

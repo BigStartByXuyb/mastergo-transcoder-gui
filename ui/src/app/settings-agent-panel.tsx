@@ -12,8 +12,8 @@ import { describeFailure } from "@/lib/describe-failure"
 import { useSettings } from "@/lib/use-settings"
 
 /*
- * Agent 这一页：写盘开关 + 引擎版本线 + 跑插件用的运行环境。
- * 三样都决定「agent 能不能跑起来、能跑多大」，所以放一页；与程序自身的更新分开。
+ * Agent 这一页：写盘开关 + 引擎版本 + 跑插件用的运行环境。
+ * 三样都决定 agent 能不能跑起来，所以放一页；与程序自身的更新分开。
  */
 export function SettingsAgentPanel() {
   const { settings, failure, save } = useSettings()
@@ -39,10 +39,7 @@ export function SettingsAgentPanel() {
       <Card>
         <CardHeader>
           <CardTitle>Agent 写盘</CardTitle>
-          <CardDescription>
-            关着时只读；开着才允许它在「对话」里直接改工程文件。Windows 上 Codex 沙箱不放行只读命令，
-            所以只读是给它的约定，不是系统隔离。
-          </CardDescription>
+          <CardDescription>关着时它只能读；开着才允许它在「对话」里直接改工程文件。</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <label className="flex items-center gap-2 text-sm">

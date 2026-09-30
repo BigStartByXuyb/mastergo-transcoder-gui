@@ -75,7 +75,7 @@ export function AppShell(props: Props) {
 
           {groups.length === 0 && (
             <p className="text-muted-foreground px-2 text-xs leading-relaxed">
-              还没有用过的工程。新建一次任务、或填一次工程目录，这里就会出现「工程 → 区域」。
+              还没有工程。创建一次任务，这里就会列出它的区域。
             </p>
           )}
 

@@ -17,8 +17,8 @@ import { useSettings } from "@/lib/use-settings"
 const CUSTOM = "custom"
 
 /*
- * 模型：只给「待确认」页出候选（图标命名、文案译文），不接管流程，写进产物前一律要人确认。
- * key 用 Windows DPAPI（当前用户）加密后存在安装目录的 credentials 里，不进产物、不进日志。
+ * 模型：给「待确认」页出候选（图标命名、文案译文）。写进工程前一律要人确认。
+ * key 加密存在本机，不进产物、不进日志；怎么做的不写进界面。
  *
  * 表单是受控的，初值只能用「已经读到的那份设置」：读到之后按存的那份挂一次表单，
  * 存完设置变了就按新值重挂 —— 不写「settings 变了再把输入框对齐回去」那种 effect，
@@ -31,15 +31,13 @@ export function SettingsAiPanel() {
     <Card>
       <CardHeader>
         <CardTitle>模型</CardTitle>
-        <CardDescription>
-          用于「待确认」页出候选（图标命名、文案译文）。只做一次调用，不接管流程；写进产物前一律要你确认。
-        </CardDescription>
+        <CardDescription>给图标命名、文案译文出候选，省掉手填。写进工程前要你确认。</CardDescription>
         <div className="flex flex-wrap items-center gap-2 pt-2">
           {!settings && <Badge variant="outline">读取中…</Badge>}
           {settings?.ai.hasKey && (
             <Badge variant="secondary">
               <KeyRound className="size-3" />
-              key 已保存（DPAPI 加密）
+              key 已保存
             </Badge>
           )}
           {settings && !settings.ai.hasKey && <Badge variant="outline">还没有 key</Badge>}
@@ -148,9 +146,7 @@ function AiForm(props: { settings: Settings; save: (patch: unknown) => Promise<S
           value={apiKey}
           onChange={(event) => setApiKey(event.target.value)}
         />
-        <p className="text-muted-foreground text-xs">
-          用 Windows DPAPI（当前用户）加密后存在安装目录的 credentials 里，不写进任何产物、不进日志。
-        </p>
+        <p className="text-muted-foreground text-xs">key 只加密存在本机，不会写进工程，也不会出现在日志里。</p>
       </div>
 
       {(failure || props.loadFailure) && (

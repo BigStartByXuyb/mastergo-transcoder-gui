@@ -64,14 +64,12 @@ export function SettingsMastergoPanel() {
     <Card>
       <CardHeader>
         <CardTitle>MasterGo token</CardTitle>
-        <CardDescription>
-          取设计稿要用的凭证（页面名、图层、图标几何）。填一次就够，流水线每一步都从这里取。
-        </CardDescription>
+        <CardDescription>读取设计稿要用的凭证。填一次就够，之后每次转码都用它。</CardDescription>
         <div className="flex flex-wrap items-center gap-2 pt-2">
           {hasToken ? (
             <Badge variant="secondary">
               <FileKey className="size-3" />
-              本机已保存（DPAPI 加密）
+              本机已保存
             </Badge>
           ) : (
             <Badge variant="outline">本机没存过</Badge>
@@ -87,18 +85,14 @@ export function SettingsMastergoPanel() {
         {!sourceLabel && (
           <Alert>
             <AlertTitle>还没有 token</AlertTitle>
-            <AlertDescription>
-              取数那几步会失败并提示缺 token。在这里填一次，或用环境变量 MASTERGO_MCP_TOKEN，或用 --token 启动本工具。
-            </AlertDescription>
+            <AlertDescription>没有它读不到设计稿。在这里填一次即可。</AlertDescription>
           </Alert>
         )}
 
         {shadowed && (
           <Alert>
             <AlertTitle>本机这份没在用</AlertTitle>
-            <AlertDescription>
-              现在实际取数用的是「{sourceLabel}」，它优先于本机保存的那份。要改用本机这份，就去掉命令行与环境变量。
-            </AlertDescription>
+            <AlertDescription>现在生效的是「{sourceLabel}」，不是本机保存的这一份。</AlertDescription>
           </Alert>
         )}
 
@@ -112,9 +106,7 @@ export function SettingsMastergoPanel() {
             value={token}
             onChange={(event) => setToken(event.target.value)}
           />
-          <p className="text-muted-foreground text-xs">
-            用 Windows DPAPI（当前用户）加密后存在安装目录的 mastergo-credentials 里，不写进任何产物、不进日志。
-          </p>
+          <p className="text-muted-foreground text-xs">token 只加密存在本机，不会写进工程，也不会出现在日志里。</p>
         </div>
 
         {(failure || saveFailure) && (

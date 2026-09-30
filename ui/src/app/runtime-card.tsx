@@ -83,9 +83,7 @@ export function RuntimeCard() {
     <Card>
       <CardHeader>
         <CardTitle>运行时</CardTitle>
-        <CardDescription>
-          流水线用的 Node.js 与 PowerShell 7 各带一份，解压在安装根下；claude 只检测我本机装没装。
-        </CardDescription>
+        <CardDescription>转码需要的运行组件，随客户端一起提供，不用另外安装。</CardDescription>
         <div className="flex flex-wrap items-center gap-2 pt-2">
           <Badge variant={summary.tone}>
             <Terminal className="size-3" />
@@ -95,12 +93,6 @@ export function RuntimeCard() {
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {status && (
-          <p className="text-muted-foreground text-xs">
-            安装目录 <IdentifierText text={status.root} />
-          </p>
-        )}
-
         {transferring && status && (
           <div className="flex flex-col gap-2">
             <Progress value={runtimeTaskPercent(status.task)} />

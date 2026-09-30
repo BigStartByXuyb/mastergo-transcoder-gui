@@ -97,15 +97,11 @@ export function versionList(status: UpdateStatus): VersionRow[] {
 
 export type UpdateSummary = { label: string; tone: UpdateTone; note: string }
 
-/* 四态翻成人话。note 只说下一步或原因，不复述状态名。 */
+/* 四态翻成用户看得懂的一句话。note 只留给失败原因，不复述状态名，也不解释怎么实现的。 */
 export function describeUpdate(status: UpdateStatus | null): UpdateSummary {
   if (!status) return { label: "读取中…", tone: "outline", note: "" }
   if (status.state === "download_ready") {
-    return {
-      label: "v" + status.ready + " 已下载",
-      tone: "secondary",
-      note: "关掉这个窗口再重新双击 start.cmd，就切到 v" + status.ready + " 跑。"
-    }
+    return { label: "v" + status.ready + " 已就绪", tone: "secondary", note: "" }
   }
   if (status.state === "error") {
     return { label: "更新检查失败", tone: "destructive", note: status.error ? status.error.message : "" }
@@ -116,21 +112,11 @@ export function describeUpdate(status: UpdateStatus | null): UpdateSummary {
   return { label: "已是最新 v" + status.current, tone: "outline", note: "" }
 }
 
-/* 差分量与硬性要求：外壳有下限就先说下限，否则说清要换几个文件。 */
-export function describeAvailable(status: UpdateStatus): string {
-  const available = status.available
-  if (!available) return ""
-  if (available.blocked) {
-    return available.blocked.message + "。" + available.blocked.hint
-  }
-  // 上一次检查留下的清单可能已经过期（现在跑的这版比它还新）：那就不摆差分量。
-  if (!isNewer(available.version, status.current)) return ""
-  const parts = [
-    "运行树 " + available.total + " 个文件，要比对替换 " + available.changed + " 个"
-      + (available.removed ? "、删掉 " + available.removed + " 个" : "")
-  ]
-  if (available.freshRunRequired) parts.push("这版要求新开一次运行")
-  return parts.join("；") + "。"
+/* 只有一种情况需要先告诉人：这版要求更新的客户端外壳。其余一律不说过程。 */
+export function blockedNote(status: UpdateStatus): string {
+  return status.available && status.available.blocked
+    ? status.available.blocked.message + "。" + status.available.blocked.hint
+    : ""
 }
 
 /* 下载进度：不在下载/拼装就不显示。 */

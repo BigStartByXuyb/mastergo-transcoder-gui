@@ -26,9 +26,12 @@ export function SettingsPage(props: { tab: string; onPickTab: (tab: string) => v
   const active: TabKey = TAB_KEYS.includes(props.tab) ? (props.tab as TabKey) : "ai"
 
   return (
-    // 窄窗口先堆叠再分栏：两栏硬挤会把右栏压成一条竖缝。
-    <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-6">
-      <nav className="flex shrink-0 flex-row gap-1 overflow-x-auto md:w-56 md:flex-col md:overflow-x-visible">
+    /*
+     * 两栏都撑满这一屏：菜单栏高度固定（不随子页长短伸缩），右栏自己滚，
+     * 页面本身不往下拖。窄窗口先堆叠再分栏，免得右栏被压成一条竖缝。
+     */
+    <div className="flex h-full min-h-0 flex-col gap-4 md:flex-row md:gap-6">
+      <nav className="flex shrink-0 flex-row gap-1 overflow-x-auto border-b pb-3 md:h-full md:w-56 md:flex-col md:overflow-x-visible md:border-r md:border-b-0 md:pr-3 md:pb-0">
         {TABS.map((tab) => {
           const Icon = tab.icon
           const selected = tab.key === active
@@ -54,8 +57,8 @@ export function SettingsPage(props: { tab: string; onPickTab: (tab: string) => v
         })}
       </nav>
 
-      {/* 右栏吃掉剩下的宽度：卡片本来就该铺开，收窄只会让长路径与表格挤成一团。 */}
-      <div className="flex min-w-0 flex-1 flex-col gap-4">
+      {/* 右栏吃掉剩下的宽度与高度：卡片铺开，内容多的子页自己滚。 */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
         {active === "ai" && <SettingsAiPanel />}
         {active === "mastergo" && <SettingsMastergoPanel />}
         {active === "agent" && <SettingsAgentPanel />}

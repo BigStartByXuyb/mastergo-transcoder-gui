@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Download, Loader2, RefreshCw, RotateCcw, Rocket } from "lucide-react"
+import { ChevronRight, Download, Loader2, RefreshCw, RotateCcw, Rocket } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -7,44 +7,41 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ClampText } from "@/app/clamp-text"
+import { Pager } from "@/app/pager"
 import { Progress } from "@/components/ui/progress"
 import { api, type UpdateStatus } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
+import { pageSlice } from "@/lib/paging"
 import {
+  blockedNote,
   canSwitch,
-  describeAvailable,
   describeTask,
   describeUpdate,
   isDownloading,
   taskPercent,
-  versionList
+  versionList,
+  type VersionRow
 } from "@/lib/update-state"
+import { cn } from "@/lib/utils"
 
 const IDLE_POLL_MS = 15000
 const WORKING_POLL_MS = 1500
-
-function Notes(props: { lines: string[]; empty?: string }) {
-  if (props.lines.length === 0) {
-    return props.empty ? <p className="text-muted-foreground text-xs">{props.empty}</p> : null
-  }
-  return (
-    <ul className="text-muted-foreground flex list-disc flex-col gap-1 pl-4 text-xs">
-      {props.lines.map((line, index) => (
-        <li key={index}>{line}</li>
-      ))}
-    </ul>
-  )
-}
+// 一页五版：一屏放得下，多出来的翻页，不往下拖。
+const PAGE_SIZE = 5
 
 /*
- * 程序自身这一条版本线：检查 → 下载（只下变了的）→ 下次启动生效 → 回退。
- * 切换只改指针，正在跑的进程不被抽走文件，所以切完必须重启客户端才生效。
+ * 客户端自身的版本：检查 → 下载 → 切换 → 回退。
+ *
+ * 每一版收成一行（版本 / 状态 / 日期 / 一句简要），完整更新内容点开才看；
+ * 版本多了一页五条，页面本身不长高。切换在下次启动生效，界面不复述这件事。
  */
 export function UpdateCard() {
   const [status, setStatus] = useState<UpdateStatus | null>(null)
   const [probe, setProbe] = useState("")
   const [failure, setFailure] = useState("")
   const [working, setWorking] = useState("")
+  const [page, setPage] = useState(1)
+  const [openVersion, setOpenVersion] = useState("")
 
   const transferring = status ? isDownloading(status.task) : false
 
@@ -71,7 +68,6 @@ export function UpdateCard() {
     }
   }, [transferring])
 
-  // 后端只管版本线与文件，界面只做两件事：把结果贴回来，失败就说原因。
   async function act(key: string, run: () => Promise<{ status: UpdateStatus }>, done = "") {
     setWorking(key)
     setFailure("")
@@ -101,38 +97,28 @@ export function UpdateCard() {
   }
 
   const summary = describeUpdate(status)
-  const available = status ? describeAvailable(status) : ""
   const taskText = status ? describeTask(status.task) : ""
+  const blocked = status ? blockedNote(status) : ""
   const busy = Boolean(status && status.busy)
+  const rows = status ? versionList(status) : []
+  const shown = pageSlice(rows, page, PAGE_SIZE)
   const canDownload = Boolean(
     status && status.state === "update_available" && status.available && !status.available.blocked && !working
   )
 
   return (
-    <Card>
+    <Card className="flex h-full flex-col">
       <CardHeader>
-        <CardTitle>程序更新</CardTitle>
-        <CardDescription>
-          更新的是这个客户端自己（界面 + 编排 + 引擎集成），不含插件 ——
-          插件在「AI Agent」那一页按自己的版本走。只比对运行树里变了的文件，
-          整版落在安装目录的 versions 下；切版本只改指针，随时能退回去。
-        </CardDescription>
-        <div className="flex flex-wrap items-center gap-2 pt-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <CardTitle>程序更新</CardTitle>
           <Badge variant={summary.tone}>{summary.label}</Badge>
-          {status && <span className="text-muted-foreground text-xs">{status.repo}</span>}
+          {status && <span className="text-muted-foreground text-xs">插件版本在「AI Agent」里管</span>}
         </div>
+        <CardDescription>保持客户端最新，随时可以回到之前的版本。</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
         {summary.note && <p className="text-muted-foreground text-sm">{summary.note}</p>}
-        {available && <p className="text-sm">{available}</p>}
-
-        {/* 现在这一版是什么功能；下面那张表逐版列改了什么，回退时也能看出退回去少了什么。 */}
-        {status && (
-          <div className="flex flex-col gap-2 rounded-md border p-3">
-            <p className="text-xs font-medium">v{status.current} 这一版</p>
-            <Notes lines={status.currentNotes} empty="这一版没有留下说明。" />
-          </div>
-        )}
+        {blocked && <p className="text-sm">{blocked}</p>}
 
         {transferring && status && (
           <div className="flex flex-col gap-2">
@@ -144,7 +130,7 @@ export function UpdateCard() {
         {busy && (
           <Alert>
             <AlertTitle>有任务在跑</AlertTitle>
-            <AlertDescription>{status?.busy}；跑完才能切版本。</AlertDescription>
+            <AlertDescription>{status?.busy}；跑完才能换版本。</AlertDescription>
           </Alert>
         )}
 
@@ -183,7 +169,7 @@ export function UpdateCard() {
               onClick={() => void act("apply", () => api.updateApply(), "已切到 v" + status.ready + "，下次启动生效")}
             >
               {working === "apply" ? <Loader2 className="size-4 animate-spin" /> : <Rocket className="size-4" />}
-              重启后用 v{status.ready}
+              切换到 v{status.ready}
             </Button>
           )}
           {status && status.rollback && (
@@ -195,56 +181,107 @@ export function UpdateCard() {
               }
             >
               {working === "rollback" ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
-              退回 v{status.rollback}
+              回退到 v{status.rollback}
             </Button>
           )}
         </div>
 
-        {/* 逐版列改了什么：装了哪几版、远端那一版，同一个版本号只出一行。 */}
-        {status && versionList(status).length > 0 && (
-          <div className="flex flex-col gap-2">
-            <p className="text-muted-foreground text-xs">版本</p>
-            {versionList(status).map((item) => (
-              <div key={item.version} className="flex flex-col gap-1 border-b pb-2 last:border-b-0">
-                <div className="flex flex-wrap items-center gap-2 text-sm">
-                  <span className="w-20 tabular-nums">v{item.version}</span>
-                  {item.current && <Badge variant="secondary">正在用</Badge>}
-                  {!item.current && item.installed && item.ready && <Badge variant="outline">可切换</Badge>}
-                  {/* 比现在新的那一版还没拉下来不是「坏了」，别拿「文件不全」吓人。 */}
-                  {!item.current && !item.ready && item.remote && <Badge variant="outline">有新版</Badge>}
-                  {!item.current && !item.ready && !item.remote && item.installed && (
-                    <Badge variant="destructive">文件不全</Badge>
-                  )}
-                  {item.date && <span className="text-muted-foreground text-xs">{item.date}</span>}
-                  {!item.current && item.installed && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={Boolean(working) || !canSwitch(status, item.version)}
-                      onClick={() =>
-                        void act(
-                          "switch:" + item.version,
-                          () => api.updateApply(item.version),
-                          "已切到 v" + item.version + "，下次启动生效"
-                        )
-                      }
-                    >
-                      切到这一版
-                    </Button>
-                  )}
-                </div>
-                <Notes lines={item.notes} empty="这一版没有留下说明。" />
-              </div>
-            ))}
+        {/* 每版一行：点开才铺完整更新内容；一页五条，页面不长高。 */}
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground text-xs">版本</span>
+            <Pager page={page} total={rows.length} size={PAGE_SIZE} onPage={setPage} />
           </div>
-        )}
-
-        {status && status.pointer && status.pointer.version && status.pointer.version !== status.current && (
-          <p className="text-muted-foreground text-xs">
-            下次启动会跑 v{status.pointer.version}；现在这个窗口还是 v{status.current}。
-          </p>
-        )}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="flex flex-col">
+              {shown.map((row) => (
+                <VersionLine
+                  key={row.version}
+                  row={row}
+                  open={openVersion === row.version}
+                  onToggle={() => setOpenVersion(openVersion === row.version ? "" : row.version)}
+                  busy={Boolean(working) || busy}
+                  status={status}
+                  onSwitch={() =>
+                    void act(
+                      "switch:" + row.version,
+                      () => api.updateApply(row.version),
+                      "已切到 v" + row.version + "，下次启动生效"
+                    )
+                  }
+                />
+              ))}
+              {rows.length === 0 && <p className="text-muted-foreground py-2 text-xs">还没有版本记录。</p>}
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
+  )
+}
+
+/* 一行 = 版本 + 状态 + 日期 + 一句简要；点开铺完整更新内容。 */
+function VersionLine(props: {
+  row: VersionRow
+  open: boolean
+  onToggle: () => void
+  busy: boolean
+  status: UpdateStatus | null
+  onSwitch: () => void
+}) {
+  const row = props.row
+  const badge = row.current
+    ? { text: "正在用", variant: "secondary" as const }
+    : row.ready
+      ? { text: "可切换", variant: "outline" as const }
+      : row.remote
+        ? { text: "有新版", variant: "outline" as const }
+        : row.installed
+          ? { text: "文件不全", variant: "destructive" as const }
+          : { text: "历史版本", variant: "outline" as const }
+
+  return (
+    <div className="border-b last:border-b-0">
+      <button
+        type="button"
+        aria-expanded={props.open}
+        onClick={props.onToggle}
+        className="hover:bg-muted/60 flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition-colors"
+      >
+        <ChevronRight className={cn("text-muted-foreground size-3.5 shrink-0 transition-transform", props.open && "rotate-90")} />
+        <span className="w-16 shrink-0 text-sm tabular-nums">v{row.version}</span>
+        <Badge variant={badge.variant} className="shrink-0">
+          {badge.text}
+        </Badge>
+        <span className="text-muted-foreground w-24 shrink-0 text-xs">{row.date}</span>
+        <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs" title={row.notes[0] ?? ""}>
+          {row.notes[0] ?? "这一版没有留下说明"}
+        </span>
+      </button>
+      {props.open && (
+        <div className="flex flex-col gap-2 px-8 pb-3">
+          {row.notes.length > 0 ? (
+            <ul className="text-muted-foreground flex list-disc flex-col gap-1 pl-4 text-xs">
+              {row.notes.map((line, index) => (
+                <li key={index}>{line}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground text-xs">这一版没有留下说明。</p>
+          )}
+          {!row.current && row.installed && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-fit"
+              disabled={props.busy || !canSwitch(props.status, row.version)}
+              onClick={props.onSwitch}
+            >
+              切到这一版
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
