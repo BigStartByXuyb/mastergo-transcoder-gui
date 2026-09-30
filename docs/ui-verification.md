@@ -97,6 +97,13 @@ CI 的语义审计给了 `result: PASS`、0 阻断 + 4 条复核，四条都按�
 至此三处判据各自只有一处实现：`pluginSources()`（列出）、`activePluginSource()`（取用与标注）、
 `pluginHomes()`（写盘防线），且后者由装配处用前两者的同一份输入拼出来。
 
+第五轮复核 2 条，把最后两处「同一件事写两遍」也收掉：
+
+11. **写盘清单可缺省 → 缺了就静默少拦一块** → `createCodex` 把插件地盘清单改成必给：不是函数就在装配时
+    抛 `NO_PLUGIN_FENCE`（测试有一条专门断言），不会等到真写盘时才少拦而没人知道。
+12. **装配接线在 `server.js` 与测试里各拼一份** → 新增 `createPluginHomes()`（`plugin-root.js`），
+    生产与测试都用它拼这份清单；测试验的就是生产那一条接线。
+
 截图（`D:\MasterGoData\Temp\ui-shots\`）：
 
 - `2026-10-01-plugin-page.png` —— 设置里的「插件」页（与 AI Agent 平级）

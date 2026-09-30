@@ -15,7 +15,15 @@ const zlib = require("zlib");
 
 const { createCodex } = require("../lib/codex.js");
 const { describeRelease, fetchRelease, versionOfTag } = require("../lib/codex-release.js");
-const { pluginHomes } = require("../lib/plugin-root.js");
+const { createPluginHomes } = require("../lib/plugin-root.js");
+
+/*
+ * 写盘防线的插件地盘清单在 createCodex 里是必给的（见 lib/codex.js）：
+ * 这些用例不关心它，给一份空清单；关心防线的用例自己传一份（用的是装配处同一个工厂）。
+ */
+function makeCodex(options) {
+  return createCodex(Object.assign({ pluginHomes: function () { return []; } }, options));
+}
 
 const CHANNEL = "x86_64-pc-windows-msvc";
 const BINARIES = ["codex", "codex-command-runner", "codex-code-mode-host", "codex-windows-sandbox-setup"];
@@ -163,7 +171,7 @@ async function main() {
   // ---- 检查版本 ----
   const home = makeHome();
   const remote = fakeRemote([full]);
-  const codex = createCodex({
+  const codex = makeCodex({
     home: home,
     settings: fakeSettings(),
     fetchImpl: remote.fetchImpl,
@@ -231,7 +239,7 @@ async function main() {
   const binDir = path.join(local, "OpenAI", "Codex", "bin", "abc123");
   fs.mkdirSync(binDir, { recursive: true });
   fs.writeFileSync(path.join(binDir, "codex.exe"), "system", "utf8");
-  const withSystem = createCodex({
+  const withSystem = makeCodex({
     home: home,
     settings: fakeSettings(),
     fetchImpl: remote.fetchImpl,
@@ -265,7 +273,7 @@ async function main() {
   const brokenProbeBin = path.join(brokenProbeHome, "localappdata", "OpenAI", "Codex", "bin");
   fs.mkdirSync(path.join(brokenProbeBin, "old"), { recursive: true });
   fs.writeFileSync(path.join(brokenProbeBin, "old", "codex.exe"), "old", "utf8");
-  const noVersion = createCodex({
+  const noVersion = makeCodex({
     home: brokenProbeHome,
     settings: fakeSettings(),
     env: { LOCALAPPDATA: path.join(brokenProbeHome, "localappdata"), PATH: "" },
@@ -280,7 +288,7 @@ async function main() {
   const cmdDir = path.join(cmdHome, "pathdir");
   fs.mkdirSync(cmdDir, { recursive: true });
   fs.writeFileSync(path.join(cmdDir, "codex.cmd"), "@echo off\n", "utf8");
-  const scripted = createCodex({
+  const scripted = makeCodex({
     home: cmdHome,
     settings: fakeSettings(),
     env: { LOCALAPPDATA: path.join(cmdHome, "nope"), PATH: cmdDir },
@@ -294,7 +302,7 @@ async function main() {
   assert.ok(sawCmd, ".cmd 要走 cmd /c 探测");
 
   // 有任务在跑：切版本与回退都拒。
-  const busyCodex = createCodex({
+  const busyCodex = makeCodex({
     home: home,
     settings: fakeSettings(),
     env: cleanEnv(home),
@@ -309,7 +317,7 @@ async function main() {
 
   // ---- 下载失败与坏档 ----
   const failHome = makeHome();
-  const failCodex = createCodex({
+  const failCodex = makeCodex({
     home: failHome,
     settings: fakeSettings(),
     env: cleanEnv(failHome),
@@ -329,7 +337,7 @@ async function main() {
 
   // 压缩包与发布页摘要不符：拒收，不落盘。
   const badHome = makeHome();
-  const badCodex = createCodex({
+  const badCodex = makeCodex({
     home: badHome,
     settings: fakeSettings(),
     env: cleanEnv(badHome),
@@ -348,7 +356,7 @@ async function main() {
 
   // 清单里有一个路径没有来源：直接说是哪一条，不去猜地址。
   const oddHome = makeHome();
-  const oddCodex = createCodex({
+  const oddCodex = makeCodex({
     home: oddHome,
     settings: fakeSettings(),
     env: cleanEnv(oddHome),
@@ -367,7 +375,7 @@ async function main() {
 
   // 这个 Node 不支持 zstd 时给一句能照做的话。
   const noZstdHome = makeHome();
-  const noZstdCodex = createCodex({
+  const noZstdCodex = makeCodex({
     home: noZstdHome,
     settings: fakeSettings(),
     env: cleanEnv(noZstdHome),
@@ -388,7 +396,7 @@ async function main() {
 
   // 下载完自检起不来：记 broken，界面据此显示徽标。
   const brokenHome = makeHome();
-  const brokenCodex = createCodex({
+  const brokenCodex = makeCodex({
     home: brokenHome,
     settings: fakeSettings(),
     env: cleanEnv(brokenHome),
@@ -418,7 +426,7 @@ async function main() {
 
   // ---- 检查版本失败 ----
   const offlineHome = makeHome();
-  const offline = createCodex({
+  const offline = makeCodex({
     home: offlineHome,
     settings: fakeSettings(),
     env: cleanEnv(offlineHome),
@@ -450,7 +458,7 @@ async function main() {
   assert.throws(function () { codex.execArgs({}); }, /还没有要发的内容/);
   assert.throws(function () { codex.execArgs({ prompt: "   " }); }, /还没有要发的内容/);
 
-  const customCodex = createCodex({
+  const customCodex = makeCodex({
     home: home,
     settings: fakeSettings({ provider: "bad id!" }),
     env: cleanEnv(home),
@@ -487,7 +495,12 @@ async function main() {
   tempDirs.push(pluginHome);
   const pluginSub = path.join(pluginHome, "cache", "bigstart-plugins", "mastergo-wpf-transcoder");
   fs.mkdirSync(pluginSub, { recursive: true });
-  const fencedCodex = createCodex({
+  // 清单是必给的：缺了要装配时就报错，不能等到写盘时少拦一块还没人说。
+  assert.throws(
+    function () { createCodex({ home: home, settings: fakeSettings(), env: cleanEnv(home) }); },
+    /没有给插件地盘清单/
+  );
+  const fencedCodex = makeCodex({
     home: home,
     settings: fakeSettings(),
     env: cleanEnv(home),
@@ -502,27 +515,27 @@ async function main() {
   // 自定插件根（--plugin / 设置里选的）同样在保护清单里：真清单、真判据走一遍。
   const customRoot = fs.mkdtempSync(path.join(os.tmpdir(), "gui-custom-plugin-"));
   tempDirs.push(customRoot);
-  // 装配处（server.js）就是这么做这道防线的：把自定插件根并进同一份清单。
-  const byArgCodex = createCodex({
+  // 与装配处（server.js）用同一个工厂拼这份清单：接线只有一处，测试验的就是它。
+  const byArgCodex = makeCodex({
     home: home,
     settings: fakeSettings(),
     env: cleanEnv(home),
     fetchImpl: remote.fetchImpl,
     spawnSyncImpl: probe(),
-    pluginHomes: function () { return pluginHomes({ env: cleanEnv(home), explicitDir: customRoot }); }
+    pluginHomes: createPluginHomes({ env: cleanEnv(home), pluginDir: customRoot })
   });
   assert.throws(
     function () { byArgCodex.execArgs({ prompt: "x", write: true, projectRoot: customRoot, confirmRoot: customRoot }); },
     /不能是插件目录/,
     "--plugin 指的那份不能被当成工程目录"
   );
-  const bySettingCodex = createCodex({
+  const bySettingCodex = makeCodex({
     home: home,
     settings: fakeSettings(),
     env: cleanEnv(home),
     fetchImpl: remote.fetchImpl,
     spawnSyncImpl: probe(),
-    pluginHomes: function () { return pluginHomes({ env: cleanEnv(home), chosenRoot: customRoot }); }
+    pluginHomes: createPluginHomes({ env: cleanEnv(home), chosenRoot: customRoot })
   });
   assert.throws(
     function () { bySettingCodex.execArgs({ prompt: "x", write: true, projectRoot: customRoot, confirmRoot: customRoot }); },
@@ -531,7 +544,7 @@ async function main() {
   );
 
   // 直接给了不可用的厂商名以外，配置缺项要能原样报出来。
-  const noKey = createCodex({
+  const noKey = makeCodex({
     home: home,
     env: cleanEnv(home),
     fetchImpl: remote.fetchImpl,
@@ -542,7 +555,7 @@ async function main() {
 
   // ---- 起进程 ----
   const spawns = [];
-  const runner = createCodex({
+  const runner = makeCodex({
     home: home,
     settings: fakeSettings(),
     env: cleanEnv(home),
@@ -596,7 +609,7 @@ async function main() {
   });
   assert.strictEqual(spawnError, null, "错误是异步给的");
 
-  const failing = createCodex({
+  const failing = makeCodex({
     home: home,
     settings: fakeSettings(),
     env: cleanEnv(home),
@@ -615,7 +628,7 @@ async function main() {
   await new Promise(function (resolve) { setTimeout(resolve, 50); });
   assert.match(String(asyncError && asyncError.message), /EACCES/);
 
-  const noneCodex = createCodex({
+  const noneCodex = makeCodex({
     home: makeHome(),
     settings: fakeSettings(),
     env: cleanEnv(home),

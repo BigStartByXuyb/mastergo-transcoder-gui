@@ -29,7 +29,7 @@ const { spawnSync } = require("child_process");
 
 const { createResolver } = require("./lib/resolve.js");
 const { readPipelineSteps, createPluginRuntime } = require("./lib/plugin.js");
-const { pluginHomes } = require("./lib/plugin-root.js");
+const { createPluginHomes } = require("./lib/plugin-root.js");
 const { createRoutes, dispatch } = require("./lib/routes.js");
 const { createRunManager } = require("./lib/run.js");
 const { createSettings } = require("./lib/settings.js");
@@ -166,11 +166,8 @@ const codex = createCodex({
   home: HOME,
   settings: settings,
   isBusy: busyReason,
-  // 写盘防线要知道自定插件根在哪儿，不然「工程目录」填成插件本体就没人拦：
-  // 与插件定位读同一份来源（含 --plugin 与设置里选的那份）。
-  pluginHomes: function () {
-    return pluginHomes({ explicitDir: options.plugin, chosenRoot: pluginRuntime.chosen() });
-  }
+  // 写盘防线要知道自定插件根在哪儿，不然「工程目录」填成插件本体就没人拦。
+  pluginHomes: createPluginHomes({ pluginDir: options.plugin, chosenRoot: pluginRuntime.chosen })
 });
 // 运行时：客户端自带的 Node / PowerShell 7 与 claude 的检测结果，设置页的运行时卡片读它。
 const runtime = createRuntime({ home: HOME, isBusy: busyReason });
