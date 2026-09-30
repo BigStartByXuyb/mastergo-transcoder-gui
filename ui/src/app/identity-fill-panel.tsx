@@ -15,14 +15,12 @@ export function IdentityFillPanel(props: {
   /** 当前输入：来源与 hook 内部那一份是同一处（use-identity 返回的 inputs）。 */
   inputs: IdentityInputs
   state: {
-    name: string
     candidates: IdentityCandidate[]
     busy: string
     derivedUi: string
     pages: ProjectPages | null
   }
   actions: {
-    onName: (value: string) => void
     onFill: () => void
     onApply: (item: IdentityCandidate) => void
     onTakePageName: () => void

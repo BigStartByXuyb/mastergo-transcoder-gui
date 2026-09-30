@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
 import { api, type IdentityCandidate, type ProjectPages } from "@/lib/api"
@@ -135,6 +135,8 @@ export function useIdentity(options: IdentityOptions) {
 
   /* 手填了区域就以手填的为准；预览只在没手填时用于提示。 */
   const derivedUi = ui.trim() ? "" : previewUi
+  // 展示层从这里读当前输入：与按钮能不能点、请求打哪条链接是同一份值，不再各传一遍。
+  const inputs = useMemo<IdentityInputs>(() => ({ link, target, ui, automation }), [link, target, ui, automation])
 
   return {
     pages,
@@ -147,6 +149,6 @@ export function useIdentity(options: IdentityOptions) {
     apply,
     fill,
     takeDesignPageName,
-    inputs: { link, target, ui, automation } as IdentityInputs
+    inputs
   }
 }

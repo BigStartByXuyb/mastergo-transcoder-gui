@@ -35,8 +35,7 @@ type Props = {
 }
 
 export function NewTaskCard(props: Props) {
-  const { form, onForm, plugin, contract, identity, busy, failure } = props
-  const { canStop, onStart, onStop, onReloadContract } = props
+  const { form, onForm, plugin, contract, identity, busy, failure, canStop, onStart, onStop, onReloadContract } = props
 
   return (
     <Card>
@@ -147,14 +146,12 @@ export function NewTaskCard(props: Props) {
               <IdentityFillPanel
                 inputs={identity.inputs}
                 state={{
-                  name: identity.name,
                   candidates: identity.candidates,
                   busy: identity.busy,
                   derivedUi: identity.derivedUi,
                   pages: identity.pages
                 }}
                 actions={{
-                  onName: identity.setName,
                   onFill: () => void identity.fill(),
                   onApply: (item) => void identity.apply(item),
                   onTakePageName: identity.takeDesignPageName,

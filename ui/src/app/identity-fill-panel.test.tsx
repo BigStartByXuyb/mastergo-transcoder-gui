@@ -11,7 +11,6 @@ import type { IdentityCandidate } from "@/lib/api"
 
 function actions() {
   return {
-    onName: vi.fn(),
     onFill: vi.fn(),
     onApply: vi.fn(),
     onTakePageName: vi.fn(),
@@ -30,7 +29,7 @@ describe("IdentityFillPanel", () => {
     render(
       <IdentityFillPanel
         inputs={{ link: "https://mastergo.com/goto/x", target: "", ui: "", automation: "assist" }}
-        state={{ name: "", candidates: [], busy: "", derivedUi: "", pages: null }}
+        state={{ candidates: [], busy: "", derivedUi: "", pages: null }}
         actions={{ ...actions(), onFill, onTakePageName }}
       />
     )
@@ -44,7 +43,7 @@ describe("IdentityFillPanel", () => {
     render(
       <IdentityFillPanel
         inputs={{ link: "", target: "", ui: "", automation: "assist" }}
-        state={{ name: "", candidates: [], busy: "", derivedUi: "", pages: null }}
+        state={{ candidates: [], busy: "", derivedUi: "", pages: null }}
         actions={actions()}
       />
     )
@@ -57,7 +56,6 @@ describe("IdentityFillPanel", () => {
       <IdentityFillPanel
         inputs={{ link: "l", target: "", ui: "", automation: "assist" }}
         state={{
-          name: "",
           candidates: [
             candidate({ target: "F1StopAdjust", ui: "F1", basis: "登记表里这一页已经登记过" }),
             candidate({ target: "F1", ui: "F1", needsSemanticName: true, basis: "机械转换" })
@@ -79,7 +77,7 @@ describe("IdentityFillPanel", () => {
     render(
       <IdentityFillPanel
         inputs={{ link: "l", target: "", ui: "", automation: "assist" }}
-        state={{ name: "", candidates: [], busy: "", derivedUi: "", pages: null }}
+        state={{ candidates: [], busy: "", derivedUi: "", pages: null }}
         actions={actions()}
       />
     )
@@ -90,7 +88,7 @@ describe("IdentityFillPanel", () => {
     render(
       <IdentityFillPanel
         inputs={{ link: "l", target: "stop_adjust", ui: "", automation: "assist" }}
-        state={{ name: "", candidates: [], busy: "", derivedUi: "", pages: null }}
+        state={{ candidates: [], busy: "", derivedUi: "", pages: null }}
         actions={actions()}
       />
     )
@@ -102,7 +100,7 @@ describe("IdentityFillPanel", () => {
     render(
       <IdentityFillPanel
         inputs={{ link: "l", target: "F3Align", ui: "", automation: "assist" }}
-        state={{ name: "", candidates: [], busy: "", derivedUi: "F3", pages: null }}
+        state={{ candidates: [], busy: "", derivedUi: "F3", pages: null }}
         actions={actions()}
       />
     )
@@ -113,7 +111,7 @@ describe("IdentityFillPanel", () => {
     render(
       <IdentityFillPanel
         inputs={{ link: "l", target: "F3Align", ui: "F3", automation: "auto" }}
-        state={{ name: "", candidates: [], busy: "", derivedUi: "", pages: null }}
+        state={{ candidates: [], busy: "", derivedUi: "", pages: null }}
         actions={actions()}
       />
     )
