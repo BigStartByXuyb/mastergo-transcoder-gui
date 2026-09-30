@@ -16,8 +16,8 @@ export type VersionRow = {
   remote: boolean
 }
 
-// 版本号只按数字段比大小，段数不齐时短的补 0；两边都这么比，顺序才不会一处一个样。
-function compareVersions(a: string, b: string): number {
+// 版本号只按数字段比大小，段数不齐时短的补 0；全仓只这一处比法，顺序才不会一处一个样。
+export function compareVersions(a: string, b: string): number {
   const left = a.split(".")
   const right = b.split(".")
   const length = Math.max(left.length, right.length)

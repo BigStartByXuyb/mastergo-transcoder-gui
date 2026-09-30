@@ -24,14 +24,14 @@ export function ConfirmSwitchDialog(props: {
   freshRunRequired: boolean | null
   /** 有任务在跑时的一句话（空串表示没在跑）。 */
   busy: string
+  /** 回退之后会缺掉的能力（当前有、目标没有的那几样）。 */
+  missing: string[]
   onCancel: () => void
   onConfirm: () => void
 }) {
   const downgrade = isOlder(props.target, props.current)
   const notes: string[] = []
-  if (downgrade) {
-    notes.push("这是回退到旧版：之后发布的那些功能在这一版里没有；要再用新版，得把它重新下回来。")
-  }
+  if (downgrade) notes.push("这是回退到旧版；要再用新版，得把它重新下回来。")
   if (props.freshRunRequired === true) {
     notes.push("这一版要求新开一次运行：跨版本的续跑不认，正在跑的任务要先跑完。")
   }
@@ -58,6 +58,18 @@ export function ConfirmSwitchDialog(props: {
               </li>
             ))}
           </ul>
+        )}
+
+        {/* 回退要说清缺了什么：来源是每个版本自己记的「从这一版起具备的能力」。 */}
+        {props.missing.length > 0 && (
+          <div className="flex flex-col gap-2 rounded-md border px-3 py-2">
+            <span className="text-sm font-medium">回退之后没有的能力</span>
+            <ul className="text-muted-foreground flex list-disc flex-col gap-1 pl-5 text-xs">
+              {props.missing.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
         )}
 
         <DialogFooter>

@@ -12,6 +12,7 @@ function show(patch: Partial<Parameters<typeof ConfirmSwitchDialog>[0]> = {}) {
       current="0.6.21"
       freshRunRequired={true}
       busy=""
+      missing={[]}
       onCancel={onCancel}
       onConfirm={onConfirm}
       {...patch}
@@ -22,9 +23,17 @@ function show(patch: Partial<Parameters<typeof ConfirmSwitchDialog>[0]> = {}) {
 
 describe("ConfirmSwitchDialog", () => {
   it("回退要说明会丢掉新版功能", () => {
-    show()
+    show({ missing: ["客户端自己发现新版", "历史版本可下载"] })
     expect(screen.getByText("切到 v0.6.20？")).toBeTruthy()
     expect(screen.getByText(/回退到旧版/)).toBeTruthy()
+    expect(screen.getByText("回退之后没有的能力")).toBeTruthy()
+    expect(screen.getByText("客户端自己发现新版")).toBeTruthy()
+    expect(screen.getByText("历史版本可下载")).toBeTruthy()
+  })
+
+  it("升级时不列缺什么", () => {
+    show({ target: "0.6.30", current: "0.6.22", missing: [] })
+    expect(screen.queryByText("回退之后没有的能力")).toBeNull()
   })
 
   it("升级时不提回退那句", () => {

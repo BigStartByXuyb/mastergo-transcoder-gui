@@ -15,6 +15,7 @@ import { api, type UpdateStatus } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
 import { switchVersionAndWait } from "@/lib/update-switch"
+import { missingFeatures } from "@/lib/version-features"
 import {
   blockedNote,
   canSwitch,
@@ -236,6 +237,11 @@ export function UpdateCard() {
           current={status ? status.current : ""}
           freshRunRequired={freshRunRequiredOf(status, confirming)}
           busy={busy && status ? status.busy : ""}
+          missing={
+            status
+              ? missingFeatures(status.history, confirming, status.current).map((feature) => feature.label)
+              : []
+          }
           onCancel={() => setConfirming("")}
           onConfirm={() => {
             const version = confirming
