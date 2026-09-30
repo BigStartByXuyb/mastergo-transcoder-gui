@@ -1,8 +1,9 @@
-import { Loader2, Play, RefreshCw, Sparkles, Square } from "lucide-react"
+import { Loader2, Play, RefreshCw, Square } from "lucide-react"
 import type { ReactNode } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ClampText } from "@/app/clamp-text"
+import { IdentityFillPanel } from "@/app/identity-fill-panel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import type { useIdentity } from "@/app/use-identity"
 import type { PipelineStep, PluginSummary } from "@/lib/api"
-import { AUTOMATION_LABEL, MODE_HINT, adoptsIdentityWithoutConfirm, type TaskForm } from "@/lib/task-form"
+import { MODE_HINT, type TaskForm } from "@/lib/task-form"
 
 /*
  * 新建任务卡片：填链接 / 工程目录 / Target / 区域 / 路线，然后「加入看板并开始」。
@@ -36,9 +37,6 @@ type Props = {
 
 export function NewTaskCard(props: Props) {
   const { form, onForm, plugin, contract, automation, identity, busy, failure } = props
-  const needsIdentityHint = !form.ui.trim() && !form.target.trim()
-  // 填了 Target 但仍推不出区域：这是最容易被误判成「插件坏了」的情况，必须提前说清原因。
-  const targetWithoutPrefix = !form.ui.trim() && Boolean(form.target.trim()) && !identity.derivedUi
 
   return (
     <Card>
@@ -62,7 +60,7 @@ export function NewTaskCard(props: Props) {
         {/* 三组各成一个框：必填 / 可自动补齐 / 可选。 */}
         <div className="grid items-start gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-4">
-            <Group title="必填" hint="不填跑不了">
+            <FieldGroup title="必填" hint="不填跑不了">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="run-link">MasterGo 链接（页面帧或容器）</Label>
                 <Input
@@ -97,9 +95,9 @@ export function NewTaskCard(props: Props) {
                 </Select>
                 <p className="text-muted-foreground text-xs">{MODE_HINT[form.mode] ?? ""}</p>
               </div>
-            </Group>
+            </FieldGroup>
 
-            <Group title="可选" hint="不填就走默认">
+            <FieldGroup title="可选" hint="不填就走默认">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="run-stop">停在某一步</Label>
                 <Input
@@ -110,140 +108,52 @@ export function NewTaskCard(props: Props) {
                   onChange={(event) => onForm({ stopAfter: event.target.value })}
                 />
               </div>
-            </Group>
+            </FieldGroup>
           </div>
 
-          <Group title="可自动补齐" hint="留空就按工程登记表解析；也可以让它按设计页名补">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="run-target">页面 Target</Label>
-              <Input
-                id="run-target"
-                spellCheck={false}
-                placeholder="页面名 —— 产物文件名与 UI 区域都按它算"
-                value={form.target}
-                onChange={(event) => onForm({ target: event.target.value })}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="run-ui">UI 区域</Label>
-              <Input
-                id="run-ui"
-                spellCheck={false}
-                placeholder="F3 —— 登记表没登记时才要填"
-                value={form.ui}
-                onChange={(event) => onForm({ ui: event.target.value })}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="run-identity-name">设计页名</Label>
-              <Input
-                id="run-identity-name"
-                spellCheck={false}
-                placeholder="设计稿里的中文名，例如 停止调整"
-                value={identity.name}
-                onChange={(event) => identity.setName(event.target.value)}
-              />
-            </div>
-
-            <div className="text-muted-foreground flex flex-col gap-1 text-xs">
-              <div className="flex flex-wrap items-center gap-2">
-                <Button size="sm" variant="outline" disabled={identity.busy !== ""} onClick={() => void identity.fill()}>
-                  {identity.busy === "candidates" ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="size-4" />
-                  )}
-                  自动补 Target / 区域
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={identity.busy !== "" || !form.link.trim()}
-                  onClick={() => identity.takeDesignPageName()}
-                >
-                  {identity.busy === "name" ? <Loader2 className="size-4 animate-spin" /> : null}
-                  从链接取设计页名
-                </Button>
-                <span>
-                  按项目既有区域约定 + 设计页名给出候选并写进工程登记表；当前自动化层级：
-                  {AUTOMATION_LABEL[automation] ?? automation}
-                  {adoptsIdentityWithoutConfirm(automation)
-                    ? "（这一页登记过就自动沿用；没登记过由模型按设计页名给名直接采用，给不出才停下来要你点一次）"
-                    : "（列出来，你点一下再写）"}
-                </span>
+          <div className="flex flex-col gap-4">
+            <FieldGroup title="可自动补齐" hint="留空就按工程登记表解析；也可以让它按设计页名补">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="run-target">页面 Target</Label>
+                <Input
+                  id="run-target"
+                  spellCheck={false}
+                  placeholder="页面名 —— 产物文件名与 UI 区域都按它算"
+                  value={form.target}
+                  onChange={(event) => onForm({ target: event.target.value })}
+                />
               </div>
-              {identity.candidates.length > 0 && (
-            <div className="flex flex-col gap-1">
-              {identity.candidates.map((item, index) => (
-                <div key={index} className="flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant={item.needsSemanticName ? "outline" : "default"}
-                    disabled={!item.target || item.needsSemanticName || identity.busy !== ""}
-                    onClick={() => void identity.apply(item)}
-                  >
-                    {item.needsSemanticName ? "还缺语义名" : item.target}
-                  </Button>
-                  <span>
-                    {item.ui ? "UI " + item.ui + " · " : ""}
-                    {item.basis}
-                    {typeof item.confidence === "number" ? " · 置信度 " + item.confidence : ""}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-              {identity.derivedUi && (
-                <span>将使用 UI={identity.derivedUi}（按 Target 前缀推导；插件自己也会这么算）</span>
-              )}
-              {needsIdentityHint && (
-                <span className="text-amber-600">
-                  UI 与 Target 都空：插件会按取值链解析（登记表 → Target 前缀/首词）；都取不到就会在入口停下。
-                  最省事的做法是把 Target 写成带区域前缀的形式，例如 F3Align。
-                </span>
-              )}
-              {targetWithoutPrefix && (
-                <span className="text-amber-600">
-                  Target「{form.target.trim()}」推不出区域前缀：插件只认两种形状——带编号前缀（F3Align → F3）或
-                  大写开头的首词（HomeContent → Home）。当前这个写成小写/下划线，两条都不命中。
-                  要么把 UI 区域显式填上，要么把 Target 改成 F3{form.target.trim()}（或用 PascalCase 如 TestMastergp）。
-                </span>
-              )}
-              {identity.pages && !identity.pages.exists && <span>{identity.pages.problem}</span>}
-              {identity.pages && identity.pages.exists && identity.pages.pages.length === 0 && (
-                <span>登记表里还没有可用的页面条目。</span>
-              )}
-              {identity.pages && identity.pages.exists && identity.pages.pages.length > 0 && (
-            <div className="flex flex-col gap-1">
-              {/* 按 UI 区域分组：同一区域下的页面放在一起，点一下就切到那个区域的流程。 */}
-              <span>
-                登记表里登记的页面（按 UI 分组；点一下填上 Target，条目里写了 Ui 就连 Ui 一起填）
-                {form.ui.trim() ? "　当前：UI " + form.ui.trim() : ""}
-                {form.target.trim() ? " · " + form.target.trim() : ""}
-              </span>
-              {[...new Set(identity.pages.pages.map((page) => page.ui || "（未写 Ui）"))].sort().map((group) => (
-                <div key={group} className="flex flex-wrap items-center gap-2">
-                  <Badge variant={form.ui.trim() === group ? "default" : "outline"}>{group}</Badge>
-                  {identity.pages?.pages
-                    .filter((page) => (page.ui || "（未写 Ui）") === group)
-                    .map((page, index) => (
-                      <Button
-                        key={page.target + index}
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        // 条目里没写 Ui 时照实留空：区域由插件按 Target 前缀自己推。
-                        onClick={() => onForm(page.target ? { target: page.target, ui: page.ui } : { ui: page.ui })}
-                      >
-                        {page.target || page.layerId}
-                      </Button>
-                    ))}
-                </div>
-              ))}
-            </div>
-          )}
-            </div>
-          </Group>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="run-ui">UI 区域</Label>
+                <Input
+                  id="run-ui"
+                  spellCheck={false}
+                  placeholder="F3 —— 登记表没登记时才要填"
+                  value={form.ui}
+                  onChange={(event) => onForm({ ui: event.target.value })}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="run-identity-name">设计页名</Label>
+                <Input
+                  id="run-identity-name"
+                  spellCheck={false}
+                  placeholder="设计稿里的中文名，例如 停止调整"
+                  value={identity.name}
+                  onChange={(event) => identity.setName(event.target.value)}
+                />
+              </div>
+
+              <IdentityFillPanel
+                identity={identity}
+                automation={automation}
+                link={form.link}
+                target={form.target}
+                ui={form.ui}
+                onPick={onForm}
+              />
+            </FieldGroup>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
@@ -272,9 +182,9 @@ export function NewTaskCard(props: Props) {
         {failure && (
           <Alert variant="destructive">
             <AlertTitle>启动失败</AlertTitle>
-              <AlertDescription>
-                <ClampText text={failure} />
-              </AlertDescription>
+            <AlertDescription>
+              <ClampText text={failure} />
+            </AlertDescription>
           </Alert>
         )}
       </CardContent>
@@ -283,7 +193,7 @@ export function NewTaskCard(props: Props) {
 }
 
 /* 一组输入：外面一个框 + 标题行，把「必填 / 可自动补齐 / 可选」在视觉上分开。 */
-function Group(props: { title: string; hint: string; children: ReactNode }) {
+function FieldGroup(props: { title: string; hint: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-3 rounded-lg border px-3 py-3">
       <div className="flex flex-wrap items-baseline gap-2">
