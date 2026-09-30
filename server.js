@@ -46,6 +46,7 @@ const { createUpdate } = require("./lib/update.js");
 const { createCodex } = require("./lib/codex.js");
 const { createRuntime } = require("./lib/runtime.js");
 const { createChats } = require("./lib/chat.js");
+const { createUploads } = require("./lib/uploads.js");
 const { applyProxy } = require("./lib/proxy.js");
 const { createTokenSource, SOURCE_LABELS } = require("./lib/mcp-token.js");
 
@@ -164,10 +165,13 @@ const codex = createCodex({ home: HOME, settings: settings, isBusy: busyReason }
 const runtime = createRuntime({ home: HOME, isBusy: busyReason });
 // 对话存档：chats.json 在安装根，属于用户状态，不随程序版本走。
 const chats = createChats({ home: HOME });
+// 对话附件：落在 chats/uploads/<批次>/ 下，属于用户状态，不随程序版本走。
+const uploads = createUploads(HOME);
 const routes = createRoutes({
   resolver: resolver,
   plugin: PLUGIN,
   chats: chats,
+  uploads: uploads,
   token: function () { return tokenSource.value(); },
   tokenSource: tokenSource,
   supervised: process.env.MASTERGO_SUPERVISED === "1",

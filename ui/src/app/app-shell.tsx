@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { Boxes, LayoutGrid, ListChecks, MessagesSquare, Plus, Search, Settings, Table2 } from "lucide-react"
+import { Boxes, FolderCog, LayoutGrid, ListChecks, MessagesSquare, Plus, Search, Settings, Table2 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,7 @@ export const TOOLS = [
   { key: "review", label: "待确认", icon: ListChecks },
   { key: "query", label: "控件 ID 查询", icon: Search },
   { key: "mapping", label: "映射表", icon: Table2 },
+  { key: "codebases", label: "代码库与提示词", icon: FolderCog },
   { key: "settings", label: "设置", icon: Settings }
 ] as const
 

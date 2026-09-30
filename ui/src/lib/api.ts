@@ -138,12 +138,31 @@ export type Settings = {
   ai: { provider: string; baseUrl: string; model: string; hasKey: boolean }
   automation: "off" | "assist" | "auto"
   /** 对话/自动模式的写盘开关：关着时 Codex 只读，开着才允许它直接改工程文件。 */
-  agent: { allowWrite: boolean }
+  agent: { allowWrite: boolean; /** 每次提问都拼在最前面的那段（用户自己写）。 */ systemPrompt: string }
+  /** 可参考的代码库：路径 + 是什么库 + 说明，随每次提问一起给 AI。 */
+  codebases: CodebaseEntry[]
   /**
    * MasterGo token：hasToken 是「本机存过没有」，source/sourceLabel 是「现在实际生效的是哪一份」。
    * 两者可以不一致 —— 命令行或环境变量会盖住本机保存的那份，界面必须能把这个差别说出来。
    */
   mastergo: { hasToken: boolean; source: string; sourceLabel: string }
+}
+
+export type CodebaseEntry = {
+  path: string
+  /** 是什么库（例如「MTSLG IOContorl 页面工程」）。 */
+  name: string
+  /** 给 AI 看的补充说明（可选）。 */
+  note: string
+  enabled: boolean
+}
+
+/** 一次上传存下来的附件：path 是后端落盘的绝对路径。 */
+export type UploadedFile = {
+  name: string
+  path: string
+  bytes: number
+  kind: "image" | "file" | string
 }
 
 export type IconCandidate = {
@@ -803,6 +822,11 @@ export const api = {
     post<{ ok: true; version: string; restartRequired: boolean; status: UpdateStatus }>("/api/update/rollback", {}),
   /** 让当前这一份退出，由监督进程按指针换一份重跑；不监听响应之后的事。 */
   clientRestart: () => post<{ ok: true; restarting: boolean }>("/api/client/restart", {}),
+  /** 附件上传：界面把文件读成 base64 传上来，后端落在 chats/uploads/<批次>/ 下。 */
+  agentUpload: (files: { name: string; relativePath?: string; base64: string }[]) =>
+    post<{ ok: true; files: UploadedFile[] }>("/api/agent/upload", { files }),
+  /** 弹系统文件夹选择框；取消或打不开时 path 为空，reason 里写原因。 */
+  pickFolder: () => post<{ ok: boolean; path: string; reason?: string }>("/api/system/pick-folder", {}),
   codexStatus: () => request<{ ok: true; status: CodexStatus }>("/api/codex/status"),
   /** 拉远端发行版描述：失败也回 200，原因在 status.error 里。 */
   codexCheck: () => post<{ ok: true; status: CodexStatus }>("/api/codex/check", {}),
@@ -837,6 +861,8 @@ export async function agentChatStream(
     resume?: string
     /** 落进哪条对话；空串＝后端现开一条并把它的 id 发回来。 */
     conversationId?: string
+    /** 这次附上的文件（后端只认自己落下的那些路径）。 */
+    attachments?: { path: string; name: string; kind: string }[]
     projectRoot?: string
     write?: boolean
     writeConfirm?: string

@@ -16,6 +16,35 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-09-30 对话附件 + 代码库与提示词（v0.6.0）
+
+### 改了什么
+
+- 对话可以传东西：图片（`accept=image/*`）/ 文件 / 文件夹（`webkitdirectory`），也能直接拖进输入区。
+  浏览器读成 base64 → `POST /api/agent/upload` → 落在安装根 `chats/uploads/<批次>/`；
+  图片经 Codex 的 `-i` 直接给它看，其余文件在提示词里给路径（`lib/uploads.js`、`lib/agent-context.js`）。
+- 新增页面「代码库与提示词」（`#codebases`，左侧导航里）：登记每个库的**路径 / 是什么库 / 说明**，
+  可多条、可临时停用，带「浏览…」（系统文件夹选择框，`POST /api/system/pick-folder`）；另有一段系统提示词。
+- 两者随每次提问拼在提示词最前面（顺序：读/写约定 → 代码库 → 附件 → 系统提示词 → 用户那句）。
+- 附件预览走 `GET /api/agent/file?path=…`，只认 `chats/uploads/` 里的路径。
+- 设置里多两个字段：`agent.systemPrompt`、`codebases[]`（`local.json`，随用户状态走）。
+
+### 为什么
+
+用户要的：对话框能传图片/文件/文件夹；侧边栏能设置内置提示词；并且能手动登记「代码库在哪、是什么库」，
+可以多条，这样 AI 有地方参考，用户也知道该怎么配。
+
+### 点过的东西
+
+| 操作 | 观察到 | 结论 |
+| --- | --- | --- |
+| 打开 `#codebases` | 两张卡片：代码库（空态提示 + 添加一个库）/ 系统提示词 + 保存；左侧导航多出「代码库与提示词」 | 通过 |
+| 添加一个库：路径 / 是什么库 / 说明，再写系统提示词，保存 | `GET /api/settings` 回 `codebases:[{path:"D:\\MTSSD\\MaxWell.SSDPages", name:"MTSLG IOContorl 页面工程", note:"页面 XML 与 Layout 注册都在这里", enabled:true}]`、`agent.systemPrompt` 是写的那句，`allowWrite` 没被覆盖 | 通过 |
+| 对话里点「文件」选一个 txt 上传 | 文件落在 `chats/uploads/20260930052249-43f617/attach-probe.txt`（153 B）；输入区出现带名字、大小与「不要这个附件」的附件条 | 通过 |
+| 提问「我附上的那个文件，第一行写的是什么？」 | 它跑了 `Get-Content -LiteralPath 'D:\...\chats\uploads\...\attach-probe.txt'`，回答「紫色考拉在吃菠萝」——正是那个文件的第一行 | 通过（附件链路：上传 → 路径 → 上下文 → 它去读） |
+| 提问「我登记的代码库有哪些？」 | 它跑了 `Test-Path -LiteralPath 'D:\MTSSD\MaxWell.SSDPages'`，回答「登记的代码库只有 1 个：D:\MTSSD\MaxWell.SSDPages（已确认存在）：MTSLG IOContorl 页面工程，页面 XML 与 Layout 注册都在这里」 | 通过（代码库清单确实进了上下文） |
+| 单测 | `uploads` 5 条（相对路径 / 类型 / 落盘重名 / 只认自己的目录 / 大小限制）、`agent-context` 4 条（空输入 / 代码库 / 附件 / 拼装顺序） | 通过 |
+
 ## 2026-09-30 修「切不回本地这一份」+ 检查失败不再被吞（v0.5.2）
 
 ### 改了什么

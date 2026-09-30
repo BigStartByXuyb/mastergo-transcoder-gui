@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Loader2, Plus, Send, Square, Trash2 } from "lucide-react"
+import { FileUp, FolderUp, ImagePlus, Loader2, Plus, Paperclip, Send, Square, Trash2, X } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -10,11 +10,12 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { ChatTranscript, type Turn } from "@/app/chat-transcript"
 import { ClampText } from "@/app/clamp-text"
-import { agentChatStream, api, type ChatSummary, type Settings } from "@/lib/api"
+import { agentChatStream, api, type ChatSummary, type Settings, type UploadedFile } from "@/lib/api"
 import { readCodexLine, type AgentItem } from "@/lib/agent-stream"
 import { replayConversation, upsertTurn } from "@/lib/chat-replay"
 import { describeFailure } from "@/lib/describe-failure"
 import { readRecentProjects, rememberProject } from "@/lib/recent-projects"
+import { attachmentUrl, humanSize, uploadAttachments } from "@/lib/upload-files"
 import { cn } from "@/lib/utils"
 
 /*
@@ -43,6 +44,13 @@ export function ChatPage() {
   const [thread, setThread] = useState("")
   const [running, setRunning] = useState(false)
   const [failure, setFailure] = useState("")
+  // 这次要一起发给它的东西：图片会被 Codex 直接看，别的给路径让它去读。
+  const [attachments, setAttachments] = useState<UploadedFile[]>([])
+  const [uploading, setUploading] = useState(false)
+  const [dragging, setDragging] = useState(false)
+  const imageInput = useRef<HTMLInputElement | null>(null)
+  const fileInput = useRef<HTMLInputElement | null>(null)
+  const folderInput = useRef<HTMLInputElement | null>(null)
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const failedRef = useRef(false)
@@ -143,6 +151,8 @@ export function ChatPage() {
     const text = prompt.trim()
     if (!text || running || writeBlocked) return
     setTurns((current) => [...current, { kind: "you", text }])
+    const sending = attachments
+    setAttachments([])
     setPrompt("")
     stderrRef.current = ""
     setFailure("")
@@ -160,6 +170,7 @@ export function ChatPage() {
           prompt: text,
           resume: thread,
           conversationId: activeId,
+          attachments: sending.map((item) => ({ path: item.path, name: item.name, kind: item.kind })),
           projectRoot: projectRoot.trim(),
           write: write && allowWrite,
           writeConfirm: projectRoot.trim()
@@ -223,6 +234,31 @@ export function ChatPage() {
   function stop() {
     stoppedRef.current = true
     abortRef.current?.abort()
+  }
+
+  /* 选文件 / 选文件夹 / 拖进来，三条路都走同一个上传。 */
+  async function attach(picked: { file: File; relativePath?: string }[]) {
+    if (picked.length === 0) return
+    setUploading(true)
+    setFailure("")
+    try {
+      const saved = await uploadAttachments(picked)
+      setAttachments((current) => [...current, ...saved])
+    } catch (error) {
+      setFailure(describeFailure(error))
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function attachFrom(input: HTMLInputElement | null) {
+    if (!input || !input.files) return
+    const files = Array.from(input.files).map((file) => ({
+      file: file,
+      relativePath: input === folderInput.current ? file.webkitRelativePath : undefined
+    }))
+    input.value = ""
+    await attach(files)
   }
 
   return (
@@ -294,7 +330,88 @@ export function ChatPage() {
         </div>
 
         {/* 输入区固定在下方：消息区自己滚，输入框不跟着走。 */}
-        <div className="flex flex-col gap-2 border-t pt-3">
+        <div
+          className={cn(
+            "flex flex-col gap-2 border-t pt-3",
+            dragging && "bg-accent/40 rounded-md outline-2 outline-offset-4 outline-dashed"
+          )}
+          onDragOver={(event) => {
+            event.preventDefault()
+            setDragging(true)
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(event) => {
+            event.preventDefault()
+            setDragging(false)
+            void attach(Array.from(event.dataTransfer.files).map((file) => ({ file })))
+          }}
+        >
+          {/* 附件：图片会被它直接看，文件和文件夹给路径让它去读。 */}
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {attachments.map((item) => (
+                <span
+                  key={item.path}
+                  className="bg-muted flex items-center gap-2 rounded-md px-2 py-1 text-xs"
+                  title={item.path}
+                >
+                  {item.kind === "image" ? (
+                    <img src={attachmentUrl(item.path)} alt="" className="size-8 rounded object-cover" />
+                  ) : (
+                    <Paperclip className="text-muted-foreground size-3.5 shrink-0" />
+                  )}
+                  <span className="max-w-40 truncate">{item.name}</span>
+                  <span className="text-muted-foreground">{humanSize(item.bytes)}</span>
+                  <button
+                    type="button"
+                    title="不要这个附件"
+                    onClick={() => setAttachments((current) => current.filter((one) => one.path !== item.path))}
+                  >
+                    <X className="size-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-1">
+            <input
+              ref={imageInput}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={() => void attachFrom(imageInput.current)}
+            />
+            <input ref={fileInput} type="file" multiple className="hidden" onChange={() => void attachFrom(fileInput.current)} />
+            {/* 选文件夹：webkitdirectory 是浏览器的事实标准，Chrome/Edge 都认。 */}
+            <input
+              ref={folderInput}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={() => void attachFrom(folderInput.current)}
+              {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
+            />
+            <Button size="sm" variant="ghost" disabled={uploading} onClick={() => imageInput.current?.click()}>
+              <ImagePlus className="size-3.5" />
+              图片
+            </Button>
+            <Button size="sm" variant="ghost" disabled={uploading} onClick={() => fileInput.current?.click()}>
+              <FileUp className="size-3.5" />
+              文件
+            </Button>
+            <Button size="sm" variant="ghost" disabled={uploading} onClick={() => folderInput.current?.click()}>
+              <FolderUp className="size-3.5" />
+              文件夹
+            </Button>
+            {uploading ? (
+              <span className="text-muted-foreground text-xs">正在上传…</span>
+            ) : (
+              <span className="text-muted-foreground text-xs">也可以把文件直接拖到这里</span>
+            )}
+          </div>
+
           <Input
             spellCheck={false}
             list="chat-projects"
