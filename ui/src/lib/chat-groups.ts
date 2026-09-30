@@ -7,12 +7,13 @@ import type { ChatSummary } from "@/lib/api"
 
 export type ChatGroup = { projectRoot: string; chats: ChatSummary[] }
 
-export function unboundLabel(): string {
+/* 没绑工程的对话统一用这一个名字：段头、顶栏标注都取它。 */
+function unboundLabel(): string {
   return "未绑工程目录"
 }
 
 export function projectLabel(projectRoot: string): string {
-  return projectRoot || unboundLabel()
+  return projectRoot.trim() || unboundLabel()
 }
 
 export function groupByProjectRoot(list: ChatSummary[]): ChatGroup[] {

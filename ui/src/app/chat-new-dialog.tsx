@@ -21,19 +21,18 @@ import { readRecentProjects } from "@/lib/recent-projects"
  */
 
 export function ChatNewDialog(props: {
-  open: boolean
   settings: Settings | null
   onOpenChange: (open: boolean) => void
   onCreate: (projectRoot: string, templateId: string) => void
 }) {
-  // 调用方只在打开时挂载它，所以这两个初值就是「每次打开都从最近工程与默认参考源起手」。
+  // 调用方只在打开时挂载它，开与关归调用方；所以这里的初值就是「每次打开从什么起手」。
   const [projectRoot, setProjectRoot] = useState(() => readRecentProjects()[0] ?? "")
   const [templateId, setTemplateId] = useState(() => props.settings?.activeTemplateId ?? "")
 
   const recent = readRecentProjects()
 
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+    <Dialog open onOpenChange={props.onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>新建对话</DialogTitle>

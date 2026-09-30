@@ -17,7 +17,6 @@ import {
  */
 
 export function ChatWriteDialog(props: {
-  open: boolean
   projectRoot: string
   /** 设置里的写盘总开关：关着时这里只说明原因，不给勾。 */
   enabled: boolean
@@ -30,7 +29,7 @@ export function ChatWriteDialog(props: {
   const target = props.projectRoot.trim()
 
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+    <Dialog open onOpenChange={props.onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>允许它改工程文件</DialogTitle>

@@ -13,11 +13,12 @@ import { ChatWriteDialog } from "@/app/chat-write-dialog"
 import { ClampText } from "@/app/clamp-text"
 import { TemplateDialog } from "@/app/template-dialog"
 import { agentChatStream, api, type ChatSummary, type Settings, type UploadedFile } from "@/lib/api"
-import { readCodexLine, type AgentItem } from "@/lib/agent-stream"
+import { readCodexLine, type AgentItem, type AgentStreamEvent } from "@/lib/agent-stream"
 import { replayConversation, upsertTurn } from "@/lib/chat-replay"
-import { groupByProjectRoot, projectLabel, unboundLabel } from "@/lib/chat-groups"
+import { groupByProjectRoot, projectLabel } from "@/lib/chat-groups"
+import { judgeTurnOutcome } from "@/lib/chat-outcome"
 import { describeFailure } from "@/lib/describe-failure"
-import { readRecentProjects, rememberProject } from "@/lib/recent-projects"
+import { rememberProject } from "@/lib/recent-projects"
 import { attachmentUrl, humanSize, uploadAttachments, type PickedFile } from "@/lib/upload-files"
 import { cn } from "@/lib/utils"
 
@@ -40,7 +41,8 @@ export function ChatPage() {
   const [activeId, setActiveId] = useState("")
   const [turns, setTurns] = useState<Turn[]>([])
   const [agentName, setAgentName] = useState("")
-  const [projectRoot, setProjectRoot] = useState(() => readRecentProjects()[0] ?? "")
+  // 这条对话读哪个工程：唯一来源是「当前这条对话」（新建时选的、或存档里记的），没有就空着。
+  const [projectRoot, setProjectRoot] = useState("")
   const [prompt, setPrompt] = useState("")
   // 这条对话确认过「可以改工程文件」没有；确认一次就跟着这条对话走。
   const [writeConfirmed, setWriteConfirmed] = useState(false)
@@ -80,7 +82,8 @@ export function ChatPage() {
       setThread(replayed.thread)
       setAgentName(payload.conversation.agent)
       setTemplateId(payload.conversation.templateId || "")
-      if (payload.conversation.projectRoot) setProjectRoot(payload.conversation.projectRoot)
+      // 无条件跟着这条对话走：存档里没绑工程就清空，别让上一条的目录留在这一条上。
+      setProjectRoot(payload.conversation.projectRoot || "")
       setWriteConfirmed(false)
     } catch (error) {
       setFailure(describeFailure(error))
@@ -152,6 +155,9 @@ export function ChatPage() {
         setTurns([])
         setThread("")
         setAgentName("")
+        setProjectRoot("")
+        setTemplateId("")
+        setWriteConfirmed(false)
       }
     } catch (error) {
       setFailure(describeFailure(error))
@@ -167,6 +173,50 @@ export function ChatPage() {
     stderrRef.current = ""
     if (!text) return
     setTurns((current) => [...current, { kind: "log", text, open: failedRef.current }])
+  }
+
+  /* 引擎这一轮的每一行都从这里过：按事件类型分派，收尾时判定这一轮算不算跑成。 */
+  function handleStreamEvent(event: AgentStreamEvent) {
+    if (event.kind === "conversation") {
+      setActiveId(event.id)
+      return
+    }
+    if (event.kind === "engine") {
+      setAgentName("Codex v" + event.version + "（" + event.source + "）")
+      return
+    }
+    if (event.kind === "failure") {
+      failedRef.current = true
+      setFailure(event.message + (event.hint ? "；" + event.hint : ""))
+      return
+    }
+    if (event.kind === "exit") {
+      const outcome = judgeTurnOutcome({
+        code: event.code,
+        turnDone: turnDoneRef.current,
+        stopped: stoppedRef.current,
+        alreadyFailed: failedRef.current
+      })
+      if (outcome.failed) failedRef.current = true
+      if (outcome.message) setFailure(outcome.message)
+      flushEngineLog()
+      refreshList()
+      return
+    }
+    if (event.stream !== "stdout") {
+      stderrRef.current += event.line + "\n"
+      return
+    }
+    const item = readCodexLine(event.line)
+    if (!item) return
+    if (item.kind === "thread") {
+      setThread(item.threadId)
+      return
+    }
+    // 一轮没跑完（turn.failed）时把这一轮的引擎日志标成默认铺开。
+    if (item.kind === "failure") failedRef.current = true
+    if (item.kind === "turn") turnDoneRef.current = true
+    pushAgent(item)
   }
 
   async function send() {
@@ -199,49 +249,7 @@ export function ChatPage() {
           write: writeConfirmed && allowWrite,
           writeConfirm: writeConfirmed ? projectRoot.trim() : ""
         },
-        (event) => {
-          if (event.kind === "conversation") {
-            setActiveId(event.id)
-            return
-          }
-          if (event.kind === "engine") {
-            setAgentName("Codex v" + event.version + "（" + event.source + "）")
-            return
-          }
-          if (event.kind === "failure") {
-            failedRef.current = true
-            setFailure(event.message + (event.hint ? "；" + event.hint : ""))
-            return
-          }
-          if (event.kind === "exit") {
-            if (event.code !== 0) {
-              if (!failedRef.current) setFailure("Codex 退出码 " + event.code + "；下面是引擎日志。")
-              failedRef.current = true
-            } else if (!turnDoneRef.current && !stoppedRef.current) {
-              if (!failedRef.current) setFailure("这一轮没有正常收尾；下面是引擎日志。")
-              failedRef.current = true
-            }
-            flushEngineLog()
-            refreshList()
-            return
-          }
-          if (event.kind === "line") {
-            if (event.stream !== "stdout") {
-              stderrRef.current += event.line + "\n"
-              return
-            }
-            const item = readCodexLine(event.line)
-            if (!item) return
-            if (item.kind === "thread") {
-              setThread(item.threadId)
-              return
-            }
-            // 一轮没跑完（turn.failed）时把这一轮的引擎日志标成默认铺开。
-            if (item.kind === "failure") failedRef.current = true
-            if (item.kind === "turn") turnDoneRef.current = true
-            pushAgent(item)
-          }
-        },
+        handleStreamEvent,
         controller.signal
       )
     } catch (error) {
@@ -305,14 +313,12 @@ export function ChatPage() {
               <div
                 className={cn(
                   "text-muted-foreground flex items-center gap-1 px-2 font-mono text-xs",
-                  !group.projectRoot && "font-sans"
+                  !group.projectRoot.trim() && "font-sans"
                 )}
                 title={projectLabel(group.projectRoot)}
               >
                 <FolderGit2 className="size-3 shrink-0" />
-                <span className="min-w-0 truncate">
-                  {group.projectRoot ? projectLabel(group.projectRoot) : unboundLabel()}
-                </span>
+                <span className="min-w-0 truncate">{projectLabel(group.projectRoot)}</span>
                 <span className="shrink-0">{group.chats.length}</span>
               </div>
               {group.chats.map((item) => (
@@ -357,9 +363,9 @@ export function ChatPage() {
           {agentName ? <Badge variant="secondary">{agentName}</Badge> : <Badge variant="outline">还没开始</Badge>}
           {thread && <Badge variant="outline">对话 {thread.slice(0, 8)}</Badge>}
           {/* 这条对话读哪个工程：新建时定的，之后不再在输入区来回改。 */}
-          <Badge variant="outline" title={projectRoot.trim() || unboundLabel()}>
+          <Badge variant="outline" title={projectLabel(projectRoot)}>
             <FolderGit2 className="size-3" />
-            <span className="max-w-40 truncate">{projectRoot.trim() || unboundLabel()}</span>
+            <span className="max-w-40 truncate">{projectLabel(projectRoot)}</span>
           </Badge>
           {/* 参考源：一条对话用一份，代码库与系统提示词一起生效。 */}
           {settings && (
@@ -558,7 +564,6 @@ export function ChatPage() {
       {/* 两个弹窗都只在打开时挂载：勾选与输入每次从干净状态起手，不用额外清。 */}
       {newOpen && (
         <ChatNewDialog
-          open
           settings={settings}
           onOpenChange={setNewOpen}
           onCreate={createConversation}
@@ -567,7 +572,6 @@ export function ChatPage() {
 
       {writeOpen && (
         <ChatWriteDialog
-          open
           projectRoot={projectRoot}
           enabled={allowWrite}
           confirmed={writeConfirmed}
