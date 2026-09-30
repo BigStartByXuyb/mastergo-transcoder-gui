@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ClampText } from "@/app/clamp-text"
+import { PixelLoader } from "@/app/pixel-loader"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -63,7 +64,7 @@ export function MappingPage() {
       </Alert>
     )
   }
-  if (!mapping) return <p className="text-muted-foreground text-sm">读取中…</p>
+  if (!mapping) return <PixelLoader text="请稍等，正在读取映射表" className="py-6" />
 
   const bottomBar = mapping.layoutRules?.bottomBar
   const bottomBarVariants = Object.entries(bottomBar?.variants ?? {})

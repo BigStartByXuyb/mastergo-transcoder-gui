@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import { AppShell, TOOLS, type ToolKey } from "@/app/app-shell"
+import { PixelLoader } from "@/app/pixel-loader"
 import { AreaPage } from "@/app/area-page"
 import { BoardPage } from "@/app/board-page"
 import { ChatPage } from "@/app/chat-page"
@@ -114,7 +115,7 @@ export default function App() {
         ) : areas.loaded ? (
           <p className="text-muted-foreground text-sm">这个区域已经不在列表里了（任务被清掉或工程被移除）。</p>
         ) : (
-          <p className="text-muted-foreground text-sm">正在读取区域…</p>
+          <PixelLoader text="请稍等，正在读取区域" className="py-6" />
         ))}
       {route.page === "pipeline" && (
         <PipelinePage

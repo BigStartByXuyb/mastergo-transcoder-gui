@@ -1,4 +1,5 @@
 import { IdentifierText } from "@/app/identifier-text"
+import { PixelLoader } from "@/app/pixel-loader"
 import { UpdateCard } from "@/app/update-card"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,7 +21,7 @@ export function SettingsUpdatePanel() {
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {offline && <p className="text-destructive text-sm">连不上本地服务。</p>}
-          {!offline && !health && <p className="text-muted-foreground text-sm">读取中…</p>}
+          {!offline && !health && <PixelLoader text="请稍等，正在读取运行环境" cell={3} className="py-4" />}
           {health && (
             <dl className="grid gap-4">
               <div>

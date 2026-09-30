@@ -128,3 +128,18 @@
     @apply font-sans;
     }
 }
+
+/* 加载时那只像素小狐狸：站着轻轻起伏，别的动作交给 JS（手指横扫文字）。 */
+@keyframes pixel-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.pixel-bob {
+  animation: pixel-bob 1.6s ease-in-out infinite;
+}
+
+/* 系统设了「减少动态效果」就不让它晃。 */
+@media (prefers-reduced-motion: reduce) {
+  .pixel-bob { animation: none; }
+}

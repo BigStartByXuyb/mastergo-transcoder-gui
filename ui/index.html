@@ -5,9 +5,21 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MasterGo 转码客户端</title>
+    <style>
+      /* 启动占位：React 挂载前先看到那只小狐狸，挂载时它自己会被替换掉。 */
+      .boot { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 18vh; font: 13px/1.5 system-ui, sans-serif; color: #71717a; }
+      .boot img { width: 64px; height: 64px; image-rendering: pixelated; animation: boot-bob 1.6s ease-in-out infinite; }
+      @keyframes boot-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+      @media (prefers-reduced-motion: reduce) { .boot img { animation: none; } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot">
+        <img src="/favicon.svg" alt="" />
+        <p>请稍等，正在启动</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

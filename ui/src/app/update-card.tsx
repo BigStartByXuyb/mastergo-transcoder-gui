@@ -157,7 +157,7 @@ export function UpdateCard() {
 
   return (
     <>
-      {switching && <BusyOverlay title={"正在切到 v" + switching + "…"} note="界面马上回来，不用你重启。" />}
+      {switching && <BusyOverlay text={"请稍等，正在切到 v" + switching} note="界面马上回来，不用你重启。" />}
       <Card className="flex flex-col">
       <CardHeader>
         <div className="flex flex-wrap items-center gap-2">

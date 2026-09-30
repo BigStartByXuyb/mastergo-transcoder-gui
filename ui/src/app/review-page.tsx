@@ -182,7 +182,7 @@ export function ReviewPage() {
                 {queue.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={6} className="text-muted-foreground py-8 text-center text-sm">
-                      {loaded ? "当前没有待确认的页面。" : "读取中…"}
+                      {loaded ? "当前没有待确认的页面。" : "正在读取…"}
                     </TableCell>
                   </TableRow>
                 )}

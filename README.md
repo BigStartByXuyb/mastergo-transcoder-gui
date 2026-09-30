@@ -39,6 +39,7 @@ npm run build:ui               # 构建前端 → public/
 ```
 ui/            前端源码（shadcn CLI 生成 components/ui/，源码入库）
 public/        前端构建产物（vite build --outDir ../public），不手工编辑
+ui/public/favicon.svg  那只像素小狐狸（浏览器标签图标，与加载动画同一张图）
 changelog.json 每个版本改了什么（进运行树）：客户端更新页显示，发布清单与 Release 说明也读它
 launch.js      启动入口 + 监督进程：按 current.json 选版本，拉起那一份的 server.js，换版本时自己重起
 server.js      入口：命令行、装配、监听
@@ -143,6 +144,15 @@ lib/launch.js       读 current.json，判断那一份能不能跑
 界面功能点每次改完的实点结论记在 `docs/ui-verification.md`。
 
 ## 对话
+
+## 加载动画
+
+加载时统一是那只像素小狐狸（`ui/src/app/pixel-mascot.tsx` 的字符网格精灵图）：
+手指从左边一个字一个字指过去，指到的字往下跳一下，指到头收手，停 0–3 秒再来一遍；
+系统设了「减少动态效果」就只静态显示。等待文案统一成「请稍等，正在XXXX」（`ui/src/app/pixel-loader.tsx`）。
+
+浏览器标签图标 `ui/public/favicon.svg` 是同一张图（静态图标没法 import 模块，改形象时两处一起改）；
+React 挂载前的那一下由 `ui/index.html` 里的静态占位顶上（直接引 favicon，不再另画一份）。
 
 左边的对话列表来自 `lib/chat.js` 的存档：一次提问一条记录，按对话归堆，落在安装根的 `chats.json`，
 重开页面还在；标题取第一句，来源那一行是这次跑的是哪份 Codex。删除只删这一条记录。
