@@ -109,6 +109,25 @@ export function UpdateCard() {
   }
 
   /*
+   * 下某一版（含历史版本）：清单按那一版的 tag 取，之后同一条下载流程。
+   * 下完这一行就从「历史版本」变成「可切换」。
+   */
+  async function stage(version: string) {
+    setWorking("stage:" + version)
+    setFailure("")
+    try {
+      const payload = await api.updateStage(version)
+      setStatus(payload.status)
+      if (payload.started) toast.success("正在下载 v" + version)
+      else toast.info(payload.note || "本地已经有这一版")
+    } catch (error) {
+      setFailure(describeFailure(error))
+    } finally {
+      setWorking("")
+    }
+  }
+
+  /*
    * 切版本：写指针 → 让这一份退出 → 等监督进程把新的拉起来 → 刷新页面。
    * 整个过程铺遮罩（用户点不了别处）；连不上的那几秒是预期的，不算失败。
    * 没有监督进程（直接 node server.js 起的）时退回老做法：下次启动生效。
@@ -146,7 +165,8 @@ export function UpdateCard() {
   const canDownload = Boolean(
     status && status.state === "update_available" && status.available && !status.available.blocked && !working
   )
-  const frozen = Boolean(working) || busy
+  // 下载/拼装进行中也不许再点别的版本：同一时刻只跑一条下载。
+  const frozen = Boolean(working) || busy || transferring
 
   return (
     <>
@@ -221,6 +241,7 @@ export function UpdateCard() {
           status={status}
           onToggle={(version) => setOpenVersion(openVersion === version ? "" : version)}
           onSwitch={(row) => void switchTo(row.version)}
+          onStage={(row) => void stage(row.version)}
         />
       </CardContent>
     </Card>
@@ -244,6 +265,7 @@ function VersionTable(props: {
   status: UpdateStatus | null
   onToggle: (version: string) => void
   onSwitch: (row: VersionRow) => void
+  onStage: (row: VersionRow) => void
 }) {
   if (props.total === 0) return <p className="text-muted-foreground text-xs">还没有版本记录。</p>
   return (
@@ -254,7 +276,7 @@ function VersionTable(props: {
         <span className={COL.state}>状态</span>
         <span className={COL.date}>日期</span>
         <span className="min-w-0 flex-1">说明</span>
-        <span className={cn(COL.action, "text-right")}>版本切换</span>
+        <span className={cn(COL.action, "text-right")}>操作</span>
       </div>
       {props.rows.map((row) => (
         <VersionLine
@@ -265,6 +287,7 @@ function VersionTable(props: {
           status={props.status}
           onToggle={() => props.onToggle(row.version)}
           onSwitch={() => props.onSwitch(row)}
+          onStage={() => props.onStage(row)}
         />
       ))}
     </div>
@@ -278,6 +301,7 @@ function VersionLine(props: {
   status: UpdateStatus | null
   onToggle: () => void
   onSwitch: () => void
+  onStage: () => void
 }) {
   const row = props.row
   const badge = row.current
@@ -317,6 +341,19 @@ function VersionLine(props: {
             <Button size="sm" variant="outline" disabled={props.frozen} onClick={props.onSwitch}>
               <RotateCcw className="size-3" />
               切换
+            </Button>
+          )}
+          {/* 本机没有这一份、也不是正在跑的那一版：把它下回来，下完就能切。 */}
+          {!switchable && !row.current && !row.installed && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={props.frozen}
+              title={"把 v" + row.version + " 下载到本机（下完就能切过去）"}
+              onClick={props.onStage}
+            >
+              <Download className="size-3" />
+              下载
             </Button>
           )}
         </span>

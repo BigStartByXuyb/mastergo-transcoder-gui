@@ -835,6 +835,11 @@ export const api = {
     "/api/update/download",
     {}
   ),
+  /** 下某一版（含历史版本）：清单按那一版的 tag 取，之后同一条下载流程。 */
+  updateStage: (version: string) =>
+    post<{ ok: true; started: boolean; version: string; note: string; status: UpdateStatus }>("/api/update/stage", {
+      version
+    }),
   updateApply: (version = "") =>
     post<{ ok: true; version: string; previous: string; restartRequired: boolean; status: UpdateStatus }>(
       "/api/update/apply",

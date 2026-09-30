@@ -176,6 +176,51 @@ async function main() {
   assert.strictEqual(noop.started, false);
   assert.strictEqual(noop.reason, "本地已经有这一版");
 
+  /*
+   * 历史版本也要能补回本机：清单按那一版的 tag 取（不是 latest），下完就能切过去 ——
+   * 更新页里「历史版本」那几行的「下载」按钮走的就是这条。
+   */
+  const older = makeTree({
+    "server.js": "server 0.0.9",
+    "launch.js": "launch",
+    "package.json": "{\"version\":\"0.0.9\"}",
+    "lib/a.js": "a",
+    "public/index.html": "html"
+  });
+  const olderRemote = remote(older, "0.0.9");
+  const olderHome = makeTree({
+    "server.js": "server 0.2.0",
+    "launch.js": "launch",
+    "package.json": "{\"version\":\"0.2.0\"}",
+    "lib/a.js": "a",
+    "public/index.html": "html"
+  });
+  const stageUpdate = createUpdate({
+    root: olderHome,
+    home: olderHome,
+    version: "0.2.0",
+    fetchImpl: async function (url) {
+      // 假远端只发了 0.0.9 这一版：清单按 tag 取，内容按哈希取。
+      if (url.endsWith("/releases/download/v0.0.9/manifest.json")) return ok(JSON.stringify(olderRemote.manifest));
+      const hit = /\/releases\/download\/v([^/]+)\/([0-9a-f]{64})$/.exec(url);
+      if (hit && hit[1] === "0.0.9") {
+        const rel = Object.keys(olderRemote.manifest.files).find(function (name) {
+          return olderRemote.manifest.files[name] === hit[2];
+        });
+        if (rel) return ok(fs.readFileSync(path.join(older, rel), "utf8"));
+      }
+      return { ok: false, status: 404 };
+    }
+  });
+  const staged = await stageUpdate.stage("0.0.9");
+  assert.strictEqual(staged.started, true, "历史版本可以下回来");
+  const stagedDone = await settle(stageUpdate);
+  assert.strictEqual(stagedDone.ready, "", "它比当前版本旧，不算「有新版可切」");
+  const stagedRow = stagedDone.staged.find(function (item) { return item.version === "0.0.9"; });
+  assert.ok(stagedRow && stagedRow.ready, "下完之后本机就有这一份，可以切过去");
+  assert.strictEqual(stageUpdate.apply("0.0.9").version, "0.0.9", "能切到历史版本");
+  await assert.rejects(function () { return stageUpdate.stage("9.9.9"); }, /远端没有 v9.9.9/);
+
   // 外壳下限：清单要求比当前更高的客户端外壳时，下载与切换都拒。
   const gated = remote(next, "0.2.1", { minClientVersion: "9.9.9" });
   const gatedHome = makeTree({ "server.js": "旧客户端", "package.json": "{\"version\":\"0.1.0\"}" });
