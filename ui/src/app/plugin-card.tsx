@@ -162,7 +162,7 @@ export function PluginCard() {
             <p className="text-muted-foreground text-xs">
               环境变量 MASTERGO_PLUGIN_ROOT：
               {view.env ? <IdentifierText text={view.env} /> : "未设置"}
-              ；它在启动前生效，这里选的那一份优先级与它相同。
+              ；启动前设定。这里选的那一份比它更优先，最高的还是启动参数。
             </p>
           </>
         )}

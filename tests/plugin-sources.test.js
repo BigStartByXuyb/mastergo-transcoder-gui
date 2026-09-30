@@ -10,7 +10,7 @@ const os = require("os");
 const path = require("path");
 
 const { createSettings } = require("../lib/settings.js");
-const { pluginSources, resolvePluginRoot } = require("../lib/plugin-root.js");
+const { pluginSources, pluginRootsUnder, resolvePluginRoot } = require("../lib/plugin-root.js");
 const { createPluginRuntime } = require("../lib/plugin.js");
 
 const MARKER = path.join("skills", "mastergo-to-wpf", "SKILL.md");
@@ -203,6 +203,10 @@ function caseParentDir() {
   assert.strictEqual(listed.pluginRoot, inside);
   assert.strictEqual(listed.version, "1.5.0");
   assert.strictEqual(resolvePluginRoot("", options), inside, "取的那一份与列出来的那一份是同一个");
+  // 界面上「选一个目录…」的入口校验读的就是这一份：两处判据相同，界面能选的与能用的是一回事。
+  assert.deepStrictEqual(pluginRootsUnder(parent), [inside], "父目录与插件根两种摆法都算能用的位置");
+  assert.deepStrictEqual(pluginRootsUnder(box.install), [], "没有插件的位置照旧不算");
+  assert.strictEqual(resolvePluginRoot(parent), inside, "命令行 --plugin 也是同一判据");
 
   const settings = createSettings(box.home);
   settings.write({ pluginRoot: parent });
