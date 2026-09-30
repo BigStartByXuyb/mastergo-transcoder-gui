@@ -1,0 +1,210 @@
+#!/usr/bin/env node
+"use strict";
+
+// 插件来源：都查过哪些路径、各自有没有、此刻用的是哪一份、换一份之后是不是立刻生效。
+// 跑法：node tests/plugin-sources.test.js
+
+const assert = require("assert");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+
+const { createSettings } = require("../lib/settings.js");
+const { pluginSources, resolvePluginRoot } = require("../lib/plugin-root.js");
+const { createPluginRuntime } = require("../lib/plugin.js");
+
+const MARKER = path.join("skills", "mastergo-to-wpf", "SKILL.md");
+
+// 造一份能被认出来的插件：认根只看 SKILL.md，版本读插件自己的清单。
+function makePlugin(dir, version) {
+  fs.mkdirSync(path.dirname(path.join(dir, MARKER)), { recursive: true });
+  fs.writeFileSync(path.join(dir, MARKER), "# " + version + "\n", "utf8");
+  fs.mkdirSync(path.join(dir, ".claude-plugin"), { recursive: true });
+  fs.writeFileSync(path.join(dir, ".claude-plugin", "plugin.json"), JSON.stringify({ version: version }), "utf8");
+  return dir;
+}
+
+function sandbox() {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gui-plugin-src-"));
+  const home = path.join(tmp, "home");
+  const codex = path.join(tmp, "codex");
+  const install = path.join(tmp, "install");
+  for (const dir of [home, codex, install]) fs.mkdirSync(dir, { recursive: true });
+  return { tmp: tmp, home: home, codex: codex, install: install };
+}
+
+// 取值链认的是进程环境：造夹具时临时改掉，结束后原样放回。
+function withEnv(values, body) {
+  const keys = ["CODEX_HOME", "HOME", "USERPROFILE", "MASTERGO_PLUGIN_ROOT"];
+  const previous = {};
+  for (const key of keys) previous[key] = process.env[key];
+  for (const key of keys) {
+    if (values[key] === undefined) delete process.env[key];
+    else process.env[key] = values[key];
+  }
+  try {
+    body();
+  }
+  finally {
+    for (const key of keys) {
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+    }
+  }
+}
+
+// 夹具：Codex 缓存里 1.0.9 与 1.0.10 两份，Claude 缓存里一份。
+function fixture(box) {
+  return {
+    codexOld: makePlugin(path.join(box.codex, "plugins", "cache", "bigstart", "mastergo-wpf-transcoder", "1.0.9"), "1.0.9"),
+    codexNew: makePlugin(path.join(box.codex, "plugins", "cache", "bigstart", "mastergo-wpf-transcoder", "1.0.10"), "1.0.10"),
+    claude: makePlugin(path.join(box.home, ".claude", "plugins", "cache", "bigstart", "mastergo-wpf-transcoder"), "2.0.0")
+  };
+}
+
+function caseSources() {
+  const box = sandbox();
+  const fx = fixture(box);
+  const sources = pluginSources({ env: {}, home: box.home, codexHome: box.codex, installRoot: box.install });
+  const byId = new Map(sources.map((item) => [item.id, item]));
+
+  assert.deepStrictEqual(
+    sources.map((item) => item.id),
+    ["codex-cache", "codex-market", "claude-cache", "claude-market", "install"],
+    "没显式指定时只列内置的这几条（别的装没装都不影响顺序）"
+  );
+  assert.strictEqual(byId.get("codex-cache").exists, true, "Codex 缓存里两份都认出来");
+  assert.strictEqual(byId.get("codex-cache").pluginRoot, fx.codexNew, "同一处有多份时取最高版本");
+  assert.strictEqual(byId.get("codex-cache").version, "1.0.10", "版本读插件自己的清单");
+  assert.strictEqual(byId.get("codex-cache").found.length, 2, "两份都在清单里");
+  assert.strictEqual(byId.get("codex-market").exists, false, "没有这份就说没有，路径照样列出来");
+  assert.strictEqual(byId.get("claude-cache").version, "2.0.0");
+  assert.strictEqual(byId.get("install").exists, false, "客户端自带那份可以缺席");
+
+  const explicit = pluginSources({
+    env: { MASTERGO_PLUGIN_ROOT: fx.claude },
+    home: box.home,
+    codexHome: box.codex,
+    explicitDir: fx.codexOld,
+    chosenRoot: fx.codexNew,
+    installRoot: box.install
+  });
+  assert.deepStrictEqual(
+    explicit.slice(0, 3).map((item) => item.id),
+    ["arg", "chosen", "env"],
+    "显式指定的三条排在最前"
+  );
+  assert.deepStrictEqual(
+    explicit.slice(0, 3).map((item) => item.pluginRoot),
+    [fx.codexOld, fx.codexNew, fx.claude],
+    "三条各自解析到自己的插件根"
+  );
+  fs.rmSync(box.tmp, { recursive: true, force: true });
+}
+
+function caseOrder() {
+  const box = sandbox();
+  const fx = fixture(box);
+  const options = { env: {}, home: box.home, codexHome: box.codex, installRoot: box.install };
+
+  assert.strictEqual(
+    resolvePluginRoot("", Object.assign({}, options, { chosenRoot: box.install })),
+    fx.codexNew,
+    "选的那一份不在了就往下走，客户端照常能用"
+  );
+  assert.strictEqual(
+    resolvePluginRoot("", Object.assign({}, options, { chosenRoot: fx.claude })),
+    fx.claude,
+    "界面上选的那一份优先于缓存里的副本"
+  );
+  withEnv(
+    { CODEX_HOME: box.codex, HOME: box.home, USERPROFILE: box.home, MASTERGO_PLUGIN_ROOT: box.install },
+    () => {
+      assert.match(resolvePluginRoot(""), /1\.0\.10$/, "环境变量指的不是插件根时往下走，不当成命中");
+      assert.strictEqual(
+        pluginSources({ installRoot: box.install, home: box.home, codexHome: box.codex })
+          .find((item) => item.id === "env").exists,
+        false,
+        "那一条照样列出来，标成没有"
+      );
+    }
+  );
+  fs.rmSync(box.tmp, { recursive: true, force: true });
+}
+
+function caseRuntime() {
+  const box = sandbox();
+  const fx = fixture(box);
+  const settings = createSettings(box.home);
+  const runtime = createPluginRuntime({
+    installRoot: box.install,
+    settings: settings,
+    home: box.home,
+    env: { CODEX_HOME: box.codex }
+  });
+
+  assert.strictEqual(runtime.current().root, fx.codexNew, "没人指定时按顺序自动找");
+  assert.strictEqual(runtime.failure(), "");
+  assert.strictEqual(runtime.sources().find((item) => item.active).id, "codex-cache", "生效的那条标出来");
+
+  runtime.choose(fx.claude);
+  assert.strictEqual(runtime.current().root, fx.claude, "换一份之后立刻生效，不用重启");
+  assert.strictEqual(settings.read().pluginRoot, fx.claude, "选的那一份记进设置");
+  assert.strictEqual(runtime.sources().find((item) => item.active).id, "chosen");
+  assert.strictEqual(runtime.sources().find((item) => item.id === "chosen").label, "设置里选的");
+
+  runtime.choose("");
+  assert.strictEqual(runtime.current().root, fx.codexNew, "清掉选择就回到按顺序自动");
+  assert.strictEqual(settings.read().pluginRoot, "", "设置里也一并清掉");
+
+  fs.rmSync(box.tmp, { recursive: true, force: true });
+}
+
+function caseMissing() {
+  const box = sandbox();
+  const settings = createSettings(box.home);
+  const runtime = createPluginRuntime({
+    installRoot: box.install,
+    settings: settings,
+    home: box.home,
+    env: { CODEX_HOME: box.codex }
+  });
+
+  assert.strictEqual(runtime.current().root, "", "一处都没有时不是抛栈，是留空由界面说清楚");
+  assert.match(runtime.failure(), /找不到 mastergo-wpf-transcoder 插件/);
+  assert.match(runtime.failure(), /已查找：/);
+  for (const source of runtime.sources()) {
+    assert.match(runtime.failure(), new RegExp(source.path.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&")), "已查找里要逐条列出路径");
+  }
+  assert.strictEqual(runtime.sources().some((item) => item.active), false, "都没找到就没有生效的那条");
+
+  fs.rmSync(box.tmp, { recursive: true, force: true });
+}
+
+function caseSetting() {
+  const box = sandbox();
+  const settings = createSettings(box.home);
+  assert.strictEqual(settings.read().pluginRoot, "", "没选过就是空串（＝按顺序自动）");
+  settings.write({ pluginRoot: "  D:\\somewhere\\mastergo-wpf-transcoder  " });
+  assert.strictEqual(settings.read().pluginRoot, "D:\\somewhere\\mastergo-wpf-transcoder", "存进去前去掉两头空白");
+  fs.rmSync(box.tmp, { recursive: true, force: true });
+}
+
+try {
+  const cases = [
+    ["来源清单", caseSources],
+    ["取值顺序", caseOrder],
+    ["换一份立刻生效", caseRuntime],
+    ["一处都没有", caseMissing],
+    ["设置里选的那一份", caseSetting]
+  ];
+  for (const [name, run] of cases) {
+    run();
+    console.log("  ok  " + name);
+  }
+  console.log("plugin-sources.test.js 全部通过");
+}
+catch (error) {
+  console.error(error);
+  process.exitCode = 1;
+}

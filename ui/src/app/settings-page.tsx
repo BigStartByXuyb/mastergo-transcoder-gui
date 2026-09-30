@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils"
 const TABS = [
   { key: "ai", label: "AI token", hint: "厂商 · 地址 · 模型 · key", icon: KeyRound },
   { key: "mastergo", label: "MasterGo token", hint: "设计稿取数凭证", icon: FileKey },
-  { key: "agent", label: "AI Agent", hint: "下载与运行环境", icon: Bot },
+  { key: "agent", label: "AI Agent", hint: "引擎 · 插件 · 运行环境", icon: Bot },
   { key: "update", label: "更新", hint: "客户端版本与回退", icon: RefreshCw }
 ] as const
 

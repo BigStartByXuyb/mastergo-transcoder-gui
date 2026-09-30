@@ -8,6 +8,32 @@ export type PluginSummary = {
   engine: string
   engineExists: boolean
   runAllExists: boolean
+  /** 一处都没找到时后端给的原话：逐条列出已查找的路径和各自有没有。 */
+  failure: string
+}
+
+/** 插件来源的一条：查的路径、那里有没有、解析到哪一份、此刻是不是在用它。 */
+export type PluginSource = {
+  id: "arg" | "chosen" | "env" | "codex-cache" | "codex-market" | "claude-cache" | "claude-market" | "install"
+  label: string
+  path: string
+  kind: "arg" | "chosen" | "env" | "agent" | "install"
+  exists: boolean
+  pluginRoot: string
+  version: string
+  /** 这一条下面认出来的全部插件根（有版本目录时按高版本在前）。 */
+  found: string[]
+  active: boolean
+}
+
+export type PluginSources = {
+  ok: true
+  plugin: PluginSummary
+  /** 设置里选的那一份；空串＝按内置顺序自动找。 */
+  chosen: string
+  /** 进程启动时的环境变量 MASTERGO_PLUGIN_ROOT；空串＝没设。 */
+  env: string
+  sources: PluginSource[]
 }
 
 export type FrameEntry = {
@@ -735,6 +761,9 @@ function post<T>(path: string, body: unknown): Promise<T> {
 export const api = {
   health: () => request<Health>("/api/health"),
   plugin: () => request<PluginInfo>("/api/plugin"),
+  pluginSources: () => request<PluginSources>("/api/plugin/sources"),
+  /** path 为空串＝回到「按顺序自动」。换完立刻生效，不用重启客户端。 */
+  pluginChoose: (path: string) => post<PluginSources>("/api/plugin/choose", { path }),
   resolve: (body: { link: string; frameLink: string; projectDir: string }) => post<ResolveResult>("/api/resolve", body),
   /** 续跑认看板任务 id：jobId 每次续跑都会被换掉，当钥匙就会「找不到这次运行」。 */
   runResume: (taskId: string) =>

@@ -4,6 +4,7 @@ import { toast } from "sonner"
 
 import { ClampText } from "@/app/clamp-text"
 import { CodexCard } from "@/app/codex-card"
+import { PluginCard } from "@/app/plugin-card"
 import { RuntimeCard } from "@/app/runtime-card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,8 +13,8 @@ import { describeFailure } from "@/lib/describe-failure"
 import { useSettings } from "@/lib/use-settings"
 
 /*
- * Agent 这一页：写盘开关 + 引擎版本 + 跑插件用的运行环境。
- * 三样都决定 agent 能不能跑起来，所以放一页；与程序自身的更新分开。
+ * Agent 这一页：写盘开关 + 引擎版本 + 插件来源 + 跑插件用的运行环境。
+ * 几样都决定 agent 能不能跑起来，所以放一页；与程序自身的更新分开。
  */
 export function SettingsAgentPanel() {
   const { settings, failure, save } = useSettings()
@@ -62,6 +63,8 @@ export function SettingsAgentPanel() {
       </Card>
 
       <CodexCard />
+
+      <PluginCard />
 
       <RuntimeCard />
     </div>

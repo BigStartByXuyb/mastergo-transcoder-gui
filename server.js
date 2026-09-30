@@ -28,8 +28,7 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 
 const { createResolver } = require("./lib/resolve.js");
-const { resolvePluginRoot } = require("./lib/plugin-root.js");
-const { readPluginInfo, readPipelineSteps } = require("./lib/plugin.js");
+const { readPipelineSteps, createPluginRuntime } = require("./lib/plugin.js");
 const { createRoutes, dispatch } = require("./lib/routes.js");
 const { createRunManager } = require("./lib/run.js");
 const { createSettings } = require("./lib/settings.js");
@@ -98,22 +97,24 @@ const tokenSource = createTokenSource({
 // 出网要走代理才有更新：先按环境变量/系统设置把代理立起来，后面的下载与 pwsh 子进程都跟着走。
 const proxy = applyProxy();
 
-let PLUGIN_ROOT;
-try {
-  PLUGIN_ROOT = resolvePluginRoot(options.plugin);
-}
-catch (error) {
-  process.stderr.write(String(error && error.message ? error.message : error) + "\n");
-  process.exit(2);
-}
-const PLUGIN = readPluginInfo(PLUGIN_ROOT);
+/*
+ * 插件从哪一份跑：命令行 > 设置里选的 > 环境变量 > Codex / Claude 缓存 > 客户端自带。
+ * 一处都没有也照常起服务 —— 设置页要把「查过哪些路径」摆出来，人才知道去哪儿装。
+ */
+const pluginRuntime = createPluginRuntime({
+  explicitDir: options.plugin,
+  installRoot: HOME,
+  settings: settings
+});
+const PLUGIN = pluginRuntime.current();
 
 const workRoot = path.join(os.tmpdir(), "mtslg-transcoder-gui");
 fs.mkdirSync(workRoot, { recursive: true });
 
 const resolver = createResolver({
   engine: PLUGIN.engine,
-  pluginRoot: PLUGIN.root,
+  // 插件根每次现取：设置里换一份之后立刻生效，不用重启客户端。
+  pluginRoot: function () { return PLUGIN.root; },
   pwsh: PLUGIN.pwsh,
   token: function () { return tokenSource.value(); },
   project: options.project,
@@ -132,7 +133,7 @@ const confirm = createConfirm({
   steps: function () { return readPipelineSteps(PLUGIN.root); }
 });
 const autoFill = createAutoFill({ ai: ai, pending: pending, confirm: confirm, settings: settings });
-const layoutRegistrar = createLayoutRegistrar({ pluginRoot: PLUGIN.root });
+const layoutRegistrar = createLayoutRegistrar({ pluginRoot: function () { return PLUGIN.root; } });
 const board = createBoard({
   runs: runs,
   pending: pending,
@@ -170,11 +171,13 @@ const uploads = createUploads(HOME);
 const routes = createRoutes({
   resolver: resolver,
   plugin: PLUGIN,
+  pluginRuntime: pluginRuntime,
   chats: chats,
   uploads: uploads,
   token: function () { return tokenSource.value(); },
   tokenSource: tokenSource,
   supervised: process.env.MASTERGO_SUPERVISED === "1",
+  isBusy: busyReason,
   version: VERSION,
   runs: runs,
   settings: settings,
@@ -233,7 +236,8 @@ server.listen(options.port, options.host, function () {
   const url = "http://" + options.host + ":" + actualPort + "/";
   process.stdout.write("listening " + actualPort + "\n");
   process.stdout.write("MasterGo 转码客户端 v" + VERSION + ": " + url + "\n");
-  process.stdout.write("插件: " + PLUGIN_ROOT + (PLUGIN.version ? "（v" + PLUGIN.version + "）" : "") + "\n");
+  process.stdout.write("插件: " + (PLUGIN.root || "（没找到）") + (PLUGIN.version ? "（v" + PLUGIN.version + "）" : "") + "\n");
+  if (pluginRuntime.failure()) process.stdout.write(pluginRuntime.failure() + "\n");
   process.stdout.write("引擎: " + (PLUGIN.engineExists ? "已找到" : "缺失") + " → " + PLUGIN.engine
     + (PLUGIN.queryMissing.length ? "（插件缺 " + PLUGIN.queryMissing.join("、") + "）" : "") + "\n");
   // 运行时的版本要起 pwsh / node 去问，一次约 1.4 秒 —— 那是同步阻塞，摆在这里会让
