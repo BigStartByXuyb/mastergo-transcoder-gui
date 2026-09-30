@@ -12,6 +12,7 @@ npm install        # 首次：后端依赖
 ```
 
 `start.cmd` 调 `launch.js`：先读安装根的 `current.json`，指向 `versions/<版本>/` 就跑那一份，没有指针就跑安装根这一份。
+`launch.js` 同时是监督进程 —— 界面里点「切换版本」时，跑着的那一份按约定退出，它按新指针再拉起来。
 
 生产形态：前端已构建成 `public/` 下的静态产物，`server.js` 直接提供。默认监听 `127.0.0.1:8787` 并打开浏览器。
 
@@ -39,7 +40,7 @@ npm run build:ui               # 构建前端 → public/
 ui/            前端源码（shadcn CLI 生成 components/ui/，源码入库）
 public/        前端构建产物（vite build --outDir ../public），不手工编辑
 changelog.json 每个版本改了什么（进运行树）：客户端更新页显示，发布清单与 Release 说明也读它
-launch.js      启动入口：按 current.json 选版本，再拉起那一份的 server.js
+launch.js      启动入口 + 监督进程：按 current.json 选版本，拉起那一份的 server.js，换版本时自己重起
 server.js      入口：命令行、装配、监听
 scripts/       发布工具（不进运行树）
 lib/           后端实现（见下）
@@ -189,6 +190,11 @@ node scripts/publish.js --no-fresh-run      # 声明这版不要求新开一次�
 | `POST /api/update/apply` · `rollback` | 只写安装根的 `current.json` 指针，不抽走正在跑的目录，所以切完要重启客户端才生效 |
 
 有流水线或看板任务在跑时，`apply` 与 `rollback` 一律拒绝（切版本会换掉正在跑的那份脚本）。
+
+切版本立刻生效：`launch.js` 是监督进程，子进程收到 `POST /api/client/restart` 就以约定退出码 75 退出，
+监督进程按新指针重新起一份（子进程环境带 `MASTERGO_SUPERVISED=1`，界面据此判断能不能自动生效）。
+界面在切换期间盖一层转圈遮罩，起来后自己刷新；没有监督进程（直接 `node server.js` 起的）时退回「下次启动生效」。
+启动路径上不做同步的 pwsh 探测（运行时的版本改在「设置 → AI Agent」按需取），所以空窗只有约 0.3 秒。
 
 能切的只有「坏了也不影响核心流程」的东西：
 

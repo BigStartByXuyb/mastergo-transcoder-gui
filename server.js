@@ -170,6 +170,7 @@ const routes = createRoutes({
   chats: chats,
   token: function () { return tokenSource.value(); },
   tokenSource: tokenSource,
+  supervised: process.env.MASTERGO_SUPERVISED === "1",
   version: VERSION,
   runs: runs,
   settings: settings,
@@ -231,9 +232,8 @@ server.listen(options.port, options.host, function () {
   process.stdout.write("插件: " + PLUGIN_ROOT + (PLUGIN.version ? "（v" + PLUGIN.version + "）" : "") + "\n");
   process.stdout.write("引擎: " + (PLUGIN.engineExists ? "已找到" : "缺失") + " → " + PLUGIN.engine
     + (PLUGIN.queryMissing.length ? "（插件缺 " + PLUGIN.queryMissing.join("、") + "）" : "") + "\n");
-  process.stdout.write("运行时: " + runtime.status().tools.map(function (item) {
-    return item.label + " " + (item.source ? (item.source === "bundled" ? "自带" : "系统") + " " + (item.version || "?") : "缺失");
-  }).join(" / ") + "\n");
+  // 运行时的版本要起 pwsh / node 去问，一次约 1.4 秒 —— 那是同步阻塞，摆在这里会让
+  // 换版本后的这几秒连不上变成两三秒。这条信息在「设置 → AI Agent」里按需取，启动路径上不问。
   process.stdout.write("代理: " + (proxy.filled.length
     ? "已按 Windows 系统设置补上 " + proxy.filled.join("、")
     : (proxy.enabled ? "按环境变量" : "未启用（直连）")) + "\n");

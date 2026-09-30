@@ -7,11 +7,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ClampText } from "@/app/clamp-text"
+import { BusyOverlay } from "@/app/busy-overlay"
 import { Pager } from "@/app/pager"
 import { Progress } from "@/components/ui/progress"
 import { api, type UpdateStatus } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
+import { waitForClientVersion } from "@/lib/restart-watch"
 import {
   blockedNote,
   canSwitch,
@@ -42,8 +44,18 @@ export function UpdateCard() {
   const [working, setWorking] = useState("")
   const [page, setPage] = useState(1)
   const [openVersion, setOpenVersion] = useState("")
+  // 正在切到哪一版：有值就铺遮罩、挡住一切操作。
+  const [switching, setSwitching] = useState("")
+  const [supervised, setSupervised] = useState(false)
 
   const transferring = status ? isDownloading(status.task) : false
+
+  useEffect(() => {
+    api
+      .health()
+      .then((payload) => setSupervised(payload.supervised))
+      .catch(() => setSupervised(false))
+  }, [])
 
   useEffect(() => {
     let stopped = false
@@ -96,6 +108,42 @@ export function UpdateCard() {
     }
   }
 
+  /*
+   * 切版本：写指针 → 让这一份退出 → 等监督进程把新的拉起来 → 刷新页面。
+   * 整个过程铺遮罩（用户点不了别处）；连不上的那几秒是预期的，不算失败。
+   * 没有监督进程（直接 node server.js 起的）时退回老做法：下次启动生效。
+   */
+  async function switchTo(version: string) {
+    setFailure("")
+    if (!supervised) {
+      await act("switch:" + version, () => api.updateApply(version), "已切到 v" + version + "，下次启动生效")
+      return
+    }
+    setSwitching(version)
+    try {
+      await api.updateApply(version)
+    } catch (error) {
+      setSwitching("")
+      setFailure(describeFailure(error))
+      return
+    }
+    try {
+      await api.clientRestart()
+    } catch {
+      // 这一份就是被它自己关掉的，请求断在半路属于预期。
+    }
+    const up = await waitForClientVersion({
+      target: version,
+      probe: async () => (await api.health()).version
+    })
+    if (up) {
+      window.location.reload()
+      return
+    }
+    setSwitching("")
+    setFailure("换版本没起来：关掉窗口重新双击一次 start.cmd，窗口里会写原因。")
+  }
+
   const summary = describeUpdate(status)
   const taskText = status ? describeTask(status.task) : ""
   const blocked = status ? blockedNote(status) : ""
@@ -108,7 +156,9 @@ export function UpdateCard() {
   const frozen = Boolean(working) || busy
 
   return (
-    <Card className="flex flex-col">
+    <>
+      {switching && <BusyOverlay title={"正在切到 v" + switching + "…"} note="界面马上回来，不用你重启。" />}
+      <Card className="flex flex-col">
       <CardHeader>
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle>程序更新</CardTitle>
@@ -177,16 +227,11 @@ export function UpdateCard() {
           frozen={frozen}
           status={status}
           onToggle={(version) => setOpenVersion(openVersion === version ? "" : version)}
-          onSwitch={(row) =>
-            void act(
-              "switch:" + row.version,
-              () => api.updateApply(row.version),
-              "已切到 v" + row.version + "，下次启动生效"
-            )
-          }
+          onSwitch={(row) => void switchTo(row.version)}
         />
       </CardContent>
     </Card>
+    </>
   )
 }
 

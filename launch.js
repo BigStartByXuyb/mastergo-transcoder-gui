@@ -2,11 +2,15 @@
 "use strict";
 
 /*
- * 启动入口：先按 current.json 选版本，再把 server.js 跑起来。
+ * 启动入口，同时是监督进程：按 current.json 选版本 → 起子进程跑那一份 server.js。
  *
- * start.cmd 调它：node launch.js [server.js 的那套参数]
- * 版本目录里的那一份跑起来时，MASTERGO_HOME 指向安装根，
- * 所以 local.json / credentials / board.json / versions 始终是同一份，不随版本目录走。
+ * 为什么要有监督进程：界面上点「切换版本」要立刻生效，而运行中的那份不能被换文件
+ * （换掉脚下正在加载的 server.js / lib，跑一半的请求会混用两版代码）。
+ * 所以子进程收到切换请求就以 RESTART_CODE 退出，这里按新指针重新起一份 —— 用户不必自己去重启。
+ * 子进程正常结束（关窗口、Ctrl+C、出错）时，这里原样退出。
+ *
+ * 谁在用：start.cmd 调它。子进程的 MASTERGO_HOME 始终指向安装根，
+ * 所以 local.json / credentials / board.json / chats.json / versions 永远是同一份。
  */
 
 const { spawn } = require("child_process");
@@ -14,21 +18,34 @@ const path = require("path");
 
 const { resolveLaunch } = require("./lib/launch.js");
 
+// 子进程用这个退出码告诉监督进程「不是结束，是换一份重来」。
+const RESTART_CODE = 75;
+
 const HOME = __dirname;
-const target = resolveLaunch(HOME);
 
-process.stdout.write("版本: " + (target.fromPointer ? "v" + target.version + "（current.json）" : "本地这一份（无指针）") + "\n");
-
-if (target.dir === HOME) {
-  require(path.join(HOME, "server.js"));
-}
-else {
-  const child = spawn(process.execPath, [path.join(target.dir, "server.js")].concat(process.argv.slice(2)), {
-    cwd: HOME,
-    env: Object.assign({}, process.env, { MASTERGO_HOME: HOME }),
-    stdio: "inherit"
-  });
-  child.on("exit", function (code) {
-    process.exit(code === null ? 1 : code);
+function runOnce(target) {
+  return new Promise(function (resolve) {
+    const child = spawn(process.execPath, [path.join(target.dir, "server.js")].concat(process.argv.slice(2)), {
+      cwd: HOME,
+      env: Object.assign({}, process.env, { MASTERGO_HOME: HOME, MASTERGO_SUPERVISED: "1" }),
+      stdio: "inherit"
+    });
+    child.on("exit", function (code) { resolve(code === null ? 1 : code); });
+    child.on("error", function (error) {
+      process.stderr.write("起不来：" + String(error && error.message ? error.message : error) + "\n");
+      resolve(1);
+    });
   });
 }
+
+async function main() {
+  for (;;) {
+    const target = resolveLaunch(HOME);
+    process.stdout.write("版本: " + (target.fromPointer ? "v" + target.version + "（current.json）" : "本地这一份（无指针）") + "\n");
+    const code = await runOnce(target);
+    if (code !== RESTART_CODE) process.exit(code);
+    process.stdout.write("按 current.json 换一份接着跑\n");
+  }
+}
+
+main();

@@ -21,6 +21,8 @@ export type FrameEntry = {
 export type Health = {
   ok: true
   version: string
+  /** 这一份是 start.cmd 拉起来的（有监督进程）：换版本能自己重跑，不用人重启。 */
+  supervised: boolean
   plugin: PluginSummary
   frames: FrameEntry[]
 }
@@ -799,6 +801,8 @@ export const api = {
     ),
   updateRollback: () =>
     post<{ ok: true; version: string; restartRequired: boolean; status: UpdateStatus }>("/api/update/rollback", {}),
+  /** 让当前这一份退出，由监督进程按指针换一份重跑；不监听响应之后的事。 */
+  clientRestart: () => post<{ ok: true; restarting: boolean }>("/api/client/restart", {}),
   codexStatus: () => request<{ ok: true; status: CodexStatus }>("/api/codex/status"),
   /** 拉远端发行版描述：失败也回 200，原因在 status.error 里。 */
   codexCheck: () => post<{ ok: true; status: CodexStatus }>("/api/codex/check", {}),
