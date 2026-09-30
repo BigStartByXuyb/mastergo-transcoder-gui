@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress"
 import { api, type UpdateStatus } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
-import { switchVersionAndWait } from "@/lib/update-switch"
+import { SWITCH_FAILED_NOTE, switchVersionAndWait } from "@/lib/update-switch"
 import { missingFeatures } from "@/lib/version-features"
 import {
   blockedNote,
@@ -145,7 +145,7 @@ export function UpdateCard() {
       return
     }
     setSwitching("")
-    setFailure("换版本没起来：关掉窗口重新双击一次 start.cmd，窗口里会写原因。")
+    setFailure(SWITCH_FAILED_NOTE)
   }
 
   const summary = describeUpdate(status)

@@ -6,6 +6,9 @@ import { waitForClientVersion } from "@/lib/restart-watch"
  * 设置页的「切换」和顶上的「有新版」标注共用这一处；连不上的那几秒是预期的，不算失败。
  */
 
+/** 切过去但没起来时的一句统一提示（两个入口都读它，免得同一件事两种说法）。 */
+export const SWITCH_FAILED_NOTE = "换版本没起来：打开设置 → 更新看原因；还不行就关掉窗口重新双击一次 start.cmd。"
+
 export async function switchVersionAndWait(version: string): Promise<boolean> {
   await api.updateApply(version)
   try {

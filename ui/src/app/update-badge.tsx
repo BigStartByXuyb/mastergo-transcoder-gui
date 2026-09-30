@@ -7,7 +7,7 @@ import { ConfirmSwitchDialog } from "@/app/confirm-switch-dialog"
 import type { UpdateHint } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { startUpdateDownload } from "@/lib/update-download"
-import { switchVersionAndWait } from "@/lib/update-switch"
+import { SWITCH_FAILED_NOTE, switchVersionAndWait } from "@/lib/update-switch"
 
 /*
  * 顶上的新版标注：后台每 10 分钟查一次，查到新版就在这儿挂个红点。
@@ -60,7 +60,7 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
         return
       }
       setBusy("")
-      setFailure("换版本没起来：打开设置里的「更新」看原因。")
+      setFailure(SWITCH_FAILED_NOTE)
       props.onOpenUpdatePage()
     } catch (error) {
       setBusy("")
@@ -88,7 +88,7 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
           target={target}
           current={hint ? hint.current : ""}
           freshRunRequired={hint ? hint.stagedFreshRunRequired : null}
-          busy=""
+          busy={hint ? hint.busy : ""}
           onCancel={() => setConfirming(false)}
           onConfirm={() => void confirmSwitch()}
         />

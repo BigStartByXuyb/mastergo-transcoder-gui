@@ -13,6 +13,7 @@ function hint(patch: Partial<UpdateHint> = {}): UpdateHint {
     state: "update_available",
     current: "0.6.11",
     ready: "",
+    busy: "",
     availableVersion: "0.6.12",
     stagedFreshRunRequired: null,
     ...patch
@@ -80,5 +81,19 @@ describe("UpdateBadge", () => {
     fireEvent.click(screen.getByRole("button"))
     await waitFor(() => expect(onOpenUpdatePage).toHaveBeenCalled())
     expect(mock.mock.calls.some((call) => String(call[0]).includes("/api/update/apply"))).toBe(false)
+  })
+
+  it("有任务在跑时，确认弹窗里说清并挡住「切过去」", async () => {
+    stub()
+    render(
+      <UpdateBadge
+        update={hint({ state: "download_ready", ready: "0.6.12", busy: "1 次流水线正在跑" })}
+        supervised
+        onOpenUpdatePage={vi.fn()}
+      />
+    )
+    fireEvent.click(screen.getByRole("button"))
+    await waitFor(() => expect(screen.getByText(/现在有任务在跑/)).toBeTruthy())
+    expect((screen.getByRole("button", { name: "切过去" }) as HTMLButtonElement).disabled).toBe(true)
   })
 })

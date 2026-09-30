@@ -119,6 +119,7 @@ async function main() {
     state: "update_available",
     current: "0.1.0",
     ready: "",
+    busy: "",
     availableVersion: "0.2.0",
     stagedFreshRunRequired: null
   });
