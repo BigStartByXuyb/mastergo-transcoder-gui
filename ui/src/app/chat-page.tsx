@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { FileUp, FolderUp, ImagePlus, Loader2, Plus, Paperclip, Send, Settings2, Square, Trash2, X } from "lucide-react"
+import { FileUp, FolderGit2, FolderUp, ImagePlus, Loader2, Lock, Plus, Paperclip, Send, Settings2, ShieldCheck, Square, Trash2, X } from "lucide-react"
+import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ChatTranscript, type Turn } from "@/app/chat-transcript"
+import { ChatNewDialog } from "@/app/chat-new-dialog"
+import { ChatWriteDialog } from "@/app/chat-write-dialog"
 import { ClampText } from "@/app/clamp-text"
 import { TemplateDialog } from "@/app/template-dialog"
 import { agentChatStream, api, type ChatSummary, type Settings, type UploadedFile } from "@/lib/api"
 import { readCodexLine, type AgentItem } from "@/lib/agent-stream"
 import { replayConversation, upsertTurn } from "@/lib/chat-replay"
+import { groupByProjectRoot, projectLabel, unboundLabel } from "@/lib/chat-groups"
 import { describeFailure } from "@/lib/describe-failure"
 import { readRecentProjects, rememberProject } from "@/lib/recent-projects"
 import { attachmentUrl, humanSize, uploadAttachments, type PickedFile } from "@/lib/upload-files"
@@ -42,8 +42,10 @@ export function ChatPage() {
   const [agentName, setAgentName] = useState("")
   const [projectRoot, setProjectRoot] = useState(() => readRecentProjects()[0] ?? "")
   const [prompt, setPrompt] = useState("")
-  const [write, setWrite] = useState(false)
+  // 这条对话确认过「可以改工程文件」没有；确认一次就跟着这条对话走。
   const [writeConfirmed, setWriteConfirmed] = useState(false)
+  const [newOpen, setNewOpen] = useState(false)
+  const [writeOpen, setWriteOpen] = useState(false)
   const [thread, setThread] = useState("")
   const [running, setRunning] = useState(false)
   const [failure, setFailure] = useState("")
@@ -79,6 +81,7 @@ export function ChatPage() {
       setAgentName(payload.conversation.agent)
       setTemplateId(payload.conversation.templateId || "")
       if (payload.conversation.projectRoot) setProjectRoot(payload.conversation.projectRoot)
+      setWriteConfirmed(false)
     } catch (error) {
       setFailure(describeFailure(error))
     }
@@ -113,9 +116,8 @@ export function ChatPage() {
   }
 
   const allowWrite = Boolean(settings?.agent.allowWrite)
-  /* 勾了写盘却没确认改哪个目录，这一轮不发出去；后端同样会拦。 */
-  const writeBlocked = write && allowWrite && !writeConfirmed
   const active = conversations.find((item) => item.id === activeId) ?? null
+  const groups = groupByProjectRoot(conversations)
 
   /* 跑着的时候不许切走：切了也看不到这一轮的进度。 */
   async function open(id: string) {
@@ -123,22 +125,34 @@ export function ChatPage() {
     await loadInto(id)
   }
 
-  /* 新建：只把这一侧清空，后端在第一次提问时建档，标题取第一句。 */
+  /* 新建：选好工程目录与参考源再开；后端在第一次提问时建档，标题取第一句。 */
   function startNew() {
     if (running) return
+    setNewOpen(true)
+  }
+
+  function createConversation(root: string, template: string) {
+    setNewOpen(false)
     setActiveId("")
-    setTemplateId("")
+    setTemplateId(template)
     setTurns([])
     setThread("")
     setAgentName("")
     setFailure("")
+    setProjectRoot(root)
+    setWriteConfirmed(false)
   }
 
   async function drop(id: string) {
     try {
       const payload = await api.chatRemove(id)
       setConversations(payload.conversations)
-      if (id === activeId) startNew()
+      if (id === activeId) {
+        setActiveId("")
+        setTurns([])
+        setThread("")
+        setAgentName("")
+      }
     } catch (error) {
       setFailure(describeFailure(error))
     }
@@ -157,7 +171,7 @@ export function ChatPage() {
 
   async function send() {
     const text = prompt.trim()
-    if (!text || running || writeBlocked) return
+    if (!text || running) return
     setTurns((current) => [...current, { kind: "you", text }])
     const sending = attachments
     setAttachments([])
@@ -181,8 +195,9 @@ export function ChatPage() {
           attachments: sending.map((item) => ({ path: item.path, name: item.name, kind: item.kind })),
           templateId: templateId,
           projectRoot: projectRoot.trim(),
-          write: write && allowWrite,
-          writeConfirm: projectRoot.trim()
+          // 写盘要两处都同意：设置里开着总开关，这条对话也确认过改哪个目录。
+          write: writeConfirmed && allowWrite,
+          writeConfirm: writeConfirmed ? projectRoot.trim() : ""
         },
         (event) => {
           if (event.kind === "conversation") {
@@ -278,58 +293,80 @@ export function ChatPage() {
           <Plus className="size-4" />
           新建对话
         </Button>
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
           {conversations.length === 0 && (
             <p className="text-muted-foreground px-1 py-2 text-xs leading-relaxed">
-              还没有对话。问一句就会在这里留下一条。
+              还没有对话。点上面「新建对话」，选好工程目录再开口。
             </p>
           )}
-          <div className="flex flex-col gap-1">
-            {conversations.map((item) => (
+          {/* 一段 = 一个工程目录：对话的工程在新建时定下来，列表就按它归堆。 */}
+          {groups.map((group) => (
+            <div key={group.projectRoot} className="flex flex-col gap-1">
               <div
-                key={item.id}
                 className={cn(
-                  "group hover:bg-accent/60 flex items-start gap-1 rounded-md px-2 py-2 transition-colors",
-                  item.id === activeId && "bg-accent text-accent-foreground"
+                  "text-muted-foreground flex items-center gap-1 px-2 font-mono text-xs",
+                  !group.projectRoot && "font-sans"
                 )}
+                title={projectLabel(group.projectRoot)}
               >
-                <button
-                  type="button"
-                  onClick={() => void open(item.id)}
-                  className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
-                  title={item.title}
-                >
-                  <span className="min-w-0 truncate text-sm">{item.title}</span>
-                  <span className="text-muted-foreground min-w-0 truncate text-xs" title={item.agent}>
-                    {item.agent || "还没跑过"}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  title="删除这条对话"
-                  onClick={() => void drop(item.id)}
-                  className="text-muted-foreground hover:text-destructive mt-0.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
+                <FolderGit2 className="size-3 shrink-0" />
+                <span className="min-w-0 truncate">
+                  {group.projectRoot ? projectLabel(group.projectRoot) : unboundLabel()}
+                </span>
+                <span className="shrink-0">{group.chats.length}</span>
               </div>
-            ))}
-          </div>
+              {group.chats.map((item) => (
+                <div
+                  key={item.id}
+                  className={cn(
+                    "group hover:bg-accent/60 flex items-start gap-1 rounded-md px-2 py-2 transition-colors",
+                    item.id === activeId && "bg-accent text-accent-foreground"
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={() => void open(item.id)}
+                    className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
+                    title={item.title}
+                  >
+                    <span className="min-w-0 truncate text-sm">{item.title}</span>
+                    <span className="text-muted-foreground min-w-0 truncate text-xs" title={item.agent}>
+                      {item.agent || "还没跑过"}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    title="删除这条对话"
+                    onClick={() => void drop(item.id)}
+                    className="text-muted-foreground hover:text-destructive mt-0.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ))}
         </div>
       </aside>
 
       <section className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
         {/* 这一条对话的身份与设置：标题、来源、参考源。 */}
         <header className="bg-card flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2">
-          <span className="min-w-0 flex-1 truncate text-sm font-medium">{active?.title ?? "新对话"}</span>
+          {/* 标题留一段最小宽度：别的标注挤满时它整体换行，不被压成一条缝。 */}
+          <span className="min-w-32 flex-1 truncate text-sm font-medium">{active?.title ?? "新对话"}</span>
           {agentName ? <Badge variant="secondary">{agentName}</Badge> : <Badge variant="outline">还没开始</Badge>}
           {thread && <Badge variant="outline">对话 {thread.slice(0, 8)}</Badge>}
+          {/* 这条对话读哪个工程：新建时定的，之后不再在输入区来回改。 */}
+          <Badge variant="outline" title={projectRoot.trim() || unboundLabel()}>
+            <FolderGit2 className="size-3" />
+            <span className="max-w-40 truncate">{projectRoot.trim() || unboundLabel()}</span>
+          </Badge>
           {/* 参考源：一条对话用一份，代码库与系统提示词一起生效。 */}
           {settings && (
             <div className="flex items-center gap-1">
               <span className="text-muted-foreground text-xs">参考源</span>
               <Select value={templateId || settings.activeTemplateId} onValueChange={(value) => setTemplateId(value)}>
-                <SelectTrigger size="sm" className="w-44" title="这条对话用哪份参考源">
+                <SelectTrigger size="sm" className="w-40" title="这条对话用哪份参考源">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -351,6 +388,25 @@ export function ChatPage() {
               </Button>
             </div>
           )}
+          {/* 写盘状态只在顶上一个标注：点开才是勾选确认的地方。 */}
+          <button
+            type="button"
+            className="shrink-0"
+            title={allowWrite ? "点开确认这条对话能不能改工程文件" : "写盘总开关在「设置 → AI Agent」里关着"}
+            onClick={() => setWriteOpen(true)}
+          >
+            {writeConfirmed && allowWrite ? (
+              <Badge variant="secondary">
+                <ShieldCheck className="size-3" />
+                可改工程文件
+              </Badge>
+            ) : (
+              <Badge variant="outline">
+                <Lock className="size-3" />
+                只读
+              </Badge>
+            )}
+          </button>
           <span className="text-muted-foreground text-xs">
             {settings?.ai.model || "没配模型"}
             {settings?.ai.hasKey === false ? "（没有 key，去设置里填）" : ""}
@@ -384,9 +440,7 @@ export function ChatPage() {
             void attach(Array.from(event.dataTransfer.files).map((file) => ({ file })))
           }}
         >
-          {/* 第一组：附件（图片会被它直接看，文件和文件夹给路径让它去读）。 */}
-          <div className="flex flex-col gap-2">
-            <span className="text-muted-foreground text-xs font-medium">附件</span>
+          {/* 附件只在选了东西时才占地方：图片它直接看，文件与文件夹给路径让它去读。 */}
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {attachments.map((item) => (
@@ -414,117 +468,58 @@ export function ChatPage() {
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-1">
-            <input
-              ref={imageInput}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={() => void attachFrom(imageInput.current)}
-            />
-            <input ref={fileInput} type="file" multiple className="hidden" onChange={() => void attachFrom(fileInput.current)} />
-            {/* 选文件夹：webkitdirectory 是浏览器的事实标准，Chrome/Edge 都认。 */}
-            <input
-              ref={folderInput}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={() => void attachFrom(folderInput.current)}
-              {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
-            />
-            <Button size="sm" variant="ghost" disabled={uploading} onClick={() => imageInput.current?.click()}>
-              <ImagePlus className="size-3.5" />
-              图片
-            </Button>
-            <Button size="sm" variant="ghost" disabled={uploading} onClick={() => fileInput.current?.click()}>
-              <FileUp className="size-3.5" />
-              文件
-            </Button>
-            <Button size="sm" variant="ghost" disabled={uploading} onClick={() => folderInput.current?.click()}>
-              <FolderUp className="size-3.5" />
-              文件夹
-            </Button>
-            {uploading ? (
-              <span className="text-muted-foreground text-xs">正在上传…</span>
-            ) : (
-              <span className="text-muted-foreground text-xs">也可以把文件直接拖到这里</span>
-            )}
-          </div>
-          </div>
+          <Textarea
+            id="chat-prompt"
+            rows={2}
+            placeholder="例如：看一下 F1 这个页面生成到哪一步了，缺什么？"
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) void send()
+            }}
+          />
 
-          {/* 第二组：这次让它读哪个工程目录。 */}
-          <div className="grid gap-1.5">
-            <Label htmlFor="chat-project" className="text-muted-foreground text-xs font-medium">
-              工程目录（可选）
-            </Label>
-            <Input
-              id="chat-project"
-              spellCheck={false}
-              list="chat-projects"
-              className="font-mono text-xs"
-              placeholder="给了它才能读这个目录里的文件"
-              value={projectRoot}
-              onChange={(event) => {
-                setProjectRoot(event.target.value)
-                // 换了目录，上一次的确认就不算数了。
-                setWriteConfirmed(false)
-              }}
-            />
-            <datalist id="chat-projects">
-              {readRecentProjects().map((item) => (
-                <option key={item} value={item} />
-              ))}
-            </datalist>
-          </div>
-
-          {/* 第三组：要问什么。 */}
-          <div className="grid gap-1.5">
-            <Label htmlFor="chat-prompt" className="text-muted-foreground text-xs font-medium">
-              要问什么
-            </Label>
-            <Textarea
-              id="chat-prompt"
-              rows={3}
-              placeholder="例如：看一下 F1 这个页面生成到哪一步了，缺什么？"
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) void send()
-              }}
-            />
-          </div>
-
-          {write && allowWrite && (
-            <div className="flex flex-col gap-2 rounded-md border px-3 py-2">
-              <p className="text-xs">
-                写盘只落在这一份工程目录之内，别处一律不动：
-                <span className="font-mono">{projectRoot.trim() || "（还没填工程目录，开不了写盘）"}</span>
-              </p>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={writeConfirmed}
-                  disabled={!projectRoot.trim()}
-                  onCheckedChange={(value) => setWriteConfirmed(value === true)}
-                />
-                我确认这次只让它改这个目录里的文件
-              </label>
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <label className="flex items-center gap-2 text-sm">
-              <Switch
-                checked={write && allowWrite}
-                disabled={!allowWrite}
-                onCheckedChange={(value) => {
-                  setWrite(value)
-                  setWriteConfirmed(false)
-                }}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {/* 附件三个入口压在工具栏一行里：选了才在上方多出一排缩略信息。 */}
+            <div className="flex flex-wrap items-center gap-1">
+              <input
+                ref={imageInput}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={() => void attachFrom(imageInput.current)}
               />
-              这次允许它直接改工程文件
-              {!allowWrite && <span className="text-muted-foreground text-xs">（先在设置里开写盘开关）</span>}
-            </label>
+              <input
+                ref={fileInput}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={() => void attachFrom(fileInput.current)}
+              />
+              {/* 选文件夹：webkitdirectory 是浏览器的事实标准，Chrome/Edge 都认。 */}
+              <input
+                ref={folderInput}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={() => void attachFrom(folderInput.current)}
+                {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
+              />
+              <Button size="sm" variant="ghost" disabled={uploading} title="给它看图片" onClick={() => imageInput.current?.click()}>
+                <ImagePlus className="size-3.5" />
+                图片
+              </Button>
+              <Button size="sm" variant="ghost" disabled={uploading} title="给它文件路径" onClick={() => fileInput.current?.click()}>
+                <FileUp className="size-3.5" />
+                文件
+              </Button>
+              <Button size="sm" variant="ghost" disabled={uploading} title="给它整个目录" onClick={() => folderInput.current?.click()}>
+                <FolderUp className="size-3.5" />
+                文件夹
+              </Button>
+              {uploading && <span className="text-muted-foreground text-xs">正在上传…</span>}
+            </div>
             <div className="flex items-center gap-2">
               {running && (
                 <Button variant="outline" onClick={stop}>
@@ -532,7 +527,7 @@ export function ChatPage() {
                   停下
                 </Button>
               )}
-              <Button disabled={running || !prompt.trim() || writeBlocked} onClick={() => void send()}>
+              <Button disabled={running || !prompt.trim()} onClick={() => void send()}>
                 {running ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
                 发送
               </Button>
@@ -557,6 +552,35 @@ export function ChatPage() {
           save={(patch) => api.settingsSave(patch).then((payload) => payload.settings)}
           onSaved={(saved) => setSettings(saved)}
           onOpenChange={setTemplatesOpen}
+        />
+      )}
+
+      {/* 两个弹窗都只在打开时挂载：勾选与输入每次从干净状态起手，不用额外清。 */}
+      {newOpen && (
+        <ChatNewDialog
+          open
+          settings={settings}
+          onOpenChange={setNewOpen}
+          onCreate={createConversation}
+        />
+      )}
+
+      {writeOpen && (
+        <ChatWriteDialog
+          open
+          projectRoot={projectRoot}
+          enabled={allowWrite}
+          confirmed={writeConfirmed}
+          onOpenChange={setWriteOpen}
+          onConfirm={() => {
+            setWriteConfirmed(true)
+            setWriteOpen(false)
+            toast.success("这条对话可以改工程文件了")
+          }}
+          onRevoke={() => {
+            setWriteConfirmed(false)
+            setWriteOpen(false)
+          }}
         />
       )}
     </div>

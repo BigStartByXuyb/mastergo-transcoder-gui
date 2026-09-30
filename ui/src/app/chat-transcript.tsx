@@ -3,6 +3,7 @@ import { Bot, ChevronRight, FileCode2, Globe, Info, Loader2, Sparkles, Terminal 
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { AgentAvatar, UserAvatar } from "@/app/agent-avatar"
 import { EngineLog } from "@/app/chat-engine-log"
 import { ClampText } from "@/app/clamp-text"
 import type { AgentItem } from "@/lib/agent-stream"
@@ -59,9 +60,7 @@ function YouBubble({ text }: { text: string }) {
         <div className="bg-primary text-primary-foreground rounded-2xl rounded-tr-sm px-3.5 py-2 text-sm break-words whitespace-pre-wrap shadow-sm">
           {text}
         </div>
-        <span className="bg-muted text-muted-foreground mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[10px]">
-          你
-        </span>
+        <UserAvatar />
       </div>
     </div>
   )
@@ -105,7 +104,7 @@ function AgentItemView({ item, agentName, lead }: { item: AgentItem; agentName: 
   if (item.kind === "message") {
     return (
       <div className="flex max-w-[85%] items-start gap-2">
-        {lead ? <AgentChip name={agentName} /> : <span className="size-6 shrink-0" />}
+        {lead ? <AgentAvatar name={agentName} /> : <span className="size-8 shrink-0" />}
         {/* 它说的话：白底 + 描边，坐在浅一档的消息区上，和你那条深色气泡分得开。 */}
         <div className="bg-card rounded-2xl rounded-tl-sm border px-3.5 py-2 text-sm break-words whitespace-pre-wrap">
           {item.text}
@@ -228,17 +227,6 @@ function stepTitle(item: AgentItem | undefined): string {
   if (item.kind === "search") return "搜索 " + item.query
   if (item.kind === "reasoning") return "思考过程"
   return ""
-}
-
-function AgentChip({ name }: { name: string }) {
-  return (
-    <span
-      className="bg-muted text-muted-foreground mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[10px]"
-      title={name}
-    >
-      AI
-    </span>
-  )
 }
 
 /* 一行 = 图标 + 一句话 + 状态；展开才铺细节。 */

@@ -29,7 +29,7 @@ describe("ChatTranscript", () => {
       agent({ kind: "message", itemId: "item_1", text: "看完了" })
     ])
     expect(screen.getByText("调用过程 1 步")).toBeTruthy()
-    expect(screen.getByText("AI")).toBeTruthy()
+    expect(screen.getByLabelText("Codex v0.159.0")).toBeTruthy()
   })
 
   it("标识只出现在第一次开口那条上", () => {
@@ -37,7 +37,7 @@ describe("ChatTranscript", () => {
       agent({ kind: "message", itemId: "item_0", text: "第一句" }),
       agent({ kind: "message", itemId: "item_1", text: "第二句" })
     ])
-    expect(screen.getAllByText("AI")).toHaveLength(1)
+    expect(screen.getAllByLabelText("Codex v0.159.0")).toHaveLength(1)
   })
 
   it("非致命提示按浅色一行给，不弹报错卡片", () => {

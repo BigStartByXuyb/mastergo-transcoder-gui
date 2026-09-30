@@ -58,88 +58,94 @@ export function NewTaskCard(props: Props) {
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="run-link">MasterGo 链接（页面帧或容器）</Label>
-          <Input
-            id="run-link"
-            spellCheck={false}
-            placeholder="https://mastergo.com/goto/xxxx?file=...&layer_id=..."
-            value={form.link}
-            onChange={(event) => onForm({ link: event.target.value })}
-          />
+        {/* 左必填、右可选：两边各自竖排，补全按钮压在下面一行。 */}
+        <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-4">
+            <span className="text-muted-foreground text-xs font-medium">必填</span>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="run-link">MasterGo 链接（页面帧或容器）</Label>
+              <Input
+                id="run-link"
+                spellCheck={false}
+                placeholder="https://mastergo.com/goto/xxxx?file=...&layer_id=..."
+                value={form.link}
+                onChange={(event) => onForm({ link: event.target.value })}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="run-project">工程目录</Label>
+              <Input
+                id="run-project"
+                spellCheck={false}
+                placeholder="绝对路径 —— 产物合并回这里"
+                value={form.projectRoot}
+                onChange={(event) => onForm({ projectRoot: event.target.value })}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>路线</Label>
+              <Select value={form.mode} onValueChange={(value) => onForm({ mode: value })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>{form.mode}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="B">B —— MTSLG IOContorl 页面 XML</SelectItem>
+                  <SelectItem value="A">A —— MW WPF XAML 页面</SelectItem>
+                  <SelectItem value="AB">AB —— 两条都跑</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-muted-foreground text-xs">{MODE_HINT[form.mode] ?? ""}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <span className="text-muted-foreground text-xs font-medium">可选（留空就按工程登记表解析）</span>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="run-target">页面 Target</Label>
+              <Input
+                id="run-target"
+                spellCheck={false}
+                placeholder="页面名 —— 产物文件名与 UI 区域都按它算"
+                value={form.target}
+                onChange={(event) => onForm({ target: event.target.value })}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="run-ui">UI 区域</Label>
+              <Input
+                id="run-ui"
+                spellCheck={false}
+                placeholder="F3 —— 登记表没登记时才要填"
+                value={form.ui}
+                onChange={(event) => onForm({ ui: event.target.value })}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="run-identity-name">设计页名</Label>
+              <Input
+                id="run-identity-name"
+                spellCheck={false}
+                placeholder="设计稿里的中文名，例如 停止调整（用于自动补）"
+                value={identity.name}
+                onChange={(event) => identity.setName(event.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="run-stop">停在某一步</Label>
+              <Input
+                id="run-stop"
+                spellCheck={false}
+                placeholder="例如 discover —— 先出待命名清单"
+                value={form.stopAfter}
+                onChange={(event) => onForm({ stopAfter: event.target.value })}
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="run-project">工程目录</Label>
-            <Input
-              id="run-project"
-              spellCheck={false}
-              placeholder="工程目录的绝对路径 —— 产物合并回这里，必填"
-              value={form.projectRoot}
-              onChange={(event) => onForm({ projectRoot: event.target.value })}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="run-target">页面 Target</Label>
-            <Input
-              id="run-target"
-              spellCheck={false}
-              placeholder="页面名 —— 产物文件名与 UI 区域都按它算"
-              value={form.target}
-              onChange={(event) => onForm({ target: event.target.value })}
-            />
-          </div>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="flex flex-col gap-2">
-            <Label>路线</Label>
-            <Select value={form.mode} onValueChange={(value) => onForm({ mode: value })}>
-              <SelectTrigger className="w-24">
-                <SelectValue>{form.mode}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="B">B —— MTSLG IOContorl 页面 XML</SelectItem>
-                <SelectItem value="A">A —— MW WPF XAML 页面</SelectItem>
-                <SelectItem value="AB">AB —— 两条都跑</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-muted-foreground text-xs">{MODE_HINT[form.mode] ?? ""}</p>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="run-ui">UI 区域（可选）</Label>
-            <Input
-              id="run-ui"
-              spellCheck={false}
-              placeholder="F3 —— 登记表没登记时才要填"
-              value={form.ui}
-              onChange={(event) => onForm({ ui: event.target.value })}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="run-stop">停在某一步（可选）</Label>
-            <Input
-              id="run-stop"
-              spellCheck={false}
-              placeholder="例如 discover —— 先出待命名清单"
-              value={form.stopAfter}
-              onChange={(event) => onForm({ stopAfter: event.target.value })}
-            />
-          </div>
-        </div>
-
-        {/* Target / UI 的去向提示：说明「谁来决定区域」，并给出登记表里的候选与推导预览。 */}
+        {/* 补全按钮压在两个框下面：先说清楚它按什么算，再给按钮。 */}
         <div className="text-muted-foreground flex flex-col gap-1 text-xs">
           <div className="flex flex-wrap items-center gap-2">
-            <Input
-              id="run-identity-name"
-              className="h-8 max-w-xs"
-              spellCheck={false}
-              placeholder="设计页名（可选，如 Manual Align）"
-              value={identity.name}
-              onChange={(event) => identity.setName(event.target.value)}
-            />
             <Button size="sm" variant="outline" disabled={identity.busy !== ""} onClick={() => void identity.fill()}>
               {identity.busy === "candidates" ? (
                 <Loader2 className="size-4 animate-spin" />
