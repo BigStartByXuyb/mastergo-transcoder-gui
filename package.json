@@ -1,6 +1,6 @@
 {
   "name": "mastergo-transcoder-gui",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "description": "MasterGo 设计稿转 MTSLG IOContorl / MW WPF 的本地客户端",
   "scripts": {

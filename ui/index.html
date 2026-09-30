@@ -6,8 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MasterGo 转码客户端</title>
     <style>
-      /* 启动占位：React 挂载前先看到那只小狐狸，挂载时它自己会被替换掉。 */
-      .boot { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 18vh; font: 13px/1.5 system-ui, sans-serif; color: #71717a; }
+      /* 启动占位：React 挂载前先看到那只小狐狸，挂载时它自己会被替换掉。
+         铺满整个视口再居中 —— 不依赖容器怎么排，横竖都在正中间。 */
+      .boot { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; font: 13px/1.5 system-ui, sans-serif; color: #71717a; }
       .boot img { width: 64px; height: 64px; image-rendering: pixelated; animation: boot-bob 1.6s ease-in-out infinite; }
       @keyframes boot-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
       @media (prefers-reduced-motion: reduce) { .boot img { animation: none; } }
