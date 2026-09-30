@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react"
 import { Download, Loader2, Terminal } from "lucide-react"
-import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -10,7 +9,7 @@ import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
 import { Progress } from "@/components/ui/progress"
 import { api, type RuntimeId, type RuntimeStatus, type RuntimeTool } from "@/lib/api"
-import { startDownload } from "@/lib/download-run"
+import { applyDownload, startDownload } from "@/lib/download-run"
 import {
   describeRuntime,
   describeTool,
@@ -66,9 +65,7 @@ export function RuntimeCard() {
     const got = await startDownload(function () {
       return api.runtimeDownload(tool)
     })
-    if (got.status) setStatus(got.status)
-    if (got.kind === "failed") setFailure(got.message)
-    else if (got.kind === "already") toast.info(got.message)
+    applyDownload(got, { setStatus, setFailure })
     setWorking("")
   }
 

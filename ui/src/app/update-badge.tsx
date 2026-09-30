@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { BusyOverlay } from "@/app/busy-overlay"
 import { ConfirmSwitchDialog } from "@/app/confirm-switch-dialog"
 import type { UpdateHint } from "@/lib/api"
+import { applyDownload } from "@/lib/download-run"
 import { startUpdateDownload } from "@/lib/update-download"
 import { runSwitch } from "@/lib/update-switch"
 
@@ -32,13 +33,13 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
       setBusy("download")
       const got = await startUpdateDownload(target)
       setBusy("")
-      if (got.kind === "failed") {
-        // 没起来就留在原地把原因说清，不再把人带走。
-        setFailure(got.message)
-        return
-      }
-      // 本机已经有这一版（状态过期一类的竞争）：带去更新页，那行会显示「切换」。
-      props.onOpenUpdatePage()
+      // 这条入口没有自己的状态可套：起来了或本来就有，都带去更新页；失败留在原地把原因说清。
+      applyDownload(got, {
+        setStatus: () => undefined,
+        setFailure,
+        onStarted: props.onOpenUpdatePage,
+        onAlready: props.onOpenUpdatePage
+      })
       return
     }
     // 已经下载好：确认过再切过去，不用再去设置页点一遍。
