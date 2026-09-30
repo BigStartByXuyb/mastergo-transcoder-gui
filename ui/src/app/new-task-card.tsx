@@ -1,4 +1,5 @@
 import { Loader2, Play, RefreshCw, Sparkles, Square } from "lucide-react"
+import type { ReactNode } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ClampText } from "@/app/clamp-text"
@@ -58,48 +59,61 @@ export function NewTaskCard(props: Props) {
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {/* 左必填、右可选：两边各自竖排，补全按钮压在下面一行。 */}
-        <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+        {/* 三组各成一个框：必填 / 可自动补齐 / 可选。 */}
+        <div className="grid items-start gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-4">
-            <span className="text-muted-foreground text-xs font-medium">必填</span>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="run-link">MasterGo 链接（页面帧或容器）</Label>
-              <Input
-                id="run-link"
-                spellCheck={false}
-                placeholder="https://mastergo.com/goto/xxxx?file=...&layer_id=..."
-                value={form.link}
-                onChange={(event) => onForm({ link: event.target.value })}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="run-project">工程目录</Label>
-              <Input
-                id="run-project"
-                spellCheck={false}
-                placeholder="绝对路径 —— 产物合并回这里"
-                value={form.projectRoot}
-                onChange={(event) => onForm({ projectRoot: event.target.value })}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>路线</Label>
-              <Select value={form.mode} onValueChange={(value) => onForm({ mode: value })}>
-                <SelectTrigger className="w-full">
-                  <SelectValue>{form.mode}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="B">B —— MTSLG IOContorl 页面 XML</SelectItem>
-                  <SelectItem value="A">A —— MW WPF XAML 页面</SelectItem>
-                  <SelectItem value="AB">AB —— 两条都跑</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-muted-foreground text-xs">{MODE_HINT[form.mode] ?? ""}</p>
-            </div>
+            <Group title="必填" hint="不填跑不了">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="run-link">MasterGo 链接（页面帧或容器）</Label>
+                <Input
+                  id="run-link"
+                  spellCheck={false}
+                  placeholder="https://mastergo.com/goto/xxxx?file=...&layer_id=..."
+                  value={form.link}
+                  onChange={(event) => onForm({ link: event.target.value })}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="run-project">工程目录</Label>
+                <Input
+                  id="run-project"
+                  spellCheck={false}
+                  placeholder="绝对路径 —— 产物合并回这里"
+                  value={form.projectRoot}
+                  onChange={(event) => onForm({ projectRoot: event.target.value })}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label>路线</Label>
+                <Select value={form.mode} onValueChange={(value) => onForm({ mode: value })}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>{form.mode}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="B">B —— MTSLG IOContorl 页面 XML</SelectItem>
+                    <SelectItem value="A">A —— MW WPF XAML 页面</SelectItem>
+                    <SelectItem value="AB">AB —— 两条都跑</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-muted-foreground text-xs">{MODE_HINT[form.mode] ?? ""}</p>
+              </div>
+            </Group>
+
+            <Group title="可选" hint="不填就走默认">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="run-stop">停在某一步</Label>
+                <Input
+                  id="run-stop"
+                  spellCheck={false}
+                  placeholder="例如 discover —— 先出待命名清单"
+                  value={form.stopAfter}
+                  onChange={(event) => onForm({ stopAfter: event.target.value })}
+                />
+              </div>
+            </Group>
           </div>
 
-          <div className="flex flex-col gap-4">
-            <span className="text-muted-foreground text-xs font-medium">可选（留空就按工程登记表解析）</span>
+          <Group title="可自动补齐" hint="留空就按工程登记表解析；也可以让它按设计页名补">
             <div className="flex flex-col gap-2">
               <Label htmlFor="run-target">页面 Target</Label>
               <Input
@@ -125,54 +139,40 @@ export function NewTaskCard(props: Props) {
               <Input
                 id="run-identity-name"
                 spellCheck={false}
-                placeholder="设计稿里的中文名，例如 停止调整（用于自动补）"
+                placeholder="设计稿里的中文名，例如 停止调整"
                 value={identity.name}
                 onChange={(event) => identity.setName(event.target.value)}
               />
             </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="run-stop">停在某一步</Label>
-              <Input
-                id="run-stop"
-                spellCheck={false}
-                placeholder="例如 discover —— 先出待命名清单"
-                value={form.stopAfter}
-                onChange={(event) => onForm({ stopAfter: event.target.value })}
-              />
-            </div>
-          </div>
-        </div>
 
-        {/* 补全按钮压在两个框下面：先说清楚它按什么算，再给按钮。 */}
-        <div className="text-muted-foreground flex flex-col gap-1 text-xs">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="outline" disabled={identity.busy !== ""} onClick={() => void identity.fill()}>
-              {identity.busy === "candidates" ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Sparkles className="size-4" />
-              )}
-              自动补 Target / 区域
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={identity.busy !== "" || !form.link.trim()}
-              onClick={() => identity.takeDesignPageName()}
-            >
-              {identity.busy === "name" ? <Loader2 className="size-4 animate-spin" /> : null}
-              从链接取设计页名
-            </Button>
-            <span>
-              按项目既有区域约定 + 设计页名给出候选并写进工程登记表；
-              当前自动化层级：
-              {AUTOMATION_LABEL[automation] ?? automation}
-              {adoptsIdentityWithoutConfirm(automation)
-                ? "（这一页登记过就自动沿用；没登记过由模型按设计页名给名直接采用，给不出才停下来要你点一次）"
-                : "（列出来，你点一下再写）"}
-            </span>
-          </div>
-          {identity.candidates.length > 0 && (
+            <div className="text-muted-foreground flex flex-col gap-1 text-xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" disabled={identity.busy !== ""} onClick={() => void identity.fill()}>
+                  {identity.busy === "candidates" ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="size-4" />
+                  )}
+                  自动补 Target / 区域
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={identity.busy !== "" || !form.link.trim()}
+                  onClick={() => identity.takeDesignPageName()}
+                >
+                  {identity.busy === "name" ? <Loader2 className="size-4 animate-spin" /> : null}
+                  从链接取设计页名
+                </Button>
+                <span>
+                  按项目既有区域约定 + 设计页名给出候选并写进工程登记表；当前自动化层级：
+                  {AUTOMATION_LABEL[automation] ?? automation}
+                  {adoptsIdentityWithoutConfirm(automation)
+                    ? "（这一页登记过就自动沿用；没登记过由模型按设计页名给名直接采用，给不出才停下来要你点一次）"
+                    : "（列出来，你点一下再写）"}
+                </span>
+              </div>
+              {identity.candidates.length > 0 && (
             <div className="flex flex-col gap-1">
               {identity.candidates.map((item, index) => (
                 <div key={index} className="flex flex-wrap items-center gap-2">
@@ -193,27 +193,27 @@ export function NewTaskCard(props: Props) {
               ))}
             </div>
           )}
-          {identity.derivedUi && (
-            <span>将使用 UI={identity.derivedUi}（按 Target 前缀推导；插件自己也会这么算）</span>
-          )}
-          {needsIdentityHint && (
-            <span className="text-amber-600">
-              UI 与 Target 都空：插件会按取值链解析（登记表 → Target 前缀/首词）；都取不到就会在入口停下。
-              最省事的做法是把 Target 写成带区域前缀的形式，例如 F3Align。
-            </span>
-          )}
-          {targetWithoutPrefix && (
-            <span className="text-amber-600">
-              Target「{form.target.trim()}」推不出区域前缀：插件只认两种形状——带编号前缀（F3Align → F3）或
-              大写开头的首词（HomeContent → Home）。当前这个写成小写/下划线，两条都不命中。
-              要么把 UI 区域显式填上，要么把 Target 改成 F3{form.target.trim()}（或用 PascalCase 如 TestMastergp）。
-            </span>
-          )}
-          {identity.pages && !identity.pages.exists && <span>{identity.pages.problem}</span>}
-          {identity.pages && identity.pages.exists && identity.pages.pages.length === 0 && (
-            <span>登记表里还没有可用的页面条目。</span>
-          )}
-          {identity.pages && identity.pages.exists && identity.pages.pages.length > 0 && (
+              {identity.derivedUi && (
+                <span>将使用 UI={identity.derivedUi}（按 Target 前缀推导；插件自己也会这么算）</span>
+              )}
+              {needsIdentityHint && (
+                <span className="text-amber-600">
+                  UI 与 Target 都空：插件会按取值链解析（登记表 → Target 前缀/首词）；都取不到就会在入口停下。
+                  最省事的做法是把 Target 写成带区域前缀的形式，例如 F3Align。
+                </span>
+              )}
+              {targetWithoutPrefix && (
+                <span className="text-amber-600">
+                  Target「{form.target.trim()}」推不出区域前缀：插件只认两种形状——带编号前缀（F3Align → F3）或
+                  大写开头的首词（HomeContent → Home）。当前这个写成小写/下划线，两条都不命中。
+                  要么把 UI 区域显式填上，要么把 Target 改成 F3{form.target.trim()}（或用 PascalCase 如 TestMastergp）。
+                </span>
+              )}
+              {identity.pages && !identity.pages.exists && <span>{identity.pages.problem}</span>}
+              {identity.pages && identity.pages.exists && identity.pages.pages.length === 0 && (
+                <span>登记表里还没有可用的页面条目。</span>
+              )}
+              {identity.pages && identity.pages.exists && identity.pages.pages.length > 0 && (
             <div className="flex flex-col gap-1">
               {/* 按 UI 区域分组：同一区域下的页面放在一起，点一下就切到那个区域的流程。 */}
               <span>
@@ -242,6 +242,8 @@ export function NewTaskCard(props: Props) {
               ))}
             </div>
           )}
+            </div>
+          </Group>
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
@@ -277,5 +279,18 @@ export function NewTaskCard(props: Props) {
         )}
       </CardContent>
     </Card>
+  )
+}
+
+/* 一组输入：外面一个框 + 标题行，把「必填 / 可自动补齐 / 可选」在视觉上分开。 */
+function Group(props: { title: string; hint: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3 rounded-lg border px-3 py-3">
+      <div className="flex flex-wrap items-baseline gap-2">
+        <span className="text-sm font-medium">{props.title}</span>
+        <span className="text-muted-foreground text-xs">{props.hint}</span>
+      </div>
+      {props.children}
+    </section>
   )
 }
