@@ -66,7 +66,7 @@ function caseOrder() {
 
 try {
   const cases = [
-    ["选模板", casePickTemplate],
+    ["选参考源", casePickTemplate],
     ["空输入", caseEmpty],
     ["代码库清单", caseCodebases],
     ["附加文件", caseAttachments],

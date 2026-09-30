@@ -11,13 +11,15 @@ import { BoardTaskTable } from "@/app/board-task-table"
 import { ClampText } from "@/app/clamp-text"
 import { EffectiveToggle } from "@/app/effective-toggle"
 import { Pager } from "@/app/pager"
+import { useIdentityFill } from "@/app/use-identity-fill"
 import { api, type Board } from "@/lib/api"
-import { parseBoardItems } from "@/lib/board-items"
+import { fillTargets, parseBoardItems } from "@/lib/board-items"
 import { coverageOf, type Coverage } from "@/lib/board-effective"
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
 import { FINISHED_STATES, POLL_MS } from "@/lib/task-state"
+import { useSettings } from "@/lib/use-settings"
 
 /*
  * 看板：一屏同时跑多个页面。
@@ -36,6 +38,15 @@ export function BoardPage() {
   const [busy, setBusy] = useState("")
   const [adding, setAdding] = useState(false)
   const [page, setPage] = useState(1)
+  const [identityFailure, setIdentityFailure] = useState("")
+  const { settings } = useSettings()
+
+  // 补完 Target 就写回链接行：任务创建与运行读的都是这一份文本。
+  const identity = useIdentityFill({
+    automation: settings?.automation ?? "assist",
+    onFilled: (targets) => setForm((current) => ({ ...current, links: fillTargets(current.links, targets) })),
+    onFailure: setIdentityFailure
+  })
 
   useEffect(() => {
     writeBoardForm(form)
@@ -120,6 +131,25 @@ export function BoardPage() {
     ).then(() => setAdding(false))
   }
 
+  function fillIdentity() {
+    const items = parseBoardItems(form.links, form.mode)
+    if (!form.projectRoot.trim()) {
+      toast.error("先填工程目录")
+      return
+    }
+    if (items.length === 0) {
+      toast.error("一行一个 MasterGo 链接，至少一行")
+      return
+    }
+    void identity.run(items, form.projectRoot, form.ui)
+  }
+
+  /* 链接或工程改了，上一次的补全结论就不作数了。 */
+  function changeForm(next: BoardTaskForm) {
+    if (next.links !== form.links || next.projectRoot !== form.projectRoot || next.ui !== form.ui) identity.reset()
+    setForm(next)
+  }
+
   const tasks = board?.tasks ?? []
   const readyCount = tasks.filter((task) => task.state === "ready").length
   const coverage: Map<string, Coverage> = useMemo(() => coverageOf(tasks), [tasks])
@@ -198,9 +228,13 @@ export function BoardPage() {
         open={adding}
         form={form}
         busy={busy === "add"}
-        onChange={setForm}
+        automation={settings?.automation ?? "assist"}
+        identity={identity}
+        identityFailure={identityFailure}
+        onChange={changeForm}
         onOpenChange={setAdding}
         onSubmit={addTasks}
+        onFill={fillIdentity}
       />
     </div>
   )

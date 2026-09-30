@@ -164,16 +164,16 @@ lib/launch.js       读 current.json，判断那一份能不能跑
 预览/缩略图走 `GET /api/agent/file?path=…`，这条路由只认 `chats/uploads/` 里的路径 ——
 界面上报什么路径都不能直接信。附件属于用户状态，不随程序版本走。
 
-## 提示词模板
+## 参考源
 
-对话页顶上的「模板」按钮里改：一份模板 = 一组代码库（路径 + 是什么库 + 说明，可多条、可临时停用）
-加一段系统提示词。可以存多份，**每条对话在顶上挑一份**生效（对话上记着 templateId，
+对话页顶上挑、点旁边「管理」改：一份参考源 = 一组代码库（路径 + 是什么库 + 说明，可多条、可临时停用）
+加一段系统提示词。可以存多份，**每条对话在顶上挑一份**生效（对话上记着 `templateId`，
 没记过就按设置里的 `activeTemplateId` -> 第一份）。
 
 提问时它拼在提示词最前面（`lib/agent-context.js` 的 `buildContext`），
 AI 因此知道去哪读文件、按什么规矩答，不用每次交代；选哪份的规则在 `pickTemplate` 一处。
 
-模板里的「浏览…」走 `POST /api/system/pick-folder`（Windows 弹系统文件夹选择框，异步 spawn，不卡服务）；
+参考源里的「浏览…」走 `POST /api/system/pick-folder`（Windows 弹系统文件夹选择框，异步 spawn，不卡服务）；
 取消或打不开都回空路径，界面退回落手填。
 
 ## 加载动画

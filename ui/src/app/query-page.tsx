@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ApiFailure, api, type ResolveResult, type ResolvedNode } from "@/lib/api"
+import { mappedAncestorOf, type ControlNode } from "@/lib/control-ancestry"
 import { cn } from "@/lib/utils"
 
 const STORAGE_KEY = "mastergo-transcoder-gui.query"
@@ -112,7 +113,13 @@ export function QueryPage() {
     }
   }
 
-  const nodes = result?.nodes ?? []
+  const nodes = useMemo(() => result?.nodes ?? [], [result])
+
+  const nodesByRef = useMemo(() => {
+    const map = new Map<string, ControlNode>()
+    for (const node of nodes) map.set(node.ref, node)
+    return map
+  }, [nodes])
 
   const visibleNodes = useMemo(() => {
     const keyword = filter.trim().toLowerCase()
@@ -127,6 +134,9 @@ export function QueryPage() {
   }, [nodes, filter, onlyMapped])
 
   const selected = nodes.find((node) => node.ref === selectedRef) ?? null
+
+  // 只有自己没有映射时才往上找：整体控件内部的子节点随上层一起生成。
+  const selectedAncestor = selected && !selected.controlType ? mappedAncestorOf(selected.ref, nodesByRef) : null
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -270,33 +280,38 @@ export function QueryPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {visibleNodes.map((node) => (
-                    <TableRow
-                      key={node.ref}
-                      data-state={node.ref === selectedRef ? "selected" : undefined}
-                      className={cn("cursor-pointer", node.ref === selectedRef && "bg-muted")}
-                      onClick={() => setSelectedRef(node.ref)}
-                    >
-                      <TableCell>
-                        <div className="font-medium">{nodeLabel(node)}</div>
-                        {node.text && <div className="text-muted-foreground text-xs">{node.text}</div>}
-                        <div className="text-muted-foreground text-xs">
-                          {node.layerId} · {node.type}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">{posOf(node)}</TableCell>
-                      <TableCell>
-                        <code className="text-xs">{node.id}</code>
-                      </TableCell>
-                      <TableCell>
-                        {node.controlType ? (
-                          <Badge variant="secondary">{node.controlType}</Badge>
-                        ) : (
-                          <Badge variant="outline">未登记</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {visibleNodes.map((node) => {
+                    const ancestor = node.controlType ? null : mappedAncestorOf(node.ref, nodesByRef)
+                    return (
+                      <TableRow
+                        key={node.ref}
+                        data-state={node.ref === selectedRef ? "selected" : undefined}
+                        className={cn("cursor-pointer", node.ref === selectedRef && "bg-muted")}
+                        onClick={() => setSelectedRef(node.ref)}
+                      >
+                        <TableCell>
+                          <div className="font-medium">{nodeLabel(node)}</div>
+                          {node.text && <div className="text-muted-foreground text-xs">{node.text}</div>}
+                          <div className="text-muted-foreground text-xs">
+                            {node.layerId} · {node.type}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-xs">{posOf(node)}</TableCell>
+                        <TableCell>
+                          <code className="text-xs">{node.id}</code>
+                        </TableCell>
+                        <TableCell>
+                          {node.controlType ? (
+                            <Badge variant="secondary">{node.controlType}</Badge>
+                          ) : ancestor ? (
+                            <Badge variant="outline">随上层 {ancestor.controlType}</Badge>
+                          ) : (
+                            <Badge variant="outline">未登记</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
                   {visibleNodes.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={4} className="text-muted-foreground py-8 text-center">
@@ -329,6 +344,8 @@ export function QueryPage() {
                     ? " · " + selected.template.split(" / ")[1]
                     : ""}
                 </Badge>
+              ) : selectedAncestor ? (
+                <Badge variant="outline">随上层 {selectedAncestor.controlType}</Badge>
               ) : (
                 <Badge variant="outline">未登记映射</Badge>
               )}
@@ -373,6 +390,18 @@ export function QueryPage() {
 
             {selected.xml ? (
               <pre className="bg-muted max-h-96 overflow-auto rounded-md p-3 text-xs">{selected.xml}</pre>
+            ) : selectedAncestor ? (
+              <Alert>
+                <AlertTitle>它在已登记的「{selectedAncestor.controlType}」控件内部</AlertTitle>
+                <AlertDescription className="flex flex-col gap-3">
+                  <span>这一块随上层一起生成，不单独出控件。</span>
+                  <div>
+                    <Button variant="outline" size="sm" onClick={() => setSelectedRef(selectedAncestor.ref)}>
+                      定位到上层控件
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
             ) : (
               <Alert>
                 <AlertTitle>这个控件不在正式映射表里</AlertTitle>

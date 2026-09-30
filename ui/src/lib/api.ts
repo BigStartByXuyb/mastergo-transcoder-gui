@@ -139,9 +139,9 @@ export type Settings = {
   automation: "off" | "assist" | "auto"
   /** 对话/自动模式的写盘开关：关着时 Codex 只读，开着才允许它直接改工程文件。 */
   agent: { allowWrite: boolean }
-  /** 提示词模板：一份「代码库清单 + 系统提示词」，可以存多份。 */
+  /** 参考源：一份「代码库清单 + 系统提示词」，可以存多份。 */
   templates: PromptTemplate[]
-  /** 没指定模板时用哪一份。 */
+  /** 没指定参考源时用哪一份。 */
   activeTemplateId: string
   /**
    * MasterGo token：hasToken 是「本机存过没有」，source/sourceLabel 是「现在实际生效的是哪一份」。
@@ -594,7 +594,7 @@ export type ChatConversation = {
   id: string
   title: string
   agent: string
-  /** 这条对话用哪份提示词模板；空串表示还没选过，按设置里的默认那份走。 */
+  /** 这条对话用哪份参考源；空串表示还没选过，按设置里的默认那份走。 */
   templateId: string
   projectRoot: string
   createdAt: string
@@ -876,7 +876,7 @@ export async function agentChatStream(
     conversationId?: string
     /** 这次附上的文件（后端只认自己落下的那些路径）。 */
     attachments?: { path: string; name: string; kind: string }[]
-    /** 这次用哪份提示词模板（代码库与系统提示词一起生效）。 */
+    /** 这次用哪份参考源（代码库与系统提示词一起生效）。 */
     templateId?: string
     projectRoot?: string
     write?: boolean

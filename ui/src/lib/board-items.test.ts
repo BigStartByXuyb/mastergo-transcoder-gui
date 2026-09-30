@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { parseBoardItems } from "@/lib/board-items"
+import { fillTargets, parseBoardItems } from "@/lib/board-items"
 
 const LINK = "https://mastergo.com/goto/x?file=1&layer_id=2:3"
 
@@ -19,5 +19,24 @@ describe("parseBoardItems", () => {
 
   it("Target 里再出现 | 时只取第一段之后的内容原样保留", () => {
     expect(parseBoardItems(`${LINK}|A|B`, "B")[0].target).toBe("A")
+  })
+})
+
+describe("fillTargets", () => {
+  const other = "https://mastergo.com/goto/y?file=1&layer_id=4:5"
+
+  it("没写 Target 的行补上，写过的行不动", () => {
+    const text = `${LINK}\n${other} | F2Given`
+    const got = fillTargets(text, new Map([[LINK, "F1StopAdjust"], [other, "F2Other"]]))
+    expect(got).toBe(`${LINK} | F1StopAdjust\n${other} | F2Given`)
+  })
+
+  it("没补到结果的行原样留着，空行也原样留着", () => {
+    expect(fillTargets(`\n${LINK}\n`, new Map())).toBe(`\n${LINK}\n`)
+  })
+
+  it("补过之后再补不会写成两个 Target", () => {
+    const once = fillTargets(LINK, new Map([[LINK, "F1StopAdjust"]]))
+    expect(fillTargets(once, new Map([[LINK, "F1Other"]]))).toBe(once)
   })
 })

@@ -49,7 +49,7 @@ export function ChatPage() {
   const [failure, setFailure] = useState("")
   // 这次要一起发给它的东西：图片会被 Codex 直接看，别的给路径让它去读。
   const [attachments, setAttachments] = useState<UploadedFile[]>([])
-  // 这条对话用哪份提示词模板（代码库 + 系统提示词一起生效）。
+  // 这条对话用哪份参考源（代码库 + 系统提示词一起生效）。
   const [templateId, setTemplateId] = useState("")
   const [templatesOpen, setTemplatesOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -319,16 +319,17 @@ export function ChatPage() {
       </aside>
 
       <section className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-        {/* 这一条对话的身份与设置：标题、来源、模板。 */}
+        {/* 这一条对话的身份与设置：标题、来源、参考源。 */}
         <header className="bg-card flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2">
           <span className="min-w-0 flex-1 truncate text-sm font-medium">{active?.title ?? "新对话"}</span>
           {agentName ? <Badge variant="secondary">{agentName}</Badge> : <Badge variant="outline">还没开始</Badge>}
           {thread && <Badge variant="outline">对话 {thread.slice(0, 8)}</Badge>}
-          {/* 提示词模板：一条对话用一份，代码库与系统提示词一起生效。 */}
+          {/* 参考源：一条对话用一份，代码库与系统提示词一起生效。 */}
           {settings && (
             <div className="flex items-center gap-1">
+              <span className="text-muted-foreground text-xs">参考源</span>
               <Select value={templateId || settings.activeTemplateId} onValueChange={(value) => setTemplateId(value)}>
-                <SelectTrigger size="sm" className="w-44" title="这条对话用哪份提示词模板">
+                <SelectTrigger size="sm" className="w-44" title="这条对话用哪份参考源">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -339,9 +340,14 @@ export function ChatPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button size="sm" variant="ghost" title="管理模板" onClick={() => setTemplatesOpen(true)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                title="管理参考源：代码库 + 系统提示词"
+                onClick={() => setTemplatesOpen(true)}
+              >
                 <Settings2 className="size-3.5" />
-                模板
+                管理
               </Button>
             </div>
           )}

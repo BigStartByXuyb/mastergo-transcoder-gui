@@ -18,3 +18,22 @@ export function parseBoardItems(text: string, mode: BoardMode): BoardItem[] {
   }
   return items
 }
+
+/*
+ * 补全结果写回文本：只补还没写 Target 的行，写成 `链接 | Target`；
+ * 手写过 Target 的行一律不动 —— 人写的优先。
+ */
+export function fillTargets(text: string, targets: Map<string, string>): string {
+  return text
+    .split(/\r?\n/)
+    .map((raw) => {
+      const line = raw.trim()
+      if (!line) return raw
+      const [linkPart, targetPart] = line.split("|")
+      const link = (linkPart ?? "").trim()
+      if (!link || (targetPart ?? "").trim()) return raw
+      const target = targets.get(link)
+      return target ? link + " | " + target : raw
+    })
+    .join("\n")
+}

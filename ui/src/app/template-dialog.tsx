@@ -22,9 +22,10 @@ import { describeFailure } from "@/lib/describe-failure"
 import { cn } from "@/lib/utils"
 
 /*
- * 提示词模板：一份「代码库清单 + 系统提示词」，可以存多份；每条对话挑一份生效。
+ * 参考源：一份「代码库清单 + 系统提示词」，可以存多份；每条对话挑一份生效。
+ * 界面上叫参考源，接口与落盘字段仍是 `templates` / `templateId`（见 lib/settings.js）。
  *
- * 是对话的子功能，所以从对话那页打开。左边挑模板，右边改这一份的内容。
+ * 是对话的子功能，所以从对话那页打开。左边挑参考源，右边改这一份的内容。
  */
 export function TemplateDialog(props: {
   open: boolean
@@ -68,7 +69,7 @@ export function TemplateDialog(props: {
 
   function addTemplate() {
     const id = "t" + Date.now().toString(36)
-    setRows((list) => [...list, { id, name: "新模板 " + (list.length + 1), systemPrompt: "", codebases: [] }])
+    setRows((list) => [...list, { id, name: "新参考源 " + (list.length + 1), systemPrompt: "", codebases: [] }])
     setActiveId(id)
   }
 
@@ -91,9 +92,9 @@ export function TemplateDialog(props: {
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-h-[86svh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>提示词模板</DialogTitle>
+          <DialogTitle>参考源</DialogTitle>
           <DialogDescription>
-            一份模板 = 一组代码库 + 一段系统提示词。可以存多份，每条对话挑一份生效（在对话页顶上选）。
+            一份参考源 = 一组代码库 + 一段系统提示词。可以存多份，每条对话挑一份生效（在对话页顶上选）。
           </DialogDescription>
         </DialogHeader>
 
@@ -113,7 +114,7 @@ export function TemplateDialog(props: {
                 {rows.length > 1 && (
                   <button
                     type="button"
-                    title="删掉这份模板"
+                    title="删掉这份参考源"
                     className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
                     onClick={() => {
                       const left = rows.filter((one) => one.id !== item.id)
@@ -128,23 +129,23 @@ export function TemplateDialog(props: {
             ))}
             <Button variant="outline" size="sm" onClick={addTemplate}>
               <Plus className="size-3.5" />
-              新建模板
+              新建参考源
             </Button>
           </div>
 
           {current && (
             <div className="flex min-w-0 flex-1 flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="tpl-name">模板名字</Label>
+                <Label htmlFor="source-name">参考源名字</Label>
                 <Input
-                  id="tpl-name"
+                  id="source-name"
                   value={current.name}
                   onChange={(event) => patchTemplate(current.id, { name: event.target.value })}
                 />
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label>这段模板里的代码库</Label>
+                <Label>这份参考源里的代码库</Label>
                 {current.codebases.length === 0 && (
                   <p className="text-muted-foreground text-sm">还没有。点「添加一个库」，填路径与它是什么库。</p>
                 )}
@@ -228,7 +229,7 @@ export function TemplateDialog(props: {
                 <Textarea
                   rows={4}
                   spellCheck={false}
-                  placeholder="用这份模板时，每次提问都会先给它看这一段。"
+                  placeholder="用这份参考源时，每次提问都会先给它看这一段。"
                   value={current.systemPrompt}
                   onChange={(event) => patchTemplate(current.id, { systemPrompt: event.target.value })}
                 />
