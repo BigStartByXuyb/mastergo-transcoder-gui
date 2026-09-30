@@ -104,6 +104,9 @@ CI 的语义审计给了 `result: PASS`、0 阻断 + 4 条复核，四条都按�
 12. **装配接线在 `server.js` 与测试里各拼一份** → 新增 `createPluginHomes()`（`plugin-root.js`），
     生产与测试都用它拼这份清单；测试验的就是生产那一条接线。
 
+第六轮复核 1 条：清单工厂改成无参之后，`writeScope` 还在按旧约定传 `env`（被静默丢掉）→
+改成显式无参调用，并写明「用哪份环境归装配处」，不会再有人以为它跟着 codex 的 env 走。
+
 截图（`D:\MasterGoData\Temp\ui-shots\`）：
 
 - `2026-10-01-plugin-page.png` —— 设置里的「插件」页（与 AI Agent 平级）
