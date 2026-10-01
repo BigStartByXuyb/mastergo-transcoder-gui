@@ -10,7 +10,7 @@ import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
 import { api, type PluginEnvScopes } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
-import { restartAndWait } from "@/lib/restart-watch"
+import { RESTART_SETTLE_MS, restartAndWait } from "@/lib/restart-watch"
 
 /*
  * 环境变量 MASTERGO_PLUGIN_ROOT：写给系统的那一份。
@@ -91,6 +91,8 @@ export function PluginEnvPanel() {
     const outcome = await restartAndWait({
       reloadEnv: true,
       probe: function () { return api.pluginEnv() },
+      // 先等旧的那一份退干净再探：它会答话，探早了会把「没生效」当成成功。
+      wait: { initialDelayMs: RESTART_SETTLE_MS },
       failedNote: "重启之后没能连上本地服务：关掉这个窗口、重新双击 start.cmd。"
     })
     if (outcome.ok) {

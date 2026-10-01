@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { ApiFailure } from "@/lib/api"
-import { restartAndWait, waitForService } from "@/lib/restart-watch"
+import { RESTART_SETTLE_MS, restartAndWait } from "@/lib/restart-watch"
 
 /* 可控时钟：sleep 往前推时间，now 读它，于是「等多久」在测试里是确定的。 */
 function clock() {
@@ -14,58 +14,57 @@ function clock() {
   }
 }
 
-describe("waitForService", () => {
-  it("先等初始延迟再探，不拿还没退的旧服务当成功", async () => {
+describe("restartAndWait", () => {
+  it("先等给它的初延迟再探：不拿还没退的旧服务当成功", async () => {
     const c = clock()
     const at: number[] = []
-    const up = await waitForService({
-      timeoutMs: 0,
+    const outcome = await restartAndWait({
       probe: async () => {
         at.push(c.now())
         throw new Error("连不上本地服务")
       },
-      ...c
+      failedNote: "没起来",
+      restart: async () => undefined,
+      wait: { initialDelayMs: RESTART_SETTLE_MS, timeoutMs: 0, ...c }
     })
-    expect(up).toBe(false)
-    // 关键：第一次探测发生在默认的初延迟之后 —— 删掉那句等待，这里就会是 0 而不是 2000。
-    expect(at[0]).toBe(2000)
+    expect(outcome.ok).toBe(false)
+    // 关键：第一次探测发生在初延迟之后 —— 删掉那句等待，这里就会是 0 而不是 2000。
+    expect(at[0]).toBe(RESTART_SETTLE_MS)
   })
 
   it("服务一答话就算起来，不再等", async () => {
     const c = clock()
     let calls = 0
-    const up = await waitForService({
+    const outcome = await restartAndWait({
       probe: async () => {
         calls += 1
         if (calls < 2) throw new Error("还没监听")
-        return { ok: true }
       },
-      ...c
+      failedNote: "没起来",
+      restart: async () => undefined,
+      wait: { initialDelayMs: 0, ...c }
     })
-    expect(up).toBe(true)
+    expect(outcome).toEqual({ ok: true, note: "" })
     expect(calls).toBe(2)
   })
 
   it("一直起不来就到点回假", async () => {
     const c = clock()
     let calls = 0
-    const up = await waitForService({
-      initialDelayMs: 0,
-      timeoutMs: 900,
-      intervalMs: 300,
+    const outcome = await restartAndWait({
       probe: async () => {
         calls += 1
         throw new Error("连不上本地服务")
       },
-      ...c
+      failedNote: "没起来",
+      restart: async () => undefined,
+      wait: { initialDelayMs: 0, timeoutMs: 900, intervalMs: 300, ...c }
     })
-    expect(up).toBe(false)
+    expect(outcome.ok).toBe(false)
     // 0 / 300 / 600 / 900 四次探测，到点就停。
     expect(calls).toBe(4)
   })
-})
 
-describe("restartAndWait", () => {
   it("断连算预期：继续等，服务回来就算成功", async () => {
     const c = clock()
     let calls = 0

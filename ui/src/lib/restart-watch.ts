@@ -45,14 +45,11 @@ async function waitFor(options: ServiceWaitOptions): Promise<boolean> {
 }
 
 /*
- * 等本地服务能答话（不比对版本）：改完插件根那个环境变量重启之后用。
- *
- * 默认先等 2 秒再探 —— 老的一份在响应之后约 50ms 退出、新的还没监听，
+ * 重启后先等这么久再探：老的一份在响应之后约 50ms 才退出、新的还没监听，
  * 这期间旧进程还能答话，探早了会把「没生效」当成成功。2 秒是本机实测值，写在这里一处。
+ * 只有「改插件根那个环境变量」那条路需要它 —— 换版本那条路的判据是版本号，本来就认得出旧进程。
  */
-export async function waitForService(options: ServiceWaitOptions): Promise<boolean> {
-  return waitFor({ initialDelayMs: 2000, ...options })
-}
+export const RESTART_SETTLE_MS = 2000
 
 export type RestartWaitOptions = {
   /** 等什么：新的一份能答话、或已经是目标版本。没等到的原因由它自己抛。 */
@@ -82,6 +79,6 @@ export async function restartAndWait(options: RestartWaitOptions): Promise<Resta
       return { ok: false, note: describeFailure(error) }
     }
   }
-  const up = await waitForService(Object.assign({ probe: options.probe }, options.wait || {}))
+  const up = await waitFor(Object.assign({ probe: options.probe }, options.wait || {}))
   return up ? { ok: true, note: "" } : { ok: false, note: options.failedNote }
 }
