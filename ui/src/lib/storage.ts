@@ -20,3 +20,15 @@ export function writeStored(key: string, value: unknown): void {
     /* 存储不可用就只影响这次记忆，不该打断操作 */
   }
 }
+
+/*
+ * 这个键存过没有。readStored 把「没存过」也当成一个空对象走 pick，
+ * 所以要区分「存过、值就是默认」与「压根没存过」（换过键、要回落旧值）时用这个先问一句。
+ */
+export function hasStored(key: string): boolean {
+  try {
+    return localStorage.getItem(key) !== null
+  } catch {
+    return false
+  }
+}
