@@ -24,6 +24,28 @@ const ENV_NEW = drive("D", "new-plugin")
 function view(options: { activeId: string; chosen?: string; failure?: string }): PluginSources {
   const sources: PluginSources["sources"] = [
     {
+      id: "chosen",
+      label: "设置里选的",
+      path: drive("D", "picked"),
+      kind: "chosen",
+      exists: false,
+      pluginRoot: "",
+      version: "",
+      found: [],
+      active: options.activeId === "chosen"
+    },
+    {
+      id: "env",
+      label: "环境变量 MASTERGO_PLUGIN_ROOT",
+      path: "",
+      kind: "env",
+      exists: false,
+      pluginRoot: "",
+      version: "",
+      found: [],
+      active: false
+    },
+    {
       id: "codex-cache",
       label: "Codex 插件缓存",
       path: CODEX_CACHE,
@@ -129,11 +151,11 @@ describe("PluginCard", () => {
 
     expect(screen.getByText("Claude 插件缓存")).toBeTruthy()
     expect(screen.getByText("客户端自带")).toBeTruthy()
-    expect(screen.getByText("没有")).toBeTruthy()
-    // 自动那一条与命中它的那一条各一个。
-    // 自动那一条与命中它的那一条各一个；说明句里那个不算（按整串匹配）。
+    // 两处没有插件的（设置里选的、客户端自带）+ 环境变量那一条，各标一个「没有」。
+    expect(screen.getAllByText("没有").length).toBe(3)
+    // 两个：一个在「按顺序自动」那一块（现在就是自动），一个是真正被取用的那条来源。
     expect(screen.getAllByText("正在用").length).toBe(2)
-    // 自动那一条在用时，其余有插件的那一条各给一个「用这份」。
+    // 有插件又不是生效那份的，才给「用这份」（这里是 Claude 缓存）。
     expect(screen.getAllByRole("button", { name: "用这份" }).length).toBe(1)
   })
 
@@ -141,7 +163,20 @@ describe("PluginCard", () => {
     stub(view({ activeId: "codex-cache" }))
     render(<PluginCard />)
     await waitFor(() => expect(screen.getByText("Claude 插件缓存")).toBeTruthy())
-    expect(screen.getByText("共 4 份，用最高版本")).toBeTruthy()
+    expect(screen.getByText("这一处有 4 份，用最高版本")).toBeTruthy()
+  })
+
+  it("按两组摆：本机指定的在前、自动查找的在后，各带表头", async () => {
+    stub(view({ activeId: "codex-cache" }))
+    render(<PluginCard />)
+    await waitFor(() => expect(screen.getByText("自动查找的位置")).toBeTruthy())
+    expect(screen.getByText("本机指定的位置")).toBeTruthy()
+
+    // 两张表：表头四项各出现两次（本机指定组 2 条、自动组 3 条）。
+    expect(screen.getAllByText("版本").length).toBe(2)
+    expect(screen.getAllByText("状态").length).toBe(2)
+    expect(screen.getAllByText("路径").length).toBe(2)
+    expect(screen.getAllByText("切换").length).toBe(2)
   })
 
   it("点「用这份」把那一份的插件根交给后端", async () => {
@@ -159,8 +194,9 @@ describe("PluginCard", () => {
     stub(view({ activeId: "claude-cache", chosen: CLAUDE_ROOT }))
     render(<PluginCard />)
     await waitFor(() => expect(screen.getByText("Claude 插件缓存")).toBeTruthy())
-    expect(screen.getByRole("button", { name: "用自动" })).toBeTruthy()
-    expect(screen.getByRole("button", { name: "用自动" }).hasAttribute("disabled")).toBe(false)
+    const auto = screen.getByRole("button", { name: "交给客户端找" })
+    expect(auto).toBeTruthy()
+    expect(auto.hasAttribute("disabled")).toBe(false)
   })
 
   it("一处都没有时把后端列出来的已查找路径原样显示", async () => {

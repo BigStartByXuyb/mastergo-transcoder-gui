@@ -6,16 +6,22 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
 import { PixelLoader } from "@/app/pixel-loader"
 import { PluginEnvPanel } from "@/app/plugin-env-panel"
-import { api, type PluginSources } from "@/lib/api"
+import { api, type PluginSource, type PluginSources } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
+import { groupPluginSources } from "@/lib/plugin-sources"
 
 /*
  * 插件来源：转码引擎来自 mastergo-wpf-transcoder 插件，客户端不自带。
- * 这一页把「都查过哪些路径、各自有没有、正在用哪一份」摆出来，并且能换一份 —— 换完立刻生效。
+ *
+ * 两件事分开放，各自说清自己的作用：
+ *   按顺序自动 —— 让客户端自己按内置顺序找（清掉「设置的」那一份）
+ *   指定目录  —— 插件装在别处时，直接指一个位置，立刻生效
+ * 下面按两组表格列出所有位置（本机指定的 / 自动查找的），表头是 版本 / 状态 / 路径 / 切换。
  * 一个客户机上可能同时装着好几份（Codex 缓存、Claude 缓存、自己指定的目录），选错了跑出来的东西不一样。
  */
 export function PluginCard() {
@@ -100,64 +106,53 @@ export function PluginCard() {
 
         {view && (
           <>
-            <div className="flex flex-col gap-2 rounded-md border p-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium">自动（按顺序）</span>
-                {automatic && (
-                  <Badge variant="secondary">
-                    <Check className="size-3" />
-                    正在用
-                  </Badge>
-                )}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={Boolean(busy) || automatic}
-                  onClick={() => void choose("", "auto")}
-                >
-                  {busy === "auto" && <Loader2 className="size-4 animate-spin" />}
-                  用自动
-                </Button>
-                <Button size="sm" variant="ghost" disabled={Boolean(busy)} onClick={() => void pickFolder()}>
-                  {busy === "pick" ? <Loader2 className="size-4 animate-spin" /> : <FolderSearch className="size-4" />}
-                  选一个目录…
-                </Button>
-              </div>
-              <span className="text-muted-foreground text-xs">
-                启动参数 → 这里选的 → 环境变量 → Codex 缓存与市场 → Claude 缓存与市场 → 客户端自带。显式指定的那一份不在了就往下走。
-              </span>
-            </div>
-
-            {view.sources.map((source) => (
-              <div key={source.id} className="flex flex-col gap-1 rounded-md border p-3">
+            {/* 两个动作分开：一个让客户端自己按顺序找，一个直接指定位置。 */}
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="flex flex-col gap-1 rounded-md border p-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium">{source.label}</span>
-                  {source.active ? (
+                  <span className="text-sm font-medium">按顺序自动</span>
+                  {automatic && (
                     <Badge variant="secondary">
                       <Check className="size-3" />
                       正在用
                     </Badge>
-                  ) : source.exists ? (
-                    <Badge variant="outline">v{source.version || "未知版本"}</Badge>
-                  ) : (
-                    <Badge variant="outline">没有</Badge>
                   )}
-                  {source.found.length > 1 && (
-                    <span className="text-muted-foreground text-xs">共 {source.found.length} 份，用最高版本</span>
-                  )}
-                  {source.exists && !source.active && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={Boolean(busy)}
-                      onClick={() => void choose(source.pluginRoot, source.id)}
-                    >
-                      {busy === source.id && <Loader2 className="size-4 animate-spin" />}
-                      用这份
-                    </Button>
-                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={Boolean(busy) || automatic}
+                    onClick={() => void choose("", "auto")}
+                  >
+                    {busy === "auto" && <Loader2 className="size-4 animate-spin" />}
+                    交给客户端找
+                  </Button>
                 </div>
-                <IdentifierText className="text-muted-foreground text-xs" text={source.path} />
+                <span className="text-muted-foreground text-xs">
+                  清掉「我指定的那一份」，按内置顺序往下找：--plugin → 设置的 → 环境变量 → Codex 缓存与市场 → Claude 缓存与市场 → 客户端自带。
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-1 rounded-md border p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium">指定一个目录</span>
+                  <Button size="sm" variant="outline" disabled={Boolean(busy)} onClick={() => void pickFolder()}>
+                    {busy === "pick" ? <Loader2 className="size-4 animate-spin" /> : <FolderSearch className="size-4" />}
+                    选目录…
+                  </Button>
+                </div>
+                <span className="text-muted-foreground text-xs">
+                  插件装在别处时用这个：指到插件根、或指到装着它的目录都认，选完立刻生效。
+                </span>
+              </div>
+            </div>
+
+            {groupPluginSources(view.sources).map((group) => (
+              <div key={group.key} className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <span className="text-sm font-medium">{group.title}</span>
+                  <span className="text-muted-foreground text-xs">{group.hint}</span>
+                </div>
+                <PluginSourceTable sources={group.sources} busy={busy} onChoose={choose} />
               </div>
             ))}
           </>
@@ -168,5 +163,78 @@ export function PluginCard() {
         <PluginEnvPanel />
       </CardContent>
     </Card>
+  )
+}
+
+/*
+ * 一组来源一张表：版本 / 状态 / 路径 / 切换。
+ * 路径那一列是等宽、可折行的标识符（窄屏也不丢内容，完整路径挂 title）。
+ */
+function PluginSourceTable(props: {
+  sources: PluginSource[]
+  busy: string
+  onChoose: (path: string, key: string) => Promise<void>
+}) {
+  return (
+    <div className="overflow-hidden rounded-md border">
+      <Table className="table-fixed">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[22%]">位置</TableHead>
+            <TableHead className="w-[12%]">版本</TableHead>
+            <TableHead className="w-[12%]">状态</TableHead>
+            <TableHead>路径</TableHead>
+            <TableHead className="w-[14%] text-right">切换</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {props.sources.map((source) => (
+            <TableRow key={source.id}>
+              <TableCell className="align-top text-sm whitespace-normal">{source.label}</TableCell>
+              <TableCell className="align-top text-xs whitespace-normal">
+                {source.exists && source.version ? (
+                  <span className="font-mono">v{source.version}</span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </TableCell>
+              <TableCell className="align-top whitespace-normal">
+                {source.active ? (
+                  <Badge variant="secondary">
+                    <Check className="size-3" />
+                    正在用
+                  </Badge>
+                ) : source.exists ? (
+                  <Badge variant="outline">可用</Badge>
+                ) : (
+                  <Badge variant="outline">没有</Badge>
+                )}
+              </TableCell>
+              <TableCell className="align-top whitespace-normal">
+                <IdentifierText className="text-muted-foreground text-xs" text={source.path} />
+                {source.found.length > 1 && (
+                  <span className="text-muted-foreground block text-xs">
+                    这一处有 {source.found.length} 份，用最高版本
+                  </span>
+                )}
+              </TableCell>
+              <TableCell className="align-top text-right whitespace-normal">
+                {source.exists && !source.active && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={Boolean(props.busy)}
+                    onClick={() => void props.onChoose(source.pluginRoot, source.id)}
+                  >
+                    {props.busy === source.id && <Loader2 className="size-4 animate-spin" />}
+                    用这份
+                  </Button>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   )
 }

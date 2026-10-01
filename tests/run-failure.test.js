@@ -27,6 +27,31 @@ assert.strictEqual(
 // 普通失败：最后一行就是原因。
 assert.strictEqual(failureMessageFromTail(["step 3 started", "找不到图标台账"]), "找不到图标台账");
 
+/*
+ * 折行的错误框（实测：插件 1.0.369 的身份混搭守卫）。
+ * 原因横跨三行，只取最后一行会剩下「designSource。」—— 界面上就成了一个看不懂的尾巴。
+ */
+const wrapped = [
+  "Exception: D:\\plugin\\scripts\\entry\\run-all.ps1:430",
+  "Line |",
+  " 430 |          throw \"命令行同时给了 -Target '$cliTarget' 与 -LayerId '$cliLayerId'， …",
+  "     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+  "     | 命令行同时给了 -Target 'F7MarkingLineFocusAdjust' 与 -LayerId '357:290731'，但项目登记表里两者不属于同一页（-Target",
+  "     | 'F7MarkingLineFocusAdjust' 对应 layerId '357:290731'）：请确认要转换的页面——只给 -Target（让登记表补 layerId），或先按登记表登记本次页面的",
+  "     | designSource。",
+  ""
+];
+assert.strictEqual(
+  failureMessageFromTail(wrapped),
+  "命令行同时给了 -Target 'F7MarkingLineFocusAdjust' 与 -LayerId '357:290731'，但项目登记表里两者不属于同一页（-Target'F7MarkingLineFocusAdjust' 对应 layerId '357:290731'）：请确认要转换的页面——只给 -Target（让登记表补 layerId），或先按登记表登记本次页面的designSource。",
+  "折行的原因要拼回一句，不能只留最后一行"
+);
+assert.ok(
+  !failureMessageFromTail(wrapped).endsWith("designSource。") ||
+    failureMessageFromTail(wrapped).includes("不属于同一页"),
+  "拼回来的必须包含真正的原因，而不是尾巴"
+);
+
 // 全是框线时给空串，由调用方兜底成「在进入步骤之前退出」。
 assert.strictEqual(failureMessageFromTail(["Line |", "     |      ~~~", " 449 |  throw 'x'"]), "");
 assert.strictEqual(failureMessageFromTail([]), "");
