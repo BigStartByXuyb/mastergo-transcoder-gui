@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { BusyOverlay } from "@/app/busy-overlay"
 import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
-import { api, type PluginEnvScopes } from "@/lib/api"
+import { ApiFailure, api, type PluginEnvScopes } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 
 /*
@@ -85,23 +85,38 @@ export function PluginEnvPanel() {
     try {
       await api.clientRestart(true)
     }
-    catch {
-      /* 这一份就是被它自己关掉的，请求断在半路属于预期 */
-    }
-    const deadline = Date.now() + 40000
-    while (Date.now() < deadline) {
-      await new Promise(function (resolve) { window.setTimeout(resolve, 500) })
-      try {
-        await api.pluginEnv()
-        window.location.reload()
+    catch (error) {
+      // 只有「这一份被它自己关掉」才算预期（连接断在半路）；被拒（有任务在跑 / 不是监督进程拉的）要如实说。
+      if (!(error instanceof ApiFailure) || error.code !== "OFFLINE") {
+        setBusy("")
+        setFailure(describeFailure(error))
         return
       }
-      catch {
-        /* 还没起来，接着等 */
+    }
+    /*
+     * 等新的一份起来：老进程在响应之后约 50ms 退出，先等一下再探，
+     * 免得探到还没退的旧进程（它也能回答，会把「没生效」当成成功）。
+     */
+    await new Promise(function (resolve) { window.setTimeout(resolve, 2000) })
+    // 该读到什么：就是刚存进去的那份（清除之后是空串）。scopes 已经拿保存/清除的响应更新过了。
+    const target = scopes ? scopes.user : ""
+    const deadline = Date.now() + 40000
+    while (Date.now() < deadline) {
+      try {
+        // 探到「这次运行读到的」已经是刚保存/清除后的那份，才算真生效。
+        const payload = await api.pluginEnv()
+        if (payload.envScopes.process === target) {
+          window.location.reload()
+          return
+        }
       }
+      catch {
+        /* 新的还没监听，接着等 */
+      }
+      await new Promise(function (resolve) { window.setTimeout(resolve, 500) })
     }
     setBusy("")
-    setFailure("重启之后没能连上本地服务：关掉这个窗口、重新双击 start.cmd。")
+    setFailure("重启之后没能确认它读到新值：关掉这个窗口、重新双击 start.cmd 再看一次。")
   }
 
   return (

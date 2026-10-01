@@ -16,14 +16,9 @@
 const { spawn } = require("child_process");
 const path = require("path");
 
-const { resolveLaunch, pluginEnvDecision } = require("./lib/launch.js");
+const { resolveLaunch, pluginEnvDecision, RESTART_CODE, RELOAD_ENV_CODE } = require("./lib/launch.js");
 const { readEnvVar } = require("./lib/env-var.js");
 const { PLUGIN_ENV_NAME } = require("./lib/plugin-root.js");
-
-// 子进程用这个退出码告诉监督进程「不是结束，是换一份重来」。
-const RESTART_CODE = 75;
-// 设置页刚改过「插件根」那个环境变量：重启时要重读一次注册表，否则子进程读到的还是旧快照。
-const RELOAD_ENV_CODE = 76;
 
 const HOME = __dirname;
 
@@ -35,8 +30,18 @@ function childEnv(reloadPluginEnv) {
   if (!reloadPluginEnv) return env;
   const decision = pluginEnvDecision(process.env[PLUGIN_ENV_NAME], readEnvVar(PLUGIN_ENV_NAME), lastRegistryValue);
   lastRegistryValue = decision.seen;
-  if (decision.action === "set") env[PLUGIN_ENV_NAME] = decision.value;
-  if (decision.action === "remove") delete env[PLUGIN_ENV_NAME];
+  /*
+   * 自己那份也要跟着改：env 只是给这一次子进程的副本，而监督进程的 process.env 是启动时的快照。
+   * 不改它的话，下一次「换一份重跑」（75，例如切版本）会把刚换掉的值退回旧的、把刚清掉的又找回来。
+   */
+  if (decision.action === "set") {
+    env[PLUGIN_ENV_NAME] = decision.value;
+    process.env[PLUGIN_ENV_NAME] = decision.value;
+  }
+  if (decision.action === "remove") {
+    delete env[PLUGIN_ENV_NAME];
+    delete process.env[PLUGIN_ENV_NAME];
+  }
   return env;
 }
 
