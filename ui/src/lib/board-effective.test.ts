@@ -77,7 +77,10 @@ describe("coverageOf", () => {
     expect(coverage.get("f3")).toBe("effective")
   })
 
-  it("只看生效：挑出生效的那些，并给出藏了几条", () => {
+})
+
+describe("visibleByCoverage", () => {
+  it("挑出生效的那些，并给出藏了几条", () => {
     const tasks = [
       task("old", "merged", "2026-09-30T01:00:00.000Z"),
       task("new", "merged", "2026-09-30T02:00:00.000Z"),

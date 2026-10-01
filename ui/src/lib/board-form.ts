@@ -46,3 +46,15 @@ export function readBoardForm(): BoardTaskForm {
 export function writeBoardForm(form: BoardTaskForm) {
   writeStored(STORAGE_KEY, form)
 }
+
+/*
+ * 「只看生效」这个开关看板与区域页共用一份记忆：区域页只动它，不动创建任务那张表单。
+ * （读改写走同一份校验与同一个键，两页的默认值不会分叉。）
+ */
+export function readOnlyEffective(): boolean {
+  return readBoardForm().onlyEffective
+}
+
+export function writeOnlyEffective(value: boolean) {
+  writeBoardForm({ ...readBoardForm(), onlyEffective: value })
+}
