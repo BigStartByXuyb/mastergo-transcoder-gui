@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { waitForClientVersion } from "@/lib/restart-watch"
+import { waitForClientVersion, waitForService } from "@/lib/restart-watch"
 
 /* 可控时钟：sleep 往前推时间，now 读它，于是「等多久」在测试里是确定的。 */
 function clock() {
@@ -77,5 +77,38 @@ describe("waitForClientVersion", () => {
     })
     expect(up).toBe(true)
     expect(calls).toBe(3)
+  })
+})
+
+describe("waitForService", () => {
+  it("先等 initialDelayMs 再探，不拿还没退的旧服务当成功", async () => {
+    const c = clock()
+    let calls = 0
+    const up = await waitForService({
+      initialDelayMs: 2000,
+      probe: async () => {
+        calls += 1
+        throw new Error("连不上本地服务")
+      },
+      ...c
+    })
+    // 先等 2 秒，再按 300ms 的节拍探到 40 秒上限。
+    expect(calls).toBeGreaterThan(1)
+    expect(up).toBe(false)
+  })
+
+  it("服务一答话就算起来，不再等", async () => {
+    const c = clock()
+    let calls = 0
+    const up = await waitForService({
+      probe: async () => {
+        calls += 1
+        if (calls < 2) throw new Error("还没监听")
+        return { ok: true }
+      },
+      ...c
+    })
+    expect(up).toBe(true)
+    expect(calls).toBe(2)
   })
 })

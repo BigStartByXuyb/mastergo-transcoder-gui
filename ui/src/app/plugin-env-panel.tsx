@@ -10,6 +10,7 @@ import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
 import { ApiFailure, api, type PluginEnvScopes } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
+import { waitForService } from "@/lib/restart-watch"
 
 /*
  * 环境变量 MASTERGO_PLUGIN_ROOT：写给系统的那一份。
@@ -94,25 +95,18 @@ export function PluginEnvPanel() {
       }
     }
     /*
-     * 等新的一份起来：老进程在响应之后约 50ms 退出，先等一下再探，
-     * 免得探到还没退的旧进程（它也能回答，会把「没生效」当成成功）。
+     * 等新的一份起来就刷新：先等 2 秒，免得探到还没退的旧进程（它也能回答）。
+     * 这里不猜「新的一份该读到什么」——那是后端的事（用户级还是机器级、继承来的临时值要不要留，
+     * 口径都在 lib/launch.js），界面刷新后如实显示读到的是哪一份。
+     * 轮询骨架与超时口径在 lib/restart-watch.ts，与「切版本」那条路共用一份。
      */
-    await new Promise(function (resolve) { window.setTimeout(resolve, 2000) })
-    const deadline = Date.now() + 40000
-    while (Date.now() < deadline) {
-      try {
-        /*
-         * 服务回来了就刷新。这里不猜「新的一份该读到什么」——那是后端的事（用户级还是机器级、
-         * 继承来的临时值要不要留，口径都在 lib/launch.js），界面刷新后如实显示读到的是哪一份。
-         */
-        await api.pluginEnv()
-        window.location.reload()
-        return
-      }
-      catch {
-        /* 新的还没监听，接着等 */
-      }
-      await new Promise(function (resolve) { window.setTimeout(resolve, 500) })
+    const back = await waitForService({
+      probe: function () { return api.pluginEnv() },
+      initialDelayMs: 2000
+    })
+    if (back) {
+      window.location.reload()
+      return
     }
     setBusy("")
     setFailure("重启之后没能连上本地服务：关掉这个窗口、重新双击 start.cmd。")
