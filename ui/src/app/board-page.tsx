@@ -195,9 +195,7 @@ export function BoardPage() {
             id="board-only-effective"
             checked={onlyEffective}
             hidden={coveredCount}
-            onChange={(value) => {
-              setOnlyEffective(value)
-            }}
+            onChange={setOnlyEffective}
           />
           <Button
             variant="outline"
