@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { api } from "@/lib/api"
 import { areaLabel, type AreaEntry } from "@/lib/areas"
-import { readOnlyEffective, writeOnlyEffective } from "@/lib/board-form"
+import { readOnlyEffective, writeOnlyEffective } from "@/lib/only-effective"
 import { boardStateVariant } from "@/lib/board-state"
 import { coverageOf, visibleByCoverage } from "@/lib/board-effective"
 import { describeFailure } from "@/lib/describe-failure"
@@ -36,7 +36,7 @@ export function AreaPage(props: Props) {
   const { area } = props
   const [busy, setBusy] = useState("")
   const [failure, setFailure] = useState("")
-  // 与看板共用一份记忆：这一页只写这个开关，不动创建任务那张表单。
+  // 与看板共用一份记忆（独立的键）：两页各写各的表单，不会互相盖。
   const [onlyEffective, setOnlyEffective] = useState(readOnlyEffective)
 
   function changeOnlyEffective(value: boolean) {
