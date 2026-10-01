@@ -51,41 +51,49 @@ export function groupPluginSources(sources: PluginSource[]): PluginSourceGroup[]
  * 生效标记跟着合并：原来标在指针上的 active 移到留下来的那一行，界面仍然只标一处。
  */
 function mergeByPluginRoot(sources: PluginSource[]): PluginSourceRow[] {
+  // 「这一条解析出了哪一份插件」只在这里算一次：三趟都读它，判据不会各写各的。
+  const resolved = sources.map((item) => ({
+    item: item,
+    root: item.exists && item.pluginRoot ? item.pluginRoot : ""
+  }))
+
   // 同一个插件根只留一行：位置那一条（自动查找）优先，没有位置可归时才留指针那一条。
   const keeperOf = new Map<string, PluginSource>()
-  for (const item of sources) {
-    if (!item.exists || !item.pluginRoot) continue;
-    const current = keeperOf.get(item.pluginRoot)
+  for (const entry of resolved) {
+    if (!entry.root) continue
+    const current = keeperOf.get(entry.root)
     if (!current) {
-      keeperOf.set(item.pluginRoot, item)
+      keeperOf.set(entry.root, entry.item)
       continue
     }
-    if (EXPLICIT_KINDS.includes(current.kind) && !EXPLICIT_KINDS.includes(item.kind)) {
-      keeperOf.set(item.pluginRoot, item)
+    if (EXPLICIT_KINDS.includes(current.kind) && !EXPLICIT_KINDS.includes(entry.item.kind)) {
+      keeperOf.set(entry.root, entry.item)
     }
   }
 
-  // 第一遍：留下的各自成行（保持后端给的顺序）。
-  const rows: PluginSourceRow[] = []
-  const rowByRoot = new Map<string, PluginSourceRow>()
-  for (const item of sources) {
-    const root = item.exists && item.pluginRoot ? item.pluginRoot : ""
-    const keeper = root ? keeperOf.get(root) : undefined
-    if (keeper && keeper !== item) continue
-    const row: PluginSourceRow = { ...item, alsoFrom: [] }
-    rows.push(row)
-    if (root) rowByRoot.set(root, row)
+  // 先把被合并的来源归到各自的 keeper 上：名字挂成一串，生效标记并过去。
+  const extrasOf = new Map<PluginSource, string[]>()
+  const activeKeepers = new Set<PluginSource>()
+  for (const entry of resolved) {
+    const keeper = entry.root ? keeperOf.get(entry.root) : undefined
+    if (!keeper || keeper === entry.item) continue
+    const list = extrasOf.get(keeper)
+    if (list) list.push(entry.item.label)
+    else extrasOf.set(keeper, [entry.item.label])
+    if (entry.item.active) activeKeepers.add(keeper)
   }
 
-  // 第二遍：被合并的，把名字与「正在用」并到留下的那一行上。
-  for (const item of sources) {
-    const root = item.exists && item.pluginRoot ? item.pluginRoot : ""
-    const keeper = root ? keeperOf.get(root) : undefined
-    if (!keeper || keeper === item) continue
-    const row = rowByRoot.get(root)
-    if (!row) continue
-    row.alsoFrom.push(item.label)
-    if (item.active) row.active = true
+  // 再按后端给的顺序成行：每个 keeper 一行，被合并的那几条不再单独出现。
+  const rows: PluginSourceRow[] = []
+  for (const entry of resolved) {
+    const keeper = entry.root ? keeperOf.get(entry.root) : undefined
+    // 有 keeper 却不是自己 = 这一条被并掉了，不单独成行。
+    if (keeper && keeper !== entry.item) continue
+    rows.push({
+      ...entry.item,
+      active: entry.item.active || activeKeepers.has(entry.item),
+      alsoFrom: extrasOf.get(entry.item) ?? []
+    })
   }
   return rows
 }

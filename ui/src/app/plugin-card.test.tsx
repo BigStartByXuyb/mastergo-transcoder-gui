@@ -78,6 +78,21 @@ function view(options: { activeId: string; chosen?: string; failure?: string }):
 // 故意用一个和生产不一样的名字：页面上的名字只该来自后端，前端不许自己写死。
 const STUB_ENV_NAME = "MASTERGO_GUI_TEST_ENV"
 
+/* 「设置里选的」那一条的真实形状：选了之后 API 就会带上它。 */
+function chosenSource(root: string, version: string, active = true): PluginSources["sources"][number] {
+  return {
+    id: "chosen",
+    label: "设置里选的",
+    path: root,
+    kind: "chosen",
+    exists: true,
+    pluginRoot: root,
+    version: version,
+    found: [root],
+    active: active
+  }
+}
+
 function scopes(over: Partial<PluginEnvScopes> = {}): PluginEnvScopes {
   return {
     name: STUB_ENV_NAME,
@@ -153,20 +168,7 @@ describe("PluginCard", () => {
     stub({
       ...payload,
       chosen: MINE_ROOT,
-      sources: [
-        {
-          id: "chosen",
-          label: "设置里选的",
-          path: MINE_ROOT,
-          kind: "chosen",
-          exists: true,
-          pluginRoot: MINE_ROOT,
-          version: "2.0.0",
-          found: [MINE_ROOT],
-          active: true
-        },
-        ...payload.sources
-      ]
+      sources: [chosenSource(MINE_ROOT, "2.0.0"), ...payload.sources]
     })
     render(<PluginCard />)
     await waitFor(() => expect(screen.getByText("自动查找的位置")).toBeTruthy())
@@ -251,26 +253,19 @@ describe("PluginCard", () => {
     await waitFor(() => expect(screen.getByText(/这两个值不一样/)).toBeTruthy())
   })
 
+  it("这次读到了、界面里却没存过：说清是启动环境带进来的，别叫用户去重启", async () => {
+    stub(view({ activeId: "codex-cache" }), { env: { user: "", process: ENV_OLD } })
+    render(<PluginCard />)
+    await waitFor(() => expect(screen.getByText(/不是在这里存的/)).toBeTruthy())
+    expect(screen.queryByText(/这两个值不一样/)).toBeNull()
+  })
+
   it("「设置里选的」正是指到下面那一份时：不重复列，只在那行写「同时来自」", async () => {
     const payload = view({ activeId: "chosen" })
     stub({
       ...payload,
       chosen: CODEX_ROOT,
-      sources: [
-        // 「设置里选的」指到 Codex 缓存里那一份（真实形状：API 在选了之后就会带上这一条）。
-        {
-          id: "chosen",
-          label: "设置里选的",
-          path: CODEX_ROOT,
-          kind: "chosen",
-          exists: true,
-          pluginRoot: CODEX_ROOT,
-          version: "1.0.369",
-          found: [CODEX_ROOT],
-          active: true
-        },
-        ...payload.sources
-      ]
+      sources: [chosenSource(CODEX_ROOT, "1.0.369"), ...payload.sources]
     })
     render(<PluginCard />)
 

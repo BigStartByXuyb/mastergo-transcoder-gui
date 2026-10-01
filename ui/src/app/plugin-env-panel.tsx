@@ -124,9 +124,16 @@ export function PluginEnvPanel() {
       </div>
 
       {/* 存了但这次没读到 = 还没重启；两行不一样时必须点破，否则用户会以为存了就等于生效了。 */}
-      {scopes && scopes.user !== scopes.process && (
+      {scopes && scopes.user && scopes.user !== scopes.process && (
         <p className="text-xs">
           这两个值不一样：现在这次运行用的是「这次运行读到」那一份；重启客户端之后才会改用系统里存的那一份。
+        </p>
+      )}
+
+      {/* 这次读到了、界面里却没存过：值是启动它的那个环境带进来的（在别处设的，或机器级）。 */}
+      {scopes && !scopes.user && scopes.process && (
+        <p className="text-xs">
+          这次运行读到的那份不是在这里存的：它是启动客户端时的环境带进来的（在别处设过、或机器级的那一份）。
         </p>
       )}
 
