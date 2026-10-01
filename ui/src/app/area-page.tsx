@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { api } from "@/lib/api"
 import { areaLabel, type AreaEntry } from "@/lib/areas"
-import { readOnlyEffective, writeOnlyEffective } from "@/lib/only-effective"
+import { useOnlyEffective } from "@/lib/use-only-effective"
 import { boardStateVariant } from "@/lib/board-state"
 import { coverageOf, visibleByCoverage } from "@/lib/board-effective"
 import { describeFailure } from "@/lib/describe-failure"
@@ -37,12 +37,7 @@ export function AreaPage(props: Props) {
   const [busy, setBusy] = useState("")
   const [failure, setFailure] = useState("")
   // 与看板共用一份记忆：这个开关相对创建任务那张表单独立成一个键，两页读写的是同一个值。
-  const [onlyEffective, setOnlyEffective] = useState(readOnlyEffective)
-
-  function changeOnlyEffective(value: boolean) {
-    setOnlyEffective(value)
-    writeOnlyEffective(value)
-  }
+  const { onlyEffective, setOnlyEffective } = useOnlyEffective()
 
   /* 生效/被覆盖一律按「本页最后一次合并成功的那一单」判，与看板共用 coverageOf，界面不另算一套。 */
   const coverage = useMemo(() => coverageOf(area.tasks), [area.tasks])
@@ -140,7 +135,7 @@ export function AreaPage(props: Props) {
                 id="area-only-effective"
                 checked={onlyEffective}
                 hidden={hiddenCount}
-                onChange={changeOnlyEffective}
+                onChange={setOnlyEffective}
               />
             </div>
           )}

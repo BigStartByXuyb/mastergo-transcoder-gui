@@ -16,7 +16,8 @@ import { useIdentityFill } from "@/app/use-identity-fill"
 import { api, type Board } from "@/lib/api"
 import { fillTargets, parseBoardItems } from "@/lib/board-items"
 import { filterTasks, hasFilters, readBoardFilters, writeBoardFilters, type BoardFilters } from "@/lib/board-filters"
-import { migrateOnlyEffective, readOnlyEffective, writeOnlyEffective } from "@/lib/only-effective"
+import { migrateOnlyEffective } from "@/lib/only-effective"
+import { useOnlyEffective } from "@/lib/use-only-effective"
 import { coverageOf, visibleByCoverage, type Coverage } from "@/lib/board-effective"
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
@@ -43,7 +44,7 @@ export function BoardPage() {
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<BoardFilters>(readBoardFilters)
   // 「只看生效」与区域页共用一份记忆；它不属于创建任务那张表单。
-  const [onlyEffective, setOnlyEffective] = useState(readOnlyEffective)
+  const { onlyEffective, setOnlyEffective } = useOnlyEffective()
   const [identityFailure, setIdentityFailure] = useState("")
   const { settings } = useSettings()
 
@@ -196,7 +197,6 @@ export function BoardPage() {
             hidden={coveredCount}
             onChange={(value) => {
               setOnlyEffective(value)
-              writeOnlyEffective(value)
             }}
           />
           <Button

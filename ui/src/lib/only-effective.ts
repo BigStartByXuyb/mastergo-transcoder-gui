@@ -12,9 +12,14 @@ import { hasStored, readStored, writeStored } from "@/lib/storage"
 const STORAGE_KEY = "mastergo-transcoder-gui.onlyEffective"
 const LEGACY_KEY = "mastergo-transcoder-gui.board"
 
+/* 旧键（创建任务那张表单）里这个字段怎么解释：读取与迁移共用这一句。 */
+function readLegacyOnlyEffective(): boolean {
+  return readStored(LEGACY_KEY, true, (raw) => raw.onlyEffective !== false)
+}
+
 export function readOnlyEffective(): boolean {
   if (hasStored(STORAGE_KEY)) return readStored(STORAGE_KEY, true, (raw) => raw.value !== false)
-  return readStored(LEGACY_KEY, true, (raw) => raw.onlyEffective !== false)
+  return readLegacyOnlyEffective()
 }
 
 export function writeOnlyEffective(value: boolean): void {
@@ -31,5 +36,5 @@ export function writeOnlyEffective(value: boolean): void {
  */
 export function migrateOnlyEffective(): void {
   if (hasStored(STORAGE_KEY) || !hasStored(LEGACY_KEY)) return
-  writeOnlyEffective(readStored(LEGACY_KEY, true, (raw) => raw.onlyEffective !== false))
+  writeOnlyEffective(readLegacyOnlyEffective())
 }
