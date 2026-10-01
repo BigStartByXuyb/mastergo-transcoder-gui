@@ -12,6 +12,9 @@ import {
   type BoardFilters
 } from "@/lib/board-filters"
 
+/* 下拉层用的「全部」哨兵：模型层用空串表示全部，radix 的 SelectItem 不接受空串。 */
+const ALL = "all"
+
 /*
  * 看板的筛选行：工作区 / UI / 状态。
  *
@@ -31,14 +34,14 @@ export function BoardFilterRow(props: {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Select
-        value={props.filters.projectRoot || "all"}
-        onValueChange={(value) => props.onChange({ ...props.filters, projectRoot: value === "all" ? "" : value })}
+        value={props.filters.projectRoot || ALL}
+        onValueChange={(value) => props.onChange({ ...props.filters, projectRoot: value === ALL ? "" : value })}
       >
         <SelectTrigger size="sm" className="w-44" aria-label="按工作区筛选">
           <SelectValue placeholder="全部工作区" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">全部工作区</SelectItem>
+          <SelectItem value={ALL}>全部工作区</SelectItem>
           {choices.projects.map((item) => (
             <SelectItem key={item.value} value={item.value}>
               <span className="font-mono text-xs" title={item.value}>
@@ -50,16 +53,16 @@ export function BoardFilterRow(props: {
       </Select>
 
       <Select
-        value={props.filters.ui === "" ? "all" : props.filters.ui === UI_NONE ? "none" : props.filters.ui}
-        onValueChange={(value) => props.onChange({ ...props.filters, ui: value === "all" ? "" : value === "none" ? UI_NONE : value })}
+        value={props.filters.ui || ALL}
+        onValueChange={(value) => props.onChange({ ...props.filters, ui: value === ALL ? "" : value })}
       >
         <SelectTrigger size="sm" className="w-32" aria-label="按区域筛选">
           <SelectValue placeholder="全部区域" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">全部区域</SelectItem>
+          <SelectItem value={ALL}>全部区域</SelectItem>
           {choices.uis.map((item) => (
-            <SelectItem key={item.value || "none"} value={item.value || "none"}>
+            <SelectItem key={item.value || UI_NONE} value={item.value || UI_NONE}>
               {item.label}
             </SelectItem>
           ))}
@@ -67,14 +70,14 @@ export function BoardFilterRow(props: {
       </Select>
 
       <Select
-        value={props.filters.state || "all"}
-        onValueChange={(value) => props.onChange({ ...props.filters, state: value === "all" ? "" : value })}
+        value={props.filters.state || ALL}
+        onValueChange={(value) => props.onChange({ ...props.filters, state: value === ALL ? "" : value })}
       >
         <SelectTrigger size="sm" className="w-32" aria-label="按状态筛选">
           <SelectValue placeholder="全部状态" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">全部状态</SelectItem>
+          <SelectItem value={ALL}>全部状态</SelectItem>
           {STATE_FILTERS.map((item) => (
             <SelectItem key={item.key} value={item.key}>
               {item.label}

@@ -28,8 +28,10 @@ export function BoardTaskTable(props: {
   busy: string
   onRun: (key: string, action: () => Promise<{ board: Board }>) => Promise<void>
   onCreate: () => void
-  /** 筛过之后一条都没剩下时，空状态要说清是「筛没了」而不是「还没有任务」。 */
+  /** 这次是不是在筛（只算工作区/区域/状态这三条）。 */
   filtered: boolean
+  /** 被「只看生效」藏起来的条数：空状态要说清是它藏的，别指向不存在的按钮。 */
+  hiddenByEffective: number
 }) {
   return (
     <div className="overflow-hidden rounded-md border">
@@ -64,6 +66,13 @@ export function BoardTaskTable(props: {
                     <>
                       <span className="text-muted-foreground text-sm">当前筛选下没有任务。</span>
                       <span className="text-muted-foreground text-xs">换个条件，或点上方的「清除筛选」。</span>
+                    </>
+                  ) : props.hiddenByEffective > 0 ? (
+                    <>
+                      <span className="text-muted-foreground text-sm">任务都被「只看生效」藏起来了。</span>
+                      <span className="text-muted-foreground text-xs">
+                        共 {props.hiddenByEffective} 条已被后一次合并覆盖；关掉上面那个开关就能看到。
+                      </span>
                     </>
                   ) : (
                     <>

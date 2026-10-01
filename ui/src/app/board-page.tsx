@@ -15,7 +15,7 @@ import { Pager } from "@/app/pager"
 import { useIdentityFill } from "@/app/use-identity-fill"
 import { api, type Board } from "@/lib/api"
 import { fillTargets, parseBoardItems } from "@/lib/board-items"
-import { filterTasks, readBoardFilters, writeBoardFilters, type BoardFilters } from "@/lib/board-filters"
+import { filterTasks, hasFilters, readBoardFilters, writeBoardFilters, type BoardFilters } from "@/lib/board-filters"
 import { coverageOf, type Coverage } from "@/lib/board-effective"
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
@@ -233,7 +233,8 @@ export function BoardPage() {
               busy={busy}
               onRun={run}
               onCreate={() => setAdding(true)}
-              filtered={shown.length < tasks.length}
+              filtered={hasFilters(filters)}
+              hiddenByEffective={filtered.length - shown.length}
             />
           </div>
         </CardContent>

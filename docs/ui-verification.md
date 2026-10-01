@@ -51,6 +51,20 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - `2026-10-01-board-filter-project.png` —— 按工作区筛 D:\ttt
 - `2026-10-01-board-filter-empty.png` —— 三个条件叠加筛空时的空状态
 
+### 复核处置
+
+CI 语义审计 `PASS` / 0 阻断 + 3 条复核，三条都是真问题，全收：
+
+1. **状态分组把状态列表又抄了一份** → `STATE_FILTERS` 改用 `lib/task-state.ts` 导出的 `RUNNING_STATES` /
+   `FINISHED_STATES`（`RUNNING_STATES` 顺势导出）；「清掉已结束」与筛选的「已结束」从此是同一份定义。
+2. **「未定区域」显示名两处** → 筛选下拉改用 `areas.ts` 的 `areaLabel()`，与侧边栏、任务表同一个词。
+3. **「筛没了」把「只看生效」也算进去**（真问题：会指向一个此时没渲染的「清除筛选」按钮）
+   → 分开传 `filtered`（只按三项筛选判定）与 `hiddenByEffective`（被只看生效藏起来的条数），
+   空状态三种原因各有各的话；补了 `board-task-table.test.tsx` 三条用例盯住它们。
+
+观察里的「下拉哨兵值散落」也收掉：`"none"` 这个魔法串不要了，未定区域直接用 `UI_NONE`；
+`filterTasks` 对工程目录的比较改成两头都 trim，与选项来源同一口径。
+
 ## 2026-10-01 插件页能读写环境变量（v0.6.26）
 
 ### 改了什么

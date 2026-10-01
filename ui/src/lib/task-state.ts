@@ -14,7 +14,7 @@ export const POLL_MS = 1500
 export const REVIEW_POLL_MS = 2000
 
 /* 正在占用执行额度：任务在推进，界面不让再起同一条流水线。 */
-const RUNNING_STATES = ["preparing", "running", "merging"]
+export const RUNNING_STATES = ["preparing", "running", "merging"]
 
 /*
  * 占了看板这一位、不能再起同一个任务的状态：排队与待确认也占着位子。

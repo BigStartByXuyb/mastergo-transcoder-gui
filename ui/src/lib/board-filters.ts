@@ -1,7 +1,7 @@
 import type { BoardTask } from "@/lib/api"
-import { collectProjectRoots, projectLabel } from "@/lib/areas"
+import { areaLabel, collectProjectRoots, projectLabel } from "@/lib/areas"
 import { readStored, writeStored } from "@/lib/storage"
-import { ATTENTION_STATES } from "@/lib/task-state"
+import { ATTENTION_STATES, FINISHED_STATES, RUNNING_STATES } from "@/lib/task-state"
 
 /*
  * 看板的任务筛选：按工作区（工程目录）、按 UI（区域）、按状态。
@@ -31,13 +31,14 @@ export const EMPTY_BOARD_FILTERS: BoardFilters = { projectRoot: "", ui: "", stat
 
 /*
  * 状态分组按「现在该干什么」分，不按后端的状态名一一列出：
- * 「要我处理」与侧边栏那个待处理徽标同一套状态（ATTENTION_STATES）。
+ * 三套状态都取自 lib/task-state.ts 的定义 —— 那边加一个终态，这里跟着变，
+ * 不会出现「清掉已结束」认得、筛选的「已结束」不认得这种事。
  */
 export const STATE_FILTERS = [
   { key: "attention", label: "要我处理", states: ATTENTION_STATES },
-  { key: "running", label: "正在跑", states: ["preparing", "running", "merging"] },
+  { key: "running", label: "正在跑", states: RUNNING_STATES },
   { key: "queued", label: "排队中", states: ["queued"] },
-  { key: "finished", label: "已结束", states: ["merged", "failed", "stopped"] }
+  { key: "finished", label: "已结束", states: FINISHED_STATES }
 ] as const
 
 export function stateGroupOf(key: string): readonly string[] | null {
@@ -64,8 +65,9 @@ export function writeBoardFilters(filters: BoardFilters) {
 export function filterTasks(tasks: BoardTask[], filters: BoardFilters): BoardTask[] {
   const states = stateGroupOf(filters.state)
   const wantedUi = filters.ui === UI_NONE ? "" : filters.ui
+  const wantedProject = filters.projectRoot.trim()
   return tasks.filter((task) => {
-    if (filters.projectRoot && String(task.request?.projectRoot || "").trim() !== filters.projectRoot) return false
+    if (wantedProject && String(task.request?.projectRoot || "").trim() !== wantedProject) return false
     if (filters.ui && String(task.request?.ui || "") !== wantedUi) return false
     if (states && !states.includes(task.state)) return false
     return true
@@ -83,5 +85,5 @@ export type FilterChoice = { value: string; label: string }
 export function filterChoices(tasks: BoardTask[]): { projects: FilterChoice[]; uis: FilterChoice[] } {
   const projects = collectProjectRoots(tasks).map((root) => ({ value: root, label: projectLabel(root) }))
   const uis = [...new Set(tasks.map((task) => String(task.request?.ui || "")))].sort()
-  return { projects: projects, uis: uis.map((ui) => ({ value: ui, label: ui || "未定区域" })) }
+  return { projects: projects, uis: uis.map((ui) => ({ value: ui, label: areaLabel(ui) })) }
 }
