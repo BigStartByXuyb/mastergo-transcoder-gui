@@ -1,5 +1,5 @@
 import type { BoardTask } from "@/lib/api"
-import { isBusyState } from "@/lib/task-state"
+import { ATTENTION_STATES, isBusyState } from "@/lib/task-state"
 
 /*
  * 侧边栏的导航模型：工程 → 区域（UI）。
@@ -85,10 +85,18 @@ export function areaLabel(ui: string): string {
  * 跑着的有自己的徽标（area.running），已经结束的不占数字 —— 否则那个数只会随时间涨，
  * 变成「这里跑过多少次」，跟当前该做什么无关。
  */
-const ATTENTION_STATES = ["waiting", "ready", "conflict", "failed", "stopped"]
-
 export function areaAttention(area: AreaEntry): number {
   return area.tasks.filter((task) => ATTENTION_STATES.includes(task.state)).length
+}
+
+/*
+ * 工程在窄列里的显示名：任务表那一列放不下整条路径，显示最后两段（盘符 + 目录也算两段），
+ * 完整路径挂 title。侧边栏有整行宽度，仍然显示全路径。
+ */
+export function projectLabel(projectRoot: string, depth = 2): string {
+  const parts = String(projectRoot || "").split(/[\\/]/).filter(Boolean)
+  if (parts.length <= depth) return parts.join("\\")
+  return parts.slice(-depth).join("\\")
 }
 
 /** 按工程分好组的区域：侧边栏直接渲染，不再自己 Set/filter/some 扫一遍。 */

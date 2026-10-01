@@ -29,6 +29,12 @@ const PRODUCT_STATES = ["ready", "merging", "merged", "conflict"]
 const RESUMABLE_STATES = ["failed", "waiting", "stopped"]
 
 /*
+ * 停下来等人/等合并的任务：侧边栏区域行的「待处理」与看板的状态筛选都用这一份，
+ * 不许各写一套 —— 两处口径不一致时，人会照着数字去找，然后找不到。
+ */
+export const ATTENTION_STATES = ["waiting", "ready", "conflict", "failed", "stopped"]
+
+/*
  * 真的结束了：跑完 / 失败 / 停止。看板「清掉已结束」只清这些 ——
  * 冲突不属于已结束（它等着人或 AI 处理，还能重新合并再试），清掉会把待办的行一起藏掉。
  */

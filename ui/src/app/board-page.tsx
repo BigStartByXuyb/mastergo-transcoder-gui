@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { BoardNewTaskDialog } from "@/app/board-new-task-dialog"
+import { BoardFilterRow } from "@/app/board-filter-row"
 import { BoardTaskTable } from "@/app/board-task-table"
 import { ClampText } from "@/app/clamp-text"
 import { EffectiveToggle } from "@/app/effective-toggle"
@@ -14,6 +15,7 @@ import { Pager } from "@/app/pager"
 import { useIdentityFill } from "@/app/use-identity-fill"
 import { api, type Board } from "@/lib/api"
 import { fillTargets, parseBoardItems } from "@/lib/board-items"
+import { filterTasks, readBoardFilters, writeBoardFilters, type BoardFilters } from "@/lib/board-filters"
 import { coverageOf, type Coverage } from "@/lib/board-effective"
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
@@ -25,7 +27,7 @@ import { useSettings } from "@/lib/use-settings"
  * 看板：一屏同时跑多个页面。
  *
  * 这一页的主体是任务表；工程、模式、链接只在要加任务时填，收进「创建任务」弹窗。
- * 列表按页给，一页十条，页面本身不往下拖。
+ * 上面一排筛选（工作区 / 区域 / 状态），列表按页给，一页十条，页面本身不往下拖。
  */
 
 // 一页十条：一屏放得下，多出来的翻页。
@@ -38,6 +40,7 @@ export function BoardPage() {
   const [busy, setBusy] = useState("")
   const [adding, setAdding] = useState(false)
   const [page, setPage] = useState(1)
+  const [filters, setFilters] = useState<BoardFilters>(readBoardFilters)
   const [identityFailure, setIdentityFailure] = useState("")
   const { settings } = useSettings()
 
@@ -51,6 +54,10 @@ export function BoardPage() {
   useEffect(() => {
     writeBoardForm(form)
   }, [form])
+
+  useEffect(() => {
+    writeBoardFilters(filters)
+  }, [filters])
 
   useEffect(() => {
     let alive = true
@@ -76,8 +83,12 @@ export function BoardPage() {
     }
   }, [])
 
-  // 合并全部要一个工程：取任务最多的那个，用不着人再填一遍。
+  /*
+   * 合并全部要一个工程：筛选选了哪个工作区就用哪个（人在看哪个就合哪个），
+   * 没选时取任务最多的那个，用不着人再填一遍。
+   */
   const projectRoot = useMemo(() => {
+    if (filters.projectRoot) return filters.projectRoot
     const counts = new Map<string, number>()
     for (const task of board?.tasks ?? []) {
       const key = task.request.projectRoot
@@ -92,7 +103,7 @@ export function BoardPage() {
       }
     }
     return best
-  }, [board])
+  }, [board, filters.projectRoot])
 
   const run = useCallback(async (key: string, action: () => Promise<{ board: Board }>) => {
     setBusy(key)
@@ -150,11 +161,13 @@ export function BoardPage() {
     setForm(next)
   }
 
-  const tasks = board?.tasks ?? []
+  // 同一个引用给下面几处 memo 用：board 为空的两次渲染不该算出两个不同的空数组。
+  const tasks = useMemo(() => board?.tasks ?? [], [board])
+  const filtered = useMemo(() => filterTasks(tasks, filters), [tasks, filters])
   const readyCount = tasks.filter((task) => task.state === "ready").length
   const coverage: Map<string, Coverage> = useMemo(() => coverageOf(tasks), [tasks])
-  const shown = form.onlyEffective ? tasks.filter((task) => coverage.get(task.id) !== "covered") : tasks
-  const coveredCount = tasks.length - shown.length
+  const shown = form.onlyEffective ? filtered.filter((task) => coverage.get(task.id) !== "covered") : filtered
+  const coveredCount = filtered.length - shown.length
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
@@ -211,6 +224,7 @@ export function BoardPage() {
 
       <Card className="flex min-h-0 flex-1 flex-col">
         <CardContent className="flex min-h-0 flex-1 flex-col gap-2 pt-6">
+          <BoardFilterRow tasks={tasks} filters={filters} shown={filtered.length} onChange={setFilters} />
           <Pager page={page} total={shown.length} size={PAGE_SIZE} onPage={setPage} />
           <div className="min-h-0 flex-1 overflow-y-auto">
             <BoardTaskTable
@@ -219,6 +233,7 @@ export function BoardPage() {
               busy={busy}
               onRun={run}
               onCreate={() => setAdding(true)}
+              filtered={shown.length < tasks.length}
             />
           </div>
         </CardContent>

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { api, type Board, type BoardTask } from "@/lib/api"
+import { areaLabel, projectLabel } from "@/lib/areas"
 import { boardStateVariant } from "@/lib/board-state"
 import type { Coverage } from "@/lib/board-effective"
 import { ClampText } from "@/app/clamp-text"
@@ -17,6 +18,9 @@ import { canStop, isSettled } from "@/lib/task-state"
  * 状态、进度、失败原因都来自后端快照；冲突不猜，停下等人。
  *
  * 列宽按比例给：中间内容再长也只换行，不把整张表撑宽，窗口变窄时整表跟着缩。
+ *
+ * 工作区与 UI 各占一列：一台机器上会有多个工程、每个工程里又有 F1/F2 这些区域，
+ * 只写 Target 会分不清这一条属于哪儿（筛选见 lib/board-filters.ts）。
  */
 export function BoardTaskTable(props: {
   tasks: BoardTask[]
@@ -24,18 +28,22 @@ export function BoardTaskTable(props: {
   busy: string
   onRun: (key: string, action: () => Promise<{ board: Board }>) => Promise<void>
   onCreate: () => void
+  /** 筛过之后一条都没剩下时，空状态要说清是「筛没了」而不是「还没有任务」。 */
+  filtered: boolean
 }) {
   return (
     <div className="overflow-hidden rounded-md border">
       <Table className="table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[13%]">状态</TableHead>
-            <TableHead className="w-[15%]">Target</TableHead>
-            <TableHead className="w-[7%]">模式</TableHead>
-            <TableHead className="w-[18%]">进度</TableHead>
+            <TableHead className="w-[10%]">状态</TableHead>
+            <TableHead className="w-[11%]">工作区</TableHead>
+            <TableHead className="w-[6%]">UI</TableHead>
+            <TableHead className="w-[12%]">Target</TableHead>
+            <TableHead className="w-[6%]">模式</TableHead>
+            <TableHead className="w-[14%]">进度</TableHead>
             <TableHead>工作目录 / 说明</TableHead>
-            <TableHead className="w-[15%] text-right">操作</TableHead>
+            <TableHead className="w-[14%] text-right">操作</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -50,12 +58,21 @@ export function BoardTaskTable(props: {
           ))}
           {props.tasks.length === 0 && (
             <TableRow>
-              <TableCell colSpan={6} className="py-10 text-center">
+              <TableCell colSpan={8} className="py-10 text-center">
                 <div className="flex flex-col items-center gap-2">
-                  <span className="text-muted-foreground text-sm">还没有任务。</span>
-                  <Button size="sm" onClick={props.onCreate}>
-                    创建任务
-                  </Button>
+                  {props.filtered ? (
+                    <>
+                      <span className="text-muted-foreground text-sm">当前筛选下没有任务。</span>
+                      <span className="text-muted-foreground text-xs">换个条件，或点上方的「清除筛选」。</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-muted-foreground text-sm">还没有任务。</span>
+                      <Button size="sm" onClick={props.onCreate}>
+                        创建任务
+                      </Button>
+                    </>
+                  )}
                 </div>
               </TableCell>
             </TableRow>
@@ -95,6 +112,14 @@ function TaskRow({
             </Badge>
           )}
         </div>
+      </TableCell>
+      <TableCell className="align-top text-xs whitespace-normal">
+        <span className="block truncate font-mono" title={task.request.projectRoot}>
+          {projectLabel(task.request.projectRoot)}
+        </span>
+      </TableCell>
+      <TableCell className="align-top">
+        <Badge variant="outline">{areaLabel(task.request.ui)}</Badge>
       </TableCell>
       <TableCell className="align-top text-xs whitespace-normal">
         <IdentifierText text={task.request.target || "（按设计稿推导）"} />
