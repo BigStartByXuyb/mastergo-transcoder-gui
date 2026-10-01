@@ -46,11 +46,6 @@ assert.strictEqual(
   "命令行同时给了 -Target 'F7MarkingLineFocusAdjust' 与 -LayerId '357:290731'，但项目登记表里两者不属于同一页（-Target'F7MarkingLineFocusAdjust' 对应 layerId '357:290731'）：请确认要转换的页面——只给 -Target（让登记表补 layerId），或先按登记表登记本次页面的designSource。",
   "折行的原因要拼回一句，不能只留最后一行"
 );
-assert.ok(
-  !failureMessageFromTail(wrapped).endsWith("designSource。") ||
-    failureMessageFromTail(wrapped).includes("不属于同一页"),
-  "拼回来的必须包含真正的原因，而不是尾巴"
-);
 
 // 全是框线时给空串，由调用方兜底成「在进入步骤之前退出」。
 assert.strictEqual(failureMessageFromTail(["Line |", "     |      ~~~", " 449 |  throw 'x'"]), "");
@@ -58,5 +53,6 @@ assert.strictEqual(failureMessageFromTail([]), "");
 assert.strictEqual(failureMessageFromTail(null), "");
 
 console.log("  ok  预检失败取因");
+console.log("  ok  折行的原因拼回一句");
 console.log("  ok  普通失败与兜底");
 console.log("run-failure.test.js 全部通过");

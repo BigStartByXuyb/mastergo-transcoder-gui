@@ -111,12 +111,8 @@ export function PluginCard() {
               <div className="flex flex-col gap-1 rounded-md border p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-medium">按顺序自动</span>
-                  {automatic && (
-                    <Badge variant="secondary">
-                      <Check className="size-3" />
-                      正在用
-                    </Badge>
-                  )}
+                  {/* 这里不挂「正在用」徽标：那是表格里某一条来源的状态，两处同名会让人以为是同一种事。 */}
+                  {automatic && <span className="text-muted-foreground text-xs">现在是自动</span>}
                   <Button
                     size="sm"
                     variant="outline"
@@ -128,7 +124,7 @@ export function PluginCard() {
                   </Button>
                 </div>
                 <span className="text-muted-foreground text-xs">
-                  清掉「我指定的那一份」，按内置顺序往下找：--plugin → 设置的 → 环境变量 → Codex 缓存与市场 → Claude 缓存与市场 → 客户端自带。
+                  清掉「我指定的那一份」，让客户端自己按内置顺序找 —— 顺序就是下面两张表的排列，先本机指定的，再自动查找的。
                 </span>
               </div>
 

@@ -153,8 +153,9 @@ describe("PluginCard", () => {
     expect(screen.getByText("客户端自带")).toBeTruthy()
     // 两处没有插件的（设置里选的、客户端自带）+ 环境变量那一条，各标一个「没有」。
     expect(screen.getAllByText("没有").length).toBe(3)
-    // 两个：一个在「按顺序自动」那一块（现在就是自动），一个是真正被取用的那条来源。
-    expect(screen.getAllByText("正在用").length).toBe(2)
+    // 只有真正被取用的那条来源标「正在用」；动作块用「现在是自动」这种说法，不抢这个词。
+    expect(screen.getAllByText("正在用").length).toBe(1)
+    expect(screen.getByText("现在是自动")).toBeTruthy()
     // 有插件又不是生效那份的，才给「用这份」（这里是 Claude 缓存）。
     expect(screen.getAllByRole("button", { name: "用这份" }).length).toBe(1)
   })
