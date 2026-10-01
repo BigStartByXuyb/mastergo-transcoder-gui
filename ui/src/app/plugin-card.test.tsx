@@ -78,8 +78,8 @@ function view(options: { activeId: string; chosen?: string; failure?: string }):
 // 故意用一个和生产不一样的名字：页面上的名字只该来自后端，前端不许自己写死。
 const STUB_ENV_NAME = "MASTERGO_GUI_TEST_ENV"
 
-/* 「设置里选的」那一条的真实形状：选了之后 API 就会带上它。 */
-function chosenSource(root: string, version: string, active = true): PluginSources["sources"][number] {
+/* 「设置里选的」那一条的真实形状：选了之后 API 就会带上它，且它就是生效的那一份。 */
+function chosenSource(root: string, version: string): PluginSources["sources"][number] {
   return {
     id: "chosen",
     label: "设置里选的",
@@ -89,7 +89,7 @@ function chosenSource(root: string, version: string, active = true): PluginSourc
     pluginRoot: root,
     version: version,
     found: [root],
-    active: active
+    active: true
   }
 }
 
