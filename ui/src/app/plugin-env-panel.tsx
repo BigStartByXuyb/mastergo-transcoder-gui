@@ -53,11 +53,20 @@ export function PluginEnvPanel() {
       const payload = await api.pluginEnvSave(value)
       setScopes(payload.envScopes)
       setDraft(payload.envScopes.user || "")
-      setSaved(value ? "saved" : "cleared")
-      if (payload.unsupported) toast.info(payload.envScopes.failure)
-      else if (!value) toast.success("已清掉环境变量 " + payload.name)
-      else if (payload.resolves) toast.success("已写入环境变量；重启客户端后生效")
-      else toast.warning("已写入，但这个位置现在没有插件")
+      if (payload.unsupported) {
+        // 本机没有这一层（非 Windows）：不能同时说「已写入」。
+        setSaved("")
+        toast.info(payload.envScopes.failure)
+      }
+      else if (!value) {
+        setSaved("cleared")
+        toast.success("已清掉环境变量 " + payload.name)
+      }
+      else {
+        setSaved("saved")
+        if (payload.resolves) toast.success("已写入环境变量；重启客户端后生效")
+        else toast.warning("已写入，但这个位置现在没有插件")
+      }
     } catch (error) {
       setFailure(describeFailure(error))
     } finally {

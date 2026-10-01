@@ -160,7 +160,6 @@ export function PluginCard() {
                 <IdentifierText className="text-muted-foreground text-xs" text={source.path} />
               </div>
             ))}
-
           </>
         )}
 

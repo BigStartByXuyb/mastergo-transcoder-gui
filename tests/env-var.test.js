@@ -9,8 +9,10 @@ const fs = require("fs");
 const path = require("path");
 
 const { readEnvVar, writeEnvVar } = require("../lib/env-var.js");
+const { PLUGIN_ENV_NAME } = require("../lib/plugin-root.js");
 
-const NAME = "MASTERGO_PLUGIN_ROOT";
+// 名字从生产那一处取：改了名字，这篇用例会跟着变，不会两份字面量各自漂。
+const NAME = PLUGIN_ENV_NAME;
 
 // 夹具路径按段拼：源码里不出现「盘符 + 反斜杠」那种机器专属写法（结构检查会拦）。
 function drive(letter) {

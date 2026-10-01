@@ -83,13 +83,14 @@ function view(options: { activeId: string; chosen?: string; failure?: string }) 
   }
 }
 
-const ENV_NAME = "MASTERGO_PLUGIN_ROOT"
+// 故意用一个和生产不一样的名字：页面上的名字只该来自后端，前端不许自己写死。
+const STUB_ENV_NAME = "MASTERGO_GUI_TEST_ENV"
 
 type EnvScopes = { process: string; user: string; machine: string; written: boolean; failure: string }
 
 function scopes(over: Partial<EnvScopes> = {}): EnvScopes & { name: string } {
   return {
-    name: ENV_NAME,
+    name: STUB_ENV_NAME,
     process: "",
     user: "",
     machine: "",
@@ -114,7 +115,7 @@ function stub(
       if (body) hooks.onEnv?.(body)
       return Promise.resolve(new Response(JSON.stringify({
         ok: true,
-        name: ENV_NAME,
+        name: STUB_ENV_NAME,
         envScopes: scopes(body ? { user: String(body.value || ""), written: true } : hooks.env),
         resolves: true
       }), { status: 200 }))
@@ -180,6 +181,7 @@ describe("PluginCard", () => {
     stub(view({ activeId: "codex-cache" }), { env: { process: "", user: ENV_OLD } })
     render(<PluginCard />)
     await waitFor(() => expect(screen.getByText("用户级已设置")).toBeTruthy())
+    expect(screen.getByText(new RegExp(STUB_ENV_NAME)).textContent).toContain(STUB_ENV_NAME)
     expect(screen.getByText(/这次运行读到：/).textContent).toContain("未设置")
     expect(screen.getByText(/系统里存的（用户级）：/).textContent).toContain(ENV_OLD)
     expect(screen.getByText(/机器级：/).textContent).toContain("未设置")
