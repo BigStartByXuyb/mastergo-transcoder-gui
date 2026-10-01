@@ -47,4 +47,25 @@ describe("插件来源分组", () => {
     expect(groups[0].sources.map((item) => item.id)).toEqual(["claude-market", "codex-cache"])
     expect(groups[0].sources.filter((item) => item.active).map((item) => item.id)).toEqual(["codex-cache"])
   })
+
+  it("同一份插件只列一行：指针并到位置那一行，「正在用」也跟着走", () => {
+    const same = "cache/codex/bigstart/mastergo-wpf-transcoder/1.0.369"
+    const chosen = { ...source("chosen", "chosen", true), pluginRoot: same, exists: true, label: "设置里选的" }
+    const cached = { ...source("codex-cache", "agent"), pluginRoot: same }
+    const groups = groupPluginSources([chosen, cached])
+
+    // 指针那一行不再单独列：只剩「自动查找的位置」一张表，位置那一行标着正在用。
+    expect(groups.map((group) => group.key)).toEqual(["automatic"])
+    expect(groups[0].sources.map((item) => item.id)).toEqual(["codex-cache"])
+    expect(groups[0].sources[0].active).toBe(true)
+    expect(groups[0].sources[0].alsoFrom).toEqual(["设置里选的"])
+  })
+
+  it("指到别处去的指针照常单独一行，不受合并影响", () => {
+    const chosen = { ...source("chosen", "chosen", true), pluginRoot: "cache/mine/mastergo-wpf-transcoder" }
+    const groups = groupPluginSources([chosen, source("codex-cache", "agent")])
+    expect(groups.map((group) => group.key)).toEqual(["explicit", "automatic"])
+    expect(groups[0].sources.map((item) => item.id)).toEqual(["chosen"])
+    expect(groups[0].sources[0].alsoFrom).toEqual([])
+  })
 })

@@ -11,9 +11,9 @@ import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
 import { PixelLoader } from "@/app/pixel-loader"
 import { PluginEnvPanel } from "@/app/plugin-env-panel"
-import { api, type PluginSource, type PluginSources } from "@/lib/api"
+import { api, type PluginSources } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
-import { groupPluginSources } from "@/lib/plugin-sources"
+import { groupPluginSources, type PluginSourceRow } from "@/lib/plugin-sources"
 
 /*
  * 插件来源：转码引擎来自 mastergo-wpf-transcoder 插件，客户端不自带。
@@ -167,7 +167,7 @@ export function PluginCard() {
  * 路径那一列是等宽、可折行的标识符（窄屏也不丢内容，完整路径挂 title）。
  */
 function PluginSourceTable(props: {
-  sources: PluginSource[]
+  sources: PluginSourceRow[]
   busy: string
   onChoose: (path: string, key: string) => Promise<void>
 }) {
@@ -208,6 +208,11 @@ function PluginSourceTable(props: {
               </TableCell>
               <TableCell className="align-top whitespace-normal">
                 <IdentifierText className="text-muted-foreground text-xs" text={source.path} />
+                {source.alsoFrom.length > 0 && (
+                  <span className="text-muted-foreground block text-xs">
+                    同时来自：{source.alsoFrom.join("、")}
+                  </span>
+                )}
                 {source.found.length > 1 && (
                   <span className="text-muted-foreground block text-xs">
                     这一处有 {source.found.length} 份，用最高版本

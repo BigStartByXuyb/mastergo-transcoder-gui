@@ -123,6 +123,13 @@ export function PluginEnvPanel() {
         </span>
       </div>
 
+      {/* 存了但这次没读到 = 还没重启；两行不一样时必须点破，否则用户会以为存了就等于生效了。 */}
+      {scopes && scopes.user !== scopes.process && (
+        <p className="text-xs">
+          这两个值不一样：现在这次运行用的是「这次运行读到」那一份；重启客户端之后才会改用系统里存的那一份。
+        </p>
+      )}
+
       <p className="text-muted-foreground text-xs">
         保存写的是 Windows「用户」环境变量：下次启动客户端时生效，别的工具与命令行也认它。
         想让这次就换，用上面那一条的「用这份」—— 它比环境变量更优先。

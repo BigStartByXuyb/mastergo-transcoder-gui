@@ -19,32 +19,12 @@ const INSTALL_DIR = drive("D", "app", "plugins")
 // 环境变量那几条用例用的路径同样按段拼，别在源码里出现盘符加反斜杠。
 const ENV_OLD = drive("D", "old-plugin")
 const ENV_NEW = drive("D", "new-plugin")
+// 指到别处去的那一份（与内置位置都不同）。
+const MINE_ROOT = drive("D", "mine", "mastergo-wpf-transcoder")
 
 // 响应用生产类型：用例与接口同形，接口加了字段这里就会被 tsc 拦下来。
 function view(options: { activeId: string; chosen?: string; failure?: string }): PluginSources {
   const sources: PluginSources["sources"] = [
-    {
-      id: "chosen",
-      label: "设置里选的",
-      path: drive("D", "picked"),
-      kind: "chosen",
-      exists: false,
-      pluginRoot: "",
-      version: "",
-      found: [],
-      active: options.activeId === "chosen"
-    },
-    {
-      id: "env",
-      label: "环境变量 MASTERGO_PLUGIN_ROOT",
-      path: "",
-      kind: "env",
-      exists: false,
-      pluginRoot: "",
-      version: "",
-      found: [],
-      active: false
-    },
     {
       id: "codex-cache",
       label: "Codex 插件缓存",
@@ -151,8 +131,8 @@ describe("PluginCard", () => {
 
     expect(screen.getByText("Claude 插件缓存")).toBeTruthy()
     expect(screen.getByText("客户端自带")).toBeTruthy()
-    // 两处没有插件的（设置里选的、客户端自带）+ 环境变量那一条，各标一个「没有」。
-    expect(screen.getAllByText("没有").length).toBe(3)
+    // 客户端自带那一处没有插件，标一个「没有」。
+    expect(screen.getAllByText("没有").length).toBe(1)
     // 只有真正被取用的那条来源标「正在用」；动作块用「现在是自动」这种说法，不抢这个词。
     expect(screen.getAllByText("正在用").length).toBe(1)
     expect(screen.getByText("现在是自动")).toBeTruthy()
@@ -168,12 +148,31 @@ describe("PluginCard", () => {
   })
 
   it("按两组摆：本机指定的在前、自动查找的在后，各带表头", async () => {
-    stub(view({ activeId: "codex-cache" }))
+    // 指针指到别处去时，两张表都在。
+    const payload = view({ activeId: "chosen" })
+    stub({
+      ...payload,
+      chosen: MINE_ROOT,
+      sources: [
+        {
+          id: "chosen",
+          label: "设置里选的",
+          path: MINE_ROOT,
+          kind: "chosen",
+          exists: true,
+          pluginRoot: MINE_ROOT,
+          version: "2.0.0",
+          found: [MINE_ROOT],
+          active: true
+        },
+        ...payload.sources
+      ]
+    })
     render(<PluginCard />)
     await waitFor(() => expect(screen.getByText("自动查找的位置")).toBeTruthy())
     expect(screen.getByText("本机指定的位置")).toBeTruthy()
 
-    // 两张表：表头四项各出现两次（本机指定组 2 条、自动组 3 条）。
+    // 两张表：表头各出现两次。
     expect(screen.getAllByText("版本").length).toBe(2)
     expect(screen.getAllByText("状态").length).toBe(2)
     expect(screen.getAllByText("路径").length).toBe(2)
@@ -244,5 +243,41 @@ describe("PluginCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "保存" }))
     await waitFor(() => expect(screen.queryByText(/已写入。/)).toBeNull())
     expect(screen.getByText(/只有 Windows/)).toBeTruthy()
+  })
+
+  it("保存过、但这次运行没读到：点破「重启后才生效」", async () => {
+    stub(view({ activeId: "codex-cache" }), { env: { user: ENV_OLD, process: "" } })
+    render(<PluginCard />)
+    await waitFor(() => expect(screen.getByText(/这两个值不一样/)).toBeTruthy())
+  })
+
+  it("「设置里选的」正是指到下面那一份时：不重复列，只在那行写「同时来自」", async () => {
+    const payload = view({ activeId: "chosen" })
+    stub({
+      ...payload,
+      chosen: CODEX_ROOT,
+      sources: [
+        // 「设置里选的」指到 Codex 缓存里那一份（真实形状：API 在选了之后就会带上这一条）。
+        {
+          id: "chosen",
+          label: "设置里选的",
+          path: CODEX_ROOT,
+          kind: "chosen",
+          exists: true,
+          pluginRoot: CODEX_ROOT,
+          version: "1.0.369",
+          found: [CODEX_ROOT],
+          active: true
+        },
+        ...payload.sources
+      ]
+    })
+    render(<PluginCard />)
+
+    await waitFor(() => expect(screen.getByText("Codex 插件缓存")).toBeTruthy())
+    // 只剩「自动查找的位置」一张表，指针那一行不再单独出现。
+    expect(screen.queryByText("本机指定的位置")).toBeNull()
+    expect(screen.getByText("同时来自：设置里选的")).toBeTruthy()
+    expect(screen.getAllByText("正在用").length).toBe(1)
   })
 })
