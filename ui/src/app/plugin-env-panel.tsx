@@ -53,7 +53,7 @@ export function PluginEnvPanel() {
       const payload = await api.pluginEnvSave(value)
       setScopes(payload.envScopes)
       setDraft(payload.envScopes.user || "")
-      if (payload.unsupported) {
+      if (payload.envScopes.unsupported) {
         // 本机没有这一层（非 Windows）：不能同时说「已写入」。
         setSaved("")
         toast.info(payload.envScopes.failure)

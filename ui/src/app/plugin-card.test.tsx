@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { PluginCard } from "@/app/plugin-card"
+import type { PluginEnvScopes, PluginSources } from "@/lib/api"
 
 /*
  * 夹具路径按段拼出来：源码里不出现「盘符 + 反斜杠」那种机器专属写法（结构检查会拦）。
@@ -19,20 +20,9 @@ const INSTALL_DIR = drive("D", "app", "plugins")
 const ENV_OLD = drive("D", "old-plugin")
 const ENV_NEW = drive("D", "new-plugin")
 
-type Source = {
-  id: string
-  label: string
-  path: string
-  kind: string
-  exists: boolean
-  pluginRoot: string
-  version: string
-  found: string[]
-  active: boolean
-}
-
-function view(options: { activeId: string; chosen?: string; failure?: string }) {
-  const sources: Source[] = [
+// 响应用生产类型：用例与接口同形，接口加了字段这里就会被 tsc 拦下来。
+function view(options: { activeId: string; chosen?: string; failure?: string }): PluginSources {
+  const sources: PluginSources["sources"] = [
     {
       id: "codex-cache",
       label: "Codex 插件缓存",
@@ -86,15 +76,14 @@ function view(options: { activeId: string; chosen?: string; failure?: string }) 
 // 故意用一个和生产不一样的名字：页面上的名字只该来自后端，前端不许自己写死。
 const STUB_ENV_NAME = "MASTERGO_GUI_TEST_ENV"
 
-type EnvScopes = { process: string; user: string; machine: string; written: boolean; failure: string }
-
-function scopes(over: Partial<EnvScopes> = {}): EnvScopes & { name: string } {
+function scopes(over: Partial<PluginEnvScopes> = {}): PluginEnvScopes {
   return {
     name: STUB_ENV_NAME,
     process: "",
     user: "",
     machine: "",
     written: false,
+    unsupported: false,
     failure: "",
     ...over
   }
@@ -102,7 +91,7 @@ function scopes(over: Partial<EnvScopes> = {}): EnvScopes & { name: string } {
 
 function stub(
   payload: unknown,
-  hooks: { onChoose?: (body: unknown) => void; onEnv?: (body: unknown) => void; env?: Partial<EnvScopes> } = {}
+  hooks: { onChoose?: (body: unknown) => void; onEnv?: (body: unknown) => void; env?: Partial<PluginEnvScopes> } = {}
 ) {
   vi.stubGlobal("fetch", (_input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(_input)
@@ -113,10 +102,14 @@ function stub(
     if (url.includes("/api/plugin/env")) {
       const body = init?.body ? JSON.parse(String(init.body)) : null
       if (body) hooks.onEnv?.(body)
+      // 保存之后后端回的仍是「本机不支持」那一条：桩要照着回，否则验不出「不谎报已写入」。
+      const current = body
+        ? { user: String(body.value || ""), written: true, unsupported: hooks.env?.unsupported, failure: hooks.env?.failure }
+        : hooks.env
       return Promise.resolve(new Response(JSON.stringify({
         ok: true,
         name: STUB_ENV_NAME,
-        envScopes: scopes(body ? { user: String(body.value || ""), written: true } : hooks.env),
+        envScopes: scopes(current),
         resolves: true
       }), { status: 200 }))
     }
@@ -201,5 +194,18 @@ describe("PluginCard", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "清除" })[0])
     await waitFor(() => expect(sent.length).toBe(2))
     expect(sent[1]).toMatchObject({ value: "" })
+  })
+
+  it("本机不支持这一项时，保存完不说「已写入」", async () => {
+    stub(view({ activeId: "codex-cache" }), {
+      env: { unsupported: true, failure: "只有 Windows 有用户级环境变量，这一项在本机不可用。" }
+    })
+    render(<PluginCard />)
+    await waitFor(() => expect(screen.getByText(/只有 Windows/)).toBeTruthy())
+
+    fireEvent.change(screen.getByPlaceholderText("插件目录的绝对路径"), { target: { value: ENV_NEW } })
+    fireEvent.click(screen.getByRole("button", { name: "保存" }))
+    await waitFor(() => expect(screen.queryByText(/已写入。/)).toBeNull())
+    expect(screen.getByText(/只有 Windows/)).toBeTruthy()
   })
 })
