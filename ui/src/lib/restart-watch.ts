@@ -10,7 +10,7 @@
 export type ServiceWaitOptions = {
   /** 探一下新的一份能不能答话；起不来时抛错即可。 */
   probe: () => Promise<unknown>
-  /** 先等一会儿再探：老的一份要被收掉、新的还没监听（本机实测约 2 秒）。 */
+  /** 先等一会儿再探。这个时间不计入 timeoutMs（总预算是两者之和）。 */
   initialDelayMs?: number
   timeoutMs?: number
   intervalMs?: number
@@ -45,9 +45,14 @@ async function waitFor(options: ServiceWaitOptions): Promise<boolean> {
   }
 }
 
-/** 等本地服务能答话（不比对版本）：改完插件根那个环境变量重启之后用。 */
+/*
+ * 等本地服务能答话（不比对版本）：改完插件根那个环境变量重启之后用。
+ *
+ * 默认先等 2 秒再探 —— 老的一份在响应之后约 50ms 退出、新的还没监听，
+ * 这期间旧进程还能答话，探早了会把「没生效」当成成功。2 秒是本机实测值，写在这里一处。
+ */
 export async function waitForService(options: ServiceWaitOptions): Promise<boolean> {
-  return waitFor(options)
+  return waitFor({ initialDelayMs: 2000, ...options })
 }
 
 export async function waitForClientVersion(options: WaitOptions): Promise<boolean> {

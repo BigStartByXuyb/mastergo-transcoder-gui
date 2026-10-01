@@ -83,18 +83,18 @@ describe("waitForClientVersion", () => {
 describe("waitForService", () => {
   it("先等 initialDelayMs 再探，不拿还没退的旧服务当成功", async () => {
     const c = clock()
-    let calls = 0
+    const at: number[] = []
     const up = await waitForService({
-      initialDelayMs: 2000,
+      timeoutMs: 0,
       probe: async () => {
-        calls += 1
+        at.push(c.now())
         throw new Error("连不上本地服务")
       },
       ...c
     })
-    // 先等 2 秒，再按 300ms 的节拍探到 40 秒上限。
-    expect(calls).toBeGreaterThan(1)
     expect(up).toBe(false)
+    // 关键：第一次探测发生在默认的初延迟之后 —— 删掉那句等待，这里就会是 0。
+    expect(at[0]).toBe(2000)
   })
 
   it("服务一答话就算起来，不再等", async () => {

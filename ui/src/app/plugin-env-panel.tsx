@@ -100,10 +100,7 @@ export function PluginEnvPanel() {
      * 口径都在 lib/launch.js），界面刷新后如实显示读到的是哪一份。
      * 轮询骨架与超时口径在 lib/restart-watch.ts，与「切版本」那条路共用一份。
      */
-    const back = await waitForService({
-      probe: function () { return api.pluginEnv() },
-      initialDelayMs: 2000
-    })
+    const back = await waitForService({ probe: function () { return api.pluginEnv() } })
     if (back) {
       window.location.reload()
       return
