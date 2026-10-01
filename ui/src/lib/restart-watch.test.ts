@@ -28,7 +28,8 @@ describe("restartAndWait", () => {
       wait: { initialDelayMs: RESTART_SETTLE_MS, timeoutMs: 0, ...c }
     })
     expect(outcome.ok).toBe(false)
-    // 关键：第一次探测发生在初延迟之后 —— 删掉那句等待，这里就会是 0 而不是 2000。
+    // 第一次探测必须发生在初延迟之后：不传（0）或把值调没，这两条就挂了。
+    expect(at[0]).toBeGreaterThan(0)
     expect(at[0]).toBe(RESTART_SETTLE_MS)
   })
 
