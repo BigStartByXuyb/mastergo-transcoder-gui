@@ -41,6 +41,8 @@ describe("看板筛选", () => {
     expect(filterTasks(TASKS, EMPTY_BOARD_FILTERS).length).toBe(5)
     expect(hasFilters(EMPTY_BOARD_FILTERS)).toBe(false)
     expect(hasFilters({ projectRoot: TTT, ui: "", state: "" })).toBe(true)
+    // 全是空白的工程目录不算在筛：与 filterTasks 的取值口径一致，别一个说在筛、一个没筛。
+    expect(hasFilters({ projectRoot: "   ", ui: "", state: "" })).toBe(false)
   })
 
   it("按工作区筛，只留这个工程的任务", () => {

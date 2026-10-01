@@ -31,8 +31,8 @@ export const EMPTY_BOARD_FILTERS: BoardFilters = { projectRoot: "", ui: "", stat
 
 /*
  * 状态分组按「现在该干什么」分，不按后端的状态名一一列出：
- * 三套状态都取自 lib/task-state.ts 的定义 —— 那边加一个终态，这里跟着变，
- * 不会出现「清掉已结束」认得、筛选的「已结束」不认得这种事。
+ * 「要我处理 / 正在跑 / 已结束」三组取自 lib/task-state.ts 的定义 —— 那边加一个终态，这里跟着变，
+ * 不会出现「清掉已结束」认得、筛选的「已结束」不认得这种事；「排队中」就是 queued 一个状态。
  */
 export const STATE_FILTERS = [
   { key: "attention", label: "要我处理", states: ATTENTION_STATES },
@@ -76,7 +76,8 @@ export function filterTasks(tasks: BoardTask[], filters: BoardFilters): BoardTas
 
 /** 有没有在筛：界面上要据此给「清除筛选」，也要在筛空时把话说清楚。 */
 export function hasFilters(filters: BoardFilters): boolean {
-  return Boolean(filters.projectRoot || filters.ui || filters.state)
+  // 与 filterTasks 同一口径：工程目录两头空白不算在筛（存里被改过时才可能出现）。
+  return Boolean(filters.projectRoot.trim() || filters.ui || filters.state)
 }
 
 export type FilterChoice = { value: string; label: string }

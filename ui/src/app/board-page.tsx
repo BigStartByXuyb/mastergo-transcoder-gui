@@ -234,7 +234,7 @@ export function BoardPage() {
               onRun={run}
               onCreate={() => setAdding(true)}
               filtered={hasFilters(filters)}
-              hiddenByEffective={filtered.length - shown.length}
+              hiddenByEffective={coveredCount}
             />
           </div>
         </CardContent>
