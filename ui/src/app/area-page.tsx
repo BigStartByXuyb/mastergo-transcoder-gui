@@ -36,7 +36,7 @@ export function AreaPage(props: Props) {
   const { area } = props
   const [busy, setBusy] = useState("")
   const [failure, setFailure] = useState("")
-  // 与看板共用一份记忆（独立的键）：两页各动各的键，不会互相盖。
+  // 与看板共用一份记忆：这个开关相对创建任务那张表单独立成一个键，两页读写的是同一个值。
   const [onlyEffective, setOnlyEffective] = useState(readOnlyEffective)
 
   function changeOnlyEffective(value: boolean) {

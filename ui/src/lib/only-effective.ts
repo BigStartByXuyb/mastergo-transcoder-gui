@@ -14,12 +14,22 @@ const LEGACY_KEY = "mastergo-transcoder-gui.board"
 
 export function readOnlyEffective(): boolean {
   if (hasStored(STORAGE_KEY)) return readStored(STORAGE_KEY, true, (raw) => raw.value !== false)
-  return readStored(LEGACY_KEY, true, (raw) =>
-    typeof raw.onlyEffective === "boolean" ? raw.onlyEffective : true
-  )
+  return readStored(LEGACY_KEY, true, (raw) => raw.onlyEffective !== false)
 }
 
 export function writeOnlyEffective(value: boolean): void {
   // 包一层是为了过 storage.ts 的「必须是对象」判据：它读出来的东西必须是 JSON 对象。
   writeStored(STORAGE_KEY, { value: value })
+}
+
+/*
+ * 把旧键里的值搬到新键（没有就什么都不做）。
+ *
+ * 必须搬：旧键就是创建任务那张表单的键，而看板页一挂载就会把那个键整条覆写成表单对象 ——
+ * 只读不落盘的话，第一次加载界面显示的是旧值，同屏那句覆写把旧字段抹掉，下一次加载又回到默认。
+ * 由调用方在写表单之前调一次（有副作用，不放在 read 里，免得渲染期写存储）。
+ */
+export function migrateOnlyEffective(): void {
+  if (hasStored(STORAGE_KEY) || !hasStored(LEGACY_KEY)) return
+  writeOnlyEffective(readStored(LEGACY_KEY, true, (raw) => raw.onlyEffective !== false))
 }

@@ -16,7 +16,7 @@ import { useIdentityFill } from "@/app/use-identity-fill"
 import { api, type Board } from "@/lib/api"
 import { fillTargets, parseBoardItems } from "@/lib/board-items"
 import { filterTasks, hasFilters, readBoardFilters, writeBoardFilters, type BoardFilters } from "@/lib/board-filters"
-import { readOnlyEffective, writeOnlyEffective } from "@/lib/only-effective"
+import { migrateOnlyEffective, readOnlyEffective, writeOnlyEffective } from "@/lib/only-effective"
 import { coverageOf, visibleByCoverage, type Coverage } from "@/lib/board-effective"
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
@@ -55,6 +55,8 @@ export function BoardPage() {
   })
 
   useEffect(() => {
+    // 先搬旧值再落盘：下面这句会把同一个键整条覆写，搬晚了旧偏好就丢了。
+    migrateOnlyEffective()
     writeBoardForm(form)
   }, [form])
 

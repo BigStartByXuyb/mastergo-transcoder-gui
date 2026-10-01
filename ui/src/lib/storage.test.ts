@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest"
 
-import { readStored, writeStored } from "@/lib/storage"
+import { hasStored, readStored, writeStored } from "@/lib/storage"
 
 afterEach(() => {
   localStorage.clear()
@@ -39,6 +39,26 @@ describe("writeStored", () => {
       expect(() => writeStored("k", { a: 1 })).not.toThrow()
     } finally {
       Storage.prototype.setItem = original
+    }
+  })
+})
+
+describe("hasStored", () => {
+  it("存过就是真，没存过就是假 —— 用来区分「存过默认值」与「压根没存过」", () => {
+    expect(hasStored("k")).toBe(false)
+    writeStored("k", { a: false })
+    expect(hasStored("k")).toBe(true)
+  })
+
+  it("存储不可用时不抛，当作没存过", () => {
+    const original = Storage.prototype.getItem
+    Storage.prototype.getItem = () => {
+      throw new Error("SecurityError")
+    }
+    try {
+      expect(hasStored("k")).toBe(false)
+    } finally {
+      Storage.prototype.getItem = original
     }
   })
 })
