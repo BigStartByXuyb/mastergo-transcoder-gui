@@ -46,6 +46,8 @@ export type PluginEnvScopes = {
   /** 机器级：只读（改它要管理员）。 */
   machine: string
   written: boolean
+  /** 本机不支持这一项（非 Windows）：不是故障，界面当一句说明显示。 */
+  unsupported: boolean
   /** 读不出来时的原因（例如本机不是 Windows）。 */
   failure: string
 }
@@ -787,7 +789,7 @@ export const api = {
   pluginEnv: () => request<PluginEnvView>("/api/plugin/env"),
   /** value 为空串＝清掉这个环境变量；写完由新起的进程读到。 */
   pluginEnvSave: (value: string) =>
-    post<PluginEnvView & { resolves: boolean }>("/api/plugin/env", { value }),
+    post<PluginEnvView & { resolves: boolean; unsupported?: boolean }>("/api/plugin/env", { value }),
   resolve: (body: { link: string; frameLink: string; projectDir: string }) => post<ResolveResult>("/api/resolve", body),
   /** 续跑认看板任务 id：jobId 每次续跑都会被换掉，当钥匙就会「找不到这次运行」。 */
   runResume: (taskId: string) =>

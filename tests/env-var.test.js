@@ -41,9 +41,11 @@ function caseNonWindows() {
   const read = readEnvVar(NAME, { platform: "linux" });
   assert.match(read.failure, /只有 Windows/);
   assert.strictEqual(read.user, "");
+  assert.strictEqual(read.unsupported, true, "不支持要说成 unsupported，而不是当故障抛");
   const written = writeEnvVar(NAME, drive("D", "x"), { platform: "linux" });
   assert.match(written.failure, /只有 Windows/);
   assert.strictEqual(written.written, false);
+  assert.strictEqual(written.unsupported, true);
 }
 
 function caseRead() {
@@ -51,7 +53,7 @@ function caseRead() {
   const got = readEnvVar(NAME, { platform: "win32", spawnImpl: fake.impl });
   assert.deepStrictEqual(
     got,
-    { name: NAME, process: PROCESS_DIR, user: USER_DIR, machine: "", written: false, failure: "" },
+    { name: NAME, process: PROCESS_DIR, user: USER_DIR, machine: "", written: false, unsupported: false, failure: "" },
     "三个作用域各回各的值"
   );
   const args = fake.calls[0].args;
@@ -82,7 +84,7 @@ function caseClear() {
 
 function caseFailures() {
   const broken = readEnvVar(NAME, { platform: "win32", spawnImpl: fakePwsh({}, { error: new Error("spawn ENOENT") }).impl });
-  assert.match(broken.failure, /起不起来|调不起/);
+  assert.match(broken.failure, /起不来/);
 
   const noFile = readEnvVar(NAME, {
     platform: "win32",
