@@ -98,17 +98,16 @@ export function PluginEnvPanel() {
      * 免得探到还没退的旧进程（它也能回答，会把「没生效」当成成功）。
      */
     await new Promise(function (resolve) { window.setTimeout(resolve, 2000) })
-    // 该读到什么：就是刚存进去的那份（清除之后是空串）。scopes 已经拿保存/清除的响应更新过了。
-    const target = scopes ? scopes.user : ""
     const deadline = Date.now() + 40000
     while (Date.now() < deadline) {
       try {
-        // 探到「这次运行读到的」已经是刚保存/清除后的那份，才算真生效。
-        const payload = await api.pluginEnv()
-        if (payload.envScopes.process === target) {
-          window.location.reload()
-          return
-        }
+        /*
+         * 服务回来了就刷新。这里不猜「新的一份该读到什么」——那是后端的事（用户级还是机器级、
+         * 继承来的临时值要不要留，口径都在 lib/launch.js），界面刷新后如实显示读到的是哪一份。
+         */
+        await api.pluginEnv()
+        window.location.reload()
+        return
       }
       catch {
         /* 新的还没监听，接着等 */
@@ -116,7 +115,7 @@ export function PluginEnvPanel() {
       await new Promise(function (resolve) { window.setTimeout(resolve, 500) })
     }
     setBusy("")
-    setFailure("重启之后没能确认它读到新值：关掉这个窗口、重新双击 start.cmd 再看一次。")
+    setFailure("重启之后没能连上本地服务：关掉这个窗口、重新双击 start.cmd。")
   }
 
   return (
