@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { BusyOverlay } from "@/app/busy-overlay"
 import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
 import { api, type PluginEnvScopes } from "@/lib/api"
@@ -74,8 +75,38 @@ export function PluginEnvPanel() {
     }
   }
 
+  /*
+   * 让新的一份真的读到刚存的值：监督进程收到这个信号会重读注册表再起子进程。
+   * 起不来的那几秒连不上属于预期，所以探活用「能取到环境变量」当判据，起来之后再刷新页面。
+   */
+  async function applyNow() {
+    setBusy("restart")
+    setFailure("")
+    try {
+      await api.clientRestart(true)
+    }
+    catch {
+      /* 这一份就是被它自己关掉的，请求断在半路属于预期 */
+    }
+    const deadline = Date.now() + 40000
+    while (Date.now() < deadline) {
+      await new Promise(function (resolve) { window.setTimeout(resolve, 500) })
+      try {
+        await api.pluginEnv()
+        window.location.reload()
+        return
+      }
+      catch {
+        /* 还没起来，接着等 */
+      }
+    }
+    setBusy("")
+    setFailure("重启之后没能连上本地服务：关掉这个窗口、重新双击 start.cmd。")
+  }
+
   return (
     <div className="flex flex-col gap-2 rounded-md border p-3">
+      {busy === "restart" && <BusyOverlay text="请稍等，正在重启客户端" note="界面马上回来，不用你关窗口。" />}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium">环境变量{name ? " " + name : ""}</span>
         {scopes && (
@@ -151,10 +182,14 @@ export function PluginEnvPanel() {
       )}
 
       {saved && (
-        <p className="text-xs">
+        <div className="flex flex-wrap items-center gap-2">
           {saved === "cleared" ? "已清除。" : "已写入。"}
-          环境变量要新起的进程才读得到：关掉这个窗口、重新双击 start.cmd 吧。
-        </p>
+          <span className="text-muted-foreground text-xs">环境变量要新起的进程才读得到。</span>
+          <Button size="sm" variant="outline" disabled={Boolean(busy)} onClick={() => void applyNow()}>
+            {busy === "restart" && <Loader2 className="size-4 animate-spin" />}
+            重启客户端让它生效
+          </Button>
+        </div>
       )}
     </div>
   )

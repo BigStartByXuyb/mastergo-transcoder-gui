@@ -16,18 +16,35 @@
 const { spawn } = require("child_process");
 const path = require("path");
 
-const { resolveLaunch } = require("./lib/launch.js");
+const { resolveLaunch, pluginEnvDecision } = require("./lib/launch.js");
+const { readEnvVar } = require("./lib/env-var.js");
+const { PLUGIN_ENV_NAME } = require("./lib/plugin-root.js");
 
 // 子进程用这个退出码告诉监督进程「不是结束，是换一份重来」。
 const RESTART_CODE = 75;
+// 设置页刚改过「插件根」那个环境变量：重启时要重读一次注册表，否则子进程读到的还是旧快照。
+const RELOAD_ENV_CODE = 76;
 
 const HOME = __dirname;
 
-function runOnce(target) {
+// 上次从注册表读到的那一份：用户把它清掉时，才敢把继承来的那份也去掉。
+let lastRegistryValue = "";
+
+function childEnv(reloadPluginEnv) {
+  const env = Object.assign({}, process.env, { MASTERGO_HOME: HOME, MASTERGO_SUPERVISED: "1" });
+  if (!reloadPluginEnv) return env;
+  const decision = pluginEnvDecision(process.env[PLUGIN_ENV_NAME], readEnvVar(PLUGIN_ENV_NAME), lastRegistryValue);
+  lastRegistryValue = decision.seen;
+  if (decision.action === "set") env[PLUGIN_ENV_NAME] = decision.value;
+  if (decision.action === "remove") delete env[PLUGIN_ENV_NAME];
+  return env;
+}
+
+function runOnce(target, reloadPluginEnv) {
   return new Promise(function (resolve) {
     const child = spawn(process.execPath, [path.join(target.dir, "server.js")].concat(process.argv.slice(2)), {
       cwd: HOME,
-      env: Object.assign({}, process.env, { MASTERGO_HOME: HOME, MASTERGO_SUPERVISED: "1" }),
+      env: childEnv(reloadPluginEnv),
       stdio: "inherit"
     });
     child.on("exit", function (code) { resolve(code === null ? 1 : code); });
@@ -39,12 +56,14 @@ function runOnce(target) {
 }
 
 async function main() {
+  let reloadPluginEnv = false;
   for (;;) {
     const target = resolveLaunch(HOME);
     process.stdout.write("版本: " + (target.fromPointer ? "v" + target.version + "（current.json）" : "本地这一份（无指针）") + "\n");
-    const code = await runOnce(target);
-    if (code !== RESTART_CODE) process.exit(code);
-    process.stdout.write("按 current.json 换一份接着跑\n");
+    const code = await runOnce(target, reloadPluginEnv);
+    if (code !== RESTART_CODE && code !== RELOAD_ENV_CODE) process.exit(code);
+    reloadPluginEnv = code === RELOAD_ENV_CODE;
+    process.stdout.write(reloadPluginEnv ? "按 current.json 换一份接着跑（并重读插件环境变量）\n" : "按 current.json 换一份接着跑\n");
   }
 }
 

@@ -913,7 +913,9 @@ export const api = {
   updateRollback: () =>
     post<{ ok: true; version: string; restartRequired: boolean; status: UpdateStatus }>("/api/update/rollback", {}),
   /** 让当前这一份退出，由监督进程按指针换一份重跑；不监听响应之后的事。 */
-  clientRestart: () => post<{ ok: true; restarting: boolean }>("/api/client/restart", {}),
+  /** reloadEnv：让监督进程重读一次「插件根」环境变量（设置页改完它之后用）。 */
+  clientRestart: (reloadEnv = false) =>
+    post<{ ok: true; restarting: boolean; reloadEnv: boolean }>("/api/client/restart", { reloadEnv }),
   /** 附件上传：界面把文件读成 base64 传上来，后端落在 chats/uploads/<批次>/ 下。 */
   agentUpload: (files: { name: string; relativePath?: string; base64: string }[]) =>
     post<{ ok: true; files: UploadedFile[] }>("/api/agent/upload", { files }),
