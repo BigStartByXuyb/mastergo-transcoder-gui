@@ -15,6 +15,9 @@ const CODEX_ROOT = drive("C", "Users", "me", ".codex", "plugins", "cache", "bigs
 const CLAUDE_CACHE = drive("C", "Users", "me", ".claude", "plugins", "cache")
 const CLAUDE_ROOT = drive("C", "Users", "me", ".claude", "plugins", "cache", "bigstart", "mastergo-wpf-transcoder")
 const INSTALL_DIR = drive("D", "app", "plugins")
+// 环境变量那几条用例用的路径同样按段拼，别在源码里出现盘符加反斜杠。
+const ENV_OLD = drive("D", "old-plugin")
+const ENV_NEW = drive("D", "new-plugin")
 
 type Source = {
   id: string
@@ -80,12 +83,41 @@ function view(options: { activeId: string; chosen?: string; failure?: string }) 
   }
 }
 
-function stub(payload: unknown, onChoose?: (body: unknown) => void) {
+const ENV_NAME = "MASTERGO_PLUGIN_ROOT"
+
+type EnvScopes = { process: string; user: string; machine: string; written: boolean; failure: string }
+
+function scopes(over: Partial<EnvScopes> = {}): EnvScopes & { name: string } {
+  return {
+    name: ENV_NAME,
+    process: "",
+    user: "",
+    machine: "",
+    written: false,
+    failure: "",
+    ...over
+  }
+}
+
+function stub(
+  payload: unknown,
+  hooks: { onChoose?: (body: unknown) => void; onEnv?: (body: unknown) => void; env?: Partial<EnvScopes> } = {}
+) {
   vi.stubGlobal("fetch", (_input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(_input)
     if (url.includes("/api/plugin/choose")) {
-      onChoose?.(JSON.parse(String(init?.body ?? "{}")))
+      hooks.onChoose?.(JSON.parse(String(init?.body ?? "{}")))
       return Promise.resolve(new Response(JSON.stringify(view({ activeId: "claude-cache", chosen: "picked" })), { status: 200 }))
+    }
+    if (url.includes("/api/plugin/env")) {
+      const body = init?.body ? JSON.parse(String(init.body)) : null
+      if (body) hooks.onEnv?.(body)
+      return Promise.resolve(new Response(JSON.stringify({
+        ok: true,
+        name: ENV_NAME,
+        envScopes: scopes(body ? { user: String(body.value || ""), written: true } : hooks.env),
+        resolves: true
+      }), { status: 200 }))
     }
     return Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }))
   })
@@ -120,7 +152,7 @@ describe("PluginCard", () => {
 
   it("点「用这份」把那一份的插件根交给后端", async () => {
     const chosen: unknown[] = []
-    stub(view({ activeId: "codex-cache" }), (body) => chosen.push(body))
+    stub(view({ activeId: "codex-cache" }), { onChoose: (body) => chosen.push(body) })
     render(<PluginCard />)
     await waitFor(() => expect(screen.getByText("Claude 插件缓存")).toBeTruthy())
 
@@ -142,5 +174,30 @@ describe("PluginCard", () => {
     render(<PluginCard />)
     await waitFor(() => expect(screen.getByText("没找到插件")).toBeTruthy())
     expect(screen.getByText(new RegExp("已查找：" + INSTALL_DIR.replace(/\\/g, "\\\\") + "（没有）"))).toBeTruthy()
+  })
+
+  it("环境变量那段区分「这次运行读到的」与「系统里存的」", async () => {
+    stub(view({ activeId: "codex-cache" }), { env: { process: "", user: ENV_OLD } })
+    render(<PluginCard />)
+    await waitFor(() => expect(screen.getByText("用户级已设置")).toBeTruthy())
+    expect(screen.getByText(/这次运行读到：/).textContent).toContain("未设置")
+    expect(screen.getByText(/系统里存的（用户级）：/).textContent).toContain(ENV_OLD)
+    expect(screen.getByText(/机器级：/).textContent).toContain("未设置")
+  })
+
+  it("保存把路径交给后端，清除交的是空串", async () => {
+    const sent: unknown[] = []
+    stub(view({ activeId: "codex-cache" }), { env: { user: ENV_OLD }, onEnv: (body) => sent.push(body) })
+    render(<PluginCard />)
+    await waitFor(() => expect(screen.getByText("用户级已设置")).toBeTruthy())
+
+    fireEvent.change(screen.getByPlaceholderText("插件目录的绝对路径"), { target: { value: ENV_NEW } })
+    fireEvent.click(screen.getByRole("button", { name: "保存" }))
+    await waitFor(() => expect(sent.length).toBe(1))
+    expect(sent[0]).toMatchObject({ value: ENV_NEW })
+
+    fireEvent.click(screen.getAllByRole("button", { name: "清除" })[0])
+    await waitFor(() => expect(sent.length).toBe(2))
+    expect(sent[1]).toMatchObject({ value: "" })
   })
 })

@@ -6,10 +6,11 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
 import { PixelLoader } from "@/app/pixel-loader"
-import { api, type PluginSources } from "@/lib/api"
+import { api, type PluginEnvScopes, type PluginSources } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 
 /*
@@ -19,12 +20,18 @@ import { describeFailure } from "@/lib/describe-failure"
  */
 export function PluginCard() {
   const [view, setView] = useState<PluginSources | null>(null)
+  const [envName, setEnvName] = useState("MASTERGO_PLUGIN_ROOT")
+  const [scopes, setScopes] = useState<PluginEnvScopes | null>(null)
+  const [draft, setDraft] = useState("")
+  const [envBusy, setEnvBusy] = useState("")
+  // "" / "saved" / "cleared"：存完要说清这次是写进去了还是清掉了。
+  const [saved, setSaved] = useState("")
   const [failure, setFailure] = useState("")
   const [busy, setBusy] = useState("")
 
   useEffect(() => {
     let stopped = false
-    async function load() {
+    async function loadSources() {
       try {
         const payload = await api.pluginSources()
         if (!stopped) setView(payload)
@@ -32,11 +39,44 @@ export function PluginCard() {
         if (!stopped) setFailure(describeFailure(error))
       }
     }
-    void load()
+    // 环境变量单独取：读它要起一次 pwsh，不该拖慢上面那份来源清单。
+    async function loadEnv() {
+      try {
+        const payload = await api.pluginEnv()
+        if (stopped) return
+        setEnvName(payload.name)
+        setScopes(payload.envScopes)
+        setDraft(payload.envScopes.user || "")
+      } catch (error) {
+        if (!stopped) setFailure(describeFailure(error))
+      }
+    }
+    void loadSources()
+    void loadEnv()
     return () => {
       stopped = true
     }
   }, [])
+
+  /* 空串＝清掉。写完由新起的进程读到，所以这里要提醒「重启才生效」。 */
+  async function saveEnv(value: string) {
+    setEnvBusy(value ? "save" : "clear")
+    setFailure("")
+    try {
+      const payload = await api.pluginEnvSave(value)
+      setScopes(payload.envScopes)
+      setDraft(payload.envScopes.user || "")
+      setSaved(value ? "saved" : "cleared")
+      if (!value) toast.success("已清掉环境变量 " + payload.name)
+      else if (payload.resolves) toast.success("已写入环境变量；重启客户端后生效")
+      else toast.warning("已写入，但这个位置现在没有插件")
+    } catch (error) {
+      setFailure(describeFailure(error))
+    } finally {
+      setEnvBusy("")
+    }
+  }
+
 
   /* 空串＝回到「按顺序自动」；有任务在跑时后端会拒绝并说明原因。 */
   async function choose(path: string, key: string) {
@@ -159,11 +199,69 @@ export function PluginCard() {
               </div>
             ))}
 
-            <p className="text-muted-foreground text-xs">
-              环境变量 MASTERGO_PLUGIN_ROOT：
-              {view.env ? <IdentifierText text={view.env} /> : "未设置"}
-              ；启动前设定。这里选的那一份比它更优先，最高的还是启动参数。
-            </p>
+            {/* 环境变量：写给系统的那一份，别的工具与命令行也认；与上面的「用这份」不是一件事。 */}
+            <div className="flex flex-col gap-2 rounded-md border p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium">环境变量 {envName}</span>
+                <Badge variant={scopes && scopes.user ? "secondary" : "outline"}>
+                  {scopes && scopes.user ? "用户级已设置" : "用户级未设置"}
+                </Badge>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  className="min-w-64 flex-1 font-mono text-xs"
+                  placeholder="插件目录的绝对路径"
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                />
+                <Button size="sm" disabled={Boolean(envBusy)} onClick={() => void saveEnv(draft.trim())}>
+                  {envBusy === "save" && <Loader2 className="size-4 animate-spin" />}
+                  保存
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={Boolean(envBusy) || !(scopes && scopes.user)}
+                  onClick={() => void saveEnv("")}
+                >
+                  {envBusy === "clear" && <Loader2 className="size-4 animate-spin" />}
+                  清除
+                </Button>
+              </div>
+
+              <div className="text-muted-foreground flex flex-col gap-0.5 text-xs">
+                <span>
+                  这次运行读到：
+                  {scopes && scopes.process ? <IdentifierText text={scopes.process} /> : "未设置"}
+                </span>
+                <span>
+                  系统里存的（用户级）：
+                  {scopes && scopes.user ? <IdentifierText text={scopes.user} /> : "未设置"}
+                </span>
+                <span>
+                  机器级：
+                  {scopes && scopes.machine ? <IdentifierText text={scopes.machine} /> : "未设置"}
+                  （只读，改它要管理员）
+                </span>
+              </div>
+
+              <p className="text-muted-foreground text-xs">
+                保存写的是 Windows「用户」环境变量：下次启动客户端时生效，别的工具与命令行也认它。
+                想让这次就换，用上面那一条的「用这份」—— 它比环境变量更优先。
+              </p>
+
+              {scopes && scopes.failure && (
+                <p className="text-muted-foreground text-xs">{scopes.failure}</p>
+              )}
+
+              {saved && (
+                <p className="text-xs">
+                  {saved === "cleared" ? "已清除。" : "已写入。"}
+                  环境变量要新起的进程才读得到：关掉这个窗口、重新双击 start.cmd 吧。
+                </p>
+              )}
+            </div>
           </>
         )}
       </CardContent>

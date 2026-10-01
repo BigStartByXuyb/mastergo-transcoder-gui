@@ -36,6 +36,26 @@ export type PluginSources = {
   sources: PluginSource[]
 }
 
+/** 环境变量 MASTERGO_PLUGIN_ROOT 的三个作用域：这次运行读到的、系统里存的用户级、机器级。 */
+export type PluginEnvScopes = {
+  name: string
+  /** 这次运行的进程读到的值：改不了，只有重启客户端才会变。 */
+  process: string
+  /** 系统里存的用户级值：下次启动生效，别的工具与命令行也认。 */
+  user: string
+  /** 机器级：只读（改它要管理员）。 */
+  machine: string
+  written: boolean
+  /** 读不出来时的原因（例如本机不是 Windows）。 */
+  failure: string
+}
+
+export type PluginEnvView = {
+  ok: true
+  name: string
+  envScopes: PluginEnvScopes
+}
+
 export type FrameEntry = {
   fileId: string
   layerId: string
@@ -764,6 +784,10 @@ export const api = {
   pluginSources: () => request<PluginSources>("/api/plugin/sources"),
   /** path 为空串＝回到「按顺序自动」。换完立刻生效，不用重启客户端。 */
   pluginChoose: (path: string) => post<PluginSources>("/api/plugin/choose", { path }),
+  pluginEnv: () => request<PluginEnvView>("/api/plugin/env"),
+  /** value 为空串＝清掉这个环境变量；写完由新起的进程读到。 */
+  pluginEnvSave: (value: string) =>
+    post<PluginEnvView & { resolves: boolean }>("/api/plugin/env", { value }),
   resolve: (body: { link: string; frameLink: string; projectDir: string }) => post<ResolveResult>("/api/resolve", body),
   /** 续跑认看板任务 id：jobId 每次续跑都会被换掉，当钥匙就会「找不到这次运行」。 */
   runResume: (taskId: string) =>
