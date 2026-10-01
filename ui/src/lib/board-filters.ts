@@ -76,8 +76,8 @@ export function filterTasks(tasks: BoardTask[], filters: BoardFilters): BoardTas
 
 /** 有没有在筛：界面上要据此给「清除筛选」，也要在筛空时把话说清楚。 */
 export function hasFilters(filters: BoardFilters): boolean {
-  // 与 filterTasks 同一口径：工程目录两头空白不算在筛（存里被改过时才可能出现）。
-  return Boolean(filters.projectRoot.trim() || filters.ui || filters.state)
+  // 与 filterTasks 同一口径：工程目录两头空白不算、认不出的状态分组也不算（存里被改过时才可能出现）。
+  return Boolean(filters.projectRoot.trim() || filters.ui || stateGroupOf(filters.state))
 }
 
 export type FilterChoice = { value: string; label: string }

@@ -34,3 +34,17 @@ export function coverageOf(tasks: BoardTask[]): Map<string, Coverage> {
   }
   return coverage
 }
+
+/*
+ * 「只看生效」：把被覆盖的挑出去，并告诉调用方藏了几条。
+ * 看板与区域页都走它 —— 同一个数在两页各算一遍，就会出现「一处说藏了 N 条、另一处说 M 条」。
+ */
+export function visibleByCoverage(
+  tasks: BoardTask[],
+  coverage: Map<string, Coverage>,
+  onlyEffective: boolean
+): { shown: BoardTask[]; hidden: number } {
+  if (!onlyEffective) return { shown: tasks, hidden: 0 }
+  const shown = tasks.filter((task) => coverage.get(task.id) !== "covered")
+  return { shown: shown, hidden: tasks.length - shown.length }
+}

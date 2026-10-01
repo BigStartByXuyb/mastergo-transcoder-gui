@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { coverageOf, pageKeyOf } from "@/lib/board-effective"
+import { coverageOf, pageKeyOf, visibleByCoverage } from "@/lib/board-effective"
 import type { BoardTask } from "@/lib/api"
 
 function task(
@@ -75,5 +75,21 @@ describe("coverageOf", () => {
     ])
     expect(coverage.get("f4")).toBe("effective")
     expect(coverage.get("f3")).toBe("effective")
+  })
+
+  it("只看生效：挑出生效的那些，并给出藏了几条", () => {
+    const tasks = [
+      task("old", "merged", "2026-09-30T01:00:00.000Z"),
+      task("new", "merged", "2026-09-30T02:00:00.000Z"),
+      task("running", "running", "")
+    ]
+    const coverage = coverageOf(tasks)
+    const hidden = visibleByCoverage(tasks, coverage, true)
+    expect(hidden.shown.map((item) => item.id)).toEqual(["new", "running"])
+    expect(hidden.hidden).toBe(1)
+    // 关掉开关时一条不藏，数字也要跟着归零。
+    const all = visibleByCoverage(tasks, coverage, false)
+    expect(all.shown.length).toBe(3)
+    expect(all.hidden).toBe(0)
   })
 })

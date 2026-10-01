@@ -16,7 +16,7 @@ import { useIdentityFill } from "@/app/use-identity-fill"
 import { api, type Board } from "@/lib/api"
 import { fillTargets, parseBoardItems } from "@/lib/board-items"
 import { filterTasks, hasFilters, readBoardFilters, writeBoardFilters, type BoardFilters } from "@/lib/board-filters"
-import { coverageOf, type Coverage } from "@/lib/board-effective"
+import { coverageOf, visibleByCoverage, type Coverage } from "@/lib/board-effective"
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
@@ -166,8 +166,7 @@ export function BoardPage() {
   const filtered = useMemo(() => filterTasks(tasks, filters), [tasks, filters])
   const readyCount = tasks.filter((task) => task.state === "ready").length
   const coverage: Map<string, Coverage> = useMemo(() => coverageOf(tasks), [tasks])
-  const shown = form.onlyEffective ? filtered.filter((task) => coverage.get(task.id) !== "covered") : filtered
-  const coveredCount = filtered.length - shown.length
+  const { shown, hidden: coveredCount } = visibleByCoverage(filtered, coverage, form.onlyEffective)
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">

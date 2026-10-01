@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { api } from "@/lib/api"
 import { areaLabel, type AreaEntry } from "@/lib/areas"
 import { boardStateVariant } from "@/lib/board-state"
-import { coverageOf } from "@/lib/board-effective"
+import { coverageOf, visibleByCoverage } from "@/lib/board-effective"
 import { describeFailure } from "@/lib/describe-failure"
 
 /*
@@ -39,10 +39,7 @@ export function AreaPage(props: Props) {
 
   /* 生效/被覆盖一律按「本页最后一次合并成功的那一单」判，与看板共用 coverageOf，界面不另算一套。 */
   const coverage = useMemo(() => coverageOf(area.tasks), [area.tasks])
-  const shownTasks = onlyEffective
-    ? area.tasks.filter((task) => coverage.get(task.id) !== "covered")
-    : area.tasks
-  const hiddenCount = area.tasks.length - shownTasks.length
+  const { shown: shownTasks, hidden: hiddenCount } = visibleByCoverage(area.tasks, coverage, onlyEffective)
 
   function clearTasks() {
     const count = area.tasks.length
