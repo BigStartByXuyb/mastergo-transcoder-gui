@@ -67,7 +67,7 @@ CI 语义审计给的是 `PASS` / 0 阻断 + 5 条复核，五条都按「有没
 4. **`PluginCard` 一个组件干两件事**（8 个 state、三套异步动作）→ 环境变量那一段拆成 `PluginEnvPanel`
    （`ui/src/app/plugin-env-panel.tsx`），自带加载/保存/清除与失败提示；来源清单没读出来也照样显示这一块。
 5. **非 Windows 的「不支持」在模块里算软提示、到写入口却变成硬错误** → 模块加 `unsupported` 标记，
-   写的路由对它返回软结果（与读一致），界面按 `payload.unsupported` 弹一句说明而不是「已写入」。
+   写的路由对它返回软结果（与读一致），界面按 `envScopes.unsupported` 弹一句说明而不是「已写入」。
 
 顺带按观察改了两处：`GET /api/plugin/env` 的注释不再说「不该拖慢来源清单」（本地服务是单线程，两者只是互不依赖）；
 `run()` 不再暴露生产用不到的 `pwsh`/`timeoutMs` 覆盖项（`runPwshJson` 那边由调用方按需给）。
