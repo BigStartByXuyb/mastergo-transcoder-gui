@@ -124,7 +124,7 @@ export function PluginCard() {
                   </Button>
                 </div>
                 <span className="text-muted-foreground text-xs">
-                  清掉「我指定的那一份」，让客户端自己按内置顺序找 —— 就是下面按两类列出的顺序：先本机指定的，再自动查找的。
+                  清掉「我指定的那一份」，让客户端自己按内置顺序找；下面列出的位置，就是它从上到下依次会看的地方。
                 </span>
               </div>
 
