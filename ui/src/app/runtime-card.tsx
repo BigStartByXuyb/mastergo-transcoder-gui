@@ -20,7 +20,7 @@ import {
   runtimeTaskLine,
   runtimeTaskPercent
 } from "@/lib/runtime-state"
-import { describeFailure } from "@/lib/describe-failure"
+import { describeFailure, failureText } from "@/lib/describe-failure"
 
 const IDLE_POLL_MS = 15000
 const WORKING_POLL_MS = 1000
@@ -126,7 +126,7 @@ export function RuntimeCard() {
           <Alert variant="destructive">
             <AlertTitle>上一次没装成</AlertTitle>
             <AlertDescription>
-              <ClampText text={status.error.message + (status.error.hint ? "。" + status.error.hint : "")} />
+              <ClampText text={failureText(status.error)} />
             </AlertDescription>
           </Alert>
         )}

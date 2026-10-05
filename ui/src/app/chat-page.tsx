@@ -17,7 +17,7 @@ import { readCodexLine, type AgentItem, type AgentStreamEvent } from "@/lib/agen
 import { replayConversation, upsertTurn } from "@/lib/chat-replay"
 import { groupByProjectRoot, projectLabel } from "@/lib/chat-groups"
 import { judgeTurnOutcome } from "@/lib/chat-outcome"
-import { describeFailure } from "@/lib/describe-failure"
+import { describeFailure, failureText } from "@/lib/describe-failure"
 import { rememberProject } from "@/lib/recent-projects"
 import { attachmentUrl, humanSize, uploadAttachments, type PickedFile } from "@/lib/upload-files"
 import { cn } from "@/lib/utils"
@@ -187,7 +187,7 @@ export function ChatPage() {
     }
     if (event.kind === "failure") {
       failedRef.current = true
-      setFailure(event.message + (event.hint ? "；" + event.hint : ""))
+      setFailure(failureText(event))
       return
     }
     if (event.kind === "exit") {

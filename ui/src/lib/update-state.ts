@@ -125,7 +125,7 @@ function failedNote(status: UpdateStatus): string {
 /* 只有一种情况需要先告诉人：这版要求更新的客户端外壳。其余一律不说过程。 */
 export function blockedNote(status: UpdateStatus): string {
   return status.available && status.available.blocked
-    ? status.available.blocked.message + "。" + status.available.blocked.hint
+    ? failureText(status.available.blocked)
     : ""
 }
 

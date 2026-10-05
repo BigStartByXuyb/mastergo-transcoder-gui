@@ -58,6 +58,11 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 `describeFailure`、`update-state.ts`、`codex-state.ts` 都读它，分隔符统一成 `：`。
 受影响的两处界面文案与用例跟着改（Codex 卡片「连不上 GitHub：看网络」、更新状态「下载失败：断网了」）。
 
+第四轮审计又指出同一类残留：`update-state.ts` 的 `blockedNote` 仍在自拼「原因 + 提示」。
+这一次把全仓这种拼法一次清干净（`rg 'hint ?' ui/src` 逐条过）：`blockedNote`、运行环境卡片的安装失败、
+对话里引擎失败事件都改读 `failureText`，只留 `query-page.tsx`（按既定例外，message 与 hint 分两行排版）。
+三处界面文案与用例同步（`v0.2.0 要求客户端至少 v0.3.0：先装新版安装包。`）。
+
 ## 2026-10-05 发布源可配置（v0.6.31）
 
 ### 改了什么
