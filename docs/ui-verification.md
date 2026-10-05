@@ -41,7 +41,8 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | 本机连打两次 `node scripts/vendor-openai.js` | 两次 `sha256` 都是 `e87be076…`（改之前同一份内容每次都不一样） | 通过 |
 | `node tests/tar.test.js` | 通过：两次打包字节一致、gzip 头时间戳为 0、系统 tar 解得开、长路径与排除项都对 | 通过 |
 | 全量门禁 | 后端 42 条（新增 `tar.test.js`）、前端 50 文件 305 条、`tsc`、oxlint、结构检查 PASS | 通过 |
-| 发布后比对 | v0.6.33 的清单里 `vendor/openai.tgz` 哈希与本机重打的一致（跨平台：本机 Windows、CI 是 ubuntu） | 待发布后填 |
+| 发布后比对 | v0.6.33 的发布资产里就有本机重打的那一份 `e87be076…`（本机 Windows、CI 是 ubuntu），跨平台哈希一致 | 通过 |
+| 客户端按新清单核对 | 检查更新报 `changed=0`（本机这份运行树与 v0.6.33 清单 63 个文件全对得上 —— 这就是可复现打包修好的那处对不上）；切指针到 0.6.33、重启后 `version=0.6.33 up_to_date` | 通过 |
 
 审计复核（PASS / 阻断 0 / 复核 1）指出两处，都改了：
 
