@@ -1,4 +1,4 @@
-import type { UpdateStatus, UpdateTask } from "@/lib/api"
+import type { UpdateFailure, UpdateStatus, UpdateTask } from "@/lib/api"
 
 export type UpdateTone = "secondary" | "outline" | "destructive"
 
@@ -97,6 +97,11 @@ export function versionList(status: UpdateStatus): VersionRow[] {
 
 export type UpdateSummary = { label: string; tone: UpdateTone; note: string }
 
+/* 失败原因的一句完整话：原因 + 可操作提示。要说「检查/下载没成功」的地方都从这一处取。 */
+function failureText(failure: UpdateFailure): string {
+  return failure.message + (failure.hint ? "。" + failure.hint : "")
+}
+
 /* 四态翻成用户看得懂的一句话。note 只留给失败原因，不复述状态名，也不解释怎么实现的。 */
 export function describeUpdate(status: UpdateStatus | null): UpdateSummary {
   if (!status) return { label: "读取中…", tone: "outline", note: "" }
@@ -105,7 +110,7 @@ export function describeUpdate(status: UpdateStatus | null): UpdateSummary {
     return { label: "v" + status.ready + " 已就绪", tone: "secondary", note: failedNote(status) }
   }
   if (status.state === "error") {
-    return { label: "更新检查失败", tone: "destructive", note: status.error ? status.error.message : "" }
+    return { label: "更新检查失败", tone: "destructive", note: status.error ? failureText(status.error) : "" }
   }
   if (status.state === "update_available") {
     return {
@@ -118,7 +123,7 @@ export function describeUpdate(status: UpdateStatus | null): UpdateSummary {
 }
 
 function failedNote(status: UpdateStatus): string {
-  return status.error ? "上次检查更新没成功：" + status.error.message : ""
+  return status.error ? "上次检查更新没成功：" + failureText(status.error) : ""
 }
 
 /* 只有一种情况需要先告诉人：这版要求更新的客户端外壳。其余一律不说过程。 */

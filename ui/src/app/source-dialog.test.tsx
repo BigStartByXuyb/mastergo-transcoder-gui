@@ -97,4 +97,27 @@ describe("SourceDialog", () => {
     expect(seen.some((item) => item.url.includes("/api/update/check"))).toBe(true)
     expect(onStatus).toHaveBeenCalled()
   })
+
+  it("检查失败时把原因与提示原样说出来（与卡片同一句话）", async () => {
+    const mock = vi.fn((url: string) => {
+      const target = String(url)
+      if (target.includes("/api/settings")) return ok({ ok: true, settings: {} })
+      if (target.includes("/api/update/check")) {
+        return ok({
+          ok: true,
+          status: status({
+            state: "error",
+            error: { code: "HTTP_401", message: "检查更新失败（HTTP 401）", hint: "私有源要填 token" }
+          })
+        })
+      }
+      return ok({ ok: true, status: status() })
+    })
+    vi.stubGlobal("fetch", mock)
+
+    render(<SourceDialog status={status()} onClose={() => undefined} onStatus={() => undefined} />)
+    fireEvent.click(screen.getByRole("button", { name: "保存并检查" }))
+
+    await waitFor(() => expect(screen.getByText("检查更新失败（HTTP 401）。私有源要填 token")).toBeTruthy())
+  })
 })

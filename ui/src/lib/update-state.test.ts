@@ -68,7 +68,8 @@ describe("describeUpdate", () => {
       status({ state: "error", error: { code: "DOWNLOAD_FAILED", message: "下载失败", hint: "断网了" } })
     )
     expect(failed.tone).toBe("destructive")
-    expect(failed.note).toBe("下载失败")
+    // 失败的说法人话一处出：原因 + 可操作的提示（弹窗与卡片读的是同一句）。
+    expect(failed.note).toBe("下载失败。断网了")
   })
 
   it("没有原因的错误不编一句话出来", () => {

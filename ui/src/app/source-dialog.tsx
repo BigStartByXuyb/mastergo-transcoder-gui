@@ -43,34 +43,45 @@ export function SourceDialog(props: {
   const [probe, setProbe] = useState("")
   const [current, setCurrent] = useState(props.status)
 
-  async function save(extra: Record<string, unknown>, thenCheck: boolean) {
-    setBusy(thenCheck ? "check" : "save")
+  // 最新状态落到两处：弹窗自己，以及外层那张卡片的来源行。
+  function adopt(status: UpdateStatus) {
+    setCurrent(status)
+    props.onStatus(status)
+    setKind(status.source.kind)
+    setBase(status.source.base)
+  }
+
+  // 存：只负责存下来与回填，不决定要不要验。
+  async function persist(extra: Record<string, unknown>) {
+    await api.settingsSave({ source: Object.assign({ kind, base }, extra) })
+    adopt((await api.updateStatus()).status)
+    setToken("")
+  }
+
+  /*
+   * 验：按新地址查一次。报的那句话与「程序更新」卡片同一处口径（describeUpdate），
+   * 这里不另写一套 —— 同一份状态在两处说不一样的话，就是这个弹窗最容易犯的错。
+   */
+  async function verify() {
+    const checked = await api.updateCheck()
+    adopt(checked.status)
+    const summary = describeUpdate(checked.status)
+    if (checked.status.state === "error") setFailure(summary.note)
+    else setProbe(summary.note ? summary.label + "；" + summary.note : summary.label)
+  }
+
+  // 三个按钮共用这一处收尾：清旧错、按结果落提示、松开忙碌位。
+  async function run(key: string, extra: Record<string, unknown>, thenCheck: boolean) {
+    setBusy(key)
     setFailure("")
     setProbe("")
     try {
-      await api.settingsSave({ source: Object.assign({ kind, base }, extra) })
-      const payload = await api.updateStatus()
-      setCurrent(payload.status)
-      props.onStatus(payload.status)
-      setKind(payload.status.source.kind)
-      setBase(payload.status.source.base)
-      setToken("")
+      await persist(extra)
       if (!thenCheck) {
         toast.success("已保存发布源")
         return
       }
-      /*
-       * 验完照「程序更新」卡片同一处口径报一句：四态翻成一句人话的事只有 describeUpdate 一处，
-       * 这里不另写一套（不然同一份状态在两处说不一样的话）。
-       */
-      const checked = await api.updateCheck()
-      setCurrent(checked.status)
-      props.onStatus(checked.status)
-      const summary = describeUpdate(checked.status)
-      if (checked.status.error) {
-        setFailure(checked.status.error.message + (checked.status.error.hint ? "。" + checked.status.error.hint : ""))
-      }
-      else setProbe(summary.note ? summary.label + "；" + summary.note : summary.label)
+      await verify()
     }
     catch (error) {
       setFailure(describeFailure(error))
@@ -157,16 +168,16 @@ export function SourceDialog(props: {
 
         <DialogFooter className="flex-wrap sm:justify-between">
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" disabled={Boolean(busy)} onClick={() => void save({ token }, false)}>
+            <Button variant="outline" disabled={Boolean(busy)} onClick={() => void run("save", { token }, false)}>
               {busy === "save" ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
               保存
             </Button>
-            <Button disabled={Boolean(busy)} onClick={() => void save({ token }, true)}>
+            <Button disabled={Boolean(busy)} onClick={() => void run("check", { token }, true)}>
               {busy === "check" ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
               保存并检查
             </Button>
             {current.hasToken && (
-              <Button variant="ghost" disabled={Boolean(busy)} onClick={() => void save({ clearToken: true }, false)}>
+              <Button variant="ghost" disabled={Boolean(busy)} onClick={() => void run("save", { clearToken: true }, false)}>
                 清除 token
               </Button>
             )}
