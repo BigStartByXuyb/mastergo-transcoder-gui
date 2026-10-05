@@ -297,6 +297,7 @@ async function main() {
   assert.deepStrictEqual(claudeRow.versions, []);
   assert.strictEqual(claudeRow.active, "");
   assert.strictEqual(typeof claudeRow.system.ok, "boolean");
+  assert.strictEqual(claudeRow.downloadUrl, "", "claude 不代下载：没有安装包地址这一项，但字段要在（三行形状一致）");
   assert.match(claudeRow.note, /不代下载/);
 
   // 允许用系统那份之后：系统上的 pwsh 被认下来，但仍提示「下载后改用客户端自带的那份」。

@@ -108,6 +108,14 @@ function caseRuntimeMirror() {
   assert.strictEqual(saved.mirror, "http://10.0.0.9/runtime", "末尾斜杠由这一处统一去掉");
   assert.strictEqual(saved.allowSystem, true);
 
+  // 两个入口各写各的：只动其中一项时，另一项必须留着（界面上是开关 + 输入框，谁后写都不该清空对方）。
+  const onlyMirror = settings.write({ runtime: { mirror: "http://10.0.0.9/other" } }).runtime;
+  assert.strictEqual(onlyMirror.mirror, "http://10.0.0.9/other");
+  assert.strictEqual(onlyMirror.allowSystem, true, "只改镜像，不该把开关关掉");
+  const onlySwitch = settings.write({ runtime: { allowSystem: false } }).runtime;
+  assert.strictEqual(onlySwitch.allowSystem, false);
+  assert.strictEqual(onlySwitch.mirror, "http://10.0.0.9/other", "只动开关，不该把镜像清空");
+
   // 共享盘那种写法客户端取不了（fetch 只认 http/https）：当没填，回落官方地址。
   const bad = settings.write({ runtime: { allowSystem: false, mirror: "\\\\server\\share\\runtime" } }).runtime;
   assert.strictEqual(bad.mirror, "", "非法基址一律当没填");

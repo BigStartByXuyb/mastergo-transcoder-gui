@@ -137,6 +137,7 @@ export function RuntimePanel() {
         <RuntimeRow
           key={tool.id}
           tool={tool}
+          mirror={status ? status.mirror : ""}
           id={downloadableId(status, tool)}
           working={working === tool.id}
           onDownload={download}
@@ -256,11 +257,14 @@ function RuntimeSystemSwitch() {
 /* 一行：名字、钉死的那一版、现在用的是哪份、有问题才给按钮。 */
 function RuntimeRow({
   tool,
+  mirror,
   id,
   working,
   onDownload
 }: {
   tool: RuntimeTool
+  /** 配了镜像基址时把「真会去取的地址」摆出来：配错了一眼能看出来。 */
+  mirror: string
   id: RuntimeId | ""
   working: boolean
   onDownload: (tool: RuntimeId) => void
@@ -284,6 +288,11 @@ function RuntimeRow({
       {tool.versions.length > 1 && (
         <p className="text-muted-foreground text-xs">
           本机装过：{tool.versions.map((version) => (version === tool.active ? version + "（当前）" : version)).join("、")}
+        </p>
+      )}
+      {mirror && tool.downloadUrl && (
+        <p className="text-muted-foreground text-xs">
+          安装包：<IdentifierText text={tool.downloadUrl} />
         </p>
       )}
       <IdentifierText className="text-muted-foreground text-xs" text={tool.path} />
