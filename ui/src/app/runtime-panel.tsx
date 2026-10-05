@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Download, Loader2, Terminal } from "lucide-react"
 import { toast } from "sonner"
 
@@ -43,28 +43,29 @@ export function RuntimePanel() {
 
   const transferring = status ? isRuntimeWorking(status.task) : false
 
-  /* 拉一次状态：轮询用它，改完设置要立刻刷新也用它（不然要等下一轮，同页两处会短暂对不上）。 */
+  /*
+   * 拉一次状态：轮询用它，改完设置要立刻刷新也用它（不然要等下一轮，同页两处会短暂对不上）。
+   * 卸载之后不再回写状态 —— 与 lib/use-health.ts 同一约定；抽成 refresh 之后守卫改用引用带着走。
+   */
+  const alive = useRef(true)
+  useEffect(() => () => { alive.current = false }, [])
+
   const refresh = useCallback(async () => {
     try {
       const payload = await api.runtimeStatus()
+      if (!alive.current) return
       setStatus(payload.status)
       setProbe("")
     } catch (error) {
+      if (!alive.current) return
       setProbe(describeFailure(error))
     }
   }, [])
 
   useEffect(() => {
-    let stopped = false
-
     void refresh()
-    const timer = window.setInterval(() => {
-      if (!stopped) void refresh()
-    }, transferring ? WORKING_POLL_MS : IDLE_POLL_MS)
-    return () => {
-      stopped = true
-      window.clearInterval(timer)
-    }
+    const timer = window.setInterval(() => void refresh(), transferring ? WORKING_POLL_MS : IDLE_POLL_MS)
+    return () => window.clearInterval(timer)
   }, [refresh, transferring])
 
   async function download(tool: RuntimeId) {
