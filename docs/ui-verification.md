@@ -64,6 +64,13 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | [REVIEW-003] 开关只真拦住了 pwsh：Node 还能悄悄用系统那份（`childEnv` 保留系统 PATH、`start.cmd` 无条件回落、界面文案承诺过头） | 真问题 | 三处对齐：`requireNodeExe()` 与 pwsh 同口径（缺了给同一句「去哪儿补」），流水线开跑前先过这道（`lib/run.js`），`start.cmd` 回落时把「用的是系统上的 node、版本不受我们控制」打出来 |
 | [REVIEW-004] `toolStatus` 里「这一份算不算好」的判据写了两遍 | 真问题 | 算一次，对象与说明共用 |
 
+第二轮复核（这一版：1 阻断 + 1 复核），两条都补了 —— 这两条都是「上一轮改动自己引入的」：
+
+| 项 | 判断 | 处置 |
+| --- | --- | --- |
+| [BLOCK-001] 允许用系统那份时 `resolvePwshExe` 返回的是裸命令名 `"pwsh"`，新加的 `childEnv` 分支对它求 `path.dirname` 得到 `"."` → 子进程 PATH 里被塞进当前目录（工程目录里的同名 exe 会被当成运行时跑起来） | 真问题（严重回归） | 显式分支只在值是绝对路径时取目录；裸命令名不往 PATH 加任何东西（与改动前一致）。用例补一条：`childEnv(null, home, { node: "node", pwsh: "pwsh" })` 后 PATH 一个字节不改 |
+| [REVIEW-002] 运行时解析分处两段：`start()` 只用来触发抛错、返回值丢掉，`startRun()` 又现解析一次 —— 「校验过的」和「实际用的」不保证是同一份，且第二段抛错是没人接的 rejection | 真问题 | 在 `start()` 里解析一次（`plugin.node \|\| requireNodeExe()`），随 job 传给 `startRun`；`startRun` 不再解析、也不再抛 |
+
 ## 2026-10-05 「插件」并进「更新」，分两段切换（v0.6.34）
 
 ### 改了什么
