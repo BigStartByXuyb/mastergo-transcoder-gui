@@ -638,7 +638,7 @@ export type UpdateStatus = {
    * 现在从哪儿取清单：类型、基址、拼出来的清单地址（界面照实显示，不让用户自己拼），
    * 以及后端认哪几种源类型 —— 下拉照 kinds 渲染，不在前端另抄一份校验名单。
    */
-  source: { kind: "github" | "gitlab" | "static"; base: string; manifestUrl: string; kinds: string[] }
+  source: { kind: string; base: string; manifestUrl: string; kinds: string[] }
   /** 私有源存没存 token（值本身不出后端）。 */
   hasToken: boolean
 }

@@ -65,6 +65,13 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - **静态源回不了历史版本**：`lib/source.js` 按 `<base>/v<版本>/manifest.json` 取某一版，而 `scripts/publish.js` 只在根写一份 `manifest.json` —— 从静态源点历史版本的「下载」会 404。现在发布产物同时写根清单（最新）与 `v<版本>/manifest.json`（那一版自己），实跑 `node scripts/publish.js` 确认两层都在（63 个文件 / 63 份内容）。
 - `lib/source.js` 里「GitLab 包名两侧共用」的说法与实际不符（发布侧还没做 GitLab 上传）：注释改成现状；私有 GitHub 取 release 资产那一条按 fetch 规范的换域丢 Authorization 说明清楚，仍标注首次真机实测。
 
+第二轮审计（复核收口那一版的 CI）：PASS / 阻断 0 / 复核 2，也都改了：
+
+| 复核项 | 判断 | 处置 |
+| --- | --- | --- |
+| [REVIEW-001] `UpdateStatus.source.kind` 还是 `"github" \| "gitlab" \| "static"` 联合类型 —— 等于名单在前端又存了一份类型级副本，后端加一种源时类型层先分叉 | 真问题（与「名单只留后端一份」相抵） | `kind` 放宽成 `string`；显示名仍是 `KIND_LABELS` 缺了就用原值兜底，可用类型只有 `kinds` 一处 |
+| [REVIEW-002] token 解密失败也写进缓存，一次瞬时失败会让整段会话静默不带凭据 | 真问题（失败被锁死） | 只缓存解成功的值；失败这一次当没有凭据，下一次重新解 |
+
 ## 2026-10-01 环境变量一键生效（v0.6.30）
 
 ### 改了什么
