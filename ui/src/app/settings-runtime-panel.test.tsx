@@ -28,6 +28,7 @@ function runtime(): RuntimeStatus {
         active: "24.21.0",
         system: { ok: false, version: "", path: "" },
         downloadUrl: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
+        officialUrl: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
         version: "24.21.0",
         ready: true,
         switchable: false,
@@ -44,6 +45,7 @@ function runtime(): RuntimeStatus {
         active: "7.6.6",
         system: { ok: false, version: "", path: "" },
         downloadUrl: "https://github.com/PowerShell/PowerShell/releases/download/v7.6.6/PowerShell-7.6.6-win-x64.zip",
+        officialUrl: "https://github.com/PowerShell/PowerShell/releases/download/v7.6.6/PowerShell-7.6.6-win-x64.zip",
         version: "7.6.6",
         ready: true,
         switchable: false,
@@ -60,6 +62,7 @@ function runtime(): RuntimeStatus {
         active: "",
         system: { ok: true, version: "2.1.278", path: drive("C", "Users", "me", ".local", "bin", "claude.exe") },
         downloadUrl: "",
+        officialUrl: "",
         version: "2.1.278",
         ready: true,
         switchable: false,
@@ -98,6 +101,16 @@ function stub() {
         }
         return okResponse({ ok: true, settings: { runtime: { allowSystem: false, mirror: savedMirror } } })
       }
+      if (url.includes("/api/runtime/probe")) {
+        return okResponse({
+          ok: true,
+          base: "http://10.0.0.9/runtime",
+          results: [
+            { id: "node", label: "Node.js", fileName: "node-v24.21.0-win-x64.zip", url: "http://10.0.0.9/runtime/node-v24.21.0-win-x64.zip", ok: true, status: 200, note: "" },
+            { id: "pwsh", label: "PowerShell 7", fileName: "PowerShell-7.6.6-win-x64.zip", url: "http://10.0.0.9/runtime/PowerShell-7.6.6-win-x64.zip", ok: false, status: 404, note: "HTTP 404" }
+          ]
+        })
+      }
       return okResponse({ ok: true })
     })
   )
@@ -124,12 +137,17 @@ describe("SettingsRuntimePanel", () => {
     expect(screen.getByText("自带 2 份 / 用系统的 0 份")).toBeTruthy()
     await waitFor(() => expect(screen.getByRole("switch", { name: /允许用系统上的 Node/ })).toBeTruthy())
     // 安装包来源：默认留空（走官方地址），旁白写清内网怎么配。
-    expect(screen.getByLabelText("安装包来源")).toBeTruthy()
+    expect(screen.getByLabelText(/安装包来源/)).toBeTruthy()
     expect((screen.getByPlaceholderText("留空＝官方地址") as HTMLInputElement).value).toBe("")
 
     // 填镜像保存：输入框立刻换成存下来的值，每行那个地址也立刻跟着换（不等下一轮轮询）。
     fireEvent.change(screen.getByPlaceholderText("留空＝官方地址"), { target: { value: "http://10.0.0.9/runtime" } })
     fireEvent.click(screen.getByRole("button", { name: "保存" }))
     await waitFor(() => expect(screen.getByText(/10\.0\.0\.9\/runtime\/node-v24\.21\.0-win-x64\.zip/)).toBeTruthy())
+
+    // 「检查这个地址」：哪个文件在、哪个不在，当场说清楚（不用先存再等下载失败）。
+    fireEvent.click(screen.getByRole("button", { name: "检查这个地址" }))
+    await waitFor(() => expect(screen.getByText(/Node\.js：找到了/)).toBeTruthy())
+    expect(screen.getByText(/PowerShell 7：没找到（HTTP 404）/)).toBeTruthy()
   })
 })

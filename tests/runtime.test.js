@@ -182,6 +182,41 @@ async function main() {
   assert.strictEqual(await waitSettled(mirrorRt), "done");
   assert.deepStrictEqual(seenUrls, [{ url: "http://10.0.0.9/runtime/" + specOf().fileName, headers: { authorization: "Bearer t0ken" } }]);
 
+  /*
+   * ---- 看一眼安装包来源：哪些文件在、哪些不在，直接说清楚 ----
+   * 设置里那个框是给内网填的，别让人「保存 → 点下载 → 等失败」才知道填错了。
+   */
+  const probeRt = createRuntime({
+    home: makeHome(),
+    tools: { node: specOf(), pwsh: specOf({ label: "PowerShell 7", exe: "pwsh.exe", fileName: "pwsh-1.2.3.zip" }) },
+    spawnSyncImpl: notFound,
+    fetchImpl: async function (url) {
+      return String(url).indexOf(specOf().fileName) >= 0
+        ? { ok: true, status: 200 }
+        : { ok: false, status: 404 };
+    },
+    env: {}
+  });
+  const probed = await probeRt.probeSource("http://10.0.0.9/runtime");
+  assert.deepStrictEqual(
+    probed.map(function (item) { return [item.id, item.ok, item.status, item.fileName]; }),
+    [["node", true, 200, specOf().fileName], ["pwsh", false, 404, "pwsh-1.2.3.zip"]],
+    "哪个在、哪个不在（HTTP 几）都要报出来"
+  );
+  assert.match(probed[1].note, /404/);
+
+  // 取不到（连不上、DNS 不对）也要给一句人话，不是空着。
+  const brokenRt = createRuntime({
+    home: makeHome(),
+    tools: { node: specOf() },
+    spawnSyncImpl: notFound,
+    fetchImpl: async function () { throw new Error("ECONNREFUSED"); },
+    env: {}
+  });
+  const broken = await brokenRt.probeSource("http://10.0.0.9/runtime");
+  assert.strictEqual(broken[0].ok, false);
+  assert.match(broken[0].note, /ECONNREFUSED/);
+
   // ---- 目录：版本目录 + 指针 + current 链接；一份都没装时解析不猜 ----
   const home = makeHome();
   assert.strictEqual(runtimeRoot(home), path.join(home, "runtime"));

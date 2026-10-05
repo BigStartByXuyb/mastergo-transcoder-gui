@@ -33,6 +33,7 @@ function tool(overrides: Partial<RuntimeTool> & Pick<RuntimeTool, "id" | "label"
     active: "24.21.0",
     system: { ok: false, version: "", path: "" },
     downloadUrl: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
+    officialUrl: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
     version: "24.21.0",
     ready: true,
     switchable: false,

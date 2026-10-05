@@ -11,7 +11,7 @@ import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
 import { Progress } from "@/components/ui/progress"
 import { Switch } from "@/components/ui/switch"
-import { api, type RuntimeId, type RuntimeStatus, type RuntimeTool } from "@/lib/api"
+import { api, type RuntimeId, type RuntimeProbeResult, type RuntimeStatus, type RuntimeTool } from "@/lib/api"
 import { finishDownload } from "@/app/download-actions"
 import { startDownload } from "@/lib/download-run"
 import {
@@ -150,25 +150,39 @@ export function RuntimePanel() {
         />
       ))}
 
-      <RuntimeSourceRow mirror={status ? status.mirror : ""} onSaved={refresh} />
+      <RuntimeSourceRow
+        mirror={status ? status.mirror : ""}
+        onSaved={refresh}
+        /* 官方地址是钉死表里那个，不随镜像变 —— 配了镜像也要能看见「默认是哪儿」。 */
+        official={tools.filter((tool) => tool.officialUrl).map((tool) => ({ label: tool.label, url: tool.officialUrl }))}
+      />
       <RuntimeSystemSwitch />
     </div>
   )
 }
 
 /*
- * 安装包来源：默认官方地址；内网取不到时把两个 zip 放到一个能 HTTP 访问的目录里，这里填那个基址。
- * 换源不改版本、不改哈希 —— 取回来的包仍要按钉死的 sha256 校验，填错了只会「下载失败」。
+ * 安装包来源：普通客户不用管（留空＝官方地址）。
+ * 它存在的唯一理由是「客户的机器上不了外网」：那两份运行时下不下来、流水线就跑不了；
+ * 这时把官方那两个 zip 原样拷到内网一个能 HTTP 访问的目录，把目录地址填在这里。
+ * 换源不改版本、不改哈希：取回来的包仍按钉死的 sha256 校验，填错了只会下载失败。
  */
-function RuntimeSourceRow({ mirror, onSaved }: { mirror: string; onSaved: () => Promise<void> }) {
+function RuntimeSourceRow(props: {
+  mirror: string
+  onSaved: () => Promise<void>
+  /** 官方地址：没配镜像时客户端就是去这儿取，摆出来让人知道不填也有路。 */
+  official: { label: string; url: string }[]
+}) {
   const { settings, failure, save } = useSettings()
-  const [value, setValue] = useState(mirror)
+  const [value, setValue] = useState(props.mirror)
   const [writing, setWriting] = useState(false)
+  const [checking, setChecking] = useState(false)
+  const [probed, setProbed] = useState<RuntimeProbeResult[]>([])
   const [saveFailure, setSaveFailure] = useState("")
 
   useEffect(() => {
-    setValue(mirror)
-  }, [mirror])
+    setValue(props.mirror)
+  }, [props.mirror])
 
   async function persist() {
     setWriting(true)
@@ -177,7 +191,7 @@ function RuntimeSourceRow({ mirror, onSaved }: { mirror: string; onSaved: () => 
       const next = await save({ runtime: { mirror: value } })
       setValue(next.runtime.mirror)
       // 每行那个「安装包：<地址>」来自运行时状态：存完立刻刷一次，别等下一轮轮询。
-      await onSaved()
+      await props.onSaved()
       toast.success(value.trim() ? "安装包改从镜像地址取" : "安装包改回官方地址")
     }
     catch (error) {
@@ -188,9 +202,26 @@ function RuntimeSourceRow({ mirror, onSaved }: { mirror: string; onSaved: () => 
     }
   }
 
+  /* 真去那个地址敲一下：比「先存再等到下载失败」直接得多。 */
+  async function check() {
+    setChecking(true)
+    setSaveFailure("")
+    setProbed([])
+    try {
+      const payload = await api.runtimeProbe(value.trim())
+      setProbed(payload.results)
+    }
+    catch (error) {
+      setSaveFailure(describeFailure(error))
+    }
+    finally {
+      setChecking(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-1 border-t pt-3">
-      <Label htmlFor="runtime-mirror" className="text-sm">安装包来源</Label>
+      <Label htmlFor="runtime-mirror" className="text-sm">安装包来源（内网机器才需要填）</Label>
       <div className="flex flex-wrap items-center gap-2">
         <Input
           id="runtime-mirror"
@@ -203,12 +234,40 @@ function RuntimeSourceRow({ mirror, onSaved }: { mirror: string; onSaved: () => 
           {writing ? <Loader2 className="size-4 animate-spin" /> : null}
           保存
         </Button>
+        <Button size="sm" variant="ghost" disabled={checking} onClick={() => void check()}>
+          {checking ? <Loader2 className="size-4 animate-spin" /> : null}
+          检查这个地址
+        </Button>
       </div>
+
+      {props.official.length > 0 && (
+        <div className="text-muted-foreground flex flex-col gap-0.5 text-xs">
+          <span>不填时客户端去这两个官方地址取（这两个文件就是上面「下载」按钮要用的安装包）：</span>
+          {props.official.map((item) => (
+            <span key={item.url} className="break-all">
+              {item.label}：<IdentifierText text={item.url} />
+            </span>
+          ))}
+        </div>
+      )}
+
       <p className="text-muted-foreground text-xs">
-        默认从官方地址下载（nodejs.org 与 PowerShell 的 GitHub）。内网取不到时，把这两个 zip 放到一个能
-        HTTP 访问的目录里，这里填那个基址 —— 客户端按「基址 / 文件名」取，并仍按我们钉死的 sha256 校验。
+        客户的机器上不了外网时，把上面那两个 zip <strong>原样</strong>拷到内网一个能 HTTP 访问的目录
+        （内网 nginx / IIS 都行，共享盘路径不行），再把那个目录的地址填在这里：客户端会改从
+        「地址 / 文件名」取。取回来的包仍按我们钉死的 sha256 校验，所以填错只会下载失败，不会装错版本。
         留空即改回官方地址。
       </p>
+
+      {probed.length > 0 && (
+        <div className="flex flex-col gap-0.5 text-xs">
+          {probed.map((item) => (
+            <span key={item.id} className={item.ok ? "text-muted-foreground" : "text-destructive"}>
+              {item.label}：{item.ok ? "找到了" : "没找到（" + (item.note || "取不到") + "）"} —— <IdentifierText text={item.url} />
+            </span>
+          ))}
+        </div>
+      )}
+
       {(failure || saveFailure) && (
         <ClampText className="text-destructive text-xs" lines={2} text={failure || saveFailure} />
       )}

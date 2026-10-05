@@ -737,6 +737,8 @@ export type RuntimeTool = {
   system: { ok: boolean; version: string; path: string }
   /** 现在会从哪儿取这一份安装包（配了镜像就是镜像地址，否则是官方地址）。 */
   downloadUrl: string
+  /** 官方地址（不随镜像变）。 */
+  officialUrl: string
   version: string
   ready: boolean
   /** 恒为 false：这两份在关键路径上，不提供版本切换。 */
@@ -766,6 +768,17 @@ export type RuntimeStatus = {
   busy: string
   error: UpdateFailure | null
   task: RuntimeTask
+}
+
+/** 安装包来源探测的一行：这一份在不在那个地址下。 */
+export type RuntimeProbeResult = {
+  id: RuntimeId
+  label: string
+  fileName: string
+  url: string
+  ok: boolean
+  status: number
+  note: string
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -959,6 +972,9 @@ export const api = {
     post<{ ok: true; started: boolean; tool: string; note: string; status: RuntimeStatus }>("/api/runtime/download", {
       tool
     }),
+  /** 看一眼某个安装包来源（内网镜像基址）下这两个文件在不在；base 留空就用设置里那个。 */
+  runtimeProbe: (base: string) =>
+    post<{ ok: true; base: string; results: RuntimeProbeResult[] }>("/api/runtime/probe", { base }),
   chatList: () => request<{ ok: true; conversations: ChatSummary[] }>("/api/agent/threads"),
   chatGet: (id: string) =>
     request<{ ok: true; conversation: ChatConversation }>("/api/agent/threads/get?id=" + encodeURIComponent(id)),
