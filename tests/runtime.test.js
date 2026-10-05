@@ -217,6 +217,12 @@ async function main() {
   const withPwsh = childEnv({ TAG: "x" }, pathHome);
   const childPath = pathOf(withPwsh).split(path.delimiter);
   assert.strictEqual(childPath[0], pathPwsh, "PATH 里放的是那一版的目录");
+
+  // 调用方已经解析好了就用它的目录（跑流水线时就是这条路：校验过哪一份，子进程就用哪一份）。
+  const explicit = childEnv(null, makeHome(), { node: path.join("C:", "自定义", "node", "node.exe"), pwsh: path.join("C:", "自定义", "pwsh", "pwsh.exe") });
+  const explicitPath = pathOf(explicit).split(path.delimiter);
+  assert.strictEqual(explicitPath[0], path.join("C:", "自定义", "node"), "显式给的那份排最前");
+  assert.strictEqual(explicitPath[1], path.join("C:", "自定义", "pwsh"), "第二份紧随其后");
   assert.ok(childPath.length > 1, "系统 PATH 原样接在自带的两份后面");
   assert.strictEqual(childPath.slice(1).join(path.delimiter), process.env.PATH, "原有的 PATH 一个字节不动");
   assert.strictEqual(withPwsh.TAG, "x", "额外变量照传");

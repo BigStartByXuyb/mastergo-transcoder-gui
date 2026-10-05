@@ -73,9 +73,12 @@ function manager(options = {}) {
   const manager = createRunManager({
     plugin: {
       root: pluginRoot,
-      // 与 pwsh 同一口径：用例显式给一份，运行管理器就不会去解析本机实际装没装。
-      node: options.node || process.execPath,
-      pwsh: options.pwsh || "pwsh",
+      /*
+       * 与 pwsh 同一口径：用例显式给一份，运行管理器就不会去解析本机实际装没装。
+       * 传空串表示「这一份没有」—— 所以判据是「给没给」，不是「真不真」。
+       */
+      node: "node" in options ? options.node : process.execPath,
+      pwsh: "pwsh" in options ? options.pwsh : "pwsh",
       runAll: path.join(pluginRoot, "skills", "mastergo-to-wpf", "scripts", "entry", "run-all.ps1"),
       runAllExists: options.runAllExists !== false
     },
@@ -151,6 +154,33 @@ async function caseValidation() {
   await ok(fx, []);
   await flush();
   assert.ok(job.id);
+
+  /*
+   * 运行时没备齐（没自带、也没允许用系统那份）：开跑前就拒绝，界面直接显示这句话 ——
+   * 丢进 startRun 的 Promise 里抛的话，rejection 没人接，用户什么都看不到。
+   */
+  const savedHome = process.env.MASTERGO_HOME;
+  const emptyHome = fs.mkdtempSync(path.join(os.tmpdir(), "gui-run-noruntime-"));
+  try {
+    process.env.MASTERGO_HOME = emptyHome;
+    const bare = manager({ node: "", pwsh: "" });
+    assert.throws(
+      () => bare.manager.start({ projectRoot: "D:/p", mode: "B" }),
+      (error) => error instanceof UserError && error.code === "NO_NODE" && /运行环境/.test(error.hint),
+      "没有可用的 node 就不开跑"
+    );
+    const noPwsh = manager({ node: process.execPath, pwsh: "" });
+    assert.throws(
+      () => noPwsh.manager.start({ projectRoot: "D:/p", mode: "B" }),
+      (error) => error instanceof UserError && error.code === "NO_PWSH",
+      "node 有、pwsh 没有：照样在开跑前拦下来"
+    );
+  }
+  finally {
+    if (savedHome === undefined) delete process.env.MASTERGO_HOME;
+    else process.env.MASTERGO_HOME = savedHome;
+    fs.rmSync(emptyHome, { recursive: true, force: true });
+  }
 }
 
 async function caseLineProtocol() {
