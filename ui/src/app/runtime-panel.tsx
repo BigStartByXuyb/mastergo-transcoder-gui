@@ -154,7 +154,9 @@ export function RuntimePanel() {
         mirror={status ? status.mirror : ""}
         onSaved={refresh}
         /* 官方地址是钉死表里那个，不随镜像变 —— 配了镜像也要能看见「默认是哪儿」。 */
-        official={tools.filter((tool) => tool.officialUrl).map((tool) => ({ label: tool.label, url: tool.officialUrl }))}
+        official={tools
+          .filter((tool) => tool.officialUrl)
+          .map((tool) => ({ label: tool.label, url: tool.officialUrl, fileName: tool.fileName }))}
       />
       <RuntimeSystemSwitch />
     </div>
@@ -170,11 +172,13 @@ export function RuntimePanel() {
 function RuntimeSourceRow(props: {
   mirror: string
   onSaved: () => Promise<void>
-  /** 官方地址：没配镜像时客户端就是去这儿取，摆出来让人知道不填也有路。 */
-  official: { label: string; url: string }[]
+  /** 官方地址与文件名：没配镜像时客户端就是去这儿取；配镜像时那两个文件要按这个名字放。 */
+  official: { label: string; url: string; fileName: string }[]
 }) {
   const { settings, failure, save } = useSettings()
   const [value, setValue] = useState(props.mirror)
+  // 开关只控制「露不露出这个输入框」；真正生效的是存下来的 mirror（开关打开还没保存时提示一句）。
+  const [revealed, setRevealed] = useState(false)
   const [writing, setWriting] = useState(false)
   const [checking, setChecking] = useState(false)
   const [probed, setProbed] = useState<RuntimeProbeResult[]>([])
@@ -185,6 +189,9 @@ function RuntimeSourceRow(props: {
    */
   const probeSeq = useRef(0)
 
+  const on = Boolean(props.mirror)
+  const showInput = on || revealed
+
   function invalidateProbe() {
     probeSeq.current += 1
     setProbed([])
@@ -193,6 +200,26 @@ function RuntimeSourceRow(props: {
   useEffect(() => {
     setValue(props.mirror)
   }, [props.mirror])
+
+  /* 关掉＝改回官方地址：这一下立刻落盘（不用再点保存）。 */
+  async function turnOff() {
+    setRevealed(false)
+    setWriting(true)
+    setSaveFailure("")
+    invalidateProbe()
+    try {
+      await save({ runtime: { mirror: "" } })
+      setValue("")
+      await props.onSaved()
+      toast.success("安装包改回官方地址")
+    }
+    catch (error) {
+      setSaveFailure(describeFailure(error))
+    }
+    finally {
+      setWriting(false)
+    }
+  }
 
   async function persist() {
     setWriting(true)
@@ -237,31 +264,53 @@ function RuntimeSourceRow(props: {
 
   return (
     <div className="flex flex-col gap-1 border-t pt-3">
-      <Label htmlFor="runtime-mirror" className="text-sm">安装包来源（内网机器才需要填）</Label>
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          id="runtime-mirror"
-          className="font-mono text-xs sm:max-w-md"
-          placeholder="留空＝官方地址"
-          value={value}
-          onChange={(event) => {
-            setValue(event.target.value)
-            invalidateProbe()
+      <label className="flex items-center gap-2 text-sm">
+        <Switch
+          checked={showInput}
+          disabled={!settings || writing}
+          onCheckedChange={(checked) => {
+            if (checked) setRevealed(true)
+            else void turnOff()
           }}
         />
-        <Button size="sm" variant="outline" disabled={writing || !settings} onClick={() => void persist()}>
-          {writing ? <Loader2 className="size-4 animate-spin" /> : null}
-          保存
-        </Button>
-        <Button size="sm" variant="ghost" disabled={checking} onClick={() => void check()}>
-          {checking ? <Loader2 className="size-4 animate-spin" /> : null}
-          检查这个地址
-        </Button>
-      </div>
+        从内网地址取安装包
+        {writing && <Loader2 className="size-4 animate-spin" />}
+      </label>
+      <p className="text-muted-foreground text-xs">
+        这一页里 <strong>Node.js 与 PowerShell 7</strong> 这两份运行时的安装包：
+        {on ? "现在从下面这个内网地址取。" : "关着时从官方地址取（nodejs.org / PowerShell 的 GitHub）。"}
+      </p>
+
+      {showInput && (
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <Label htmlFor="runtime-mirror" className="sr-only">内网安装包目录地址</Label>
+          <Input
+            id="runtime-mirror"
+            className="font-mono text-xs sm:max-w-md"
+            placeholder="例如 http://10.0.0.9/runtime"
+            value={value}
+            onChange={(event) => {
+              setValue(event.target.value)
+              invalidateProbe()
+            }}
+          />
+          <Button size="sm" variant="outline" disabled={writing || !settings} onClick={() => void persist()}>
+            保存
+          </Button>
+          <Button size="sm" variant="ghost" disabled={checking} onClick={() => void check()}>
+            {checking ? <Loader2 className="size-4 animate-spin" /> : null}
+            检查这个地址
+          </Button>
+        </div>
+      )}
+
+      {showInput && !on && (
+        <p className="text-muted-foreground text-xs">填好地址后点「保存」，之后那两行会显示真会去取的地址。</p>
+      )}
 
       {props.official.length > 0 && (
         <div className="text-muted-foreground flex flex-col gap-0.5 text-xs">
-          <span>不填时客户端去这两个官方地址取（这两个文件就是上面「下载」按钮要用的安装包）：</span>
+          <span>不填时客户端去这两个官方地址取（就是上面「下载」按钮要用的那两个安装包）：</span>
           {props.official.map((item) => (
             <span key={item.url} className="break-all">
               {item.label}：<IdentifierText text={item.url} />
@@ -271,11 +320,17 @@ function RuntimeSourceRow(props: {
       )}
 
       <p className="text-muted-foreground text-xs">
-        客户的机器上不了外网时，把上面那两个 zip <strong>原样</strong>拷到内网一个能 HTTP 访问的目录
-        （内网 nginx / IIS 都行，共享盘路径不行），再把那个目录的地址填在这里：客户端会改从
-        「地址 / 文件名」取。取回来的包仍按我们钉死的 sha256 校验，所以填错只会下载失败，不会装错版本。
-        留空即改回官方地址。
+        客户的机器上不了外网时：内网开一个能 HTTP 访问的目录，把上面那两个 zip{" "}
+        <strong>按原名拷进去</strong>，再把那个<strong>目录</strong>的地址填在这里
+        （例如 <span className="font-mono">http://10.0.0.9/runtime</span>；填目录、不用填到 .zip；共享盘路径不行）。
+        客户端就会从「地址 / 文件名」取，并仍按我们钉死的 sha256 校验。留空即改回官方地址。
       </p>
+
+      {props.official.length > 0 && (
+        <p className="text-muted-foreground text-xs">
+          也就是那个目录里要有这两个文件（名字不能改）：{props.official.map((item) => item.fileName).join("、")}
+        </p>
+      )}
 
       {probed.length > 0 && (
         <div className="flex flex-col gap-0.5 text-xs">

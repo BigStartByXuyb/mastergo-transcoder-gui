@@ -29,6 +29,7 @@ function runtime(): RuntimeStatus {
         system: { ok: false, version: "", path: "" },
         downloadUrl: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
         officialUrl: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
+        fileName: "node-v24.21.0-win-x64.zip",
         version: "24.21.0",
         ready: true,
         switchable: false,
@@ -46,6 +47,7 @@ function runtime(): RuntimeStatus {
         system: { ok: false, version: "", path: "" },
         downloadUrl: "https://github.com/PowerShell/PowerShell/releases/download/v7.6.6/PowerShell-7.6.6-win-x64.zip",
         officialUrl: "https://github.com/PowerShell/PowerShell/releases/download/v7.6.6/PowerShell-7.6.6-win-x64.zip",
+        fileName: "PowerShell-7.6.6-win-x64.zip",
         version: "7.6.6",
         ready: true,
         switchable: false,
@@ -63,6 +65,7 @@ function runtime(): RuntimeStatus {
         system: { ok: true, version: "2.1.278", path: drive("C", "Users", "me", ".local", "bin", "claude.exe") },
         downloadUrl: "",
         officialUrl: "",
+        fileName: "",
         version: "2.1.278",
         ready: true,
         switchable: false,
@@ -161,12 +164,18 @@ describe("SettingsRuntimePanel", () => {
     expect(screen.getByText("Claude Code")).toBeTruthy()
     expect(screen.getByText("自带 2 份 / 用系统的 0 份")).toBeTruthy()
     await waitFor(() => expect(screen.getByRole("switch", { name: /允许用系统上的 Node/ })).toBeTruthy())
-    // 安装包来源：默认留空（走官方地址），旁白写清内网怎么配。
-    expect(screen.getByLabelText(/安装包来源/)).toBeTruthy()
-    expect((screen.getByPlaceholderText("留空＝官方地址") as HTMLInputElement).value).toBe("")
+    /*
+     * 安装包来源：默认关着（走官方地址）—— 输入框不露出来，先把「哪两份程序的包」说清楚；
+     * 打开开关才露出地址框。
+     */
+    const sourceSwitch = screen.getByRole("switch", { name: /从内网地址取安装包/ })
+    expect(screen.getByText(/Node\.js 与 PowerShell 7/)).toBeTruthy()
+    expect(screen.queryByPlaceholderText("例如 http://10.0.0.9/runtime")).toBeNull()
+    fireEvent.click(sourceSwitch)
+    const address = screen.getByPlaceholderText("例如 http://10.0.0.9/runtime")
 
     // 填镜像保存：输入框立刻换成存下来的值，每行那个地址也立刻跟着换（不等下一轮轮询）。
-    fireEvent.change(screen.getByPlaceholderText("留空＝官方地址"), { target: { value: "http://10.0.0.9/runtime" } })
+    fireEvent.change(address, { target: { value: "http://10.0.0.9/runtime" } })
     fireEvent.click(screen.getByRole("button", { name: "保存" }))
     await waitFor(() => expect(screen.getByText(/10\.0\.0\.9\/runtime\/node-v24\.21\.0-win-x64\.zip/)).toBeTruthy())
 
@@ -180,15 +189,19 @@ describe("SettingsRuntimePanel", () => {
      */
     probe.holdNextProbe()
     fireEvent.click(screen.getByRole("button", { name: "检查这个地址" }))
-    fireEvent.change(screen.getByPlaceholderText("留空＝官方地址"), { target: { value: "http://10.0.0.9/another" } })
+    fireEvent.change(screen.getByPlaceholderText("例如 http://10.0.0.9/runtime"), { target: { value: "http://10.0.0.9/another" } })
     probe.releaseProbe()
     await waitFor(() => expect(screen.queryByText(/Node\.js：找到了/)).toBeNull())
 
     // 失败也一样：旧地址的报错不该挂到新地址上。
     probe.holdNextProbe()
     fireEvent.click(screen.getByRole("button", { name: "检查这个地址" }))
-    fireEvent.change(screen.getByPlaceholderText("留空＝官方地址"), { target: { value: "http://10.0.0.9/third" } })
+    fireEvent.change(screen.getByPlaceholderText("例如 http://10.0.0.9/runtime"), { target: { value: "http://10.0.0.9/third" } })
     probe.failProbe()
     await waitFor(() => expect(screen.queryByText(/探测炸了/)).toBeNull())
+
+    // 关掉开关＝改回官方地址（这一下立刻落盘，不用再点保存），输入框跟着收起来。
+    fireEvent.click(screen.getByRole("switch", { name: /从内网地址取安装包/ }))
+    await waitFor(() => expect(screen.queryByPlaceholderText("例如 http://10.0.0.9/runtime")).toBeNull())
   })
 })

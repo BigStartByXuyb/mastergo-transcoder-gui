@@ -739,6 +739,8 @@ export type RuntimeTool = {
   downloadUrl: string
   /** 官方地址（不随镜像变）。 */
   officialUrl: string
+  /** 镜像目录里要放的文件名（官方原始文件名，不许改名）。 */
+  fileName: string
   version: string
   ready: boolean
   /** 恒为 false：这两份在关键路径上，不提供版本切换。 */
