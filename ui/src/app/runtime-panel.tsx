@@ -1,16 +1,14 @@
 import { useEffect, useState } from "react"
 import { Download, Loader2, Terminal } from "lucide-react"
+import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
 import { Progress } from "@/components/ui/progress"
 import { Switch } from "@/components/ui/switch"
-import { toast } from "sonner"
-
 import { api, type RuntimeId, type RuntimeStatus, type RuntimeTool } from "@/lib/api"
 import { finishDownload } from "@/app/download-actions"
 import { startDownload } from "@/lib/download-run"
@@ -30,11 +28,14 @@ const IDLE_POLL_MS = 15000
 const WORKING_POLL_MS = 1000
 
 /*
- * 运行时：跑插件的 Node.js 与 PowerShell 7 各钉死一份放进安装根的 runtime\<版本>\，
- * 默认只用我们自带的那一份（客户机上装了什么不该决定我们跑哪一版）。
- * 版本目录并存、指针指向生效那一版；界面不提供切换（跑哪一版由钉死表说了算）；claude 只检测。
+ * 运行时这一段：跑插件的 Node.js 与 PowerShell 7 各钉死一份放进安装根的 runtime\<版本>\，
+ * 默认只用我们自带的那一份（客户机上装了什么不该决定我们跑哪一版）；版本目录并存、
+ * 指针指向生效那一版，界面不提供切换（跑哪一版由钉死表说了算）；claude 只检测。
+ *
+ * 它没有自己的卡片外框：挂在「更新」页那张「运行环境」卡里 —— 客户端版本、插件、引擎、入口、
+ * 这两份运行时，本来就是同一个问题「现在用的是什么」，不该分在两页。
  */
-export function RuntimeCard() {
+export function RuntimePanel() {
   const [status, setStatus] = useState<RuntimeStatus | null>(null)
   const [probe, setProbe] = useState("")
   const [failure, setFailure] = useState("")
@@ -82,73 +83,68 @@ export function RuntimeCard() {
   const taskLine = status ? runtimeTaskLine(status.task, running ? running.label : "") : ""
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>运行时</CardTitle>
-        <CardDescription>转码需要的运行组件，随客户端一起提供，不用另外安装。</CardDescription>
-        <div className="flex flex-wrap items-center gap-2 pt-2">
-          <Badge variant={summary.tone}>
-            <Terminal className="size-3" />
-            {summary.label}
-          </Badge>
-          {summary.note && <span className="text-muted-foreground text-xs">{summary.note}</span>}
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={summary.tone}>
+          <Terminal className="size-3" />
+          {summary.label}
+        </Badge>
+        {summary.note && <span className="text-muted-foreground text-xs">{summary.note}</span>}
+      </div>
+
+      {transferring && status && (
+        <div className="flex flex-col gap-2">
+          <Progress value={runtimeTaskPercent(status.task)} />
+          <p className="text-muted-foreground text-xs">{taskLine}</p>
         </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {transferring && status && (
-          <div className="flex flex-col gap-2">
-            <Progress value={runtimeTaskPercent(status.task)} />
-            <p className="text-muted-foreground text-xs">{taskLine}</p>
-          </div>
-        )}
+      )}
 
-        {busy && (
-          <Alert>
-            <AlertTitle>有任务在跑</AlertTitle>
-            <AlertDescription>{busy}；跑完才能换运行时。</AlertDescription>
-          </Alert>
-        )}
+      {busy && (
+        <Alert>
+          <AlertTitle>有任务在跑</AlertTitle>
+          <AlertDescription>{busy}；跑完才能换运行时。</AlertDescription>
+        </Alert>
+      )}
 
-        {probe && (
-          <Alert variant="destructive">
-            <AlertTitle>读不到运行时状态</AlertTitle>
-            <AlertDescription>
-              <ClampText text={probe} />
-            </AlertDescription>
-          </Alert>
-        )}
+      {probe && (
+        <Alert variant="destructive">
+          <AlertTitle>读不到运行时状态</AlertTitle>
+          <AlertDescription>
+            <ClampText text={probe} />
+          </AlertDescription>
+        </Alert>
+      )}
 
-        {failure && (
-          <Alert variant="destructive">
-            <AlertTitle>出错了</AlertTitle>
-            <AlertDescription>
-              <ClampText text={failure} />
-            </AlertDescription>
-          </Alert>
-        )}
+      {failure && (
+        <Alert variant="destructive">
+          <AlertTitle>出错了</AlertTitle>
+          <AlertDescription>
+            <ClampText text={failure} />
+          </AlertDescription>
+        </Alert>
+      )}
 
-        {status && status.error && (
-          <Alert variant="destructive">
-            <AlertTitle>上一次没装成</AlertTitle>
-            <AlertDescription>
-              <ClampText text={failureText(status.error)} />
-            </AlertDescription>
-          </Alert>
-        )}
+      {status && status.error && (
+        <Alert variant="destructive">
+          <AlertTitle>上一次没装成</AlertTitle>
+          <AlertDescription>
+            <ClampText text={failureText(status.error)} />
+          </AlertDescription>
+        </Alert>
+      )}
 
-        {tools.map((tool) => (
-          <RuntimeRow
-            key={tool.id}
-            tool={tool}
-            id={downloadableId(status, tool)}
-            working={working === tool.id}
-            onDownload={download}
-          />
-        ))}
+      {tools.map((tool) => (
+        <RuntimeRow
+          key={tool.id}
+          tool={tool}
+          id={downloadableId(status, tool)}
+          working={working === tool.id}
+          onDownload={download}
+        />
+      ))}
 
-        <RuntimeSystemSwitch />
-      </CardContent>
-    </Card>
+      <RuntimeSystemSwitch />
+    </div>
   )
 }
 

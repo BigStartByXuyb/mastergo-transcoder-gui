@@ -17,8 +17,8 @@ import { TabButton } from "@/app/tab-button"
 const TABS = [
   { key: "ai", label: "AI token", hint: "厂商 · 地址 · 模型 · key", icon: KeyRound },
   { key: "mastergo", label: "MasterGo token", hint: "设计稿取数凭证", icon: FileKey },
-  { key: "agent", label: "AI Agent", hint: "引擎与运行环境", icon: Bot },
-  { key: "update", label: "更新", hint: "客户端 · 插件（流水线）版本与回退", icon: RefreshCw }
+  { key: "agent", label: "AI Agent", hint: "引擎 · 写盘开关", icon: Bot },
+  { key: "update", label: "更新", hint: "运行环境 · 客户端 · 插件（流水线）", icon: RefreshCw }
 ] as const
 
 type TabKey = (typeof TABS)[number]["key"]

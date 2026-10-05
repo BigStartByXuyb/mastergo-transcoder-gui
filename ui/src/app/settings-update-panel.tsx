@@ -1,6 +1,7 @@
 import { IdentifierText } from "@/app/identifier-text"
 import { PluginCard } from "@/app/plugin-card"
 import { PixelLoader } from "@/app/pixel-loader"
+import { RuntimePanel } from "@/app/runtime-panel"
 import { TabButton } from "@/app/tab-button"
 import { UpdateCard } from "@/app/update-card"
 import { Badge } from "@/components/ui/badge"
@@ -8,8 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useHealth } from "@/lib/use-health"
 
 /*
- * 更新这一页：上面是「现在用的是什么」（运行环境），下面分两段 —— 客户端与插件（流水线）。
- * 两段是两条独立的版本线：客户端是界面/看板/对话本身，插件是转码步骤与映射表。
+ * 更新这一页：上面一张「运行环境」（现在用的是什么：客户端版本、插件、引擎、入口、
+ * 以及跑插件的 Node.js 与 PowerShell 7），下面分两段 —— 客户端与插件（流水线）。
+ * 两段是两条独立的版本线：客户端是界面/看板/对话本身，插件是转码步骤与映射表；
+ * 运行环境不是第三条版本线，它是「此刻生效的是哪一份」的汇总与补齐入口。
  */
 
 const PARTS = [
@@ -26,7 +29,7 @@ export function SettingsUpdatePanel(props: { part: string; onPickPart: (part: st
       <Card>
         <CardHeader>
           <CardTitle>运行环境</CardTitle>
-          <CardDescription>当前使用的插件与引擎。</CardDescription>
+          <CardDescription>转码需要的组件与当前生效的那一份。</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {offline && <p className="text-destructive text-sm">连不上本地服务。</p>}
@@ -69,6 +72,10 @@ export function SettingsUpdatePanel(props: { part: string; onPickPart: (part: st
               </div>
             </dl>
           )}
+          {/* Node.js / PowerShell 7 / Claude Code 三行：与上面是同一个问题，放同一张卡里。 */}
+          <div className="border-t pt-4">
+            <RuntimePanel />
+          </div>
         </CardContent>
       </Card>
 
