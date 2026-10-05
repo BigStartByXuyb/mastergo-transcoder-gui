@@ -48,7 +48,11 @@ export function RuntimePanel() {
    * 卸载之后不再回写状态 —— 与 lib/use-health.ts 同一约定；抽成 refresh 之后守卫改用引用带着走。
    */
   const alive = useRef(true)
-  useEffect(() => () => { alive.current = false }, [])
+  useEffect(() => {
+    // StrictMode 下会「挂载 → 卸下 → 再挂载」：这里要重新置回 true，否则 refresh 永远被拦掉。
+    alive.current = true
+    return () => { alive.current = false }
+  }, [])
 
   const refresh = useCallback(async () => {
     try {
