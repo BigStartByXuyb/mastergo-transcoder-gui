@@ -18,6 +18,7 @@ const {
   bundledExe,
   resolveNodeExe,
   resolvePwshExe,
+  requireNodeExe,
   requirePwshExe,
   childEnv,
   TOOLS
@@ -153,6 +154,15 @@ async function main() {
   // ---- 没装自带、也没允许用系统的：解析结果为空，绝不悄悄换成系统那份 ----
   assert.strictEqual(resolveNodeExe(home), "", "默认不用系统那一份");
   assert.strictEqual(resolvePwshExe(home), "", "默认不用系统那一份");
+  assert.throws(
+    function () { requireNodeExe(home); },
+    function (error) {
+      assert.strictEqual(error.code, "NO_NODE");
+      assert.match(error.hint, /运行环境/);
+      return true;
+    },
+    "没有可用的 node：说清去哪儿补，别让插件脚本悄悄用系统上那份"
+  );
   assert.throws(
     function () { requirePwshExe(home); },
     function (error) {

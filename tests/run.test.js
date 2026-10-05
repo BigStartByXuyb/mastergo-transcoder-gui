@@ -73,6 +73,8 @@ function manager(options = {}) {
   const manager = createRunManager({
     plugin: {
       root: pluginRoot,
+      // 与 pwsh 同一口径：用例显式给一份，运行管理器就不会去解析本机实际装没装。
+      node: options.node || process.execPath,
       pwsh: options.pwsh || "pwsh",
       runAll: path.join(pluginRoot, "skills", "mastergo-to-wpf", "scripts", "entry", "run-all.ps1"),
       runAllExists: options.runAllExists !== false
