@@ -190,6 +190,8 @@ function RuntimeSourceRow(props: {
     try {
       const next = await save({ runtime: { mirror: value } })
       setValue(next.runtime.mirror)
+      // 地址换了，上一次的检查结论就作废 —— 别让新旧两句话并排挂着。
+      setProbed([])
       // 每行那个「安装包：<地址>」来自运行时状态：存完立刻刷一次，别等下一轮轮询。
       await props.onSaved()
       toast.success(value.trim() ? "安装包改从镜像地址取" : "安装包改回官方地址")
@@ -228,7 +230,10 @@ function RuntimeSourceRow(props: {
           className="font-mono text-xs sm:max-w-md"
           placeholder="留空＝官方地址"
           value={value}
-          onChange={(event) => setValue(event.target.value)}
+          onChange={(event) => {
+            setValue(event.target.value)
+            setProbed([])
+          }}
         />
         <Button size="sm" variant="outline" disabled={writing || !settings} onClick={() => void persist()}>
           {writing ? <Loader2 className="size-4 animate-spin" /> : null}
