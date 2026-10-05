@@ -53,6 +53,14 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | [REVIEW-001] 新增的切换用例把所有接口都回同一份空壳（`{ok:true,status:{},sources:[]}`），三张卡读字段时会抛错；断言又没等 promise 结算，实际只验到「数据未加载」的骨架 | 真问题（用例是假通过） | 桩改成按路径分派、各回一份符合生产类型的最小载荷（`Health` / `PluginSources` / `PluginEnvView` / `UpdateStatus`），断言前 `await waitFor` 到真数据出现（客户端那一段等 `已是最新 v0.6.34`，插件那一段等 `Codex 插件缓存`） |
 | [REVIEW-002] 设置左栏与更新页段切换各写一份几乎逐字相同的 tab 按钮（配色、hover、选中态），且一处 `tablist` 一处普通按钮 —— 同屏两套写法 | 真问题（同一职责两份实现） | 抽出 `ui/src/app/tab-button.tsx`，两处共用；无障碍语义统一成 `nav + aria-current`（不做 tabpanel 关联），并去掉重复的类名与三元 |
 
+### 发布后
+
+- 界面复验（图 `D:\MasterGoData\Temp\ui-shots\v0634-update-client.png` 与 `…-update-plugin-final.png`）：
+  导航四项、更新页两段、点插件那段切过去正常、`#settings?tab=update&part=plugin` 与老链接 `tab=plugin` 都落在插件那一段。
+- 发版后与客户端核对：`check` 报 `up_to_date`、`changed=0`，缓存清单是 0.6.34，本机这份运行树与发布清单逐文件一致。
+- 一个操作上的观察：`releases/latest/download/manifest.json` 在刚发完的那一分钟里可能还指向上一版
+  （第一次查回的是 0.6.33 的清单），一分多钟后再查就是新版 —— 不是客户端的问题，发完版隔一会儿再验。
+
 ## 2026-10-05 打包可复现，更新只下真正变了的文件（v0.6.33）
 
 ### 改了什么
