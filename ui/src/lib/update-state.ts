@@ -1,4 +1,5 @@
-import type { UpdateFailure, UpdateStatus, UpdateTask } from "@/lib/api"
+import type { UpdateStatus, UpdateTask } from "@/lib/api"
+import { failureText } from "@/lib/describe-failure"
 
 export type UpdateTone = "secondary" | "outline" | "destructive"
 
@@ -96,11 +97,6 @@ export function versionList(status: UpdateStatus): VersionRow[] {
 }
 
 export type UpdateSummary = { label: string; tone: UpdateTone; note: string }
-
-/* 失败原因的一句完整话：原因 + 可操作提示。要说「检查/下载没成功」的地方都从这一处取。 */
-function failureText(failure: UpdateFailure): string {
-  return failure.message + (failure.hint ? "。" + failure.hint : "")
-}
 
 /* 四态翻成用户看得懂的一句话。note 只留给失败原因，不复述状态名，也不解释怎么实现的。 */
 export function describeUpdate(status: UpdateStatus | null): UpdateSummary {

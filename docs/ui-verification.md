@@ -52,6 +52,12 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 
 收口后再点了一遍：弹窗 → 「保存并检查」→ `已是最新 v0.6.32`（无变化，重构没有改行为）。
 
+第三轮审计（PASS / 阻断 0 / 复核 1）：`failureText` 提成私有函数后，`codex-state.ts` 里还有一份同样的
+「原因 + 提示」拼接，且两处分隔符不一样（`。` 与 `：`）—— 号称「一处取」实则两处。处置：把 `failureText`
+移进 `ui/src/lib/describe-failure.ts` 并导出（那一处本来就是「失败说成一句话」的家），
+`describeFailure`、`update-state.ts`、`codex-state.ts` 都读它，分隔符统一成 `：`。
+受影响的两处界面文案与用例跟着改（Codex 卡片「连不上 GitHub：看网络」、更新状态「下载失败：断网了」）。
+
 ## 2026-10-05 发布源可配置（v0.6.31）
 
 ### 改了什么

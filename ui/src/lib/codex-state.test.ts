@@ -92,7 +92,7 @@ describe("远端那一版", () => {
 
   it("检查失败的原因也走这里", () => {
     expect(describeRelease(status({ error: { code: "OFFLINE", message: "连不上 GitHub", hint: "看网络" } }))).toBe(
-      "连不上 GitHub。看网络"
+      "连不上 GitHub：看网络"
     )
   })
 })

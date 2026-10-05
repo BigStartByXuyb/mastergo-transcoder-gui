@@ -1,6 +1,7 @@
 /* Codex 这条版本线的文案与可点性判定：界面只显示结论，规则都在这里。 */
 
 import type { CodexState, CodexStatus, CodexVersion } from "@/lib/api"
+import { failureText } from "@/lib/describe-failure"
 
 export type CodexTone = "secondary" | "outline" | "destructive"
 
@@ -37,7 +38,7 @@ export function describeEngine(status: CodexStatus | null): CodexSummary {
 /* 远端那一版与本地的关系；只在检查过之后才有话说。 */
 export function describeRelease(status: CodexStatus | null): string {
   if (!status) return ""
-  if (status.error) return status.error.message + (status.error.hint ? "。" + status.error.hint : "")
+  if (status.error) return failureText(status.error)
   const release = status.release
   if (!release) return "还没检查过远端版本。"
   if (release.missing.length) {

@@ -69,7 +69,7 @@ describe("describeUpdate", () => {
     )
     expect(failed.tone).toBe("destructive")
     // 失败的说法人话一处出：原因 + 可操作的提示（弹窗与卡片读的是同一句）。
-    expect(failed.note).toBe("下载失败。断网了")
+    expect(failed.note).toBe("下载失败：断网了")
   })
 
   it("没有原因的错误不编一句话出来", () => {

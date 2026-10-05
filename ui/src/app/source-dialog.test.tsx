@@ -118,6 +118,6 @@ describe("SourceDialog", () => {
     render(<SourceDialog status={status()} onClose={() => undefined} onStatus={() => undefined} />)
     fireEvent.click(screen.getByRole("button", { name: "保存并检查" }))
 
-    await waitFor(() => expect(screen.getByText("检查更新失败（HTTP 401）。私有源要填 token")).toBeTruthy())
+    await waitFor(() => expect(screen.getByText("检查更新失败（HTTP 401）：私有源要填 token")).toBeTruthy())
   })
 })
