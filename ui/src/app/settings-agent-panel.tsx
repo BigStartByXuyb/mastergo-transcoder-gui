@@ -13,7 +13,7 @@ import { useSettings } from "@/lib/use-settings"
 
 /*
  * Agent 这一页：写盘开关 + 引擎版本 + 跑插件用的运行环境。
- * 三样都决定 agent 能不能跑起来，所以放一页；插件本身在「插件」那一页，程序自身的更新在「更新」那一页。
+ * 三样都决定 agent 能不能跑起来，所以放一页；插件（流水线）与程序自身的更新都在「更新」那一页的两段里。
  */
 export function SettingsAgentPanel() {
   const { settings, failure, save } = useSettings()

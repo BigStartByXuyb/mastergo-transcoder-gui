@@ -137,7 +137,9 @@ export default function App() {
       {route.page === "settings" && (
         <SettingsPage
           tab={route.params.get("tab") ?? ""}
+          part={route.params.get("part") ?? ""}
           onPickTab={(tab) => go("settings?tab=" + tab)}
+          onPickPart={(part) => go("settings?tab=update&part=" + part)}
         />
       )}
     </AppShell>

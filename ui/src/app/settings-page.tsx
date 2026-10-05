@@ -1,6 +1,5 @@
-import { Bot, FileKey, KeyRound, Puzzle, RefreshCw } from "lucide-react"
+import { Bot, FileKey, KeyRound, RefreshCw } from "lucide-react"
 
-import { PluginCard } from "@/app/plugin-card"
 import { SettingsAgentPanel } from "@/app/settings-agent-panel"
 import { SettingsAiPanel } from "@/app/settings-ai-panel"
 import { SettingsMastergoPanel } from "@/app/settings-mastergo-panel"
@@ -10,22 +9,32 @@ import { cn } from "@/lib/utils"
 /*
  * 设置是一排二级菜单，不是一页堆叠：找 token 的人不该先滚过 Codex 的版本列表。
  * 子页挂在 `#settings?tab=<key>` 上，切页、刷新、从别处链接进来都落在同一页。
+ *
+ * 插件与更新是同一件事的两段（谁在更新、更新谁），合并进「更新」一页：`&part=client|plugin`。
+ * 界面上曾经有个独立的「插件」页，老链接（tab=plugin）落到同一页的插件那一段。
  */
 
 const TABS = [
   { key: "ai", label: "AI token", hint: "厂商 · 地址 · 模型 · key", icon: KeyRound },
   { key: "mastergo", label: "MasterGo token", hint: "设计稿取数凭证", icon: FileKey },
   { key: "agent", label: "AI Agent", hint: "引擎与运行环境", icon: Bot },
-  { key: "plugin", label: "插件", hint: "来源 · 版本 · 换一份", icon: Puzzle },
-  { key: "update", label: "更新", hint: "客户端版本与回退", icon: RefreshCw }
+  { key: "update", label: "更新", hint: "客户端 · 插件（流水线）版本与回退", icon: RefreshCw }
 ] as const
 
 type TabKey = (typeof TABS)[number]["key"]
 
 const TAB_KEYS = TABS.map((tab) => tab.key) as readonly string[]
 
-export function SettingsPage(props: { tab: string; onPickTab: (tab: string) => void }) {
-  const active: TabKey = TAB_KEYS.includes(props.tab) ? (props.tab as TabKey) : "ai"
+export function SettingsPage(props: {
+  tab: string
+  /** 「更新」页里的两段：client / plugin（空串＝客户端那一段）。 */
+  part: string
+  onPickTab: (tab: string) => void
+  onPickPart: (part: string) => void
+}) {
+  const legacyPlugin = props.tab === "plugin"
+  const wanted = legacyPlugin ? "update" : props.tab
+  const active: TabKey = TAB_KEYS.includes(wanted) ? (wanted as TabKey) : "ai"
 
   return (
     /*
@@ -64,9 +73,13 @@ export function SettingsPage(props: { tab: string; onPickTab: (tab: string) => v
         {active === "ai" && <SettingsAiPanel />}
         {active === "mastergo" && <SettingsMastergoPanel />}
         {active === "agent" && <SettingsAgentPanel />}
-        {/* 插件是一件事，不是 Agent 的附件：单独一页，将来这块长大也不挤别人。 */}
-        {active === "plugin" && <PluginCard />}
-        {active === "update" && <SettingsUpdatePanel />}
+        {active === "update" && (
+          <SettingsUpdatePanel
+            /* 客户端 / 插件（流水线）两段：谁在更新、更新谁。 */
+            part={legacyPlugin ? "plugin" : props.part}
+            onPickPart={props.onPickPart}
+          />
+        )}
       </div>
     </div>
   )
