@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest"
 import type { RuntimeStatus, RuntimeTask, RuntimeTool } from "@/lib/api"
 import {
   describeRuntime,
-  describeTool,
   downloadLabel,
   downloadableId,
   isRuntimeWorking,
   runtimeTaskLine,
-  runtimeTaskPercent
+  runtimeTaskPercent,
+  sourceLabel
 } from "@/lib/runtime-state"
 
 /* 造一个 Windows 绝对路径：直接写盘符会被结构检查当成写死的机器路径。 */
@@ -131,15 +131,11 @@ describe("顶上一行", () => {
 })
 
 describe("每一行", () => {
-  it("自带的、系统的、坏了的、没有的各说各的", () => {
-    expect(describeTool(tool({ id: "node", label: "Node.js" }))).toBe("自带 v24.21.0")
-    expect(describeTool(tool({ id: "pwsh", label: "PowerShell 7", installed: false, source: "system", version: "7.6.5" }))).toBe(
-      "系统 v7.6.5"
-    )
-    expect(describeTool(tool({ id: "node", label: "Node.js", version: "0.0.0", ready: false }))).toBe("自带这份起不来")
-    expect(describeTool(tool({ id: "node", label: "Node.js", installed: false, source: "", version: "", ready: false }))).toBe(
-      "没有可用的"
-    )
+  it("来源那一列：自带 / 系统 / 系统检测（claude）/ 没有可用的", () => {
+    expect(sourceLabel(tool({ id: "node", label: "Node.js" }))).toBe("客户端自带")
+    expect(sourceLabel(tool({ id: "pwsh", label: "PowerShell 7", installed: false, source: "system" }))).toBe("系统上那份")
+    expect(sourceLabel(tool({ id: "claude", label: "Claude Code", installed: false, source: "system" }))).toBe("系统检测")
+    expect(sourceLabel(tool({ id: "node", label: "Node.js", installed: false, source: "", ready: false }))).toBe("没有可用的")
   })
 
   it("按钮字面：没装过是下载，坏了是重下", () => {

@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input"
 import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
+import { TabButton } from "@/app/tab-button"
 import { api, type RuntimeId, type RuntimeProbeResult, type RuntimeTool } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { downloadLabel } from "@/lib/runtime-state"
@@ -127,9 +128,9 @@ export function RuntimeSourceDialog(props: {
         </DialogHeader>
 
         {/* 上面两个选项：选哪个，下面就只显示哪个的配置。 */}
-        <div className="flex gap-1 rounded-lg border p-1">
-          <SourceTab selected={choice === "bundled"} label="客户端自带" hint="版本我们钉死（推荐）" onClick={() => pick("bundled")} />
-          <SourceTab selected={choice === "system"} label="系统上那一份" hint="按客户机上那版跑（应急）" onClick={() => pick("system")} />
+  <div className="flex gap-1 rounded-lg border p-1">
+          <TabButton selected={choice === "bundled"} label="客户端自带" hint="版本我们钉死（推荐）" className="flex-1" onClick={() => pick("bundled")} />
+          <TabButton selected={choice === "system"} label="系统上那一份" hint="按客户机上那版跑（应急）" className="flex-1" onClick={() => pick("system")} />
         </div>
 
         <div className="flex flex-col gap-3 rounded-lg border p-3">
@@ -231,23 +232,5 @@ export function RuntimeSourceDialog(props: {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
-}
-
-/* 两个选项的按钮：与设置左栏、更新页那两段用的是同一套视觉。 */
-function SourceTab(props: { selected: boolean; label: string; hint: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={props.onClick}
-      aria-current={props.selected ? "true" : undefined}
-      className={
-        "flex flex-1 flex-col items-start gap-0.5 rounded-md px-3 py-2 text-left transition-colors "
-        + (props.selected ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/60")
-      }
-    >
-      <span className="text-sm font-medium">{props.label}</span>
-      <span className="text-muted-foreground text-xs">{props.hint}</span>
-    </button>
   )
 }
