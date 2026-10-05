@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { SettingsUpdatePanel } from "@/app/settings-update-panel"
-import type { Health, PluginSources, RuntimeStatus, UpdateStatus } from "@/lib/api"
+import type { Health, PluginSources, UpdateStatus } from "@/lib/api"
 
 /*
  * 更新页里的两段切换：客户端与插件（流水线）。
@@ -83,62 +83,6 @@ function status(): UpdateStatus {
   }
 }
 
-function runtime(): RuntimeStatus {
-  return {
-    root: drive("D", "app", "runtime"),
-    tools: [
-      {
-        id: "node",
-        label: "Node.js",
-        pinned: "24.21.0",
-        path: drive("D", "app", "runtime", "node", "24.21.0", "node.exe"),
-        installed: true,
-        source: "bundled",
-        versions: ["24.21.0"],
-        active: "24.21.0",
-        system: { ok: false, version: "", path: "" },
-        version: "24.21.0",
-        ready: true,
-        switchable: false,
-        note: ""
-      },
-      {
-        id: "pwsh",
-        label: "PowerShell 7",
-        pinned: "7.6.6",
-        path: drive("D", "app", "runtime", "pwsh", "7.6.6", "pwsh.exe"),
-        installed: true,
-        source: "bundled",
-        versions: ["7.6.6"],
-        active: "7.6.6",
-        system: { ok: false, version: "", path: "" },
-        version: "7.6.6",
-        ready: true,
-        switchable: false,
-        note: ""
-      },
-      {
-        id: "claude",
-        label: "Claude Code",
-        pinned: "",
-        path: drive("C", "Users", "me", ".local", "bin", "claude.exe"),
-        installed: false,
-        source: "system",
-        versions: [],
-        active: "",
-        system: { ok: true, version: "2.1.278", path: drive("C", "Users", "me", ".local", "bin", "claude.exe") },
-        version: "2.1.278",
-        ready: true,
-        switchable: false,
-        note: "检测到就用；不代下载。"
-      }
-    ],
-    busy: "",
-    error: null,
-    task: { phase: "idle", tool: "", received: 0, size: 0, error: null, version: "", startedAt: "" }
-  }
-}
-
 function ok(body: unknown) {
   return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))
 }
@@ -157,7 +101,6 @@ function stub() {
           envScopes: { name: "MASTERGO_GUI_TEST_ENV", process: "", user: "", machine: "", written: false, unsupported: false, failure: "" }
         })
       }
-      if (url.includes("/api/runtime/status")) return ok({ ok: true, status: runtime() })
       if (url.includes("/api/update/status")) return ok({ ok: true, status: status() })
       return ok({ ok: true })
     })
@@ -176,11 +119,6 @@ describe("SettingsUpdatePanel", () => {
     const { unmount } = render(<SettingsUpdatePanel part="" onPickPart={onPickPart} />)
 
     expect(screen.getByRole("button", { name: /客户端/ }).getAttribute("aria-current")).toBe("true")
-    // 运行环境这一张卡里就有两份运行时与那个开关：它们是同一个问题「现在用的是什么」。
-    await waitFor(() => expect(screen.getByText("PowerShell 7")).toBeTruthy())
-    expect(screen.getByText("Node.js")).toBeTruthy()
-    expect(screen.getByText("Claude Code")).toBeTruthy()
-    expect(screen.getByRole("switch", { name: /允许用系统上的 Node/ })).toBeTruthy()
     // 等客户端那一段真的读回数据：这句话来自版本状态，不是骨架上的固定文案。
     await waitFor(() => expect(screen.getByText("已是最新 v0.6.34")).toBeTruthy())
 

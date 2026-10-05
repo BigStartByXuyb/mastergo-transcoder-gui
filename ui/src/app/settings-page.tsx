@@ -1,8 +1,9 @@
-import { Bot, FileKey, KeyRound, RefreshCw } from "lucide-react"
+import { Bot, FileKey, KeyRound, RefreshCw, Terminal } from "lucide-react"
 
 import { SettingsAgentPanel } from "@/app/settings-agent-panel"
 import { SettingsAiPanel } from "@/app/settings-ai-panel"
 import { SettingsMastergoPanel } from "@/app/settings-mastergo-panel"
+import { SettingsRuntimePanel } from "@/app/settings-runtime-panel"
 import { SettingsUpdatePanel } from "@/app/settings-update-panel"
 import { TabButton } from "@/app/tab-button"
 
@@ -18,7 +19,8 @@ const TABS = [
   { key: "ai", label: "AI token", hint: "厂商 · 地址 · 模型 · key", icon: KeyRound },
   { key: "mastergo", label: "MasterGo token", hint: "设计稿取数凭证", icon: FileKey },
   { key: "agent", label: "AI Agent", hint: "引擎 · 写盘开关", icon: Bot },
-  { key: "update", label: "更新", hint: "运行环境 · 客户端 · 插件（流水线）", icon: RefreshCw }
+  { key: "runtime", label: "运行环境", hint: "组件 · 版本 · 补齐", icon: Terminal },
+  { key: "update", label: "更新", hint: "客户端 · 插件（流水线）", icon: RefreshCw }
 ] as const
 
 type TabKey = (typeof TABS)[number]["key"]
@@ -62,6 +64,7 @@ export function SettingsPage(props: {
         {active === "ai" && <SettingsAiPanel />}
         {active === "mastergo" && <SettingsMastergoPanel />}
         {active === "agent" && <SettingsAgentPanel />}
+        {active === "runtime" && <SettingsRuntimePanel />}
         {active === "update" && (
           <SettingsUpdatePanel
             /* 客户端 / 插件（流水线）两段：谁在更新、更新谁。 */

@@ -1,18 +1,11 @@
-import { IdentifierText } from "@/app/identifier-text"
 import { PluginCard } from "@/app/plugin-card"
-import { PixelLoader } from "@/app/pixel-loader"
-import { RuntimePanel } from "@/app/runtime-panel"
 import { TabButton } from "@/app/tab-button"
 import { UpdateCard } from "@/app/update-card"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useHealth } from "@/lib/use-health"
 
 /*
- * 更新这一页：上面一张「运行环境」（现在用的是什么：客户端版本、插件、引擎、入口、
- * 以及跑插件的 Node.js 与 PowerShell 7），下面分两段 —— 客户端与插件（流水线）。
+ * 更新这一页：两段 —— 客户端与插件（流水线）。
  * 两段是两条独立的版本线：客户端是界面/看板/对话本身，插件是转码步骤与映射表；
- * 运行环境不是第三条版本线，它是「此刻生效的是哪一份」的汇总与补齐入口。
+ * 「此刻生效的是哪一份」（含两份运行时）在「运行环境」那一页。
  */
 
 const PARTS = [
@@ -21,64 +14,10 @@ const PARTS = [
 ] as const
 
 export function SettingsUpdatePanel(props: { part: string; onPickPart: (part: string) => void }) {
-  const { health, offline } = useHealth(10000)
   const part = props.part === "plugin" ? "plugin" : "client"
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>运行环境</CardTitle>
-          <CardDescription>转码需要的组件与当前生效的那一份。</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {offline && <p className="text-destructive text-sm">连不上本地服务。</p>}
-          {!offline && !health && <PixelLoader text="请稍等，正在读取运行环境" cell={3} className="py-4" />}
-          {health && (
-            <dl className="grid gap-4">
-              <div>
-                <dt className="text-muted-foreground text-xs">客户端版本</dt>
-                <dd className="text-sm">
-                  <Badge variant="secondary">v{health.version}</Badge>
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground text-xs">插件</dt>
-                <dd className="text-sm break-all">
-                  {health.plugin.root}
-                  {health.plugin.version ? "（v" + health.plugin.version + "）" : ""}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground text-xs">控件查询引擎</dt>
-                <dd className="flex flex-wrap items-center gap-2 text-sm">
-                  <Badge variant={health.plugin.engineExists ? "secondary" : "destructive"}>
-                    {health.plugin.engineExists ? "已找到" : "缺失"}
-                  </Badge>
-                  <IdentifierText text={health.plugin.engine} />
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground text-xs">流水线入口</dt>
-                <dd className="text-sm">
-                  <Badge variant={health.plugin.runAllExists ? "secondary" : "destructive"}>
-                    {health.plugin.runAllExists ? "已找到" : "缺失"}
-                  </Badge>
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground text-xs">已登记页面帧</dt>
-                <dd className="text-sm">{health.frames.length}</dd>
-              </div>
-            </dl>
-          )}
-          {/* Node.js / PowerShell 7 / Claude Code 三行：与上面是同一个问题，放同一张卡里。 */}
-          <div className="border-t pt-4">
-            <RuntimePanel />
-          </div>
-        </CardContent>
-      </Card>
-
       <nav aria-label="更新对象" className="flex gap-1 rounded-lg border p-1">
         {PARTS.map((item) => (
           <TabButton
