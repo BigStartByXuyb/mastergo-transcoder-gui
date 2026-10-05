@@ -78,6 +78,10 @@ function runtime(): RuntimeStatus {
 function stub() {
   // 设置是可写的桩：存了镜像之后，运行时状态跟着回新的 —— 这是「保存后立刻刷新」那条路径。
   let savedMirror = ""
+  // 探测默认立刻返回；`holdNextProbe()` 之后下一次改成「挂着不结算」，用来验在途请求被作废那条路。
+  let holdNext = false
+  let pendingResolve: ((response: Response) => void) | null = null
+  let pendingPayload: unknown = null
   vi.stubGlobal(
     "fetch",
     vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
@@ -102,18 +106,34 @@ function stub() {
         return okResponse({ ok: true, settings: { runtime: { allowSystem: false, mirror: savedMirror } } })
       }
       if (url.includes("/api/runtime/probe")) {
-        return okResponse({
+        const payload = {
           ok: true,
           base: "http://10.0.0.9/runtime",
           results: [
             { id: "node", label: "Node.js", fileName: "node-v24.21.0-win-x64.zip", url: "http://10.0.0.9/runtime/node-v24.21.0-win-x64.zip", ok: true, status: 200, note: "" },
             { id: "pwsh", label: "PowerShell 7", fileName: "PowerShell-7.6.6-win-x64.zip", url: "http://10.0.0.9/runtime/PowerShell-7.6.6-win-x64.zip", ok: false, status: 404, note: "HTTP 404" }
           ]
-        })
+        }
+        if (holdNext) {
+          holdNext = false
+          pendingPayload = payload
+          return new Promise<Response>((resolve) => { pendingResolve = resolve })
+        }
+        return okResponse(payload)
       }
       return okResponse({ ok: true })
     })
   )
+  return {
+    holdNextProbe: () => {
+      holdNext = true
+    },
+    releaseProbe: () => {
+      const resolve = pendingResolve
+      pendingResolve = null
+      if (resolve) resolve(new Response(JSON.stringify(pendingPayload), { status: 200 }))
+    }
+  }
 }
 
 afterEach(() => {
@@ -123,7 +143,7 @@ afterEach(() => {
 
 describe("SettingsRuntimePanel", () => {
   it("一张卡里既有现在用什么（客户端/插件/引擎/入口），也有两份运行时与那个开关", async () => {
-    stub()
+    const probe = stub()
     render(<SettingsRuntimePanel />)
 
     // 只读事实来自 /api/health
@@ -149,5 +169,14 @@ describe("SettingsRuntimePanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "检查这个地址" }))
     await waitFor(() => expect(screen.getByText(/Node\.js：找到了/)).toBeTruthy())
     expect(screen.getByText(/PowerShell 7：没找到（HTTP 404）/)).toBeTruthy()
+
+    /*
+     * 在途的那次检查也要作废：点完「检查」还没回来，地址就改了 —— 旧结论不许再贴上来。
+     */
+    probe.holdNextProbe()
+    fireEvent.click(screen.getByRole("button", { name: "检查这个地址" }))
+    fireEvent.change(screen.getByPlaceholderText("留空＝官方地址"), { target: { value: "http://10.0.0.9/another" } })
+    probe.releaseProbe()
+    await waitFor(() => expect(screen.queryByText(/Node\.js：找到了/)).toBeNull())
   })
 })

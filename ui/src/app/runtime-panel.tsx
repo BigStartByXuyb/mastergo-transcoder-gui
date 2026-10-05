@@ -179,6 +179,16 @@ function RuntimeSourceRow(props: {
   const [checking, setChecking] = useState(false)
   const [probed, setProbed] = useState<RuntimeProbeResult[]>([])
   const [saveFailure, setSaveFailure] = useState("")
+  /*
+   * 在途的那次检查也要能作废：地址一改，之前那个请求回来时不能再把旧结论贴上来。
+   * 每次「作废」自增一次；回来时对不上就丢掉。
+   */
+  const probeSeq = useRef(0)
+
+  function invalidateProbe() {
+    probeSeq.current += 1
+    setProbed([])
+  }
 
   useEffect(() => {
     setValue(props.mirror)
@@ -191,7 +201,7 @@ function RuntimeSourceRow(props: {
       const next = await save({ runtime: { mirror: value } })
       setValue(next.runtime.mirror)
       // 地址换了，上一次的检查结论就作废 —— 别让新旧两句话并排挂着。
-      setProbed([])
+      invalidateProbe()
       // 每行那个「安装包：<地址>」来自运行时状态：存完立刻刷一次，别等下一轮轮询。
       await props.onSaved()
       toast.success(value.trim() ? "安装包改从镜像地址取" : "安装包改回官方地址")
@@ -209,8 +219,10 @@ function RuntimeSourceRow(props: {
     setChecking(true)
     setSaveFailure("")
     setProbed([])
+    const seq = probeSeq.current
     try {
       const payload = await api.runtimeProbe(value.trim())
+      if (seq !== probeSeq.current) return
       setProbed(payload.results)
     }
     catch (error) {
@@ -232,7 +244,7 @@ function RuntimeSourceRow(props: {
           value={value}
           onChange={(event) => {
             setValue(event.target.value)
-            setProbed([])
+            invalidateProbe()
           }}
         />
         <Button size="sm" variant="outline" disabled={writing || !settings} onClick={() => void persist()}>
