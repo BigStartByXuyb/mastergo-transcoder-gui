@@ -24,6 +24,7 @@ function makeTree() {
   };
   write("index.js", "index");
   write("lib/helper.js", "helper");
+  write("lib/internal/secret.js", "内部实现，不该进包");
   write("src/index.ts", "源文件，不该进包");
   write(DEEP + "/deep.js", "deep");
   return root;
@@ -31,12 +32,14 @@ function makeTree() {
 
 function main() {
   const root = makeTree();
-  const options = { prefix: "openai", exclude: ["src"] };
+  // 排除项按「相对 root 的路径」比：顶层 src 与嵌套的 lib/internal 都要整棵排掉。
+  const options = { prefix: "openai", exclude: ["src", "lib/internal"] };
   const first = packDir(root, options);
   const second = packDir(root, options);
 
   assert.ok(first.equals(second), "同样的内容两次打包必须一模一样");
   assert.deepStrictEqual(Array.from(first.subarray(4, 8)), [0, 0, 0, 0], "gzip 头里不写打包时间");
+  assert.strictEqual(first[9], 3, "gzip 头的 OS 字节写死成 Unix：不然 Windows 与 Linux 打出来不一样");
 
   const out = fs.mkdtempSync(path.join(os.tmpdir(), "gui-tar-out-"));
   const archive = path.join(out, "openai.tgz");
@@ -49,6 +52,7 @@ function main() {
   assert.strictEqual(read("lib/helper.js"), "helper");
   assert.strictEqual(read(DEEP + "/deep.js"), "deep", "长路径要原样落回来");
   assert.strictEqual(fs.existsSync(path.join(out, "openai", "src")), false, "src 被排除");
+  assert.strictEqual(fs.existsSync(path.join(out, "openai", "lib", "internal")), false, "嵌套路径被排除");
 
   for (const dir of [root, out]) fs.rmSync(dir, { recursive: true, force: true });
   console.log("tar.test.js 全部通过");

@@ -38,10 +38,17 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 
 | 操作 | 观察到 | 结论 |
 | --- | --- | --- |
-| 本机连打两次 `node scripts/vendor-openai.js` | 两次 `sha256` 都是 `132dcbd1…`（改之前同一份内容每次都不一样） | 通过 |
+| 本机连打两次 `node scripts/vendor-openai.js` | 两次 `sha256` 都是 `e87be076…`（改之前同一份内容每次都不一样） | 通过 |
 | `node tests/tar.test.js` | 通过：两次打包字节一致、gzip 头时间戳为 0、系统 tar 解得开、长路径与排除项都对 | 通过 |
 | 全量门禁 | 后端 42 条（新增 `tar.test.js`）、前端 50 文件 305 条、`tsc`、oxlint、结构检查 PASS | 通过 |
-| 发布后比对 | v0.6.33 的清单里 `vendor/openai.tgz` 哈希与本机重打的一致（跨平台：本机 Windows、CI 是 ubuntu） | 通过 |
+| 发布后比对 | v0.6.33 的清单里 `vendor/openai.tgz` 哈希与本机重打的一致（跨平台：本机 Windows、CI 是 ubuntu） | 待发布后填 |
+
+审计复核（PASS / 阻断 0 / 复核 1）指出两处，都改了：
+
+| 复核项 | 判断 | 处置 |
+| --- | --- | --- |
+| [REVIEW-001] `exclude` 文档写的是「相对 root 的路径」，实现却只拿每层的文件名比（`rel.indexOf(item + "/")` 那条分支永远为假），嵌套排除会被静默忽略 —— 包内容变了哈希就变 | 真问题 | `collect` 改成一路带着相对路径（`prefix + "/" + name`）去比；用例补一条嵌套排除（`lib/internal`），并保留顶层 `src` |
+| 非阻断观察：gzip 头的 OS 字节是 zlib 编译时的 `OS_CODE`，Windows 与 Linux 不一样，跨平台哈希可能不同 | 真问题（会破坏「跨平台一致」这条结论） | 打包后把第 9 字节写死成 3（Unix），用例断言这一条；跨平台一致性由发布后那张表的比对来证明 |
 
 ## 2026-10-05 更新来源收进「程序更新」卡片（v0.6.32）
 
