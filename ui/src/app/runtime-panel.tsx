@@ -28,12 +28,10 @@ const IDLE_POLL_MS = 15000
 const WORKING_POLL_MS = 1000
 
 /*
- * 运行时这一段：跑插件的 Node.js 与 PowerShell 7 各钉死一份放进安装根的 runtime\<版本>\，
+ * 运行时这一段（挂在「运行环境」页那张卡里，没有自己的卡片外框）：跑插件的 Node.js 与 PowerShell 7
+ * 各钉死一份放进安装根的 runtime\<版本>\，
  * 默认只用我们自带的那一份（客户机上装了什么不该决定我们跑哪一版）；版本目录并存、
  * 指针指向生效那一版，界面不提供切换（跑哪一版由钉死表说了算）；claude 只检测。
- *
- * 它没有自己的卡片外框：挂在「更新」页那张「运行环境」卡里 —— 客户端版本、插件、引擎、入口、
- * 这两份运行时，本来就是同一个问题「现在用的是什么」，不该分在两页。
  */
 export function RuntimePanel() {
   const [status, setStatus] = useState<RuntimeStatus | null>(null)

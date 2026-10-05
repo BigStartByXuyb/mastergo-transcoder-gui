@@ -2,7 +2,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { SettingsUpdatePanel } from "@/app/settings-update-panel"
-import type { Health, PluginSources, UpdateStatus } from "@/lib/api"
+import type { PluginSources, UpdateStatus } from "@/lib/api"
+import { ENGINE, PLUGIN_ROOT, drive, healthFixture, okResponse } from "@/lib/settings-fixtures"
 
 /*
  * 更新页里的两段切换：客户端与插件（流水线）。
@@ -10,31 +11,7 @@ import type { Health, PluginSources, UpdateStatus } from "@/lib/api"
  * 空壳响应会让卡片在读字段时抛错，用例也就只在「数据还没到」的骨架上成立。
  */
 
-/* 夹具路径按段拼：源码里不出现「盘符 + 反斜杠」那种机器专属写法（结构检查会拦）。 */
-function drive(letter: string, ...parts: string[]): string {
-  return [letter + ":", ...parts].join("\\")
-}
-
-const PLUGIN_ROOT = drive("C", "Users", "me", ".codex", "plugins", "cache", "bigstart", "mastergo-wpf-transcoder", "1.0.369")
-const ENGINE = drive("D", "app", "lib", "node-controls.js")
-
-function health(): Health {
-  return {
-    ok: true,
-    version: "0.6.34",
-    supervised: true,
-    plugin: { root: PLUGIN_ROOT, version: "1.0.369", engine: ENGINE, engineExists: true, runAllExists: true, failure: "" },
-    frames: [],
-    update: {
-      state: "up_to_date",
-      current: "0.6.34",
-      ready: "",
-      busy: "",
-      availableVersion: "",
-      stagedFreshRunRequired: null
-    }
-  }
-}
+const health = () => healthFixture("0.6.34")
 
 function sources(): PluginSources {
   return {
@@ -83,26 +60,22 @@ function status(): UpdateStatus {
   }
 }
 
-function ok(body: unknown) {
-  return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))
-}
-
 function stub() {
   vi.stubGlobal(
     "fetch",
     vi.fn((input: RequestInfo | URL) => {
       const url = String(input)
-      if (url.includes("/api/health")) return ok(health())
-      if (url.includes("/api/plugin/sources")) return ok(sources())
+      if (url.includes("/api/health")) return okResponse(health())
+      if (url.includes("/api/plugin/sources")) return okResponse(sources())
       if (url.includes("/api/plugin/env")) {
-        return ok({
+        return okResponse({
           ok: true,
           name: "MASTERGO_GUI_TEST_ENV",
           envScopes: { name: "MASTERGO_GUI_TEST_ENV", process: "", user: "", machine: "", written: false, unsupported: false, failure: "" }
         })
       }
-      if (url.includes("/api/update/status")) return ok({ ok: true, status: status() })
-      return ok({ ok: true })
+      if (url.includes("/api/update/status")) return okResponse({ ok: true, status: status() })
+      return okResponse({ ok: true })
     })
   )
 }
