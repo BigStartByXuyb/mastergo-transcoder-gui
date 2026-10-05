@@ -1,10 +1,10 @@
 import { IdentifierText } from "@/app/identifier-text"
 import { PluginCard } from "@/app/plugin-card"
 import { PixelLoader } from "@/app/pixel-loader"
+import { TabButton } from "@/app/tab-button"
 import { UpdateCard } from "@/app/update-card"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
 import { useHealth } from "@/lib/use-health"
 
 /*
@@ -72,29 +72,18 @@ export function SettingsUpdatePanel(props: { part: string; onPickPart: (part: st
         </CardContent>
       </Card>
 
-      <div role="tablist" aria-label="更新对象" className="flex gap-1 rounded-lg border p-1">
-        {PARTS.map((item) => {
-          const selected = item.key === part
-          return (
-            <button
-              key={item.key}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              onClick={() => props.onPickPart(item.key)}
-              className={cn(
-                "flex flex-1 flex-col items-start gap-0.5 rounded-md px-3 py-2 text-left transition-colors",
-                selected
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground"
-              )}
-            >
-              <span className="text-sm font-medium">{item.label}</span>
-              <span className="text-muted-foreground text-xs">{item.hint}</span>
-            </button>
-          )
-        })}
-      </div>
+      <nav aria-label="更新对象" className="flex gap-1 rounded-lg border p-1">
+        {PARTS.map((item) => (
+          <TabButton
+            key={item.key}
+            selected={item.key === part}
+            label={item.label}
+            hint={item.hint}
+            className="flex-1"
+            onClick={() => props.onPickPart(item.key)}
+          />
+        ))}
+      </nav>
 
       {/* 换段时新的一块淡入并轻轻下落一点：150 毫秒；系统要求减少动效时不做动画。 */}
       <div key={part} className="animate-in fade-in slide-in-from-top-1 duration-150 motion-reduce:animate-none">

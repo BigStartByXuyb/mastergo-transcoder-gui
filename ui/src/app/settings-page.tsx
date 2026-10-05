@@ -4,7 +4,7 @@ import { SettingsAgentPanel } from "@/app/settings-agent-panel"
 import { SettingsAiPanel } from "@/app/settings-ai-panel"
 import { SettingsMastergoPanel } from "@/app/settings-mastergo-panel"
 import { SettingsUpdatePanel } from "@/app/settings-update-panel"
-import { cn } from "@/lib/utils"
+import { TabButton } from "@/app/tab-button"
 
 /*
  * 设置是一排二级菜单，不是一页堆叠：找 token 的人不该先滚过 Codex 的版本列表。
@@ -44,26 +44,15 @@ export function SettingsPage(props: {
     <div className="flex h-full min-h-0 flex-col gap-4 md:flex-row md:gap-6">
       <nav className="flex shrink-0 flex-row gap-1 overflow-x-auto border-b pb-3 md:h-full md:w-56 md:flex-col md:overflow-x-visible md:border-r md:border-b-0 md:pr-3 md:pb-0">
         {TABS.map((tab) => {
-          const Icon = tab.icon
-          const selected = tab.key === active
           return (
-            <button
+            <TabButton
               key={tab.key}
-              type="button"
+              selected={tab.key === active}
+              label={tab.label}
+              hint={tab.hint}
+              icon={tab.icon}
               onClick={() => props.onPickTab(tab.key)}
-              className={cn(
-                "flex flex-col items-start gap-0.5 rounded-md px-3 py-2 text-left transition-colors",
-                selected
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground"
-              )}
-            >
-              <span className="flex items-center gap-2 text-sm font-medium">
-                <Icon className="size-4" />
-                {tab.label}
-              </span>
-              <span className="text-muted-foreground pl-6 text-xs">{tab.hint}</span>
-            </button>
+            />
           )
         })}
       </nav>

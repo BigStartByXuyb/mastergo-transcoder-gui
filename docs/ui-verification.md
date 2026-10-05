@@ -46,6 +46,13 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | 老链接 | `#settings?tab=plugin` 落在同一页的插件那一段（不再是一个独立页） | 通过 |
 | 全量门禁 | 后端 42 条、前端 51 文件 306 条（新增 `settings-update-panel.test.tsx`）、`tsc`、oxlint、结构检查 PASS | 通过 |
 
+审计复核（这一版 CI：PASS / 阻断 0 / 复核 2），两条都改了：
+
+| 复核项 | 判断 | 处置 |
+| --- | --- | --- |
+| [REVIEW-001] 新增的切换用例把所有接口都回同一份空壳（`{ok:true,status:{},sources:[]}`），三张卡读字段时会抛错；断言又没等 promise 结算，实际只验到「数据未加载」的骨架 | 真问题（用例是假通过） | 桩改成按路径分派、各回一份符合生产类型的最小载荷（`Health` / `PluginSources` / `PluginEnvView` / `UpdateStatus`），断言前 `await waitFor` 到真数据出现（客户端那一段等 `已是最新 v0.6.34`，插件那一段等 `Codex 插件缓存`） |
+| [REVIEW-002] 设置左栏与更新页段切换各写一份几乎逐字相同的 tab 按钮（配色、hover、选中态），且一处 `tablist` 一处普通按钮 —— 同屏两套写法 | 真问题（同一职责两份实现） | 抽出 `ui/src/app/tab-button.tsx`，两处共用；无障碍语义统一成 `nav + aria-current`（不做 tabpanel 关联），并去掉重复的类名与三元 |
+
 ## 2026-10-05 打包可复现，更新只下真正变了的文件（v0.6.33）
 
 ### 改了什么
