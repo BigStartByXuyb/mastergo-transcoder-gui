@@ -16,6 +16,29 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-10-06 「来源」弹窗重排 + 修系统那份的检测（v0.6.42）
+
+### 改了什么
+
+- 弹窗重排成**上面两个选项、下面只显示选中那个的配置**（客户端自带 / 系统上那一份各自一块），
+  底部是「保存 / 关闭」。以前是「选项一 + 选项一的配置 + 选项二 + 选项二的配置」四段叠在一起，
+  第二块看着像第一块的配置。
+- 修两条检测口径（都是真 bug）：
+  ① 自带那份装好时**不再跳过系统那份的探测**（以前为了省一次探测写成「有自带就不探」，
+     于是界面在装好自带的机器上永远显示「没检测到」，而弹窗正要让人在两者之间选）；
+  ② 「系统上那一份」不再报「当前进程那一份」（客户端本来就是用自带那份起的，等于永远指向自己），
+     改成去 PATH 上找（`where node.exe` / `where pwsh.exe`），排除我们安装根里的那些。
+- 「给不给下载按钮」的判据收回一处：由外层把 `downloadableId` 传给弹窗，弹窗不再自己算一套（少了忙碌/在途判断）。
+
+### 点过的东西
+
+| 操作 | 观察到 | 结论 |
+| --- | --- | --- |
+| `GET /api/runtime/status` | `node system=true/24.14.0 path=C:\Program Files\nodejs\node.exe`、`pwsh system=true/7.6.5 path=…\powershell\pwsh.exe`（本机 PATH 上那份）、`claude system=true/2.1.278` | 通过（系统那份真的探到了） |
+| 设置 → 运行环境 → Node.js 行「来源」→ 点「系统上那一份」（图 `D:\MasterGoData\Temp\ui-shots\v0642-source-dialog.png`） | 弹窗里上面两个选项、下面**只有**系统那一块：`本机检测到 v24.14.0  C:\Program Files\nodejs\node.exe` + 一句说明；不再出现官方地址那一块 | 通过 |
+| 用例 | 自带装好时也断言 `system.ok` 与系统版本；系统那份按 `where` 报路径；弹窗两个选项切换时另一块的配置不出现 | 通过 |
+| 全量门禁 | 后端 42 条（含空 `MASTERGO_HOME` 同样 42/42）、前端 52 文件 307 条、`tsc`、oxlint、结构检查 PASS | 通过 |
+
 ## 2026-10-06 运行环境一张表 + 每行「来源」弹窗（v0.6.41）
 
 ### 改了什么

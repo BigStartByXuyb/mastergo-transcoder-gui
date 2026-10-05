@@ -339,13 +339,18 @@ async function main() {
   withSystem(true, function () {
     const sysPwsh = createRuntime({
       home: makeHome(),
-      spawnSyncImpl: fakeSpawn([{ match: "pwsh", result: { status: 0, stdout: "7.6.6", stderr: "" } }]),
+      // 「系统上那份」现在是去 PATH 上找的：先让 where 报一个路径，再让那一份自检回版本号。
+      spawnSyncImpl: fakeSpawn([
+        { match: "where pwsh.exe", result: { status: 0, stdout: "C:\\sys\\pwsh.exe\n", stderr: "" } },
+        { match: "pwsh", result: { status: 0, stdout: "7.6.6", stderr: "" } }
+      ]),
       env: {}
     });
     const sysPwshRow = sysPwsh.status().tools[1];
     assert.strictEqual(sysPwshRow.source, "system");
     assert.strictEqual(sysPwshRow.version, "7.6.6");
     assert.strictEqual(sysPwshRow.ready, true);
+    assert.strictEqual(sysPwshRow.system.path, "C:\\sys\\pwsh.exe", "系统那份要报出它到底是哪一个");
     assert.match(sysPwshRow.note, /下载后改用客户端自带的那份/);
   });
 
@@ -370,13 +375,20 @@ async function main() {
   fs.writeFileSync(path.join(goodBundledHome, "runtime", "node", "node.exe"), "");
   const goodBundled = createRuntime({
     home: goodBundledHome,
-    spawnSyncImpl: fakeSpawn([{ match: "node.exe", result: { status: 0, stdout: "v" + TOOLS.node.version, stderr: "" } }]),
+    // 系统那份走 where 找：给一个路径，再让那一份自检回版本号。
+    spawnSyncImpl: fakeSpawn([
+      { match: "where node.exe", result: { status: 0, stdout: "C:\\sys\\node.exe\n", stderr: "" } },
+      { match: "node.exe", result: { status: 0, stdout: "v" + TOOLS.node.version, stderr: "" } }
+    ]),
     env: {}
   });
   const goodRow = goodBundled.status().tools[0];
   assert.strictEqual(goodRow.source, "bundled");
   assert.strictEqual(goodRow.ready, true);
   assert.strictEqual(goodRow.note, "");
+  // 自带那份装好之后，系统上那份照样要探出来 —— 弹窗里要在两者之间选，不能显示「没检测到」。
+  assert.strictEqual(goodRow.system.ok, true, "有自带那份也要报系统上那一份");
+  assert.strictEqual(goodRow.system.version, TOOLS.node.version);
 
   // ---- claude：只检测。装了就报「检测到」，标成系统来源，仍然不给下载 ----
   const claudeEnv = makeHome();

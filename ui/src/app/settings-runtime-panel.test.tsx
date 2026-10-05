@@ -124,12 +124,14 @@ describe("SettingsRuntimePanel", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "来源" })[0])
     const dialog = await screen.findByRole("dialog")
     expect(within(dialog).getByText("Node.js 的来源")).toBeTruthy()
-    expect(within(dialog).getByText(/客户端自带的那一份（推荐）/)).toBeTruthy()
-    expect(within(dialog).getByText(/用系统上那一份（应急）/)).toBeTruthy()
+    expect(within(dialog).getByRole("button", { name: /客户端自带/ }).getAttribute("aria-current")).toBe("true")
+    expect(within(dialog).getByRole("button", { name: /系统上那一份/ })).toBeTruthy()
     expect(within(dialog).getByText(/nodejs\.org\/dist\/v24\.21\.0/)).toBeTruthy()
 
-    // 选「用系统上那一份」保存：只改 node 这一份
-    fireEvent.click(within(dialog).getByText(/用系统上那一份（应急）/))
+    // 选「系统上那一份」：下面只显示那一块的配置（检测到哪一版），保存只改 node 这一份
+    fireEvent.click(within(dialog).getByRole("button", { name: /系统上那一份/ }))
+    await waitFor(() => expect(within(dialog).getByText(/本机检测到/)).toBeTruthy())
+    expect(within(dialog).queryByText(/官方地址/)).toBeNull()
     fireEvent.click(within(dialog).getByRole("button", { name: "保存" }))
     await waitFor(() => expect(probe.state.system).toEqual({ node: true, pwsh: false }))
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
@@ -137,7 +139,7 @@ describe("SettingsRuntimePanel", () => {
     // 再开一次：切回自带 + 安装包从内网取 → 检查 → 保存
     fireEvent.click(screen.getAllByRole("button", { name: "来源" })[0])
     const again = await screen.findByRole("dialog")
-    fireEvent.click(within(again).getByText(/客户端自带的那一份（推荐）/))
+    fireEvent.click(within(again).getByRole("button", { name: /客户端自带/ }))
     fireEvent.click(within(again).getByText(/安装包从内网地址取/))
     fireEvent.change(within(again).getByPlaceholderText("例如 http://10.0.0.9/runtime"), {
       target: { value: "http://10.0.0.9/runtime" }

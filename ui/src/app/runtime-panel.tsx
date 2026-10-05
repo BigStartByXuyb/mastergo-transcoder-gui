@@ -172,6 +172,8 @@ export function RuntimePanel() {
           tool={editingTool}
           mirror={status ? status.mirror : ""}
           working={working === editingTool.id}
+          /* 「给不给下载按钮」只有一处判据（可点性跟着任务状态走），弹窗别再自己算一套。 */
+          downloadable={downloadableId(status, editingTool)}
           onDownload={download}
           onClose={() => setEditing("")}
           onSaved={refresh}
