@@ -6,6 +6,9 @@
  *   vendor/openai.tgz   发布件与更新清单里的那一个文件（按需解压，不占上千个资产名额）
  *   vendor/openai/      解压出来的那一份，开发机上直接就能用
  *
+ * 打包走 lib/tar.js：同样的内容永远得到同样的哈希。系统的 tar 会写进打包时间与属主，
+ * 每次发版哈希都变，客户端就要为这 2 MB 白下一次。
+ *
  * 用法：node scripts/vendor-openai.js
  * 谁在用：CI 的 release job（发布前跑一次）、本机想手工打包时。
  */
@@ -13,6 +16,8 @@
 const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
+
+const { packDir } = require("../lib/tar.js");
 
 const ROOT = path.join(__dirname, "..");
 const SOURCE = path.join(ROOT, "node_modules", "openai");
@@ -35,7 +40,7 @@ function main() {
   fs.rmSync(EXTRACTED, { recursive: true, force: true });
   fs.rmSync(ARCHIVE, { force: true });
   // 打包时排掉 src（TypeScript 源，运行期用不到），包体因此小一半。
-  run("tar", ["-czf", ARCHIVE, "-C", path.join(ROOT, "node_modules"), "--exclude", "openai/src", "openai"]);
+  fs.writeFileSync(ARCHIVE, packDir(SOURCE, { prefix: "openai", exclude: ["src"] }));
   run("tar", ["-xzf", ARCHIVE, "-C", VENDOR]);
   if (!fs.existsSync(path.join(EXTRACTED, "index.js"))) {
     throw new Error("解压后没找到 vendor/openai/index.js");
