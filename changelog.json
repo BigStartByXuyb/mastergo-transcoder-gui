@@ -1,5 +1,21 @@
 [
   {
+    "version": "0.6.31",
+    "date": "2026-10-05",
+    "notes": [
+      "发布源可以自己填了：设置 → 更新 → 发布源，选类型（GitHub 仓库 / GitLab 通用包 / 静态目录）再填地址，点「保存并检查」立刻按新地址验一次",
+      "默认值就是内置的那一处：现在指向 GitHub 仓库；等公司 GitLab 就绪，只改 lib/source.js 里的默认基址一行，客户机不用动",
+      "私有源（私有 GitHub / 私有 GitLab）可填一个只读 token：和其他凭据一样用 Windows DPAPI 加密存本机，界面上只显示「已带 token」，值不出后端、不进日志与产物",
+      "三种源共用同一套协议（一份清单 + 按 sha256 取文件）：GitHub 用 releases 路径，GitLab 走通用包 + release 固定链接，静态目录直接铺文件——客户端只有一份实现"
+    ],
+    "features": [
+      {
+        "id": "configurable-source",
+        "label": "发布源可配置：GitHub / GitLab / 静态目录 + 私有源 token"
+      }
+    ]
+  },
+  {
     "version": "0.6.30",
     "date": "2026-10-01",
     "notes": [

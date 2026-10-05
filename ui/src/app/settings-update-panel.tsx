@@ -1,13 +1,14 @@
 import { IdentifierText } from "@/app/identifier-text"
 import { PixelLoader } from "@/app/pixel-loader"
+import { SourceCard } from "@/app/source-card"
 import { UpdateCard } from "@/app/update-card"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useHealth } from "@/lib/use-health"
 
 /*
- * 更新这一页：上面是当前在用的运行环境，下面是客户端自己的版本
- * （检查 / 下载 / 逐版切换）。两块竖着排，一屏放得下。
+ * 更新这一页：运行环境 → 发布源（更新从哪儿来）→ 客户端自己的版本（检查 / 下载 / 逐版切换）。
+ * 三块竖着排，一屏放得下。
  */
 export function SettingsUpdatePanel() {
   const { health, offline } = useHealth(10000)
@@ -62,6 +63,8 @@ export function SettingsUpdatePanel() {
           )}
         </CardContent>
       </Card>
+
+      <SourceCard />
 
       <UpdateCard />
     </div>

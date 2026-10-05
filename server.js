@@ -159,7 +159,10 @@ const update = createUpdate({
   root: HERE,
   home: HOME,
   version: VERSION,
-  isBusy: busyReason
+  isBusy: busyReason,
+  // 源与 token 每次现取：设置里刚改完，「检查更新」立刻按新的走。
+  source: function () { return settings.read().source; },
+  token: function () { return settings.readSourceToken(); }
 });
 // Codex 引擎：只下载进安装根，用户的 ~/.codex 一概不动；对话与写盘由插件脚本负责。
 const codex = createCodex({

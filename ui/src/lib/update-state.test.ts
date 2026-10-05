@@ -26,7 +26,12 @@ const status = (patch: Partial<UpdateStatus> = {}): UpdateStatus => ({
   available: null,
   error: null,
   task: task(),
-  repo: "BigStartByXuyb/mastergo-transcoder-gui",
+  source: {
+    kind: "github",
+    base: "https://github.com/BigStartByXuyb/mastergo-transcoder-gui",
+    manifestUrl: "https://github.com/BigStartByXuyb/mastergo-transcoder-gui/releases/latest/download/manifest.json"
+  },
+  hasToken: false,
   ...patch
 })
 

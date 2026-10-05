@@ -634,7 +634,10 @@ export type UpdateStatus = {
   available: UpdateAvailable | null
   error: UpdateFailure | null
   task: UpdateTask
-  repo: string
+  /** 现在从哪儿取清单：类型、基址、拼出来的清单地址（界面照实显示，不让用户自己拼）。 */
+  source: { kind: "github" | "gitlab" | "static"; base: string; manifestUrl: string }
+  /** 私有源存没存 token（值本身不出后端）。 */
+  hasToken: boolean
 }
 
 export type CodexState = "verified" | "untested" | "broken"

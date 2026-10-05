@@ -16,6 +16,40 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-10-05 发布源可配置（v0.6.31）
+
+### 改了什么
+
+- **源从写死变成可配**：新增 `lib/source.js` —— 三种形态都只是「一个基址 + 可选 token」：
+  GitHub（`releases/latest/download/manifest.json` + `releases/download/v<版本>/<sha256>`）、
+  GitLab（最新那份走 release 固定链接 `/-/releases/permalink/latest/downloads/manifest.json`，
+  某版与文件走通用包 `/-/packages/generic/<包>/v<版本>/…`）、
+  静态目录（`<base>/manifest.json` + `<base>/files/<sha256>`）。
+  `lib/update.js` 的两处硬编码 URL 改为按源拼，并在请求上带 token（GitLab 用 `private-token`，其余用 Bearer）。
+- **设置页可手输**：设置 → 更新 → **发布源**（类型 / 地址 / token），默认值就是内置那一处
+  （`lib/source.js` 的 `DEFAULT_BASE`，现在是 GitHub 仓库）；改完点「保存并检查」立刻按新地址验一次。
+  私有源 token 与其它凭据一样 DPAPI 加密存本机，界面只显示「已带 token」。
+- **默认值一处**：回公司拿到 GitLab 地址后，只改 `DEFAULT_BASE` 一行即可，客户机不用动。
+
+### 为什么
+
+用户的要求：源要能**手动输入**、要有一个**默认值**，测试期用公开 GitHub，正式发布换公司 GitLab。
+之前两处 URL 写死在 `lib/update.js` 里，换源等于改代码重发版。
+
+### 点过的东西
+
+| 操作 | 观察到 | 结论 |
+| --- | --- | --- |
+| 起一个本地静态源（`http://127.0.0.1:8931`，里面放一份假清单 v0.6.99），设置里把源改成它 | `POST /api/update/check` 返回 `update_available 0.6.99（改了 2 个文件）`，`status.source.manifestUrl` = 新地址 | 通过（换源真的生效） |
+| 让那个假源要求 creds（无 token 返回 401） | 不带 token 检查 → `state=error`、`HTTP_401` | 通过 |
+| 保存 token（`t0ken-abc`）后再检查 | 同一次检查成功返回 `update_available 0.6.99`，`hasToken=true` | 通过（token 真的带上了） |
+| 恢复默认源（GitHub）并清掉 token | `status.source` 回到内置 GitHub 地址、`hasToken=false` | 通过 |
+| 设置 → 更新 页面 | 出现「发布源」卡片：类型下拉 + 地址输入 + token 输入 + 保存 / 保存并检查 / 清除 token，并显示拼出来的「清单地址」 | 通过 |
+| 全量门禁 | 后端 41 条（新增 `source.test.js` 6 例、设置用例 1 条）、前端 49 文件 303 条、`tsc`、oxlint、结构检查 | 通过 |
+
+> 待实测（回公司后）：GitLab 那一套地址按官方文档拼的（release 固定链接 + 通用包），首次在真机发布时要走一遍；
+> 届时若地址形式不同，只改 `lib/source.js` 一处 + 它的用例。
+
 ## 2026-10-01 环境变量一键生效（v0.6.30）
 
 ### 改了什么
@@ -1787,4 +1821,3 @@ F4 累积到 8 条历史记录后看着像待办，需要区分「要你动手�
 | `npm --prefix ui run test:coverage` | 通过，21 文件 86 用例，stmts 99 / branch 88.47 / funcs 100 |
 | `npm run build:ui` | 通过 |
 | `node <cicd>/check-app-structure.mjs --root .` | PASS（硬编码路径 / 孤儿导出 / 分层 / CI 钉死 均 0 条） |
-

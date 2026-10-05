@@ -69,8 +69,41 @@ function caseActive() {
   fs.rmSync(home, { recursive: true, force: true });
 }
 
+// 发布源：默认是内置的 GitHub 仓库；手输一份就按那份走；坏配置回落默认而不是拼出怪地址。
+function caseSource() {
+  const home = tempHome(null);
+  const settings = createSettings(home);
+  const initial = settings.read().source;
+  assert.strictEqual(initial.kind, "github");
+  assert.strictEqual(initial.base, "https://github.com/BigStartByXuyb/mastergo-transcoder-gui");
+  assert.strictEqual(initial.hasToken, false);
+
+  const saved = settings.write({
+    source: { kind: "gitlab", base: "https://git.example.com/team/repo/", token: "glpat-x" }
+  }).source;
+  assert.strictEqual(saved.kind, "gitlab");
+  assert.strictEqual(saved.base, "https://git.example.com/team/repo", "末尾斜杠由 source.js 统一去掉");
+  assert.strictEqual(saved.hasToken, true);
+  assert.strictEqual(settings.readSourceToken(), "glpat-x", "token 解出来给更新模块用");
+
+  // 不认识的类型 / 空基址：回落内置默认，不保留半份配置。
+  const broken = settings.write({ source: { kind: "svn", base: "https://x/y" } }).source;
+  assert.strictEqual(broken.kind, "github");
+  assert.strictEqual(broken.base, "https://github.com/BigStartByXuyb/mastergo-transcoder-gui");
+
+  settings.write({ source: { kind: "static", base: "http://10.0.0.9/updates", clearToken: true } }).source;
+  assert.strictEqual(settings.read().source.hasToken, false, "清掉 token 后不再算有");
+  assert.strictEqual(settings.readSourceToken(), "");
+  fs.rmSync(home, { recursive: true, force: true });
+}
+
 try {
-  const cases = [["新机器", caseFresh], ["旧配置迁移", caseLegacy], ["默认参考源", caseActive]];
+  const cases = [
+    ["新机器", caseFresh],
+    ["旧配置迁移", caseLegacy],
+    ["默认参考源", caseActive],
+    ["发布源", caseSource]
+  ];
   for (const [name, run] of cases) {
     run();
     console.log("  ok  " + name);
