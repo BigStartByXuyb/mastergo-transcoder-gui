@@ -9,8 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ClampText } from "@/app/clamp-text"
 import { ConfirmSwitchDialog } from "@/app/confirm-switch-dialog"
 import { BusyOverlay } from "@/app/busy-overlay"
+import { IdentifierText } from "@/app/identifier-text"
 import { Pager } from "@/app/pager"
 import { Progress } from "@/components/ui/progress"
+import { SourceDialog } from "@/app/source-dialog"
 import { api, type UpdateStatus } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
@@ -38,6 +40,9 @@ const PAGE_SIZE = 5
 /*
  * 客户端自身的版本：检查 → 下载 → 切换 → 回退。
  *
+ * 「从哪儿取」也在这张卡里：更新来源那一行显示现在的源，点「修改发布源」开弹窗改 ——
+ * 检查更新与下载都走它，两件事本来就是一体的。
+ *
  * 版本是一张表：版本 / 状态 / 日期 / 说明 / 版本切换，每一行右边就是切到那一版的按钮；
  * 更新内容点开才看，一页五条，页面不长高。
  */
@@ -53,6 +58,8 @@ export function UpdateCard() {
   // 等着人确认的那一版：确认弹窗里会先把回退 / 新开运行 / 有任务在跑说清楚。
   const [confirming, setConfirming] = useState("")
   const [supervised, setSupervised] = useState(false)
+  // 改发布源的弹窗：更新从哪儿取。
+  const [editingSource, setEditingSource] = useState(false)
 
   const transferring = status ? isDownloading(status.task) : false
 
@@ -206,6 +213,16 @@ export function UpdateCard() {
           </Alert>
         )}
 
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border p-2">
+          <span className="text-muted-foreground text-xs">更新来源</span>
+          {status && <Badge variant="secondary">{status.source.kind}</Badge>}
+          {status && status.hasToken && <Badge variant="outline">已带 token</Badge>}
+          {status && <IdentifierText text={status.source.base} className="min-w-0 flex-1 text-xs" />}
+          <Button variant="outline" size="sm" disabled={!status || frozen} onClick={() => setEditingSource(true)}>
+            修改发布源
+          </Button>
+        </div>
+
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" disabled={Boolean(working)} onClick={() => void act("check", () => api.updateCheck())}>
             {working === "check" ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
@@ -231,6 +248,10 @@ export function UpdateCard() {
         />
       </CardContent>
     </Card>
+
+      {editingSource && status && (
+        <SourceDialog status={status} onClose={() => setEditingSource(false)} onStatus={setStatus} />
+      )}
 
       {confirming && (
         <ConfirmSwitchDialog
