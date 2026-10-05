@@ -12,6 +12,9 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 
 const { readPipelineSteps, resolvePwsh } = require("../lib/plugin.js");
+// 这些用例要跑桩脚本（读步骤契约），需要一份 pwsh：测试机上那份显式允许使用 ——
+// 就是产品里「设置 → 允许用系统上那两份」那个开关，不是隐式回落。
+require("../lib/runtime-policy.js").setSource(function () { return true; });
 const { resolvePluginRoot, pluginHomes } = require("../lib/plugin-root.js");
 
 function write(file, text) {
@@ -107,7 +110,12 @@ function casePluginRootErrors() {
 function caseStepContractFailures() {
   const missing = makePlugin(null);
   assert.throws(() => readPipelineSteps(missing.root), (error) => error.code === "NO_PIPELINE");
-  assert.match(resolvePwsh(), /pwsh/i, "默认用 pwsh（5.1 的 GBK 会坏编码）");
+  /*
+   * 跑插件用哪一份 pwsh 由 lib/runtime.js 定：要么是自带那份的绝对路径，要么是明说「没有」。
+   * 这里钉的是「不会悄悄用 powershell 5.1」（5.1 的 GBK 会坏编码），不是某种具体写法。
+   */
+  const pwsh = resolvePwsh();
+  assert.ok(pwsh === "" || /pwsh/i.test(pwsh), "要么给自带那份，要么明说没有：不回落 5.1");
 
   const broke = makePlugin("param([switch]$List)\nexit 3\n");
   assert.throws(() => readPipelineSteps(broke.root), (error) => error.code === "NO_STEPS", "脚本没写出手续文件要报 NO_STEPS");

@@ -10,6 +10,8 @@ const path = require("path");
 
 const { readEnvVar, writeEnvVar } = require("../lib/env-var.js");
 const { PLUGIN_ENV_NAME } = require("../lib/plugin-root.js");
+// 读写环境变量要跑一段 pwsh 脚本：测试机上那份显式允许使用（产品里的「允许用系统上那两份」开关）。
+require("../lib/runtime-policy.js").setSource(function () { return true; });
 
 // 名字从生产那一处取：改了名字，这篇用例会跟着变，不会两份字面量各自漂。
 const NAME = PLUGIN_ENV_NAME;

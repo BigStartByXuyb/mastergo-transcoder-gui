@@ -71,6 +71,14 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | [BLOCK-001] 允许用系统那份时 `resolvePwshExe` 返回的是裸命令名 `"pwsh"`，新加的 `childEnv` 分支对它求 `path.dirname` 得到 `"."` → 子进程 PATH 里被塞进当前目录（工程目录里的同名 exe 会被当成运行时跑起来） | 真问题（严重回归） | 显式分支只在值是绝对路径时取目录；裸命令名不往 PATH 加任何东西（与改动前一致）。用例补一条：`childEnv(null, home, { node: "node", pwsh: "pwsh" })` 后 PATH 一个字节不改 |
 | [REVIEW-002] 运行时解析分处两段：`start()` 只用来触发抛错、返回值丢掉，`startRun()` 又现解析一次 —— 「校验过的」和「实际用的」不保证是同一份，且第二段抛错是没人接的 rejection | 真问题 | 在 `start()` 里解析一次（`plugin.node \|\| requireNodeExe()`），随 job 传给 `startRun`；`startRun` 不再解析、也不再抛 |
 
+第三轮：CI 的 `runtime-tests` 在 ubuntu 上挂了三条，同时审计又提了一条复核 —— 同一件事的两面：
+
+| 项 | 判断 | 处置 |
+| --- | --- | --- |
+| CI：`edges` / `env-var` / `run` 三条用例在 Linux 上失败（`UserError: 没有可用的 PowerShell 7`） | 用例假设了「没自带就回落系统 pwsh」这条已经取消的行为 | 这三条用例要的只是「有一份 pwsh 能跑桩脚本」：在文件顶部显式打开产品里那个开关（`runtimePolicy.setSource(() => true)`），不再依赖隐式回落；`edges` 里那条 `resolvePwsh()` 断言改成新口径（要么是自带那份的绝对路径，要么明说没有，**绝不回落 5.1**） |
+| [REVIEW-001] 运行时解析仍有两处入口：跑流水线用插件快照那一份，读步骤契约（`contract()` / `start()` 里的 `readPipelineSteps`）又现解析一次 | 真问题 | `readPipelineSteps(pluginRoot, { pwsh })` 接受调用方定好的那一份；`run.js` 的两处调用都传插件快照里的 `plugin.pwsh`，于是「校验过的、真跑的、读契约的」是同一份 |
+| 本地复现 CI 条件 | 用空 `MASTERGO_HOME`（没有自带运行时、也不允许系统那份）跑全套：先复现出同样的三条失败，修完再跑 —— 42/42 通过 | 通过 |
+
 ## 2026-10-05 「插件」并进「更新」，分两段切换（v0.6.34）
 
 ### 改了什么
