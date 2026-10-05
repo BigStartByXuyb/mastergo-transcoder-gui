@@ -132,6 +132,11 @@ function stub() {
       const resolve = pendingResolve
       pendingResolve = null
       if (resolve) resolve(new Response(JSON.stringify(pendingPayload), { status: 200 }))
+    },
+    failProbe: () => {
+      const resolve = pendingResolve
+      pendingResolve = null
+      if (resolve) resolve(new Response(JSON.stringify({ ok: false, error: { code: "PROBE_BOOM", message: "探测炸了", hint: "" } }), { status: 400 }))
     }
   }
 }
@@ -178,5 +183,12 @@ describe("SettingsRuntimePanel", () => {
     fireEvent.change(screen.getByPlaceholderText("留空＝官方地址"), { target: { value: "http://10.0.0.9/another" } })
     probe.releaseProbe()
     await waitFor(() => expect(screen.queryByText(/Node\.js：找到了/)).toBeNull())
+
+    // 失败也一样：旧地址的报错不该挂到新地址上。
+    probe.holdNextProbe()
+    fireEvent.click(screen.getByRole("button", { name: "检查这个地址" }))
+    fireEvent.change(screen.getByPlaceholderText("留空＝官方地址"), { target: { value: "http://10.0.0.9/third" } })
+    probe.failProbe()
+    await waitFor(() => expect(screen.queryByText(/探测炸了/)).toBeNull())
   })
 })

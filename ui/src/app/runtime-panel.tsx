@@ -226,6 +226,8 @@ function RuntimeSourceRow(props: {
       setProbed(payload.results)
     }
     catch (error) {
+      // 报错同样只属于「发出去时那个地址」：地址已经改了就别把这句话挂上去。
+      if (seq !== probeSeq.current) return
       setSaveFailure(describeFailure(error))
     }
     finally {
