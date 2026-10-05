@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Download, Loader2, Terminal } from "lucide-react"
 import { toast } from "sonner"
 
@@ -43,28 +43,29 @@ export function RuntimePanel() {
 
   const transferring = status ? isRuntimeWorking(status.task) : false
 
+  /* 拉一次状态：轮询用它，改完设置要立刻刷新也用它（不然要等下一轮，同页两处会短暂对不上）。 */
+  const refresh = useCallback(async () => {
+    try {
+      const payload = await api.runtimeStatus()
+      setStatus(payload.status)
+      setProbe("")
+    } catch (error) {
+      setProbe(describeFailure(error))
+    }
+  }, [])
+
   useEffect(() => {
     let stopped = false
 
-    async function tick() {
-      try {
-        const payload = await api.runtimeStatus()
-        if (stopped) return
-        setStatus(payload.status)
-        setProbe("")
-      } catch (error) {
-        if (stopped) return
-        setProbe(describeFailure(error))
-      }
-    }
-
-    void tick()
-    const timer = window.setInterval(tick, transferring ? WORKING_POLL_MS : IDLE_POLL_MS)
+    void refresh()
+    const timer = window.setInterval(() => {
+      if (!stopped) void refresh()
+    }, transferring ? WORKING_POLL_MS : IDLE_POLL_MS)
     return () => {
       stopped = true
       window.clearInterval(timer)
     }
-  }, [transferring])
+  }, [refresh, transferring])
 
   async function download(tool: RuntimeId) {
     setWorking(tool)
@@ -144,7 +145,7 @@ export function RuntimePanel() {
         />
       ))}
 
-      <RuntimeSourceRow mirror={status ? status.mirror : ""} />
+      <RuntimeSourceRow mirror={status ? status.mirror : ""} onSaved={refresh} />
       <RuntimeSystemSwitch />
     </div>
   )
@@ -154,7 +155,7 @@ export function RuntimePanel() {
  * 安装包来源：默认官方地址；内网取不到时把两个 zip 放到一个能 HTTP 访问的目录里，这里填那个基址。
  * 换源不改版本、不改哈希 —— 取回来的包仍要按钉死的 sha256 校验，填错了只会「下载失败」。
  */
-function RuntimeSourceRow({ mirror }: { mirror: string }) {
+function RuntimeSourceRow({ mirror, onSaved }: { mirror: string; onSaved: () => Promise<void> }) {
   const { settings, failure, save } = useSettings()
   const [value, setValue] = useState(mirror)
   const [writing, setWriting] = useState(false)
@@ -170,6 +171,8 @@ function RuntimeSourceRow({ mirror }: { mirror: string }) {
     try {
       const next = await save({ runtime: { mirror: value } })
       setValue(next.runtime.mirror)
+      // 每行那个「安装包：<地址>」来自运行时状态：存完立刻刷一次，别等下一轮轮询。
+      await onSaved()
       toast.success(value.trim() ? "安装包改从镜像地址取" : "安装包改回官方地址")
     }
     catch (error) {

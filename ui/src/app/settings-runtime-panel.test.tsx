@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { SettingsRuntimePanel } from "@/app/settings-runtime-panel"
@@ -73,14 +73,30 @@ function runtime(): RuntimeStatus {
 }
 
 function stub() {
+  // 设置是可写的桩：存了镜像之后，运行时状态跟着回新的 —— 这是「保存后立刻刷新」那条路径。
+  let savedMirror = ""
   vi.stubGlobal(
     "fetch",
-    vi.fn((input: RequestInfo | URL) => {
+    vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       if (url.includes("/api/health")) return okResponse(health())
-      if (url.includes("/api/runtime/status")) return okResponse({ ok: true, status: runtime() })
+      if (url.includes("/api/runtime/status")) {
+        const payload = runtime()
+        payload.mirror = savedMirror
+        if (savedMirror) {
+          payload.tools = payload.tools.map((tool) => {
+            if (tool.id !== "node") return tool
+            return { ...tool, downloadUrl: savedMirror + "/node-v24.21.0-win-x64.zip" }
+          })
+        }
+        return okResponse({ ok: true, status: payload })
+      }
       if (url.includes("/api/settings")) {
-        return okResponse({ ok: true, settings: { runtime: { allowSystem: false } } })
+        if (init && init.body) {
+          const body = JSON.parse(String(init.body)) as { runtime?: { mirror?: string } }
+          if (body.runtime && typeof body.runtime.mirror === "string") savedMirror = body.runtime.mirror
+        }
+        return okResponse({ ok: true, settings: { runtime: { allowSystem: false, mirror: savedMirror } } })
       }
       return okResponse({ ok: true })
     })
@@ -110,5 +126,10 @@ describe("SettingsRuntimePanel", () => {
     // 安装包来源：默认留空（走官方地址），旁白写清内网怎么配。
     expect(screen.getByLabelText("安装包来源")).toBeTruthy()
     expect((screen.getByPlaceholderText("留空＝官方地址") as HTMLInputElement).value).toBe("")
+
+    // 填镜像保存：输入框立刻换成存下来的值，每行那个地址也立刻跟着换（不等下一轮轮询）。
+    fireEvent.change(screen.getByPlaceholderText("留空＝官方地址"), { target: { value: "http://10.0.0.9/runtime" } })
+    fireEvent.click(screen.getByRole("button", { name: "保存" }))
+    await waitFor(() => expect(screen.getByText(/10\.0\.0\.9\/runtime\/node-v24\.21\.0-win-x64\.zip/)).toBeTruthy())
   })
 })

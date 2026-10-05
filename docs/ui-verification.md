@@ -52,6 +52,11 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | [REVIEW-002] 新增的 `downloadUrl` 没有生产消费者，changelog 却写了「每行显示真会去取的地址」 | 真问题（说了没做） | 配了镜像时，Node.js / PowerShell 7 那两行多显示一行「安装包：<地址>」；changelog 措辞改成「配了镜像之后…」 |
 | [REVIEW-003] `claudeStatus()` 缺 `downloadUrl`，与类型（必填）及另两行形状不一致 | 真问题 | 补 `downloadUrl: ""`（claude 不代下载，没有安装包地址），并加一条断言钉住「三行形状一致」 |
 
+第四轮复核（PASS / 阻断 0 / 复核 1）也收了：**保存镜像后最长 15 秒自相矛盾** ——
+输入框读设置（存完立刻更新），而「安装包：<地址>」那行读运行时状态（下一轮轮询才更新）。
+处置：把运行时状态那次拉取抽成 `refresh()`，`RuntimeSourceRow` 保存成功后立刻调一次；
+用例的桩改成「可写」——存了镜像之后运行时状态跟着回新的，并断言保存后那行地址立刻出现。
+
 ## 2026-10-05 「运行环境」独立成一页（v0.6.37）
 
 ### 改了什么
