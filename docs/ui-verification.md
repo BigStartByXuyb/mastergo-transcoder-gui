@@ -82,6 +82,11 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   落盘完整（`server.js` 与 `public/index.html` 都在），结束态 `ready=0.6.31`、无错误。
   说明：这一趟是空目录起步，所以 63 个全下；日常更新只下变化的那几个文件。
 - 本机客户端：服务重新起在 0.6.31（源码目录这一份），健康检查 `update.state=up_to_date`。
+- **真机界面点了一遍**（设置 → 更新，图 `D:\MasterGoData\Temp\ui-shots\v0631-source-card.png`）：
+  发布源卡片在位 —— 徽标 `github`、类型下拉「GitHub 仓库」、地址框预填内置 GitHub 仓库、
+  下面写清「清单地址」；点「保存并检查」后卡片回报 `远端有 v0.6.31（改了 1 个文件）`
+  （只差发版后又提交的这份验收文档），说明界面上改源 → 立刻按新地址验一遍这条链是通的。
+  同时看到版本表首行 `v0.6.31 · 正在用`。
 
 ## 2026-10-01 环境变量一键生效（v0.6.30）
 
