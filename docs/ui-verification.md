@@ -50,6 +50,21 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 > 待实测（回公司后）：GitLab 那一套地址按官方文档拼的（release 固定链接 + 通用包），首次在真机发布时要走一遍；
 > 届时若地址形式不同，只改 `lib/source.js` 一处 + 它的用例。
 
+### 审计复核（CI 的三条 REVIEW，全部处置）
+
+`semantic-audit`：PASS / 阻断 0 / 复核 3。三条都是真问题，已改：
+
+| 复核项 | 判断 | 处置 |
+| --- | --- | --- |
+| [REVIEW-001] `status()` 每次都解密发布源 token：解密是同步起一次 PowerShell，而状态每 15 秒（下载中 1.5 秒）轮询一次，下载时每个文件还要再拼一次请求头 —— 单线程被整段堵住 | 真问题（性能） | 两处分开：有没有 token 由 `hasToken` 廉价判断（`settings.read().source.hasToken`，只看文件在不在），值只在真发请求时解；解出来的值在 `settings` 内缓存，改/清 token 时置空重解 |
+| [REVIEW-002] 默认仓库地址写了两份（`lib/source.js` 的 `DEFAULT_BASE` 与 `lib/update.js` 的 `owner`/`repo` 回退），且那条回退分支全仓无人调用 | 真问题（与「只改一处」矛盾 + 死分支） | 删掉 `owner`/`repo` 与那条回退；默认值只剩 `lib/source.js` 一处；入参只留测试注入用的固定值 |
+| [REVIEW-003] 源类型名单在后端 `KINDS` 与前端 `KIND_LABELS` 各有一份，后端加一种前端不跟、前端多列一种后端静默回落 | 真问题（同一规则两处表述） | 后端 `describeSource` 带上 `kinds`，前端下拉照它渲染；前端只留显示名（认不出的类型直接用原值当显示名），status 没到手时下拉与保存按钮禁用 |
+
+顺带修掉的非阻断项：
+
+- **静态源回不了历史版本**：`lib/source.js` 按 `<base>/v<版本>/manifest.json` 取某一版，而 `scripts/publish.js` 只在根写一份 `manifest.json` —— 从静态源点历史版本的「下载」会 404。现在发布产物同时写根清单（最新）与 `v<版本>/manifest.json`（那一版自己），实跑 `node scripts/publish.js` 确认两层都在（63 个文件 / 63 份内容）。
+- `lib/source.js` 里「GitLab 包名两侧共用」的说法与实际不符（发布侧还没做 GitLab 上传）：注释改成现状；私有 GitHub 取 release 资产那一条按 fetch 规范的换域丢 Authorization 说明清楚，仍标注首次真机实测。
+
 ## 2026-10-01 环境变量一键生效（v0.6.30）
 
 ### 改了什么

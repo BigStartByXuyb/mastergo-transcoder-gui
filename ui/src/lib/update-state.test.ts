@@ -29,7 +29,8 @@ const status = (patch: Partial<UpdateStatus> = {}): UpdateStatus => ({
   source: {
     kind: "github",
     base: "https://github.com/BigStartByXuyb/mastergo-transcoder-gui",
-    manifestUrl: "https://github.com/BigStartByXuyb/mastergo-transcoder-gui/releases/latest/download/manifest.json"
+    manifestUrl: "https://github.com/BigStartByXuyb/mastergo-transcoder-gui/releases/latest/download/manifest.json",
+    kinds: ["github", "gitlab", "static"]
   },
   hasToken: false,
   ...patch

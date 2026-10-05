@@ -22,15 +22,19 @@ import { describeFailure } from "@/lib/describe-failure"
  * 地址拼法只有后端 lib/source.js 一处，这张卡只显示拼出来的清单地址，自己不再拼一套。
  */
 
-const KINDS = [
-  { value: "github", label: "GitHub 仓库" },
-  { value: "gitlab", label: "GitLab 通用包" },
-  { value: "static", label: "静态目录（nginx / 共享盘）" }
-] as const
+/*
+ * 选项来自后端的 status.kinds：后端认哪几种，这里就列哪几种，不在前端另抄一份校验名单。
+ * 这里只留显示名；后端将来加一种源而这里还没来得及起名时，直接用原值当显示名。
+ */
+const KIND_LABELS: Record<string, string> = {
+  github: "GitHub 仓库",
+  gitlab: "GitLab 通用包",
+  static: "静态目录（nginx / 共享盘）"
+}
 
 export function SourceCard() {
   const [status, setStatus] = useState<UpdateStatus | null>(null)
-  const [kind, setKind] = useState("github")
+  const [kind, setKind] = useState("")
   const [base, setBase] = useState("")
   const [token, setToken] = useState("")
   const [busy, setBusy] = useState("")
@@ -84,6 +88,8 @@ export function SourceCard() {
     }
   }
 
+  const kinds: string[] = status ? status.source.kinds : []
+
   return (
     <Card>
       <CardHeader>
@@ -112,14 +118,14 @@ export function SourceCard() {
         <div className="grid gap-3 md:grid-cols-[minmax(0,180px)_minmax(0,1fr)]">
           <div className="flex flex-col gap-1">
             <Label htmlFor="source-kind">类型</Label>
-            <Select value={kind} onValueChange={setKind}>
+            <Select value={kind} onValueChange={setKind} disabled={!status}>
               <SelectTrigger id="source-kind" className="w-full" aria-label="发布源类型">
                 <SelectValue placeholder="选类型" />
               </SelectTrigger>
               <SelectContent>
-                {KINDS.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
+                {kinds.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {KIND_LABELS[value] ?? value}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -154,11 +160,11 @@ export function SourceCard() {
               onChange={(event) => setToken(event.target.value)}
             />
           </div>
-          <Button variant="outline" disabled={Boolean(busy)} onClick={() => void save({ token }, false)}>
+          <Button variant="outline" disabled={Boolean(busy) || !status} onClick={() => void save({ token }, false)}>
             {busy === "save" ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             保存
           </Button>
-          <Button disabled={Boolean(busy)} onClick={() => void save({ token }, true)}>
+          <Button disabled={Boolean(busy) || !status} onClick={() => void save({ token }, true)}>
             {busy === "check" ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
             保存并检查
           </Button>

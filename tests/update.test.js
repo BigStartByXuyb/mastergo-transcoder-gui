@@ -315,6 +315,22 @@ async function main() {
   assert.strictEqual(restarted.hint().state, "up_to_date", "探活快照同样不再说可切换");
   assert.strictEqual(restarted.hint().ready, "");
 
+  /*
+   * 有没有 token 与 token 的值分开问：值要走 DPAPI 解密（同步起 PowerShell），
+   * 而 status() 是每 15 秒轮询一次的口子 —— 这里用「一解密就抛」的假实现盯住它。
+   */
+  const cheap = createUpdate({
+    root: home,
+    home: home,
+    version: "0.1.0",
+    fetchImpl: server.fetchImpl,
+    token: function () { throw new Error("status 不该去解密 token"); },
+    hasToken: function () { return true; }
+  });
+  const cheapStatus = cheap.status();
+  assert.strictEqual(cheapStatus.hasToken, true, "有 token 由廉价的判断回答");
+  assert.deepStrictEqual(cheapStatus.source.kinds, ["github", "gitlab", "static"], "源类型名单由后端给前端");
+
   for (const dir of [home, next, gatedHome, blank, rootNewer]) fs.rmSync(dir, { recursive: true, force: true });
   process.stdout.write("update ok\n");
 }

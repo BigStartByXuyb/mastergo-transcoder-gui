@@ -2,7 +2,13 @@
 "use strict";
 
 /*
- * 发布：把当前仓库的运行树做成一份 GitHub Release 资产 —— manifest.json + files/<sha256>。
+ * 发布：把当前仓库的运行树做成一份发布产物 —— manifest.json + files/<sha256>（GitHub Release 资产，
+ * 或者直接铺给静态源的那个目录）。
+ *
+ * 产物布局（dist/update/）：
+ *   manifest.json          最新版清单：静态源的 <base>/manifest.json 与 GitHub 的 latest 用这一份
+ *   v<版本>/manifest.json  这一版自己的清单：静态源回退到历史版本时按 <base>/v<版本>/manifest.json 取
+ *   files/<sha256>         文件内容，按哈希命名，各版共用一份
  *
  * 用法：
  *   node scripts/publish.js                      # 只产物化到 dist/update（先看清单对不对）
@@ -64,6 +70,10 @@ function main() {
     written.set(hash, rel);
   }
   fs.writeFileSync(path.join(outDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n", "utf8");
+  // 历史版本也要留一份自己的清单：静态源没有「某一版的 release」这种概念，只能按版本目录取。
+  const versionDir = path.join(outDir, "v" + manifest.version);
+  fs.mkdirSync(versionDir, { recursive: true });
+  fs.writeFileSync(path.join(versionDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n", "utf8");
 
   const unique = written.size;
   process.stdout.write(

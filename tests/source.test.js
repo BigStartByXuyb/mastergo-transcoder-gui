@@ -74,7 +74,9 @@ function caseDescribe() {
   assert.deepStrictEqual(source.describeSource(GL), {
     kind: "gitlab",
     base: "https://git.example.com/team/mastergo-transcoder-gui",
-    manifestUrl: source.manifestUrl(GL)
+    manifestUrl: source.manifestUrl(GL),
+    // 界面下拉照 kinds 渲染：类型名单只有这一处，前端不另抄一份。
+    kinds: ["github", "gitlab", "static"]
   });
 }
 
