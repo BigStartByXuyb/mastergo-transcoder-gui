@@ -203,10 +203,10 @@ export type Settings = {
   /** 对话/自动模式的写盘开关：关着时 Codex 只读，开着才允许它直接改工程文件。 */
   agent: { allowWrite: boolean }
   /**
-   * 运行时：allowSystem 是「允许用客户机上那两份 Node / PowerShell 7」（默认不允许，关键路径用我们自带的）；
+   * 运行时：system 是「这一份用客户机上那份吗」（逐份，默认都不用，关键路径用我们自带的）；
    * mirror 是安装包的镜像基址（内网放那两个 zip 的目录），空＝用官方地址。
    */
-  runtime: { allowSystem: boolean; mirror: string }
+  runtime: { system: { node: boolean; pwsh: boolean }; mirror: string }
   /** 参考源：一份「代码库清单 + 系统提示词」，可以存多份。 */
   templates: PromptTemplate[]
   /** 没指定参考源时用哪一份。 */

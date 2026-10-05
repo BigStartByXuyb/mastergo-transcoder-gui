@@ -102,24 +102,24 @@ function caseRuntimeMirror() {
   const home = tempHome(null);
   const settings = createSettings(home);
   assert.strictEqual(settings.read().runtime.mirror, "", "默认走官方地址");
-  assert.strictEqual(settings.read().runtime.allowSystem, false, "默认不用系统上那两份");
+  assert.deepStrictEqual(settings.read().runtime.system, { node: false, pwsh: false }, "默认两份都不用系统上那份");
 
-  const saved = settings.write({ runtime: { allowSystem: true, mirror: "http://10.0.0.9/runtime/" } }).runtime;
+  const saved = settings.write({ runtime: { system: { node: true, pwsh: false }, mirror: "http://10.0.0.9/runtime/" } }).runtime;
   assert.strictEqual(saved.mirror, "http://10.0.0.9/runtime", "末尾斜杠由这一处统一去掉");
-  assert.strictEqual(saved.allowSystem, true);
+  assert.deepStrictEqual(saved.system, { node: true, pwsh: false }, "两份运行时各记各的");
 
-  // 两个入口各写各的：只动其中一项时，另一项必须留着（界面上是开关 + 输入框，谁后写都不该清空对方）。
+  // 三个入口各写各的：只动其中一项时，其它必须留着（谁后写都不该清空对方）。
   const onlyMirror = settings.write({ runtime: { mirror: "http://10.0.0.9/other" } }).runtime;
   assert.strictEqual(onlyMirror.mirror, "http://10.0.0.9/other");
-  assert.strictEqual(onlyMirror.allowSystem, true, "只改镜像，不该把开关关掉");
-  const onlySwitch = settings.write({ runtime: { allowSystem: false } }).runtime;
-  assert.strictEqual(onlySwitch.allowSystem, false);
-  assert.strictEqual(onlySwitch.mirror, "http://10.0.0.9/other", "只动开关，不该把镜像清空");
+  assert.deepStrictEqual(onlyMirror.system, { node: true, pwsh: false }, "只改镜像，不该动两份的来源");
+  const onlyPwsh = settings.write({ runtime: { system: { pwsh: true } } }).runtime;
+  assert.deepStrictEqual(onlyPwsh.system, { node: true, pwsh: true }, "只动 pwsh，node 那份要留着");
+  assert.strictEqual(onlyPwsh.mirror, "http://10.0.0.9/other", "只动来源，不该把镜像清空");
 
   // 共享盘那种写法客户端取不了（fetch 只认 http/https）：当没填，回落官方地址。
-  const bad = settings.write({ runtime: { allowSystem: false, mirror: "\\\\server\\share\\runtime" } }).runtime;
+  const bad = settings.write({ runtime: { system: { node: false, pwsh: false }, mirror: "\\\\server\\share\\runtime" } }).runtime;
   assert.strictEqual(bad.mirror, "", "非法基址一律当没填");
-  assert.strictEqual(bad.allowSystem, false);
+  assert.deepStrictEqual(bad.system, { node: false, pwsh: false });
   fs.rmSync(home, { recursive: true, force: true });
 }
 

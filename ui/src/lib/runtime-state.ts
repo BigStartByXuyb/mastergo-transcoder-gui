@@ -36,6 +36,13 @@ export function describeTool(tool: RuntimeTool): string {
   return "没有可用的"
 }
 
+/* 表格「来源」那一列：这一份现在是从哪儿来的（生效的版本号写在版本列里）。 */
+export function sourceLabel(tool: RuntimeTool): string {
+  if (tool.source === "bundled") return "客户端自带"
+  if (tool.source === "system") return tool.id === "claude" ? "系统检测" : "系统上那份"
+  return tool.installed ? "自带（起不来）" : "没有可用的"
+}
+
 /* 按钮字面：没装过说「下载」，装过但坏了说「重下」。 */
 export function downloadLabel(tool: RuntimeTool): string {
   return (tool.installed ? "重下" : "下载") + (tool.pinned ? " v" + tool.pinned : "")

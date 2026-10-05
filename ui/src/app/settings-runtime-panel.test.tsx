@@ -1,87 +1,55 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { SettingsRuntimePanel } from "@/app/settings-runtime-panel"
-import type { RuntimeStatus } from "@/lib/api"
+import type { RuntimeProbeResult, RuntimeStatus } from "@/lib/api"
 import { drive, healthFixture, okResponse } from "@/lib/settings-fixtures"
 
 /*
- * 「运行环境」这一页：只读事实（客户端版本 / 插件 / 引擎 / 入口 / 页面帧）与两份运行时
- * （含「允许用系统那份」开关）在同一处。走真的 api 层，只把 fetch 换掉。
+ * 「运行环境」这一页：只读事实（客户端/插件/引擎/入口）+ 一张表（名称/版本/来源/操作）。
+ * 每行的「来源」开弹窗选那一份从哪儿来；自带的包从哪儿下也在那个弹窗里。
+ * 走真的 api 层，只把 fetch 换成一份可写的桩。
  */
 
-const health = () => healthFixture("0.6.37")
-
 function runtime(): RuntimeStatus {
+  const tool = (id: "node" | "pwsh" | "claude", patch: Partial<RuntimeStatus["tools"][number]>) => ({
+    id: id,
+    label: id === "node" ? "Node.js" : (id === "pwsh" ? "PowerShell 7" : "Claude Code"),
+    pinned: id === "claude" ? "" : (id === "node" ? "24.21.0" : "7.6.6"),
+    path: drive("D", "app", "runtime", id, "node.exe"),
+    installed: id !== "claude",
+    source: (id === "claude" ? "system" : "bundled") as RuntimeStatus["tools"][number]["source"],
+    versions: id === "claude" ? [] : [id === "node" ? "24.21.0" : "7.6.6"],
+    active: id === "claude" ? "" : (id === "node" ? "24.21.0" : "7.6.6"),
+    system: { ok: id === "claude", version: id === "claude" ? "2.1.278" : "", path: "" },
+    downloadUrl: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
+    officialUrl: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
+    fileName: "node-v24.21.0-win-x64.zip",
+    version: id === "claude" ? "2.1.278" : (id === "node" ? "24.21.0" : "7.6.6"),
+    ready: true,
+    switchable: false,
+    note: id === "claude" ? "检测到就用；不代下载。" : "",
+    ...patch
+  })
   return {
     root: drive("D", "app", "runtime"),
     mirror: "",
-    tools: [
-      {
-        id: "node",
-        label: "Node.js",
-        pinned: "24.21.0",
-        path: drive("D", "app", "runtime", "node", "24.21.0", "node.exe"),
-        installed: true,
-        source: "bundled",
-        versions: ["24.21.0"],
-        active: "24.21.0",
-        system: { ok: false, version: "", path: "" },
-        downloadUrl: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
-        officialUrl: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
-        fileName: "node-v24.21.0-win-x64.zip",
-        version: "24.21.0",
-        ready: true,
-        switchable: false,
-        note: ""
-      },
-      {
-        id: "pwsh",
-        label: "PowerShell 7",
-        pinned: "7.6.6",
-        path: drive("D", "app", "runtime", "pwsh", "7.6.6", "pwsh.exe"),
-        installed: true,
-        source: "bundled",
-        versions: ["7.6.6"],
-        active: "7.6.6",
-        system: { ok: false, version: "", path: "" },
-        downloadUrl: "https://github.com/PowerShell/PowerShell/releases/download/v7.6.6/PowerShell-7.6.6-win-x64.zip",
-        officialUrl: "https://github.com/PowerShell/PowerShell/releases/download/v7.6.6/PowerShell-7.6.6-win-x64.zip",
-        fileName: "PowerShell-7.6.6-win-x64.zip",
-        version: "7.6.6",
-        ready: true,
-        switchable: false,
-        note: ""
-      },
-      {
-        id: "claude",
-        label: "Claude Code",
-        pinned: "",
-        path: drive("C", "Users", "me", ".local", "bin", "claude.exe"),
-        installed: false,
-        source: "system",
-        versions: [],
-        active: "",
-        system: { ok: true, version: "2.1.278", path: drive("C", "Users", "me", ".local", "bin", "claude.exe") },
-        downloadUrl: "",
-        officialUrl: "",
-        fileName: "",
-        version: "2.1.278",
-        ready: true,
-        switchable: false,
-        note: "检测到就用；不代下载。"
-      }
-    ],
+    tools: [tool("node", {}), tool("pwsh", {}), tool("claude", {})],
     busy: "",
     error: null,
     task: { phase: "idle", tool: "", received: 0, size: 0, error: null, version: "", startedAt: "" }
   }
 }
 
+const PROBE: RuntimeProbeResult[] = [
+  { id: "node", label: "Node.js", fileName: "node-v24.21.0-win-x64.zip", url: "http://10.0.0.9/runtime/node-v24.21.0-win-x64.zip", ok: true, status: 200, note: "" },
+  { id: "pwsh", label: "PowerShell 7", fileName: "PowerShell-7.6.6-win-x64.zip", url: "http://10.0.0.9/runtime/PowerShell-7.6.6-win-x64.zip", ok: false, status: 404, note: "HTTP 404" }
+]
+
 function stub() {
-  // 设置是可写的桩：存了镜像之后，运行时状态跟着回新的 —— 这是「保存后立刻刷新」那条路径。
-  let savedMirror = ""
-  // 探测默认立刻返回；`holdNextProbe()` 之后下一次改成「挂着不结算」，用来验在途请求被作废那条路。
+  // 可写的设置桩：system 逐份、mirror 一个地址（POST /api/settings 会把改动合并进去）。
+  const state = { system: { node: false, pwsh: false }, mirror: "" }
+  const settings = () => ({ ok: true, settings: { runtime: state } })
   let holdNext = false
   let pendingResolve: ((response: Response) => void) | null = null
   let pendingPayload: unknown = null
@@ -89,34 +57,11 @@ function stub() {
     "fetch",
     vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
-      if (url.includes("/api/health")) return okResponse(health())
-      if (url.includes("/api/runtime/status")) {
-        const payload = runtime()
-        payload.mirror = savedMirror
-        if (savedMirror) {
-          payload.tools = payload.tools.map((tool) => {
-            if (tool.id !== "node") return tool
-            return { ...tool, downloadUrl: savedMirror + "/node-v24.21.0-win-x64.zip" }
-          })
-        }
-        return okResponse({ ok: true, status: payload })
-      }
-      if (url.includes("/api/settings")) {
-        if (init && init.body) {
-          const body = JSON.parse(String(init.body)) as { runtime?: { mirror?: string } }
-          if (body.runtime && typeof body.runtime.mirror === "string") savedMirror = body.runtime.mirror
-        }
-        return okResponse({ ok: true, settings: { runtime: { allowSystem: false, mirror: savedMirror } } })
-      }
+      if (url.includes("/api/health")) return okResponse(healthFixture("0.6.41"))
+      if (url.includes("/api/runtime/status")) return okResponse({ ok: true, status: runtime() })
+      if (url.includes("/api/runtime/download")) return okResponse({ ok: true, started: true, tool: "node", note: "", status: runtime() })
       if (url.includes("/api/runtime/probe")) {
-        const payload = {
-          ok: true,
-          base: "http://10.0.0.9/runtime",
-          results: [
-            { id: "node", label: "Node.js", fileName: "node-v24.21.0-win-x64.zip", url: "http://10.0.0.9/runtime/node-v24.21.0-win-x64.zip", ok: true, status: 200, note: "" },
-            { id: "pwsh", label: "PowerShell 7", fileName: "PowerShell-7.6.6-win-x64.zip", url: "http://10.0.0.9/runtime/PowerShell-7.6.6-win-x64.zip", ok: false, status: 404, note: "HTTP 404" }
-          ]
-        }
+        const payload = { ok: true, base: state.mirror || "http://10.0.0.9/runtime", results: PROBE }
         if (holdNext) {
           holdNext = false
           pendingPayload = payload
@@ -124,22 +69,26 @@ function stub() {
         }
         return okResponse(payload)
       }
+      if (url.includes("/api/settings")) {
+        if (init && init.body) {
+          const body = JSON.parse(String(init.body)) as { runtime?: { system?: Partial<typeof state.system>; mirror?: string } }
+          if (body.runtime) {
+            if (body.runtime.system) state.system = { ...state.system, ...body.runtime.system }
+            if (typeof body.runtime.mirror === "string") state.mirror = body.runtime.mirror
+          }
+        }
+        return okResponse(settings())
+      }
       return okResponse({ ok: true })
     })
   )
   return {
-    holdNextProbe: () => {
-      holdNext = true
-    },
+    state,
+    holdNextProbe: () => { holdNext = true },
     releaseProbe: () => {
       const resolve = pendingResolve
       pendingResolve = null
       if (resolve) resolve(new Response(JSON.stringify(pendingPayload), { status: 200 }))
-    },
-    failProbe: () => {
-      const resolve = pendingResolve
-      pendingResolve = null
-      if (resolve) resolve(new Response(JSON.stringify({ ok: false, error: { code: "PROBE_BOOM", message: "探测炸了", hint: "" } }), { status: 400 }))
     }
   }
 }
@@ -150,58 +99,64 @@ afterEach(() => {
 })
 
 describe("SettingsRuntimePanel", () => {
-  it("一张卡里既有现在用什么（客户端/插件/引擎/入口），也有两份运行时与那个开关", async () => {
+  it("一张表说明现在用什么；每行的「来源」开弹窗选它从哪儿来", async () => {
     const probe = stub()
     render(<SettingsRuntimePanel />)
 
     // 只读事实来自 /api/health
-    await waitFor(() => expect(screen.getByText("v0.6.37")).toBeTruthy())
+    await waitFor(() => expect(screen.getByText("v0.6.41")).toBeTruthy())
     expect(screen.getByText("已登记页面帧")).toBeTruthy()
 
-    // 运行时三行 + 开关来自 /api/runtime/status 与 /api/settings
-    await waitFor(() => expect(screen.getByText("PowerShell 7")).toBeTruthy())
-    expect(screen.getByText("Node.js")).toBeTruthy()
+    // 一张表：名称 / 版本 / 来源 / 操作
+    await waitFor(() => expect(screen.getByText("Node.js")).toBeTruthy())
+    for (const header of ["名称", "版本", "操作"]) expect(screen.getByText(header)).toBeTruthy()
+    expect(screen.getAllByText("来源").length).toBeGreaterThan(0)
+    expect(screen.getByText("PowerShell 7")).toBeTruthy()
     expect(screen.getByText("Claude Code")).toBeTruthy()
-    expect(screen.getByText("自带 2 份 / 用系统的 0 份")).toBeTruthy()
-    await waitFor(() => expect(screen.getByRole("switch", { name: /允许用系统上的 Node/ })).toBeTruthy())
-    /*
-     * 安装包来源：默认关着（走官方地址）—— 输入框不露出来，先把「哪两份程序的包」说清楚；
-     * 打开开关才露出地址框。
-     */
-    const sourceSwitch = screen.getByRole("switch", { name: /从内网地址取安装包/ })
-    expect(screen.getByText(/Node\.js 与 PowerShell 7/)).toBeTruthy()
-    expect(screen.queryByPlaceholderText("例如 http://10.0.0.9/runtime")).toBeNull()
-    fireEvent.click(sourceSwitch)
-    const address = screen.getByPlaceholderText("例如 http://10.0.0.9/runtime")
+    expect(screen.getAllByText("客户端自带")).toHaveLength(2)
+    expect(screen.getByText("系统检测")).toBeTruthy()
+    expect(screen.getByText("钉 v24.21.0")).toBeTruthy()
 
-    // 填镜像保存：输入框立刻换成存下来的值，每行那个地址也立刻跟着换（不等下一轮轮询）。
-    fireEvent.change(address, { target: { value: "http://10.0.0.9/runtime" } })
-    fireEvent.click(screen.getByRole("button", { name: "保存" }))
-    await waitFor(() => expect(screen.getByText(/10\.0\.0\.9\/runtime\/node-v24\.21\.0-win-x64\.zip/)).toBeTruthy())
+    // claude 没有「来源」可选（不是我们带的），另外两行有
+    expect(screen.getAllByRole("button", { name: "来源" })).toHaveLength(2)
 
-    // 「检查这个地址」：哪个文件在、哪个不在，当场说清楚（不用先存再等下载失败）。
-    fireEvent.click(screen.getByRole("button", { name: "检查这个地址" }))
-    await waitFor(() => expect(screen.getByText(/Node\.js：找到了/)).toBeTruthy())
-    expect(screen.getByText(/PowerShell 7：没找到（HTTP 404）/)).toBeTruthy()
+    // Node.js 那一行的「来源」→ 弹窗：两个选项 + 官方地址
+    fireEvent.click(screen.getAllByRole("button", { name: "来源" })[0])
+    const dialog = await screen.findByRole("dialog")
+    expect(within(dialog).getByText("Node.js 的来源")).toBeTruthy()
+    expect(within(dialog).getByText(/客户端自带的那一份（推荐）/)).toBeTruthy()
+    expect(within(dialog).getByText(/用系统上那一份（应急）/)).toBeTruthy()
+    expect(within(dialog).getByText(/nodejs\.org\/dist\/v24\.21\.0/)).toBeTruthy()
 
-    /*
-     * 在途的那次检查也要作废：点完「检查」还没回来，地址就改了 —— 旧结论不许再贴上来。
-     */
+    // 选「用系统上那一份」保存：只改 node 这一份
+    fireEvent.click(within(dialog).getByText(/用系统上那一份（应急）/))
+    fireEvent.click(within(dialog).getByRole("button", { name: "保存" }))
+    await waitFor(() => expect(probe.state.system).toEqual({ node: true, pwsh: false }))
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+
+    // 再开一次：切回自带 + 安装包从内网取 → 检查 → 保存
+    fireEvent.click(screen.getAllByRole("button", { name: "来源" })[0])
+    const again = await screen.findByRole("dialog")
+    fireEvent.click(within(again).getByText(/客户端自带的那一份（推荐）/))
+    fireEvent.click(within(again).getByText(/安装包从内网地址取/))
+    fireEvent.change(within(again).getByPlaceholderText("例如 http://10.0.0.9/runtime"), {
+      target: { value: "http://10.0.0.9/runtime" }
+    })
+    fireEvent.click(within(again).getByRole("button", { name: "检查" }))
+    await waitFor(() => expect(within(again).getByText(/Node\.js：找到了/)).toBeTruthy())
+    expect(within(again).getByText(/PowerShell 7：没找到（HTTP 404）/)).toBeTruthy()
+
+    // 在途的检查也要作废：还没回来就改地址 —— 旧结论不许贴上来
     probe.holdNextProbe()
-    fireEvent.click(screen.getByRole("button", { name: "检查这个地址" }))
-    fireEvent.change(screen.getByPlaceholderText("例如 http://10.0.0.9/runtime"), { target: { value: "http://10.0.0.9/another" } })
+    fireEvent.click(within(again).getByRole("button", { name: "检查" }))
+    fireEvent.change(within(again).getByPlaceholderText("例如 http://10.0.0.9/runtime"), {
+      target: { value: "http://10.0.0.9/another" }
+    })
     probe.releaseProbe()
-    await waitFor(() => expect(screen.queryByText(/Node\.js：找到了/)).toBeNull())
+    await waitFor(() => expect(within(again).queryByText(/Node\.js：找到了/)).toBeNull())
 
-    // 失败也一样：旧地址的报错不该挂到新地址上。
-    probe.holdNextProbe()
-    fireEvent.click(screen.getByRole("button", { name: "检查这个地址" }))
-    fireEvent.change(screen.getByPlaceholderText("例如 http://10.0.0.9/runtime"), { target: { value: "http://10.0.0.9/third" } })
-    probe.failProbe()
-    await waitFor(() => expect(screen.queryByText(/探测炸了/)).toBeNull())
-
-    // 关掉开关＝改回官方地址（这一下立刻落盘，不用再点保存），输入框跟着收起来。
-    fireEvent.click(screen.getByRole("switch", { name: /从内网地址取安装包/ }))
-    await waitFor(() => expect(screen.queryByPlaceholderText("例如 http://10.0.0.9/runtime")).toBeNull())
+    fireEvent.click(within(again).getByRole("button", { name: "保存" }))
+    await waitFor(() => expect(probe.state.mirror).toBe("http://10.0.0.9/another"))
+    expect(probe.state.system).toEqual({ node: false, pwsh: false })
   })
 })

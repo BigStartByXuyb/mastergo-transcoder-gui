@@ -87,8 +87,8 @@ const options = {
 const HOME = process.env.MASTERGO_HOME || HERE;
 const settings = createSettings(HOME);
 
-// 运行时的「允许用系统上那两份」只有一个来源：设置里那个开关，现读（刚打开就生效）。
-runtimePolicy.setSource(function () { return settings.read().runtime.allowSystem; });
+// 运行时「哪一份用系统上那份」只有一个来源：设置里那张逐份的表，现读（刚改完就生效）。
+runtimePolicy.setSource(function () { return settings.read().runtime.system; });
 
 // token 的来源与顺序只有 lib/mcp-token.js 一处：启动参数 > 环境变量 > 本机保存 > config.toml。
 // 取值不缓存 —— 设置页里保存完立刻按新值走。

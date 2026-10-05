@@ -1,45 +1,45 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Download, Loader2, Terminal } from "lucide-react"
-import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
 import { Progress } from "@/components/ui/progress"
-import { Switch } from "@/components/ui/switch"
-import { api, type RuntimeId, type RuntimeProbeResult, type RuntimeStatus, type RuntimeTool } from "@/lib/api"
+import { api, type RuntimeId, type RuntimeStatus, type RuntimeTool } from "@/lib/api"
 import { finishDownload } from "@/app/download-actions"
 import { startDownload } from "@/lib/download-run"
+import { RuntimeSourceDialog } from "@/app/runtime-source-dialog"
 import {
   describeRuntime,
-  describeTool,
   downloadLabel,
   downloadableId,
   isRuntimeWorking,
   runtimeTaskLine,
-  runtimeTaskPercent
+  runtimeTaskPercent,
+  sourceLabel
 } from "@/lib/runtime-state"
 import { describeFailure, failureText } from "@/lib/describe-failure"
-import { useSettings } from "@/lib/use-settings"
 
 const IDLE_POLL_MS = 15000
 const WORKING_POLL_MS = 1000
 
 /*
- * 运行时这一段（挂在「运行环境」页那张卡里，没有自己的卡片外框）：跑插件的 Node.js 与 PowerShell 7
- * 各钉死一份放进安装根的 runtime\<版本>\，
- * 默认只用我们自带的那一份（客户机上装了什么不该决定我们跑哪一版）；版本目录并存、
- * 指针指向生效那一版，界面不提供切换（跑哪一版由钉死表说了算）；claude 只检测。
+ * 运行时这一段（挂在「运行环境」页那张卡里）：跑插件的 Node.js 与 PowerShell 7 各钉死一份放进
+ * 安装根的 runtime\<版本>\，默认只用我们自带的那一份（客户机上装了什么不该决定我们跑哪一版）；
+ * 版本目录并存、指针指向生效那一版；claude 只检测。
+ *
+ * 一张表回答「现在用的是什么」：名称 / 版本（钉的与生效的）/ 来源（自带·系统）/ 操作；
+ * 「来源」按钮开弹窗选那一份用哪个（自带的包从哪儿下也在那个弹窗里，见 runtime-source-dialog）。
  */
 export function RuntimePanel() {
   const [status, setStatus] = useState<RuntimeStatus | null>(null)
   const [probe, setProbe] = useState("")
   const [failure, setFailure] = useState("")
   const [working, setWorking] = useState("")
+  // 正在改哪一份的来源（claude 没有来源可选）。
+  const [editing, setEditing] = useState("")
 
   const transferring = status ? isRuntimeWorking(status.task) : false
 
@@ -87,6 +87,8 @@ export function RuntimePanel() {
   const tools = status ? status.tools : []
   const running = status ? tools.find((item) => item.id === status.task.tool) : undefined
   const taskLine = status ? runtimeTaskLine(status.task, running ? running.label : "") : ""
+  const frozen = Boolean(working) || Boolean(busy) || transferring
+  const editingTool = tools.find((tool) => tool.id === editing)
 
   return (
     <div className="flex flex-col gap-4">
@@ -139,304 +141,102 @@ export function RuntimePanel() {
         </Alert>
       )}
 
-      {tools.map((tool) => (
-        <RuntimeRow
-          key={tool.id}
-          tool={tool}
+      {tools.length > 0 && (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-muted-foreground text-xs">
+              <th className="pb-1 text-left font-normal">名称</th>
+              <th className="pb-1 pl-2 text-left font-normal">版本</th>
+              <th className="pb-1 pl-2 text-left font-normal">来源</th>
+              <th className="pb-1 pl-2 text-right font-normal">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tools.map((tool) => (
+              <RuntimeRow
+                key={tool.id}
+                tool={tool}
+                id={downloadableId(status, tool)}
+                working={working === tool.id}
+                frozen={frozen}
+                onDownload={download}
+                onEditSource={() => setEditing(tool.id)}
+              />
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {editingTool && (
+        <RuntimeSourceDialog
+          tool={editingTool}
           mirror={status ? status.mirror : ""}
-          id={downloadableId(status, tool)}
-          working={working === tool.id}
+          working={working === editingTool.id}
           onDownload={download}
+          onClose={() => setEditing("")}
+          onSaved={refresh}
         />
-      ))}
-
-      <RuntimeSourceRow
-        mirror={status ? status.mirror : ""}
-        onSaved={refresh}
-        /* 官方地址是钉死表里那个，不随镜像变 —— 配了镜像也要能看见「默认是哪儿」。 */
-        official={tools
-          .filter((tool) => tool.officialUrl)
-          .map((tool) => ({ label: tool.label, url: tool.officialUrl, fileName: tool.fileName }))}
-      />
-      <RuntimeSystemSwitch />
-    </div>
-  )
-}
-
-/*
- * 安装包来源：普通客户不用管（留空＝官方地址）。
- * 它存在的唯一理由是「客户的机器上不了外网」：那两份运行时下不下来、流水线就跑不了；
- * 这时把官方那两个 zip 原样拷到内网一个能 HTTP 访问的目录，把目录地址填在这里。
- * 换源不改版本、不改哈希：取回来的包仍按钉死的 sha256 校验，填错了只会下载失败。
- */
-function RuntimeSourceRow(props: {
-  mirror: string
-  onSaved: () => Promise<void>
-  /** 官方地址与文件名：没配镜像时客户端就是去这儿取；配镜像时那两个文件要按这个名字放。 */
-  official: { label: string; url: string; fileName: string }[]
-}) {
-  const { settings, failure, save } = useSettings()
-  const [value, setValue] = useState(props.mirror)
-  // 开关只控制「露不露出这个输入框」；真正生效的是存下来的 mirror（开关打开还没保存时提示一句）。
-  const [revealed, setRevealed] = useState(false)
-  const [writing, setWriting] = useState(false)
-  const [checking, setChecking] = useState(false)
-  const [probed, setProbed] = useState<RuntimeProbeResult[]>([])
-  const [saveFailure, setSaveFailure] = useState("")
-  /*
-   * 在途的那次检查也要能作废：地址一改，之前那个请求回来时不能再把旧结论贴上来。
-   * 每次「作废」自增一次；回来时对不上就丢掉。
-   */
-  const probeSeq = useRef(0)
-
-  const on = Boolean(props.mirror)
-  const showInput = on || revealed
-
-  function invalidateProbe() {
-    probeSeq.current += 1
-    setProbed([])
-  }
-
-  useEffect(() => {
-    setValue(props.mirror)
-  }, [props.mirror])
-
-  /* 关掉＝改回官方地址：这一下立刻落盘（不用再点保存）。 */
-  async function turnOff() {
-    setRevealed(false)
-    setWriting(true)
-    setSaveFailure("")
-    invalidateProbe()
-    try {
-      await save({ runtime: { mirror: "" } })
-      setValue("")
-      await props.onSaved()
-      toast.success("安装包改回官方地址")
-    }
-    catch (error) {
-      setSaveFailure(describeFailure(error))
-    }
-    finally {
-      setWriting(false)
-    }
-  }
-
-  async function persist() {
-    setWriting(true)
-    setSaveFailure("")
-    try {
-      const next = await save({ runtime: { mirror: value } })
-      setValue(next.runtime.mirror)
-      // 地址换了，上一次的检查结论就作废 —— 别让新旧两句话并排挂着。
-      invalidateProbe()
-      // 每行那个「安装包：<地址>」来自运行时状态：存完立刻刷一次，别等下一轮轮询。
-      await props.onSaved()
-      toast.success(value.trim() ? "安装包改从镜像地址取" : "安装包改回官方地址")
-    }
-    catch (error) {
-      setSaveFailure(describeFailure(error))
-    }
-    finally {
-      setWriting(false)
-    }
-  }
-
-  /* 真去那个地址敲一下：比「先存再等到下载失败」直接得多。 */
-  async function check() {
-    setChecking(true)
-    setSaveFailure("")
-    setProbed([])
-    const seq = probeSeq.current
-    try {
-      const payload = await api.runtimeProbe(value.trim())
-      if (seq !== probeSeq.current) return
-      setProbed(payload.results)
-    }
-    catch (error) {
-      // 报错同样只属于「发出去时那个地址」：地址已经改了就别把这句话挂上去。
-      if (seq !== probeSeq.current) return
-      setSaveFailure(describeFailure(error))
-    }
-    finally {
-      setChecking(false)
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-1 border-t pt-3">
-      <label className="flex items-center gap-2 text-sm">
-        <Switch
-          checked={showInput}
-          disabled={!settings || writing}
-          onCheckedChange={(checked) => {
-            if (checked) setRevealed(true)
-            else void turnOff()
-          }}
-        />
-        从内网地址取安装包
-        {writing && <Loader2 className="size-4 animate-spin" />}
-      </label>
-      <p className="text-muted-foreground text-xs">
-        这一页里 <strong>Node.js 与 PowerShell 7</strong> 这两份运行时的安装包：
-        {on ? "现在从下面这个内网地址取。" : "关着时从官方地址取（nodejs.org / PowerShell 的 GitHub）。"}
-      </p>
-
-      {showInput && (
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          <Label htmlFor="runtime-mirror" className="sr-only">内网安装包目录地址</Label>
-          <Input
-            id="runtime-mirror"
-            className="font-mono text-xs sm:max-w-md"
-            placeholder="例如 http://10.0.0.9/runtime"
-            value={value}
-            onChange={(event) => {
-              setValue(event.target.value)
-              invalidateProbe()
-            }}
-          />
-          <Button size="sm" variant="outline" disabled={writing || !settings} onClick={() => void persist()}>
-            保存
-          </Button>
-          <Button size="sm" variant="ghost" disabled={checking} onClick={() => void check()}>
-            {checking ? <Loader2 className="size-4 animate-spin" /> : null}
-            检查这个地址
-          </Button>
-        </div>
-      )}
-
-      {showInput && !on && (
-        <p className="text-muted-foreground text-xs">填好地址后点「保存」，之后那两行会显示真会去取的地址。</p>
-      )}
-
-      {props.official.length > 0 && (
-        <div className="text-muted-foreground flex flex-col gap-0.5 text-xs">
-          <span>不填时客户端去这两个官方地址取（就是上面「下载」按钮要用的那两个安装包）：</span>
-          {props.official.map((item) => (
-            <span key={item.url} className="break-all">
-              {item.label}：<IdentifierText text={item.url} />
-            </span>
-          ))}
-        </div>
-      )}
-
-      <p className="text-muted-foreground text-xs">
-        客户的机器上不了外网时：内网开一个能 HTTP 访问的目录，把上面那两个 zip{" "}
-        <strong>按原名拷进去</strong>，再把那个<strong>目录</strong>的地址填在这里
-        （例如 <span className="font-mono">http://10.0.0.9/runtime</span>；填目录、不用填到 .zip；共享盘路径不行）。
-        客户端就会从「地址 / 文件名」取，并仍按我们钉死的 sha256 校验。留空即改回官方地址。
-      </p>
-
-      {props.official.length > 0 && (
-        <p className="text-muted-foreground text-xs">
-          也就是那个目录里要有这两个文件（名字不能改）：{props.official.map((item) => item.fileName).join("、")}
-        </p>
-      )}
-
-      {probed.length > 0 && (
-        <div className="flex flex-col gap-0.5 text-xs">
-          {probed.map((item) => (
-            <span key={item.id} className={item.ok ? "text-muted-foreground" : "text-destructive"}>
-              {item.label}：{item.ok ? "找到了" : "没找到（" + (item.note || "取不到") + "）"} —— <IdentifierText text={item.url} />
-            </span>
-          ))}
-        </div>
-      )}
-
-      {(failure || saveFailure) && (
-        <ClampText className="text-destructive text-xs" lines={2} text={failure || saveFailure} />
       )}
     </div>
   )
 }
 
-/*
- * 「允许用系统上那两份」开关：默认关着 —— 客户机上装的是什么，不该决定我们跑哪一版。
- * 打开之后，没装自带那份时就用系统上的，界面在每一行写清是哪一版；现读，不用重启客户端。
- */
-function RuntimeSystemSwitch() {
-  const { settings, failure, save } = useSettings()
-  const [writing, setWriting] = useState(false)
-  const [saveFailure, setSaveFailure] = useState("")
-
-  async function toggle(checked: boolean) {
-    setWriting(true)
-    setSaveFailure("")
-    try {
-      await save({ runtime: { allowSystem: checked } })
-      toast.success(checked ? "允许用系统上的 Node / PowerShell 7" : "只用客户端自带的那两份")
-    }
-    catch (error) {
-      setSaveFailure(describeFailure(error))
-    }
-    finally {
-      setWriting(false)
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-1 border-t pt-3">
-      <label className="flex items-center gap-2 text-sm">
-        <Switch
-          checked={Boolean(settings?.runtime.allowSystem)}
-          disabled={!settings || writing}
-          onCheckedChange={(checked) => void toggle(checked)}
-        />
-        允许用系统上的 Node / PowerShell 7
-        {writing && <Loader2 className="size-3 animate-spin" />}
-      </label>
-      <p className="text-muted-foreground text-xs">
-        关着时只用客户端自带的那两份（版本是我们钉死的，客户机上装了什么都不影响）；
-        打开之后，缺自带那份就用系统上的，并按系统上那一版跑 —— 出问题不好复现，应急才用。
-      </p>
-      {(failure || saveFailure) && (
-        <ClampText className="text-destructive text-xs" lines={2} text={failure || saveFailure} />
-      )}
-    </div>
-  )
-}
-
-/* 一行：名字、钉死的那一版、现在用的是哪份、有问题才给按钮。 */
+/* 表格一行：名称（下面挂路径与装过的版本）/ 版本（钉的与生效的）/ 来源 / 操作。 */
 function RuntimeRow({
   tool,
-  mirror,
   id,
   working,
-  onDownload
+  frozen,
+  onDownload,
+  onEditSource
 }: {
   tool: RuntimeTool
-  /** 配了镜像基址时把「真会去取的地址」摆出来：配错了一眼能看出来。 */
-  mirror: string
   id: RuntimeId | ""
   working: boolean
+  frozen: boolean
   onDownload: (tool: RuntimeId) => void
+  onEditSource: () => void
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="w-28 text-sm">{tool.label}</span>
-        {tool.pinned ? <Badge variant="secondary">钉 v{tool.pinned}</Badge> : <Badge variant="outline">只检测</Badge>}
-        <span className={tool.ready ? "text-sm" : "text-destructive text-sm"}>{describeTool(tool)}</span>
-        {id && (
-          <Button size="sm" variant="outline" disabled={working} onClick={() => onDownload(id)}>
-            {working ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-            {downloadLabel(tool)}
-          </Button>
+    <tr className="border-t align-top">
+      <td className="py-2 pr-2">
+        <div>{tool.label}</div>
+        <IdentifierText className="text-muted-foreground text-xs" text={tool.path} />
+        {tool.versions.length > 1 && (
+          <p className="text-muted-foreground text-xs">
+            本机装过：{tool.versions.map((version) => (version === tool.active ? version + "（当前）" : version)).join("、")}
+          </p>
         )}
-      </div>
-      {tool.note && (
-        <ClampText className="text-muted-foreground text-xs" lines={2} text={tool.note} />
-      )}
-      {tool.versions.length > 1 && (
-        <p className="text-muted-foreground text-xs">
-          本机装过：{tool.versions.map((version) => (version === tool.active ? version + "（当前）" : version)).join("、")}
-        </p>
-      )}
-      {mirror && tool.downloadUrl && (
-        <p className="text-muted-foreground text-xs">
-          安装包：<IdentifierText text={tool.downloadUrl} />
-        </p>
-      )}
-      <IdentifierText className="text-muted-foreground text-xs" text={tool.path} />
-    </div>
+      </td>
+      <td className="py-2 pl-2">
+        <div>{tool.pinned ? "钉 v" + tool.pinned : "只检测"}</div>
+        <div className="text-muted-foreground text-xs">{tool.version ? "v" + tool.version : "—"}</div>
+      </td>
+      <td className="py-2 pl-2">
+        <SourceBadge tool={tool} />
+        {tool.note && <ClampText className="text-muted-foreground text-xs" lines={2} text={tool.note} />}
+      </td>
+      <td className="py-2 pl-2 text-right">
+        <div className="flex flex-wrap justify-end gap-2">
+          {tool.id !== "claude" && (
+            <Button size="sm" variant="outline" disabled={frozen} onClick={onEditSource}>
+              来源
+            </Button>
+          )}
+          {id && (
+            <Button size="sm" variant="outline" disabled={working || frozen} onClick={() => onDownload(id)}>
+              {working ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+              {downloadLabel(tool)}
+            </Button>
+          )}
+        </div>
+      </td>
+    </tr>
   )
+}
+
+function SourceBadge({ tool }: { tool: RuntimeTool }) {
+  const label = sourceLabel(tool)
+  const variant = tool.ready ? "secondary" : (tool.installed ? "destructive" : "outline")
+  return <Badge variant={variant}>{label}</Badge>
 }

@@ -13,8 +13,8 @@ const { spawnSync } = require("child_process");
 
 const { readPipelineSteps, resolvePwsh } = require("../lib/plugin.js");
 // 这些用例要跑桩脚本（读步骤契约），需要一份 pwsh：测试机上那份显式允许使用 ——
-// 就是产品里「设置 → 允许用系统上那两份」那个开关，不是隐式回落。
-require("../lib/runtime-policy.js").setSource(function () { return true; });
+// 就是产品里运行环境页那一行选的「用系统上那一份」，不是隐式回落。
+require("../lib/runtime-policy.js").setSource(function () { return { node: true, pwsh: true }; });
 const { resolvePluginRoot, pluginHomes } = require("../lib/plugin-root.js");
 
 function write(file, text) {

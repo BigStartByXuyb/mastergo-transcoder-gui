@@ -28,14 +28,14 @@ const runtimePolicy = require("../lib/runtime-policy.js");
 
 const tempDirs = [];
 
-/* 允许不允许用系统上那份由设置决定；用例里显式开关，跑完复位。 */
+/* 允许不允许用系统上那份由设置决定（逐份）；用例里显式打开两份，跑完复位。 */
 function withSystem(allowed, run) {
-  runtimePolicy.setSource(function () { return allowed; });
+  runtimePolicy.setSource(function () { return { node: allowed, pwsh: allowed }; });
   try {
     return run();
   }
   finally {
-    runtimePolicy.setSource(function () { return false; });
+    runtimePolicy.setSource(function () { return {}; });
   }
 }
 
