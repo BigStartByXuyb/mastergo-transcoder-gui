@@ -72,6 +72,17 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | [REVIEW-001] `UpdateStatus.source.kind` 还是 `"github" \| "gitlab" \| "static"` 联合类型 —— 等于名单在前端又存了一份类型级副本，后端加一种源时类型层先分叉 | 真问题（与「名单只留后端一份」相抵） | `kind` 放宽成 `string`；显示名仍是 `KIND_LABELS` 缺了就用原值兜底，可用类型只有 `kinds` 一处 |
 | [REVIEW-002] token 解密失败也写进缓存，一次瞬时失败会让整段会话静默不带凭据 | 真问题（失败被锁死） | 只缓存解成功的值；失败这一次当没有凭据，下一次重新解 |
 
+### 发版后的真机回归（v0.6.31 已发布）
+
+- CI（main 上的三次）：全部 5 个 job success；最后一次 `semantic-audit` 是 PASS / 阻断 0 / 复核 0。
+- tag `v0.6.31` → release 65 个资产（`manifest.json` + 62 个运行树文件 + `mastergo-transcoder-gui-0.6.31.zip`）。
+- **按新源从 GitHub 真下了一遍**：另起一份临时 home（不动本机客户端状态）走 `check` + `stage`：
+  `check=update_available available=0.6.31 changed=63`，`manifestUrl` 就是内置 GitHub 源的清单地址，
+  `kinds=github/gitlab/static`；随后 63/63 个文件按 sha256 从 release 拉回、哈希校验通过、`versions/0.6.31/`
+  落盘完整（`server.js` 与 `public/index.html` 都在），结束态 `ready=0.6.31`、无错误。
+  说明：这一趟是空目录起步，所以 63 个全下；日常更新只下变化的那几个文件。
+- 本机客户端：服务重新起在 0.6.31（源码目录这一份），健康检查 `update.state=up_to_date`。
+
 ## 2026-10-01 环境变量一键生效（v0.6.30）
 
 ### 改了什么
