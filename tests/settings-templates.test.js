@@ -97,12 +97,31 @@ function caseSource() {
   fs.rmSync(home, { recursive: true, force: true });
 }
 
+// 运行时的安装包来源：默认空＝官方地址；填了就是镜像基址（末尾斜杠去掉）；填共享盘那种取不到的写法当没填。
+function caseRuntimeMirror() {
+  const home = tempHome(null);
+  const settings = createSettings(home);
+  assert.strictEqual(settings.read().runtime.mirror, "", "默认走官方地址");
+  assert.strictEqual(settings.read().runtime.allowSystem, false, "默认不用系统上那两份");
+
+  const saved = settings.write({ runtime: { allowSystem: true, mirror: "http://10.0.0.9/runtime/" } }).runtime;
+  assert.strictEqual(saved.mirror, "http://10.0.0.9/runtime", "末尾斜杠由这一处统一去掉");
+  assert.strictEqual(saved.allowSystem, true);
+
+  // 共享盘那种写法客户端取不了（fetch 只认 http/https）：当没填，回落官方地址。
+  const bad = settings.write({ runtime: { allowSystem: false, mirror: "\\\\server\\share\\runtime" } }).runtime;
+  assert.strictEqual(bad.mirror, "", "非法基址一律当没填");
+  assert.strictEqual(bad.allowSystem, false);
+  fs.rmSync(home, { recursive: true, force: true });
+}
+
 try {
   const cases = [
     ["新机器", caseFresh],
     ["旧配置迁移", caseLegacy],
     ["默认参考源", caseActive],
-    ["发布源", caseSource]
+    ["发布源", caseSource],
+    ["运行时安装包来源", caseRuntimeMirror]
   ];
   for (const [name, run] of cases) {
     run();

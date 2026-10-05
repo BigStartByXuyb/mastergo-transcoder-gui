@@ -20,6 +20,7 @@ const {
   resolvePwshExe,
   requireNodeExe,
   requirePwshExe,
+  assetUrl,
   childEnv,
   TOOLS
 } = require("../lib/runtime.js");
@@ -85,6 +86,7 @@ function specOf(overrides) {
   return Object.assign({
     label: "Node.js",
     version: "1.2.3",
+    fileName: "node-1.2.3.zip",
     url: "https://example.invalid/node.zip",
     sha256: sha256(ZIP),
     strip: 1,
@@ -140,11 +142,45 @@ async function main() {
     const spec = TOOLS[id];
     assert.match(spec.url, /^https:\/\//, id + " 的地址要 https");
     assert.ok(spec.url.indexOf(spec.version) >= 0, id + " 的地址要带钉死的版本号");
+    assert.ok(spec.url.endsWith("/" + spec.fileName), id + " 的官方地址要以文件名结尾（镜像按同一个文件名放）");
     assert.match(spec.sha256, /^[0-9a-f]{64}$/, id + " 的哈希要是 sha256");
     assert.strictEqual(typeof spec.strip, "number", id + " 要写清解压时剥几层");
     assert.ok(spec.probe.length > 0, id + " 要有自检命令");
     assert.strictEqual(spec.exe, id + ".exe", id + " 的程序名按约定");
   }
+
+  // ---- 安装包从哪儿取：没配镜像是官方地址，配了就是「基址/文件名」 ----
+  assert.strictEqual(assetUrl("node", ""), TOOLS.node.url, "留空＝官方地址");
+  assert.strictEqual(
+    assetUrl("pwsh", "http://10.0.0.9/runtime/"),
+    "http://10.0.0.9/runtime/" + TOOLS.pwsh.fileName,
+    "配了镜像就按基址拼，末尾斜杠由这一处统一去掉"
+  );
+
+  /* 下载真的走了镜像地址，并且带上了凭据头（内网那份要凭据时用发布源那个只读 token）。 */
+  const mirrorHome = makeHome();
+  const seenUrls = [];
+  const mirrorRt = createRuntime({
+    home: mirrorHome,
+    tools: { node: specOf() },
+    mirror: function () { return "http://10.0.0.9/runtime"; },
+    token: function () { return "t0ken"; },
+    spawnSyncImpl: okSpawn(),
+    fetchImpl: async function (url, options) {
+      seenUrls.push({ url: String(url), headers: options && options.headers });
+      return okStream(ZIP);
+    },
+    env: {}
+  });
+  assert.strictEqual(mirrorRt.status().mirror, "http://10.0.0.9/runtime", "状态里照实报出镜像是哪个");
+  assert.strictEqual(
+    mirrorRt.status().tools[0].downloadUrl,
+    "http://10.0.0.9/runtime/" + specOf().fileName,
+    "界面上看到的就是真会去取的地址"
+  );
+  assert.strictEqual(mirrorRt.startDownload("node").started, true);
+  assert.strictEqual(await waitSettled(mirrorRt), "done");
+  assert.deepStrictEqual(seenUrls, [{ url: "http://10.0.0.9/runtime/" + specOf().fileName, headers: { authorization: "Bearer t0ken" } }]);
 
   // ---- 目录：版本目录 + 指针 + current 链接；一份都没装时解析不猜 ----
   const home = makeHome();

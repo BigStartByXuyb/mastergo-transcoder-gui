@@ -5,6 +5,8 @@ import { toast } from "sonner"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
 import { Progress } from "@/components/ui/progress"
@@ -141,7 +143,66 @@ export function RuntimePanel() {
         />
       ))}
 
+      <RuntimeSourceRow mirror={status ? status.mirror : ""} />
       <RuntimeSystemSwitch />
+    </div>
+  )
+}
+
+/*
+ * 安装包来源：默认官方地址；内网取不到时把两个 zip 放到一个能 HTTP 访问的目录里，这里填那个基址。
+ * 换源不改版本、不改哈希 —— 取回来的包仍要按钉死的 sha256 校验，填错了只会「下载失败」。
+ */
+function RuntimeSourceRow({ mirror }: { mirror: string }) {
+  const { settings, failure, save } = useSettings()
+  const [value, setValue] = useState(mirror)
+  const [writing, setWriting] = useState(false)
+  const [saveFailure, setSaveFailure] = useState("")
+
+  useEffect(() => {
+    setValue(mirror)
+  }, [mirror])
+
+  async function persist() {
+    setWriting(true)
+    setSaveFailure("")
+    try {
+      const next = await save({ runtime: { mirror: value } })
+      setValue(next.runtime.mirror)
+      toast.success(value.trim() ? "安装包改从镜像地址取" : "安装包改回官方地址")
+    }
+    catch (error) {
+      setSaveFailure(describeFailure(error))
+    }
+    finally {
+      setWriting(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1 border-t pt-3">
+      <Label htmlFor="runtime-mirror" className="text-sm">安装包来源</Label>
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          id="runtime-mirror"
+          className="font-mono text-xs sm:max-w-md"
+          placeholder="留空＝官方地址"
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+        />
+        <Button size="sm" variant="outline" disabled={writing || !settings} onClick={() => void persist()}>
+          {writing ? <Loader2 className="size-4 animate-spin" /> : null}
+          保存
+        </Button>
+      </div>
+      <p className="text-muted-foreground text-xs">
+        默认从官方地址下载（nodejs.org 与 PowerShell 的 GitHub）。内网取不到时，把这两个 zip 放到一个能
+        HTTP 访问的目录里，这里填那个基址 —— 客户端按「基址 / 文件名」取，并仍按我们钉死的 sha256 校验。
+        留空即改回官方地址。
+      </p>
+      {(failure || saveFailure) && (
+        <ClampText className="text-destructive text-xs" lines={2} text={failure || saveFailure} />
+      )}
     </div>
   )
 }

@@ -15,6 +15,7 @@ const health = () => healthFixture("0.6.37")
 function runtime(): RuntimeStatus {
   return {
     root: drive("D", "app", "runtime"),
+    mirror: "",
     tools: [
       {
         id: "node",
@@ -26,6 +27,7 @@ function runtime(): RuntimeStatus {
         versions: ["24.21.0"],
         active: "24.21.0",
         system: { ok: false, version: "", path: "" },
+        downloadUrl: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
         version: "24.21.0",
         ready: true,
         switchable: false,
@@ -41,6 +43,7 @@ function runtime(): RuntimeStatus {
         versions: ["7.6.6"],
         active: "7.6.6",
         system: { ok: false, version: "", path: "" },
+        downloadUrl: "https://github.com/PowerShell/PowerShell/releases/download/v7.6.6/PowerShell-7.6.6-win-x64.zip",
         version: "7.6.6",
         ready: true,
         switchable: false,
@@ -56,6 +59,7 @@ function runtime(): RuntimeStatus {
         versions: [],
         active: "",
         system: { ok: true, version: "2.1.278", path: drive("C", "Users", "me", ".local", "bin", "claude.exe") },
+        downloadUrl: "",
         version: "2.1.278",
         ready: true,
         switchable: false,
@@ -103,5 +107,8 @@ describe("SettingsRuntimePanel", () => {
     expect(screen.getByText("Claude Code")).toBeTruthy()
     expect(screen.getByText("自带 2 份 / 用系统的 0 份")).toBeTruthy()
     await waitFor(() => expect(screen.getByRole("switch", { name: /允许用系统上的 Node/ })).toBeTruthy())
+    // 安装包来源：默认留空（走官方地址），旁白写清内网怎么配。
+    expect(screen.getByLabelText("安装包来源")).toBeTruthy()
+    expect((screen.getByPlaceholderText("留空＝官方地址") as HTMLInputElement).value).toBe("")
   })
 })

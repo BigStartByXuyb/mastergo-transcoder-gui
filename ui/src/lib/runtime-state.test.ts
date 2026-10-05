@@ -32,6 +32,7 @@ function tool(overrides: Partial<RuntimeTool> & Pick<RuntimeTool, "id" | "label"
     versions: ["24.21.0"],
     active: "24.21.0",
     system: { ok: false, version: "", path: "" },
+    downloadUrl: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
     version: "24.21.0",
     ready: true,
     switchable: false,
@@ -43,6 +44,7 @@ function tool(overrides: Partial<RuntimeTool> & Pick<RuntimeTool, "id" | "label"
 function status(overrides: Partial<RuntimeStatus> = {}): RuntimeStatus {
   return {
     root: at("app", "runtime"),
+    mirror: "",
     tools: [
       tool({ id: "node", label: "Node.js" }),
       tool({

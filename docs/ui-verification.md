@@ -16,6 +16,34 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-10-05 运行时的安装包来源可配（v0.6.38）
+
+### 改了什么
+
+- `lib/runtime.js`：钉死表里每份运行时多了 `fileName`（官方包名）；新增 `assetUrl(tool, mirror)` ——
+  填了镜像基址就按 `<基址>/<文件名>` 取，没填就用官方地址。`install()` 走这个地址，
+  需要凭据时带上「发布源」那个只读 token；状态里每行多一个 `downloadUrl`（真会去取的地址）。
+- `lib/settings.js`：`runtime.mirror`（只认 http/https，末尾斜杠统一去掉；共享盘那种写法当没填）；
+  `server.js` 把 mirror 与 token 现取给运行时。
+- 界面（运行环境页最下面）：新增「安装包来源」——一个输入框 + 保存，留空＝官方地址，
+  旁白写清内网怎么放这两个 zip；每份运行时那一行现在会显示真会去取的地址。
+
+### 为什么
+
+原计划第 3 步：`nodejs.org` 与 PowerShell 的 GitHub 两个地址写死在代码里，保密内网取不到，
+客户机就没法把运行时补齐（前两步把运行时管起来了，但取不到还是白搭）。现在把「从哪儿取」
+做成配置，回公司换成内网地址即可 —— 版本与哈希仍由我们钉死，换源不会换成别的版本。
+
+### 点过/跑过的东西
+
+| 操作 | 观察到 | 结论 |
+| --- | --- | --- |
+| 用例：`assetUrl("node", "")` / `assetUrl("pwsh", "http://10.0.0.9/runtime/")` | 前者等于官方地址；后者是 `http://10.0.0.9/runtime/PowerShell-7.6.6-win-x64.zip`（末尾斜杠由这一处去掉） | 通过 |
+| 用例：配了镜像再「下载」 | 假 fetch 收到的就是镜像地址，且带 `authorization: Bearer …`；状态里 `mirror` 与每行 `downloadUrl` 都照实报出 | 通过 |
+| 用例：设置里填 `\\server\share\runtime` | 当没填（回落官方地址）—— fetch 只认 http/https，静默接受一个取不到的地址更糟 | 通过 |
+| 设置 → 运行环境 | 最下面多一行「安装包来源」：输入框（占位「留空＝官方地址」）+ 保存 + 一段旁白 | 通过 |
+| 全量门禁 | 后端 42 条（运行时与设置用例扩充）、前端 52 文件 307 条、`tsc`、oxlint、结构检查 PASS；空 `MASTERGO_HOME`（模拟 CI 无运行时）同样 42/42 | 通过 |
+
 ## 2026-10-05 「运行环境」独立成一页（v0.6.37）
 
 ### 改了什么

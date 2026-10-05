@@ -202,8 +202,11 @@ export type Settings = {
   automation: "off" | "assist" | "auto"
   /** 对话/自动模式的写盘开关：关着时 Codex 只读，开着才允许它直接改工程文件。 */
   agent: { allowWrite: boolean }
-  /** 运行时：允许用客户机上那两份 Node / PowerShell 7（默认不允许，关键路径用客户端自带的）。 */
-  runtime: { allowSystem: boolean }
+  /**
+   * 运行时：allowSystem 是「允许用客户机上那两份 Node / PowerShell 7」（默认不允许，关键路径用我们自带的）；
+   * mirror 是安装包的镜像基址（内网放那两个 zip 的目录），空＝用官方地址。
+   */
+  runtime: { allowSystem: boolean; mirror: string }
   /** 参考源：一份「代码库清单 + 系统提示词」，可以存多份。 */
   templates: PromptTemplate[]
   /** 没指定参考源时用哪一份。 */
@@ -732,6 +735,8 @@ export type RuntimeTool = {
   active: string
   /** 系统上那一份是什么：有没有、哪一版。用不用由「允许用系统那份」说了算。 */
   system: { ok: boolean; version: string; path: string }
+  /** 现在会从哪儿取这一份安装包（配了镜像就是镜像地址，否则是官方地址）。 */
+  downloadUrl: string
   version: string
   ready: boolean
   /** 恒为 false：这两份在关键路径上，不提供版本切换。 */
@@ -754,6 +759,8 @@ export type RuntimeTask = {
 
 export type RuntimeStatus = {
   root: string
+  /** 安装包现在从哪儿取（空＝官方地址）。 */
+  mirror: string
   tools: RuntimeTool[]
   /** 有任务在跑时是不能换运行时的，这里放原因（空串表示空闲）。 */
   busy: string

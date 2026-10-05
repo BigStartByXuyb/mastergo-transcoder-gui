@@ -179,7 +179,13 @@ const codex = createCodex({
   pluginHomes: createPluginHomes({ pluginDir: options.plugin, chosenRoot: pluginRuntime.chosen })
 });
 // 运行时：客户端自带的 Node / PowerShell 7 与 claude 的检测结果，设置页的运行时卡片读它。
-const runtime = createRuntime({ home: HOME, isBusy: busyReason });
+const runtime = createRuntime({
+  home: HOME,
+  isBusy: busyReason,
+  // 安装包从哪儿取、要不要凭据：都现取（设置里刚改完，下一次下载就按新的走）。
+  mirror: function () { return settings.read().runtime.mirror; },
+  token: function () { return settings.readSourceToken(); }
+});
 // 对话存档：chats.json 在安装根，属于用户状态，不随程序版本走。
 const chats = createChats({ home: HOME });
 // 对话附件：落在 chats/uploads/<批次>/ 下，属于用户状态，不随程序版本走。
