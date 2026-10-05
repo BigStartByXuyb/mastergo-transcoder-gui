@@ -44,7 +44,8 @@ const { createPendingQueue } = require("./lib/pending-queue.js");
 const { createMapping } = require("./lib/mapping.js");
 const { createUpdate } = require("./lib/update.js");
 const { createCodex } = require("./lib/codex.js");
-const { createRuntime } = require("./lib/runtime.js");
+const { createRuntime, resolvePwshExe } = require("./lib/runtime.js");
+const runtimePolicy = require("./lib/runtime-policy.js");
 const { createChats } = require("./lib/chat.js");
 const { createUploads } = require("./lib/uploads.js");
 const { applyProxy } = require("./lib/proxy.js");
@@ -86,6 +87,9 @@ const options = {
 const HOME = process.env.MASTERGO_HOME || HERE;
 const settings = createSettings(HOME);
 
+// 运行时的「允许用系统上那两份」只有一个来源：设置里那个开关，现读（刚打开就生效）。
+runtimePolicy.setSource(function () { return settings.read().runtime.allowSystem; });
+
 // token 的来源与顺序只有 lib/mcp-token.js 一处：启动参数 > 环境变量 > 本机保存 > config.toml。
 // 取值不缓存 —— 设置页里保存完立刻按新值走。
 const tokenSource = createTokenSource({
@@ -116,7 +120,8 @@ const resolver = createResolver({
   engine: PLUGIN.engine,
   // 插件根每次现取：设置里换一份之后立刻生效，不用重启客户端。
   pluginRoot: function () { return PLUGIN.root; },
-  pwsh: PLUGIN.pwsh,
+  // pwsh 也现取：换了运行时、或改了「允许用系统那份」之后，下一次查询就按新的走。
+  pwsh: function () { return resolvePwshExe(); },
   token: function () { return tokenSource.value(); },
   project: options.project,
   snapshot: options.snapshot,

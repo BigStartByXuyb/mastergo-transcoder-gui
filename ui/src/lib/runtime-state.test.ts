@@ -26,9 +26,12 @@ function task(overrides: Partial<RuntimeTask> & Pick<RuntimeTask, "phase" | "too
 function tool(overrides: Partial<RuntimeTool> & Pick<RuntimeTool, "id" | "label">): RuntimeTool {
   return {
     pinned: "24.21.0",
-    path: at("app", "runtime", "node", "node.exe"),
+    path: at("app", "runtime", "node", "24.21.0", "node.exe"),
     installed: true,
     source: "bundled",
+    versions: ["24.21.0"],
+    active: "24.21.0",
+    system: { ok: false, version: "", path: "" },
     version: "24.21.0",
     ready: true,
     switchable: false,
@@ -47,7 +50,7 @@ function status(overrides: Partial<RuntimeStatus> = {}): RuntimeStatus {
         label: "PowerShell 7",
         pinned: "7.6.6",
         version: "7.6.6",
-        path: at("app", "runtime", "pwsh", "pwsh.exe")
+        path: at("app", "runtime", "pwsh", "7.6.6", "pwsh.exe")
       }),
       tool({
         id: "claude",

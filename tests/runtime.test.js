@@ -18,11 +18,24 @@ const {
   bundledExe,
   resolveNodeExe,
   resolvePwshExe,
+  requirePwshExe,
   childEnv,
   TOOLS
 } = require("../lib/runtime.js");
+const runtimePolicy = require("../lib/runtime-policy.js");
 
 const tempDirs = [];
+
+/* 允许不允许用系统上那份由设置决定；用例里显式开关，跑完复位。 */
+function withSystem(allowed, run) {
+  runtimePolicy.setSource(function () { return allowed; });
+  try {
+    return run();
+  }
+  finally {
+    runtimePolicy.setSource(function () { return false; });
+  }
+}
 
 function makeHome() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gui-runtime-"));
@@ -132,28 +145,50 @@ async function main() {
     assert.strictEqual(spec.exe, id + ".exe", id + " 的程序名按约定");
   }
 
-  // ---- 目录与程序路径 ----
+  // ---- 目录：版本目录 + 指针 + current 链接；一份都没装时解析不猜 ----
   const home = makeHome();
   assert.strictEqual(runtimeRoot(home), path.join(home, "runtime"));
-  assert.strictEqual(bundledExe("node", home), path.join(home, "runtime", "node", "node.exe"));
-  assert.strictEqual(bundledExe("pwsh", home), path.join(home, "runtime", "pwsh", "pwsh.exe"));
+  assert.strictEqual(bundledExe("node", home), "", "一份都没装就没有自带那份");
 
-  // ---- 起服务用哪一份 node：自带优先，没有才用当前进程这一份 ----
-  assert.strictEqual(resolveNodeExe(home), process.execPath, "没自带就用当前进程这一份");
-  fs.mkdirSync(path.join(home, "runtime", "node"), { recursive: true });
-  fs.writeFileSync(bundledExe("node", home), "");
-  assert.strictEqual(resolveNodeExe(home), bundledExe("node", home), "有自带就用自带的");
+  // ---- 没装自带、也没允许用系统的：解析结果为空，绝不悄悄换成系统那份 ----
+  assert.strictEqual(resolveNodeExe(home), "", "默认不用系统那一份");
+  assert.strictEqual(resolvePwshExe(home), "", "默认不用系统那一份");
+  assert.throws(
+    function () { requirePwshExe(home); },
+    function (error) {
+      assert.strictEqual(error.code, "NO_PWSH");
+      assert.match(error.hint, /运行环境/);
+      return true;
+    },
+    "真要跑 pwsh 的时候才报错，并说清去哪儿补"
+  );
 
-  // ---- 跑插件脚本用哪一份 pwsh：环境变量 > 自带 > 系统 PATH ----
+  // 设置里显式允许之后，才轮到系统上那一份。
+  withSystem(true, function () {
+    assert.strictEqual(resolveNodeExe(home), process.execPath, "允许了才用当前进程这一份");
+    assert.strictEqual(resolvePwshExe(home), "pwsh", "允许了才落到系统 PATH 里的 pwsh");
+  });
+
+  // 装好自带那份：无论开关怎么设，都优先用我们自己的。
+  const installed = path.join(home, "runtime", "node", TOOLS.node.version);
+  fs.mkdirSync(installed, { recursive: true });
+  fs.writeFileSync(path.join(installed, "node.exe"), "");
+  assert.strictEqual(resolveNodeExe(home), path.join(installed, "node.exe"), "有自带就用自带的");
+  withSystem(true, function () {
+    assert.strictEqual(resolveNodeExe(home), path.join(installed, "node.exe"), "允许用系统那份也不改变优先级");
+  });
+
+  // ---- 跑插件脚本用哪一份 pwsh：环境变量 > 自带 > 允许时系统 PATH ----
   const pwshHome = makeHome();
   const savedCustom = process.env.MASTERGO_PWSH;
   try {
-    assert.strictEqual(resolvePwshExe(pwshHome), "pwsh", "都没有就落到系统 PATH 里的 pwsh");
-    fs.mkdirSync(path.join(pwshHome, "runtime", "pwsh"), { recursive: true });
-    fs.writeFileSync(bundledExe("pwsh", pwshHome), "");
-    assert.strictEqual(resolvePwshExe(pwshHome), bundledExe("pwsh", pwshHome), "有自带就用自带的");
     process.env.MASTERGO_PWSH = "C:\\custom\\pwsh.exe";
-    assert.strictEqual(resolvePwshExe(pwshHome), "C:\\custom\\pwsh.exe", "环境变量最优先");
+    assert.strictEqual(resolvePwshExe(pwshHome), "C:\\custom\\pwsh.exe", "环境变量最优先（显式指定）");
+    delete process.env.MASTERGO_PWSH;
+    const realPwsh = path.join(pwshHome, "runtime", "pwsh", TOOLS.pwsh.version);
+    fs.mkdirSync(realPwsh, { recursive: true });
+    fs.writeFileSync(path.join(realPwsh, "pwsh.exe"), "");
+    assert.strictEqual(resolvePwshExe(pwshHome), path.join(realPwsh, "pwsh.exe"), "有自带就用自带的");
   }
   finally {
     if (savedCustom === undefined) delete process.env.MASTERGO_PWSH;
@@ -166,10 +201,12 @@ async function main() {
    */
   const pathHome = makeHome();
   assert.strictEqual(pathOf(childEnv(null, pathHome)), process.env.PATH, "没有自带的就别碰 PATH");
-  fs.mkdirSync(path.join(pathHome, "runtime", "pwsh"), { recursive: true });
+  const pathPwsh = path.join(pathHome, "runtime", "pwsh", TOOLS.pwsh.version);
+  fs.mkdirSync(pathPwsh, { recursive: true });
+  fs.writeFileSync(path.join(pathPwsh, "pwsh.exe"), "");
   const withPwsh = childEnv({ TAG: "x" }, pathHome);
   const childPath = pathOf(withPwsh).split(path.delimiter);
-  assert.strictEqual(childPath[0], path.join(pathHome, "runtime", "pwsh"));
+  assert.strictEqual(childPath[0], pathPwsh, "PATH 里放的是那一版的目录");
   assert.ok(childPath.length > 1, "系统 PATH 原样接在自带的两份后面");
   assert.strictEqual(childPath.slice(1).join(path.delimiter), process.env.PATH, "原有的 PATH 一个字节不动");
   assert.strictEqual(withPwsh.TAG, "x", "额外变量照传");
@@ -184,9 +221,9 @@ async function main() {
   for (const item of bareStatus.tools) assert.strictEqual(item.switchable, false, "关键路径上的运行时不提供切换");
 
   const nodeRow = bareStatus.tools[0];
-  assert.strictEqual(nodeRow.source, "system", "没自带就在用当前进程这一份");
-  assert.strictEqual(nodeRow.ready, true);
-  assert.match(nodeRow.note, /正在用系统上那一份/);
+  assert.strictEqual(nodeRow.source, "", "没自带、又没允许用系统那份：现在没有可用的");
+  assert.strictEqual(nodeRow.ready, false);
+  assert.match(nodeRow.note, /但没允许用它/);
 
   const pwshRow = bareStatus.tools[1];
   assert.strictEqual(pwshRow.installed, false);
@@ -198,24 +235,30 @@ async function main() {
   assert.strictEqual(claudeRow.installed, false, "claude 永远不是「自带」");
   assert.strictEqual(claudeRow.source, "");
   assert.strictEqual(claudeRow.ready, false);
+  // 每一行都要带齐新字段：少一个前端读它就整页白屏（v0.6.35 真踩过）。
+  assert.deepStrictEqual(claudeRow.versions, []);
+  assert.strictEqual(claudeRow.active, "");
+  assert.strictEqual(typeof claudeRow.system.ok, "boolean");
   assert.match(claudeRow.note, /不代下载/);
 
-  // 系统上有 pwsh：认它，但提示「下载后改用客户端自带的那份」。
-  const sysPwsh = createRuntime({
-    home: makeHome(),
-    spawnSyncImpl: fakeSpawn([{ match: "pwsh", result: { status: 0, stdout: "7.6.6", stderr: "" } }]),
-    env: {}
+  // 允许用系统那份之后：系统上的 pwsh 被认下来，但仍提示「下载后改用客户端自带的那份」。
+  withSystem(true, function () {
+    const sysPwsh = createRuntime({
+      home: makeHome(),
+      spawnSyncImpl: fakeSpawn([{ match: "pwsh", result: { status: 0, stdout: "7.6.6", stderr: "" } }]),
+      env: {}
+    });
+    const sysPwshRow = sysPwsh.status().tools[1];
+    assert.strictEqual(sysPwshRow.source, "system");
+    assert.strictEqual(sysPwshRow.version, "7.6.6");
+    assert.strictEqual(sysPwshRow.ready, true);
+    assert.match(sysPwshRow.note, /下载后改用客户端自带的那份/);
   });
-  const sysPwshRow = sysPwsh.status().tools[1];
-  assert.strictEqual(sysPwshRow.source, "system");
-  assert.strictEqual(sysPwshRow.version, "7.6.6");
-  assert.strictEqual(sysPwshRow.ready, true);
-  assert.match(sysPwshRow.note, /下载后改用客户端自带的那份/);
 
   // 自带那份在，但自检出来的版本不对：不许当它是好的，且提示重下。
   const badBundledHome = makeHome();
   fs.mkdirSync(path.join(badBundledHome, "runtime", "node"), { recursive: true });
-  fs.writeFileSync(bundledExe("node", badBundledHome), "");
+  fs.writeFileSync(path.join(badBundledHome, "runtime", "node", "node.exe"), "");
   const badBundled = createRuntime({
     home: badBundledHome,
     spawnSyncImpl: fakeSpawn([{ match: "node.exe", result: { status: 0, stdout: "v9.9.9", stderr: "" } }]),
@@ -230,7 +273,7 @@ async function main() {
   // 自带那份在且版本对得上：这一行没有任何提示。
   const goodBundledHome = makeHome();
   fs.mkdirSync(path.join(goodBundledHome, "runtime", "node"), { recursive: true });
-  fs.writeFileSync(bundledExe("node", goodBundledHome), "");
+  fs.writeFileSync(path.join(goodBundledHome, "runtime", "node", "node.exe"), "");
   const goodBundled = createRuntime({
     home: goodBundledHome,
     spawnSyncImpl: fakeSpawn([{ match: "node.exe", result: { status: 0, stdout: "v" + TOOLS.node.version, stderr: "" } }]),
@@ -278,7 +321,17 @@ async function main() {
   assert.strictEqual(dlAfter.tools[0].installed, true);
   assert.strictEqual(dlAfter.tools[0].source, "bundled");
   assert.strictEqual(dlAfter.tools[0].ready, true);
-  assert.ok(fs.existsSync(path.join(runtimeRoot(dlHome), "node")), "装好的目录要留着");
+  // 落盘布局：runtime/node/<版本>/ + current.json 指针 + current 链接（start.cmd 的稳定入口）。
+  const dlVersionDir = path.join(runtimeRoot(dlHome), "node", "1.2.3");
+  assert.ok(fs.existsSync(path.join(dlVersionDir, "node.exe")), "解压结果进版本目录");
+  assert.strictEqual(
+    JSON.parse(fs.readFileSync(path.join(runtimeRoot(dlHome), "node", "current.json"), "utf8")).version,
+    "1.2.3",
+    "指针记下当前生效的是哪一版"
+  );
+  assert.ok(fs.existsSync(path.join(runtimeRoot(dlHome), "node", "current", "node.exe")), "current 链接指向生效的那一版");
+  assert.strictEqual(dlAfter.tools[0].active, "1.2.3", "状态里报出生效的版本");
+  assert.deepStrictEqual(dlAfter.tools[0].versions, ["1.2.3"], "本机装过哪几版");
   assert.ok(fs.existsSync(path.join(runtimeRoot(dlHome), "blobs", sha256(ZIP))), "安装包按内容存一份，重装不用再下");
   assert.strictEqual(fs.existsSync(path.join(runtimeRoot(dlHome), ".tmp-node-" + process.pid)), false, "解压用的临时目录要清掉");
   assert.strictEqual(fs.existsSync(path.join(runtimeRoot(dlHome), ".node.building-" + process.pid)), false, "拼到一半的目录要改名，不留残骸");
@@ -287,6 +340,68 @@ async function main() {
   const again = downloadRuntime(dlHome, okSpawn());
   assert.strictEqual(again.startDownload("node").started, true);
   assert.strictEqual(await waitSettled(again), "done");
+
+  /*
+   * ---- 换一版：新的进新目录、指针与 current 链接跟着换，旧的那份留着。
+   * 这就是「客户要别的版本时不能互相覆盖」—— 版本目录并存，跑哪一版由指针说了算。
+   */
+  const upHome = makeHome();
+  const ZIP2 = Buffer.from("second-zip-bytes", "utf8");
+  const spawnFor = function (version) {
+    return function (cmd, args) {
+      const key = [cmd].concat(args || []).join(" ").toLowerCase();
+      if (key.indexOf("tar") >= 0) {
+        fs.writeFileSync(path.join(args[args.indexOf("-C") + 1], "node.exe"), "");
+        return { status: 0, stdout: "", stderr: "" };
+      }
+      if (key.indexOf("node.exe") >= 0) return { status: 0, stdout: "v" + version, stderr: "" };
+      return { status: 1, stdout: "", stderr: "" };
+    };
+  };
+  const older = createRuntime({
+    home: upHome,
+    tools: { node: specOf() },
+    spawnSyncImpl: spawnFor("1.2.3"),
+    fetchImpl: async function () { return okBuffer(ZIP); },
+    env: {}
+  });
+  assert.strictEqual(older.startDownload("node").started, true);
+  assert.strictEqual(await waitSettled(older), "done");
+
+  const newer = createRuntime({
+    home: upHome,
+    tools: { node: specOf({ version: "1.3.0", sha256: sha256(ZIP2) }) },
+    spawnSyncImpl: spawnFor("1.3.0"),
+    fetchImpl: async function () { return okBuffer(ZIP2); },
+    env: {}
+  });
+  assert.strictEqual(newer.startDownload("node").started, true);
+  assert.strictEqual(await waitSettled(newer), "done");
+  const upRow = newer.status().tools[0];
+  assert.deepStrictEqual(upRow.versions, ["1.3.0", "1.2.3"], "两版并存，新的排前面");
+  assert.strictEqual(upRow.active, "1.3.0");
+  assert.ok(fs.existsSync(path.join(runtimeRoot(upHome), "node", "1.2.3", "node.exe")), "旧的那份留着，不被覆盖");
+  assert.strictEqual(
+    path.basename(fs.readlinkSync(path.join(runtimeRoot(upHome), "node", "current"))),
+    "1.3.0",
+    "current 链接换到新的那一版"
+  );
+
+  // ---- 旧布局（0.6.34 及以前直接铺在 runtime/node/ 下）第一次启动认一次：整份搬进版本目录 ----
+  const legacyHome = makeHome();
+  fs.mkdirSync(path.join(runtimeRoot(legacyHome), "node"), { recursive: true });
+  fs.writeFileSync(path.join(runtimeRoot(legacyHome), "node", "node.exe"), "");
+  const legacyRt = createRuntime({
+    home: legacyHome,
+    tools: { node: specOf() },
+    spawnSyncImpl: spawnFor("1.2.3"),
+    env: {}
+  });
+  const legacyRow = legacyRt.status().tools[0];
+  assert.strictEqual(legacyRow.source, "bundled", "旧布局那份照用，不为了目录重下上百兆");
+  assert.strictEqual(legacyRow.active, "1.2.3", "搬家之后认得出是哪一版");
+  assert.ok(fs.existsSync(path.join(runtimeRoot(legacyHome), "node", "1.2.3", "node.exe")), "搬进版本目录");
+  assert.strictEqual(fs.existsSync(path.join(runtimeRoot(legacyHome), "node", "node.exe")), false, "旧的铺法不再留着");
 
   // ---- 有活干的时候不许动运行时：这是唯一会互相踩的并发 ----
   const busyHome = makeHome();

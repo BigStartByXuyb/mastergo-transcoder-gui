@@ -25,10 +25,15 @@ export function describeRuntime(status: RuntimeStatus | null): RuntimeSummary {
   return { label, tone: "secondary", note: "" }
 }
 
-/* 这一份现在是什么：自带哪一版 / 用系统的哪一版 / 起不来 / 没有。 */
+/*
+ * 这一份现在是什么：自带哪一版 / 用系统的哪一版 / 起不来 / 系统上有但没允许 / 没有。
+ * 「系统上有但没允许」必须说出来 —— 不然人以为要重下 100 兆，其实打开开关就能先用上。
+ */
 export function describeTool(tool: RuntimeTool): string {
   if (tool.ready) return (tool.source === "bundled" ? "自带" : "系统") + " v" + tool.version
-  return tool.installed ? "自带这份起不来" : "没有可用的"
+  if (tool.installed) return "自带这份起不来"
+  if (tool.system.ok) return "系统上有 v" + tool.system.version + "，没允许用"
+  return "没有可用的"
 }
 
 /* 按钮字面：没装过说「下载」，装过但坏了说「重下」。 */

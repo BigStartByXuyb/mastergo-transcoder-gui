@@ -16,6 +16,45 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-10-05 运行时按版本隔离、去掉隐式回落（v0.6.35）
+
+### 改了什么
+
+- **布局**：`runtime/<工具>/<版本>/` + `current.json` 指针 + `current` 目录链接（junction）。
+  `start.cmd` 与启动器走 `runtime\node\current\node.exe` 这个稳定入口（批处理读不了 JSON），
+  Node 这一侧一律按指针解析。装第二版不再盖掉第一版。
+- **默认不用客户机上那份**：新增 `lib/runtime-policy.js`（开关来自设置 `runtime.allowSystem`，现读）。
+  两个解析函数不再隐式回落到系统：没有自带、又没开开关时返回空；真要用 pwsh 的地方改走
+  `requirePwshExe()`，缺了就给一句「去哪儿补」，不是把空路径丢给子进程。
+- **旧布局搬家**：0.6.34 及以前解压结果直接铺在 `runtime/<工具>/` 下，第一次启动认一次、整份搬进版本目录；
+  搬不动就照旧用（不为了一个目录重下上百兆）。
+- **界面**：运行时卡片加「允许用系统上的 Node / PowerShell 7」开关（默认关，说明写清应急才用）；
+  每一行显示生效的版本与本机装过的版本。
+
+### 为什么
+
+用户的要求：下载来的东西要有「包管理 / 虚拟环境」的意思 —— 不能被客户机环境限制死，
+也不能把客户机上别人要用的版本搞冲突；如果用了系统那份，同样要有明确的管理与说明。
+
+### 点过的东西
+
+| 操作 | 观察到 | 结论 |
+| --- | --- | --- |
+| 旧布局的机器上重启客户端 | `runtime\node\` 从「直接铺着一堆文件」变成 `24.21.0\` + `current\` + `current.json`；pwsh 同理变成 `7.6.6\`；**没有重新下载** | 通过 |
+| `GET /api/runtime/status` | `node versions=[24.21.0] active=24.21.0 source=bundled system=false`；`pwsh` 同理；`claude versions=[] active="" system=ok` | 通过 |
+| 设置 → AI Agent → 运行时（图 `D:\MasterGoData\Temp\ui-shots\v0635-runtime-card.png`） | 顶上「自带 2 份 / 用系统的 0 份」；两行显示「钉 v24.21.0 / 自带 v24.21.0」与版本目录路径；底部是开关 + 说明 | 通过 |
+| 勾选「允许用系统上的 Node / PowerShell 7」再取消 | `settings.runtime.allowSystem` 跟着 true → false；界面开关状态同步 | 通过 |
+| 全量门禁 | 后端 42 条（运行时用例重写：布局、指针、链接、并存、旧布局搬家、开关、`requirePwshExe`）、前端 51 文件 306 条、`tsc`、oxlint、结构检查 PASS | 通过 |
+
+### 踩到并修掉的一条
+
+新增的三个字段（`versions` / `active` / `system`）一开始只加在 `toolStatus` 上，`claudeStatus` 忘了加 ——
+前端读 `tool.versions.length` 直接抛错，**整页白屏**（浏览器控制台 `Cannot read properties of undefined`）。
+补上字段，并在运行时用例里加了一条「每一行都要带齐新字段」的断言钉住它。
+
+> 说明：这次**不做**运行时的版本切换 —— 跑哪一版由钉死表说了算；版本目录并存是为「不覆盖」和
+> 以后真要回退留的余地。要换版本仍然是在设置页点「重下」，下完指针与 `current` 一起换过去。
+
 ## 2026-10-05 「插件」并进「更新」，分两段切换（v0.6.34）
 
 ### 改了什么

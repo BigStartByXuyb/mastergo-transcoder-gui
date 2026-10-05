@@ -202,6 +202,8 @@ export type Settings = {
   automation: "off" | "assist" | "auto"
   /** 对话/自动模式的写盘开关：关着时 Codex 只读，开着才允许它直接改工程文件。 */
   agent: { allowWrite: boolean }
+  /** 运行时：允许用客户机上那两份 Node / PowerShell 7（默认不允许，关键路径用客户端自带的）。 */
+  runtime: { allowSystem: boolean }
   /** 参考源：一份「代码库清单 + 系统提示词」，可以存多份。 */
   templates: PromptTemplate[]
   /** 没指定参考源时用哪一份。 */
@@ -724,6 +726,12 @@ export type RuntimeTool = {
   installed: boolean
   /** bundled = 用客户端自带那份 / system = 用系统上那份 / "" = 没有可用的。 */
   source: "bundled" | "system" | ""
+  /** 自带那份装在版本目录里的哪几版（旧布局下是空的）。 */
+  versions: string[]
+  /** 当前生效的版本（自带那份的目录名）。 */
+  active: string
+  /** 系统上那一份是什么：有没有、哪一版。用不用由「允许用系统那份」说了算。 */
+  system: { ok: boolean; version: string; path: string }
   version: string
   ready: boolean
   /** 恒为 false：这两份在关键路径上，不提供版本切换。 */
