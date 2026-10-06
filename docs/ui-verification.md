@@ -16,6 +16,46 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-10-06 客户机上「装不上」的排查 + 一条命令装（v0.6.47）
+
+### 用户报的问题
+
+在客户机上跑 `winget install BigStart.MasterGoTranscoder` → **找不到与输入条件匹配的程序包**。
+
+### 查出来的原因（不是包没做）
+
+winget 只会从它配置的源里找包；我们那三个 YAML 目前只是 Release 上的**附件**，没进任何源，所以搜不到。
+顺手在这台机器上把三条路各敲了一遍：
+
+| 路 | 实测结果 |
+| --- | --- |
+| `winget install BigStart.MasterGoTranscoder` | 搜不到（源里没有这个包） |
+| `winget install --manifest <本地三个 YAML>` | `此功能需要由管理员启用……winget settings --enable LocalManifestFiles`（本机当前用户**不是管理员**，保密机通常也不给） |
+| 从 Release 直接下三个 YAML | 能下、格式没问题（这条只是"取清单"，不是"装"） |
+
+### 补的东西：一条命令装（不需要管理员、不需要 winget 源）
+
+`scripts/install-client.ps1`：与 winget portable 内部做的三步一致 ——
+**取版本 → 下载 zip → 按同一份清单里的 sha256 校验 → 解压到 `%LOCALAPPDATA%\MasterGoTranscoder` → 建桌面快捷方式**。
+并把它作为 Release 资产发出去（客户机下这一个文件就能装）。
+
+### 点过/跑过的东西
+
+| 操作 | 观察到 | 结论 |
+| --- | --- | --- |
+| `pwsh -File scripts/install-client.ps1 -Version 0.6.46 -Target %TEMP%\MGTG-install-test -NoShortcut` | 取校验值 → 下载 → 校验通过 → 解压 → 打印安装位置（第一次跑发现资产是 octet-stream、`Content` 是字节数组，已改为显式 UTF-8 解码） | 通过 |
+| 装出来的那份里跑 `mastergo-transcoder.exe --check-runtime` | `这次用系统上装的 Node：C:\Program Files\nodejs\node.exe` → `运行时已就绪` | 通过（发布件 + 启动器整条链是通的） |
+| 安装目录内容 | `lib\`、`public\`、`vendor\`、`mastergo-transcoder.exe`、`launch.js`、`package.json`、`安装与首次配置.md` 等都在 | 通过 |
+| 全量门禁 | 后端 43 条、前端 52 文件 307 条、`tsc`、oxlint、结构检查 PASS | 通过 |
+
+### 三条路各自适合什么
+
+| 场景 | 用什么 |
+| --- | --- |
+| 现在就装（保密机、无管理员、无 winget 源） | `install-client.ps1`（或直接解压 zip 双击 exe） |
+| 内网批量、IT 愿意建源 | 内网 winget 源 + `BigStart.MasterGoTranscoder.Internal` 清单 |
+| 公网公开分发 | 清单提 PR 到 `winget-pkgs`，之后 `winget install BigStart.MasterGoTranscoder` 才真的能一条命令装 |
+
 ## 2026-10-06 winget：公网与内网两份清单（v0.6.46）
 
 ### 改了什么

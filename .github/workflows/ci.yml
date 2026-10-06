@@ -119,5 +119,7 @@ jobs:
           # 默认基址＝这个仓库的 release；换公司地址时用 --base <公司地址> 重生成即可（见 docs/install.md）。
           node scripts/winget-manifest.js --base "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
           gh release upload "$GITHUB_REF_NAME" dist/winget/*.yaml --clobber
+          # 一条命令装（不依赖 winget 源、不需要管理员）：也作为资产发出去，客户机下一个文件就能装。
+          gh release upload "$GITHUB_REF_NAME" scripts/install-client.ps1 --clobber
         env:
           GH_TOKEN: ${{ github.token }}

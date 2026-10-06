@@ -87,6 +87,11 @@ Release 上有两种东西：
 
 ## 三之一、用 winget 装（推荐给批量发放）
 
+> **先看这一条**：`winget install BigStart.MasterGoTranscoder` 现在**还装不上** ——
+> winget 只从它配置的源里找包，而我们的清单目前只是 Release 上的附件，没进任何源。
+> 想让它一条命令就用，要么把清单提交到公网 `winget-pkgs`（要过审核），要么由 IT 在内网建一个 winget 源。
+> **今天就要装**请用下面「一条命令装」那一节（不需要管理员、不需要 winget 源）。
+
 winget 装的是 portable 包：**下载 zip → 解压到它自己的包目录 → 把 `mastergo-transcoder.exe` 链进 PATH**，
 不跑任何安装程序 —— 保密环境里也一样。
 
@@ -119,6 +124,26 @@ node scripts/winget-manifest.js --base https://git.公司.com/组/仓库 --kind 
 这三样不接受手填，包换了就重新生成一次。
 默认基址只有一个来源：`lib/source.js` 的 `DEFAULT_BASE`（与客户端「发布源」的默认值同一处）——
 回公司正式换默认源时，改那一行，公网那份清单也会跟着指过去。
+
+## 三之二、一条命令装（不需要管理员、不需要 winget 源）
+
+把 Release 上的 `install-client.ps1` 下到客户机（或者直接从仓库里拷），然后：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install-client.ps1
+```
+
+它做的三步与 winget portable 内部完全一样，只是我们自己走一遍：
+**下载这一版的 zip → 按清单里的 sha256 校验 → 解压到 `%LOCALAPPDATA%\MasterGoTranscoder` → 建桌面快捷方式**。
+不需要管理员（全在用户目录里），不跑任何安装程序；装完双击里面的 `mastergo-transcoder.exe` 即可（缺运行组件它自己补）。
+
+内网机器（取不到 GitHub）把 -Base 指到内网地址，指定版本更稳（latest 要查一下远端清单）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install-client.ps1 -Base https://git.公司.com/组/仓库 -Version 0.6.47
+```
+
+参数：`-Version`（默认 latest）、`-Base`（默认内置 GitHub 仓库）、`-Target`（默认 `%LOCALAPPDATA%\MasterGoTranscoder`）、`-NoShortcut`。
 
 ## 四、更新与回退
 
