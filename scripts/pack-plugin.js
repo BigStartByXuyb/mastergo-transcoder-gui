@@ -20,7 +20,13 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { execFileSync } = require("child_process");
-const { PLUGIN_NAME, pluginVersionFrom, PLUGIN_TAG, PLUGIN_DIR, MANIFEST_FILE, zipName } = require("../lib/plugin-package.js");
+const { PLUGIN_NAME, pluginVersionFrom, MANIFEST_FILE, zipName } = require("../lib/plugin-package.js");
+
+// 打哪一版由 plugin-pin.json 决定（改它不用改代码）；它只属于发布流程，不进运行树。
+const PIN = require("../plugin-pin.json");
+const PLUGIN_REPO = String(PIN.repo || "").trim().replace(/\/+$/, "");
+const PLUGIN_TAG = String(PIN.tag || "").trim();
+const PLUGIN_DIR = String(PIN.path || "").trim().replace(/^\/+|\/+$/g, "");
 
 function usage(message) {
   if (message) process.stderr.write(message + "\n");

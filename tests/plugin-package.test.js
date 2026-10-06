@@ -22,21 +22,20 @@ const WORKFLOW = fs.readFileSync(path.join(ROOT, ".github", "workflows", "ci.yml
 
 function main() {
   assert.strictEqual(pkg.PLUGIN_NAME, pluginRoot.PLUGIN_NAME, "插件名只有 lib/plugin-root.js 一处定义");
-  assert.ok(/^v\d+(\.\d+)*$/.test(pkg.PLUGIN_TAG), "钉住的插件 tag 形如 v1.0.371：" + pkg.PLUGIN_TAG);
+  // plugin-pin.json 只被发布流程读：这里盯的是它得填全、填对形状（改它不用改代码）。
   // 仓库形态不做主机名限定：GitHub 与公司 GitLab 都要能用（只看它是不是地址拼接器接受的基址）。
+  assert.ok(/^v\d+(\.\d+)*$/.test(String(pin.tag).trim()), "pin 的 tag 形如 v1.0.371：" + pin.tag);
+  assert.ok(source.parseSource({ kind: "github", base: String(pin.repo).trim().replace(/\/+$/, "") }) != null,
+    "pin 的仓库要是一个能被发布源接受的基址：" + pin.repo);
+  assert.ok(/^[^/]+\/[^/]+$/.test(String(pin.path).trim().replace(/^\/+|\/+$/g, "")),
+    "pin 的 path 形如 plugins/<插件名>：" + pin.path);
+
+  // 随客户端发货的运行时代码不许依赖运行树以外的文件（打包用的 pin 就不是随包发的）。
+  const packaged = fs.readFileSync(path.join(ROOT, "lib", "plugin-package.js"), "utf8");
   assert.ok(
-    source.parseSource({ kind: "github", base: pkg.PLUGIN_REPO }) != null,
-    "插件仓库要是一个能被发布源接受的基址：" + pkg.PLUGIN_REPO
+    packaged.indexOf('require("../plugin-pin.json")') < 0,
+    "运行时代码不 require 发布流程的 pin 文件（它不随包发）"
   );
-  assert.ok(pkg.PLUGIN_REPO.indexOf("/releases") < 0, "插件仓库是仓库基址，不带 /releases");
-  assert.strictEqual(pkg.PLUGIN_TAG, String(pin.tag).trim(), "钉住的 tag 以 plugin-pin.json 为准");
-  assert.strictEqual(pkg.PLUGIN_REPO, String(pin.repo).trim().replace(/\/+$/, ""), "钉住的仓库以 plugin-pin.json 为准");
-  assert.strictEqual(
-    pkg.PLUGIN_DIR,
-    String(pin.path).trim().replace(/^\/+|\/+$/g, ""),
-    "插件在仓库里的位置以 plugin-pin.json 为准"
-  );
-  assert.ok(/^[^/]+\/[^/]+$/.test(pkg.PLUGIN_DIR), "path 形如 plugins/<插件名>：" + pkg.PLUGIN_DIR);
   assert.strictEqual(pkg.zipName("1.2.3"), pkg.PLUGIN_NAME + "-1.2.3.zip", "zip 名字由插件名与版本拼出");
 
   // 「插件自己声明的版本」只有一条读法：先 .claude-plugin，再回落 .codex-plugin；坏 JSON 不炸、继续试下一个。
