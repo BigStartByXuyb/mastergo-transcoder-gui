@@ -47,6 +47,8 @@ export function PluginCard() {
   }
 
   useEffect(() => {
+    // StrictMode 下会「挂载 → 卸下 → 再挂载」：这里要重新放行，否则首次读取永远被拦掉。
+    alive.current = true
     void load()
     return () => {
       alive.current = false
