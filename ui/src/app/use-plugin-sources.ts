@@ -38,27 +38,37 @@ export function usePluginSources() {
     }
   }, [load])
 
+  /*
+   * 换一份之后的收尾：把新清单落到界面、说一句。
+   * 「用这份」那颗按钮与「指定一个目录…」选完目录是同一种收尾，只写这一处（path 为空＝交回自动）。
+   */
+  const adoptChosen = useCallback(function (payload: PluginSources, path: string) {
+    setView(payload)
+    toast.success(path ? "已换用这一份插件" : "已改回按顺序自动找")
+  }, [])
+
   // 换一份：空串＝回到「按顺序自动」；有任务在跑时后端会拒绝并说明原因。
-  const choose = useCallback(async function (path: string, key: string) {
-    await act(
-      key,
-      () => api.pluginChoose(path),
-      (payload) => {
-        setView(payload)
-        toast.success(path ? "已换用这一份插件" : "已改回按顺序自动找")
-      }
-    )
-  }, [act])
+  const choose = useCallback(
+    async function (path: string, key: string) {
+      await act(key, () => api.pluginChoose(path), (payload) => adoptChosen(payload, path))
+    },
+    [act, adoptChosen]
+  )
 
   const pickFolder = useCallback(async function () {
+    // 一次点击＝一个动作：选目录与换过去在同一层骨架里（不在骨架里再套一层骨架）。
     await act("pick", async () => {
       const picked = await api.pickFolder()
-      // 选了目录就换过去（同一条换一份的路）；取消或没弹出就照它的话说一句。
-      if (picked.path) await choose(picked.path, "pick")
-      else if (picked.reason) toast.info(picked.reason)
-      return picked
+      // 取消或没弹出选择框：照它的话说一句，什么都不换。
+      if (!picked.path) {
+        if (picked.reason) toast.info(picked.reason)
+        return null
+      }
+      const payload = await api.pluginChoose(picked.path)
+      adoptChosen(payload, picked.path)
+      return payload
     })
-  }, [act, choose])
+  }, [act, adoptChosen])
 
   return { view: view, failure: failure, busy: busy, load: load, choose: choose, pickFolder: pickFolder }
 }

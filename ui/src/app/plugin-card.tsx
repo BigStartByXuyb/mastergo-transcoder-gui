@@ -188,7 +188,8 @@ export function PluginCard() {
                       busy={sources.busy}
                       frozen={frozen}
                       onOpen={() => setOpened(row.id)}
-                      onChoose={() => void sources.choose(row.pluginRoot, row.id)}
+                      // 行内「用这份」与面板里那颗同一口径：记这一档所在的目录（装了新版本能跟着升级）。
+                      onChoose={() => void sources.choose(row.path || row.pluginRoot, row.id)}
                     />
                   ))}
                 </TableBody>

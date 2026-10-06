@@ -289,7 +289,8 @@ describe("PluginCard", () => {
 
     fireEvent.click(within(dialog).getByRole("button", { name: "用这份" }))
     await waitFor(() => expect(chosen.length).toBe(1))
-    expect(chosen[0]).toMatchObject({ path: CLAUDE_ROOT })
+    // 记的是这一档所在的目录（不是此刻那一个版本目录）：以后装了新版本才会跟着取最高版本。
+    expect(chosen[0]).toMatchObject({ path: CLAUDE_CACHE })
   })
 
   it("指定的那一份与「交给客户端找」都在上面那一条里", async () => {
@@ -337,6 +338,19 @@ describe("PluginCard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "检查更新" }))
     await waitFor(() => expect(checks).toBe(1))
+  })
+
+  it("自带那一行的「用这份」记的是那一处目录，不是当前那个版本目录", async () => {
+    const chosen: unknown[] = []
+    stub(view({ activeId: "codex-cache" }), { onChoose: (body) => chosen.push(body) })
+    render(<PluginCard />)
+    await waitFor(() => expect(within(screen.getByRole("table")).getByText("客户端自带")).toBeTruthy())
+
+    // 记版本目录的话，客户端自带那份装完新版（版本目录换了名）就不会再生效。
+    const installRow = within(screen.getByRole("table")).getByText("客户端自带").closest("tr") as HTMLElement
+    fireEvent.click(within(installRow).getByRole("button", { name: "用这份" }))
+    await waitFor(() => expect(chosen.length).toBe(1))
+    expect(chosen[0]).toMatchObject({ path: INSTALL_DIR })
   })
 
   it("详情面板里「没有」的那一档不给「打开目录」（那里没有目录可开）", async () => {

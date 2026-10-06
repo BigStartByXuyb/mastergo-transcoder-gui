@@ -152,7 +152,12 @@ export function PluginSourceDialog(props: {
                 variant="outline"
                 disabled={frozen}
                 aria-busy={props.busy === row.id}
-                onClick={() => props.onChoose(row.pluginRoot, row.id)}
+                /*
+                 * 记这一档**所在的目录**（不是此刻解析到的那一个版本目录）：定位认「指到插件根、
+                 * 或指到装着它的目录」两种，记目录才会在装了新版本之后跟着取最高版本 ——
+                 * 记死版本目录的话，客户端自带那份装完新版反而不会生效。
+                 */
+                onClick={() => props.onChoose(row.path || row.pluginRoot, row.id)}
               >
                 {props.busy === row.id && <Loader2 className="size-4 animate-spin" />}
                 用这份
