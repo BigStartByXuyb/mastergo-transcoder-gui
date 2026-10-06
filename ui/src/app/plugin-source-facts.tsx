@@ -10,6 +10,15 @@ import type { PluginSourceRow } from "@/lib/plugin-sources"
  * （改口径只改这里，表与面板不会一处说「可用」、另一处说别的）。
  */
 
+/**
+ * 一个来源此刻的处境怎么说。表、面板的徽章与顺序条上那一档读同一处 ——
+ * 同一格事实（有 / 没有 / 正在用）不会一处写「有」、另一处写「可用」。
+ */
+export function sourceStatusText(active: boolean, exists: boolean): string {
+  if (active) return "正在用"
+  return exists ? "可用" : "没有"
+}
+
 export function SourceStatusBadge(props: { row: PluginSourceRow }) {
   if (props.row.active) {
     return (
@@ -19,7 +28,7 @@ export function SourceStatusBadge(props: { row: PluginSourceRow }) {
       </Badge>
     )
   }
-  return <Badge variant="outline">{props.row.exists ? "可用" : "没有"}</Badge>
+  return <Badge variant="outline">{sourceStatusText(false, props.row.exists)}</Badge>
 }
 
 export function SourceVersion(props: { row: PluginSourceRow }) {

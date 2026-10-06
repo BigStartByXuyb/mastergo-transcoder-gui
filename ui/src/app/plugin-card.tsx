@@ -10,7 +10,7 @@ import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
 import { PixelLoader } from "@/app/pixel-loader"
 import { PluginSourceDialog } from "@/app/plugin-source-dialog"
-import { SourceAlsoFrom, SourceCopyCount, SourceStatusBadge, SourceVersion } from "@/app/plugin-source-facts"
+import { SourceAlsoFrom, SourceCopyCount, SourceStatusBadge, SourceVersion, sourceStatusText } from "@/app/plugin-source-facts"
 import { SourceDialog } from "@/app/source-dialog"
 import { UpdateSourceRow } from "@/app/update-source-row"
 import { usePluginSources } from "@/app/use-plugin-sources"
@@ -226,13 +226,13 @@ export function PluginCard() {
   )
 }
 
-// 顺序条上那一档的处境：正在用 / 有 / 没有 / 与某一档是同一份。
+// 顺序条上那一档的处境：正在用 / 可用 / 没有 / 与某一档是同一份。
+// 前三样的措辞与表、面板的徽章读同一处（sourceStatusText），不会一处写「有」、另一处写「可用」。
 function SlotMark(props: { slot: PluginSourceSlot }) {
   const state = slotState(props.slot)
   if (state === "same") return <span className="text-muted-foreground">{`（与第 ${props.slot.mergedIntoOrder} 档同一份）`}</span>
-  if (state === "active") return <span className="font-medium">（正在用）</span>
-  if (state === "available") return <span className="text-muted-foreground">（有）</span>
-  return <span className="text-muted-foreground">（没有）</span>
+  if (state === "active") return <span className="font-medium">{`（${sourceStatusText(true, true)}）`}</span>
+  return <span className="text-muted-foreground">{`（${sourceStatusText(false, state === "available")}）`}</span>
 }
 
 // 表里的一行：来源 / 版本 / 状态 / 路径 / 操作。

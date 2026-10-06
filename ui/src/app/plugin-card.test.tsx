@@ -157,8 +157,8 @@ describe("PluginCard", () => {
     // 顺序条上那一档写清处境（可访问名里子元素之间会有空格）。
     await waitFor(() => expect(screen.getByRole("button", { name: /Codex 插件缓存\s*（正在用）/ })).toBeTruthy())
 
-    // 环境变量那份、Claude 那份、自带那份都不是「正在用」：各写各的「有」。
-    expect(screen.getAllByText("（有）").length).toBe(3)
+    // 环境变量那份、Claude 那份、自带那份都不是「正在用」：各写各的「可用」（与表里那颗徽章同一处措辞）。
+    expect(screen.getAllByText("（可用）").length).toBe(3)
   })
 
   it("「我指定的那一份」指到某一份时：只列最先命中的那一档，后几档并进它", async () => {
