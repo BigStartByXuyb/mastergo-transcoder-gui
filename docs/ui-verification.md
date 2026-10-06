@@ -52,6 +52,11 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   （值从进程继承来的那份读），文档也照实写。另：「检查更新」能不能点由 `use-plugin-update` 算一处
   （`canCheck`），卡片与面板读同一个值；`lib/system-open.js` 保证不 reject，`server.js` 那颗近乎恒真的
   `catch` 随之去掉。
+- 第四轮复核的四条同样是「删掉只剩测试的、把话说准」：`RESTART_SETTLE_MS` 与重置等待参数
+  （`initialDelayMs`）随环境变量那条重启路一起删掉（生产里已无人用，`restart-watch` 的注释只留真实入口）；
+  `lib/system-open.js` 打不开时按类说话（目录说文件管理器、网址说浏览器），命令映射不再导出、平台/进程/
+  看盘三样收进一处解析；「已带 token」徽标收成 `SourceBadges` 一处；`lib/plugin-root.js` 头注释对齐八档；
+  用例改用 `aria-busy` 判「哪颗按钮在忙」（不再依赖 `svg.animate-spin` 这种图标实现细节）。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。

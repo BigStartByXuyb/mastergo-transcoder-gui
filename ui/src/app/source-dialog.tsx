@@ -3,7 +3,6 @@ import { Loader2, RefreshCw, Save } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -11,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
+import { SourceBadges } from "@/app/update-source-row"
 import { api, type UpdateSource } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 
@@ -108,8 +108,7 @@ export function SourceDialog(props: {
 
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">{current.source.kind}</Badge>
-            {current.hasToken && <Badge variant="outline">已带 token</Badge>}
+            <SourceBadges source={current.source} hasToken={current.hasToken} />
           </div>
           {failure && (
             <Alert variant="destructive">

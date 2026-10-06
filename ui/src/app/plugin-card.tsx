@@ -84,7 +84,13 @@ export function PluginCard() {
                   没指定：客户端按下面的顺序自己找，现在用的是标「正在用」的那一条。
                 </span>
               )}
-              <Button size="sm" variant="outline" disabled={Boolean(busy)} onClick={() => void sources.pickFolder()}>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={Boolean(busy)}
+                aria-busy={sources.busy === "pick"}
+                onClick={() => void sources.pickFolder()}
+              >
                 {busy === "pick" ? <Loader2 className="size-4 animate-spin" /> : <FolderSearch className="size-4" />}
                 指定一个目录…
               </Button>
@@ -92,6 +98,7 @@ export function PluginCard() {
                 size="sm"
                 variant="outline"
                 disabled={Boolean(busy) || !sources.view.chosen}
+                aria-busy={sources.busy === "auto"}
                 onClick={() => void sources.choose("", "auto")}
               >
                 {busy === "auto" && <Loader2 className="size-4 animate-spin" />}
@@ -113,7 +120,13 @@ export function PluginCard() {
                   onEdit={() => setEditingSource(true)}
                 />
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button size="sm" variant="outline" disabled={!update.canCheck} onClick={() => void update.check()}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!update.canCheck}
+                    aria-busy={update.busy === PLUGIN_UPDATE_KEYS.check}
+                    onClick={() => void update.check()}
+                  >
                     {update.busy === PLUGIN_UPDATE_KEYS.check ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : (

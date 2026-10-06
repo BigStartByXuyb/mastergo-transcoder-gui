@@ -5,9 +5,8 @@ import { describeFailure } from "@/lib/describe-failure"
  * 重启客户端这件事的整套协议，只有这一份：
  *   发起重启 → **只把「被自己关掉」的断连当预期**（被拒要如实说） → 按判据等新的一份 → 失败给一句话。
  *
- * 两个入口共用它：
- *   换版本（还写指针、等版本变成目标那一版）
- *   换版本（等本地服务按新的一份重新答话）
+ * 换版本那条路用它（设置页的「切换」与顶上的「有新版」标注共用一处编排）：写完指针发起重启，
+ * 再按「已经是目标版本」探活 —— 这个判据本来就认得出旧进程，所以不用先等旧的那份退干净。
  *
  * 探测、等待、时钟都从外面注入，所以这里能单独测；界面只拿结论。
  * 老进程刚退出、新的还没监听的那一小段连不上是预期的，不算失败，继续等。
@@ -15,8 +14,6 @@ import { describeFailure } from "@/lib/describe-failure"
 export type ServiceWaitOptions = {
   /** 探一下新的一份能不能答话；起不来时抛错即可。 */
   probe: () => Promise<unknown>
-  /** 先等一会儿再探。这个时间不计入 timeoutMs（总预算是两者之和）。 */
-  initialDelayMs?: number
   timeoutMs?: number
   intervalMs?: number
   sleep?: (ms: number) => Promise<void>
@@ -28,7 +25,6 @@ async function waitFor(options: ServiceWaitOptions): Promise<boolean> {
   const intervalMs = options.intervalMs ?? 300
   const sleep = options.sleep ?? function (ms) { return new Promise(function (resolve) { setTimeout(resolve, ms) }) }
   const now = options.now ?? function () { return Date.now() }
-  if (options.initialDelayMs) await sleep(options.initialDelayMs)
   const deadline = now() + timeoutMs
 
   for (;;) {
@@ -43,13 +39,6 @@ async function waitFor(options: ServiceWaitOptions): Promise<boolean> {
     await sleep(intervalMs)
   }
 }
-
-/*
- * 重启后先等这么久再探：老的一份在响应之后约 50ms 才退出、新的还没监听，
- * 这期间旧进程还能答话，探早了会把「没生效」当成成功。2 秒是本机实测值，写在这里一处。
- * 换版本那条路不需要它：它的判据是版本号，本来就认得出旧进程。
- */
-export const RESTART_SETTLE_MS = 2000
 
 export type RestartWaitOptions = {
   /** 等什么：新的一份能答话、或已经是目标版本。没等到的原因由它自己抛。 */

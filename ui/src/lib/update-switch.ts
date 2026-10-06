@@ -22,8 +22,6 @@ export async function runSwitch(version: string): Promise<RestartWaitOutcome> {
     return { ok: false, note: describeFailure(error) }
   }
   return restartAndWait({
-    // 版本比对本身就认得出「还是旧的那一份」，所以不用先等那 2 秒。
-    wait: { initialDelayMs: 0 },
     probe: async function () {
       const health = await api.health()
       if (health.version !== version) throw new Error("还不是目标版本")

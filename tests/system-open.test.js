@@ -11,7 +11,7 @@ const os = require("os");
 const path = require("path");
 const { EventEmitter } = require("events");
 
-const { openFolder, openUrl, openerCommand } = require("../lib/system-open.js");
+const { openFolder, openUrl } = require("../lib/system-open.js");
 
 // 假子进程：只用到 on/unref，spawn 之后自己发一次 spawn（或 error）。
 function fakeSpawn(behaviour) {
@@ -74,20 +74,27 @@ async function main() {
    * 另两个平台与打开目录同一条命令 —— 「哪个平台用哪条命令」只写一份，就是这里。
    */
   const page = "http://127.0.0.1:8787/";
-  assert.deepStrictEqual(openerCommand("win32", "url", page), { command: "cmd", args: ["/c", "start", "", page] });
-  assert.deepStrictEqual(openerCommand("darwin", "url", page), { command: "open", args: [page] });
-  assert.deepStrictEqual(openerCommand("linux", "url", page), { command: "xdg-open", args: [page] });
-  assert.deepStrictEqual(openerCommand("win32", "dir", real), { command: "explorer.exe", args: [real] });
-
   const browsed = fakeSpawn();
   assert.deepStrictEqual(await openUrl(page, { platform: "win32", spawnImpl: browsed.spawnImpl }), { ok: true, reason: "" });
   assert.strictEqual(browsed.calls[0].command, "cmd");
   assert.deepStrictEqual(browsed.calls[0].args, ["/c", "start", "", page]);
+  const macPage = fakeSpawn();
+  await openUrl(page, { platform: "darwin", spawnImpl: macPage.spawnImpl });
+  assert.strictEqual(macPage.calls[0].command, "open");
+  const linuxPage = fakeSpawn();
+  await openUrl(page, { platform: "linux", spawnImpl: linuxPage.spawnImpl });
+  assert.strictEqual(linuxPage.calls[0].command, "xdg-open");
 
   // 只认 http(s)：别的协议不当成网址去开。
   const refusedUrl = await openUrl("file:///C:/x.html", { platform: "win32", spawnImpl: fakeSpawn().spawnImpl });
   assert.strictEqual(refusedUrl.ok, false);
   assert.match(refusedUrl.reason, /只打开 http\(s\) 地址/);
+
+  // 打不开时说的是哪一类东西：目录说文件管理器，网址说浏览器（同一处文案，按类分）。
+  const brokeFolder = await openFolder(real, { platform: "win32", spawnImpl: fakeSpawn("error").spawnImpl });
+  assert.match(brokeFolder.reason, /打不开文件管理器/);
+  const brokeUrl = await openUrl(page, { platform: "win32", spawnImpl: fakeSpawn("error").spawnImpl });
+  assert.match(brokeUrl.reason, /打不开浏览器/);
 
   // spawn 起不来：回原因，不抛（界面照实显示）。
   const broken = fakeSpawn("error");

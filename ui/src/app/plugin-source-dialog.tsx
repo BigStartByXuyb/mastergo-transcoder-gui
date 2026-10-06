@@ -147,7 +147,13 @@ export function PluginSourceDialog(props: {
               </Button>
             )}
             {row.exists && !row.active && (
-              <Button size="sm" variant="outline" disabled={frozen} onClick={() => props.onChoose(row.pluginRoot, row.id)}>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={frozen}
+                aria-busy={props.busy === row.id}
+                onClick={() => props.onChoose(row.pluginRoot, row.id)}
+              >
                 {props.busy === row.id && <Loader2 className="size-4 animate-spin" />}
                 用这份
               </Button>
@@ -157,7 +163,13 @@ export function PluginSourceDialog(props: {
           <div className="flex flex-wrap gap-2">
             {install && (
               <>
-                <Button size="sm" variant="outline" disabled={!props.canCheck} onClick={() => props.onCheck()}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!props.canCheck}
+                  aria-busy={props.updateBusy === PLUGIN_UPDATE_KEYS.check}
+                  onClick={() => props.onCheck()}
+                >
                   {props.updateBusy === PLUGIN_UPDATE_KEYS.check ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
@@ -165,7 +177,12 @@ export function PluginSourceDialog(props: {
                   )}
                   检查更新
                 </Button>
-                <Button size="sm" disabled={!canInstall} onClick={() => props.onInstall()}>
+                <Button
+                  size="sm"
+                  disabled={!canInstall}
+                  aria-busy={props.updateBusy === PLUGIN_UPDATE_KEYS.install || transferring}
+                  onClick={() => props.onInstall()}
+                >
                   {(props.updateBusy === PLUGIN_UPDATE_KEYS.install || transferring) && (
                     <Loader2 className="size-4 animate-spin" />
                   )}

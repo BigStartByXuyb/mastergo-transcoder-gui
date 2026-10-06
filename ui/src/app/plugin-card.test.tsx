@@ -387,11 +387,14 @@ describe("PluginCard", () => {
 
     /*
      * 面板里「客户端自带」那一行的 id 也叫 install，自带的更新动作 key 也是 install。
-     * 两半各报各的忙碌位（来源清单那一半 / 自带那半），所以只有装那颗按钮该转圈。
+     * 两半各报各的忙碌位（来源清单那一半 / 自带那半），所以只有装那颗按钮进忙碌态
+     * （aria-busy 就是这个意思，也顺带给读屏软件说一声）。
      */
     fireEvent.click(within(dialog).getByRole("button", { name: "下载并安装" }))
-    await waitFor(() => expect(spinning(within(dialog).getByRole("button", { name: "下载并安装" }))).toBe(true))
-    expect(spinning(within(dialog).getByRole("button", { name: "用这份" }))).toBe(false)
+    await waitFor(() =>
+      expect(within(dialog).getByRole("button", { name: "下载并安装" }).getAttribute("aria-busy")).toBe("true")
+    )
+    expect(within(dialog).getByRole("button", { name: "用这份" }).getAttribute("aria-busy")).toBe("false")
     release(new Response(JSON.stringify({ ok: true, started: true, version: "1.0.372", note: "", status: pluginUpdateFixture() }), { status: 200 }))
   })
 
@@ -424,8 +427,3 @@ describe("PluginCard", () => {
     expect((panel as HTMLButtonElement).disabled).toBe(true)
   })
 })
-
-/* 这颗按钮正在转圈吗（Loader2 就是一颗带 animate-spin 的 svg）。 */
-function spinning(button: HTMLElement): boolean {
-  return Boolean(button.querySelector("svg.animate-spin"))
-}

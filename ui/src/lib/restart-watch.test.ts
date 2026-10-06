@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { ApiFailure } from "@/lib/api"
-import { RESTART_SETTLE_MS, restartAndWait } from "@/lib/restart-watch"
+import { restartAndWait } from "@/lib/restart-watch"
 
 /* 可控时钟：sleep 往前推时间，now 读它，于是「等多久」在测试里是确定的。 */
 function clock() {
@@ -15,24 +15,6 @@ function clock() {
 }
 
 describe("restartAndWait", () => {
-  it("先等给它的初延迟再探：不拿还没退的旧服务当成功", async () => {
-    const c = clock()
-    const at: number[] = []
-    const outcome = await restartAndWait({
-      probe: async () => {
-        at.push(c.now())
-        throw new Error("连不上本地服务")
-      },
-      failedNote: "没起来",
-      restart: async () => undefined,
-      wait: { initialDelayMs: RESTART_SETTLE_MS, timeoutMs: 0, ...c }
-    })
-    expect(outcome.ok).toBe(false)
-    // 第一次探测必须发生在初延迟之后：不传（0）或把值调没，这两条就挂了。
-    expect(at[0]).toBeGreaterThan(0)
-    expect(at[0]).toBe(RESTART_SETTLE_MS)
-  })
-
   it("服务一答话就算起来，不再等", async () => {
     const c = clock()
     let calls = 0
@@ -43,7 +25,7 @@ describe("restartAndWait", () => {
       },
       failedNote: "没起来",
       restart: async () => undefined,
-      wait: { initialDelayMs: 0, ...c }
+      wait: { ...c }
     })
     expect(outcome).toEqual({ ok: true, note: "" })
     expect(calls).toBe(2)
@@ -59,7 +41,7 @@ describe("restartAndWait", () => {
       },
       failedNote: "没起来",
       restart: async () => undefined,
-      wait: { initialDelayMs: 0, timeoutMs: 900, intervalMs: 300, ...c }
+      wait: { timeoutMs: 900, intervalMs: 300, ...c }
     })
     expect(outcome.ok).toBe(false)
     // 0 / 300 / 600 / 900 四次探测，到点就停。
@@ -78,7 +60,7 @@ describe("restartAndWait", () => {
       restart: async () => {
         throw new ApiFailure("OFFLINE", "连不上本地服务", "")
       },
-      wait: { initialDelayMs: 0, ...c }
+      wait: { ...c }
     })
     expect(outcome).toEqual({ ok: true, note: "" })
     expect(calls).toBe(3)
@@ -108,7 +90,7 @@ describe("restartAndWait", () => {
       },
       failedNote: "没起来",
       restart: async () => undefined,
-      wait: { initialDelayMs: 0, timeoutMs: 0, ...c }
+      wait: { timeoutMs: 0, ...c }
     })
     expect(outcome).toEqual({ ok: false, note: "没起来" })
   })
