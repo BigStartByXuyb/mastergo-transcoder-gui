@@ -20,9 +20,8 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { execFileSync } = require("child_process");
-const { PLUGIN_NAME, PLUGIN_TAG, MANIFEST_FILE, zipName } = require("../lib/plugin-package.js");
-
-const PLUGIN_DIR = "plugins/" + PLUGIN_NAME;
+const { PLUGIN_NAME, PLUGIN_TAG, PLUGIN_DIR, MANIFEST_FILE, zipName } = require("../lib/plugin-package.js");
+const { pluginVersionFrom } = require("../lib/plugin-root.js");
 
 function usage(message) {
   if (message) process.stderr.write(message + "\n");
@@ -51,15 +50,32 @@ function versionOfTag(tag) {
   return String(tag || "").trim().replace(/^v/, "");
 }
 
+// 插件在仓库里的位置（plugin-pin.json 的 path）：git archive 要在它的上一级目录里跑，
+// 路径按相对当前目录给。
+function splitPluginDir(dir) {
+  const parts = String(dir || "").split("/").filter(Boolean);
+  if (parts.length < 2) throw new Error("plugin-pin.json 的 path 要形如 plugins/<插件名>：" + dir);
+  return { parent: parts.slice(0, -1).join("/"), name: parts[parts.length - 1] };
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const repoDir = path.resolve(args.repoDir);
   if (!fs.existsSync(repoDir)) throw new Error("插件仓库的检出目录不存在：" + repoDir);
   const version = versionOfTag(PLUGIN_TAG);
   if (!/^\d+(\.\d+)*$/.test(version)) throw new Error("钉住的插件版本不像版本号：" + PLUGIN_TAG);
+  const where = splitPluginDir(PLUGIN_DIR);
 
-  // 版本以插件自己的清单为准：tag 与它不一致时宁可打不出包。
-  const declared = JSON.parse(git(repoDir, ["show", PLUGIN_TAG + ":" + PLUGIN_DIR + "/.claude-plugin/plugin.json"])).version;
+  // 版本以插件自己的清单为准，读法与客户端定位那份完全一样（plugin-root.js 的 pluginVersionFrom）：
+  // tag 与它不一致时宁可打不出包。
+  const declared = pluginVersionFrom(function (rel) {
+    try {
+      return git(repoDir, ["show", PLUGIN_TAG + ":" + PLUGIN_DIR + "/" + rel]);
+    }
+    catch {
+      return "";
+    }
+  });
   if (String(declared) !== version) {
     throw new Error(PLUGIN_TAG + " 里的插件版本是 " + declared + "，与标签对不上。");
   }
@@ -68,9 +84,9 @@ function main() {
   fs.mkdirSync(outDir, { recursive: true });
   const zipPath = path.join(outDir, zipName(version));
   fs.rmSync(zipPath, { force: true });
-  // 在 plugins/ 下跑、路径用插件自己的目录名（见文件头：这样包顶层就是插件根，且哈希可复现）。
+  // 在 path 的上一级目录里跑、路径用插件自己的目录名（见文件头：这样包顶层就是插件根，且哈希可复现）。
   // -o 的路径按 git 进程的工作目录算（-C 之后就是那个目录），所以这里给绝对路径。
-  git(path.join(repoDir, "plugins"), ["archive", "--format=zip", PLUGIN_TAG, PLUGIN_NAME, "-o", zipPath]);
+  git(path.join(repoDir, where.parent), ["archive", "--format=zip", PLUGIN_TAG, where.name, "-o", zipPath]);
 
   const manifest = {
     name: PLUGIN_NAME,

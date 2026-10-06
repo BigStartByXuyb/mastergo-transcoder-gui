@@ -17,17 +17,26 @@ const ROOT = path.join(__dirname, "..");
 const pkg = require("../lib/plugin-package.js");
 const pin = require("../plugin-pin.json");
 const pluginRoot = require("../lib/plugin-root.js");
+const source = require("../lib/source.js");
 const WORKFLOW = fs.readFileSync(path.join(ROOT, ".github", "workflows", "ci.yml"), "utf8");
 
 function main() {
   assert.strictEqual(pkg.PLUGIN_NAME, pluginRoot.PLUGIN_NAME, "插件名只有 lib/plugin-root.js 一处定义");
   assert.ok(/^v\d+(\.\d+)*$/.test(pkg.PLUGIN_TAG), "钉住的插件 tag 形如 v1.0.371：" + pkg.PLUGIN_TAG);
+  // 仓库形态不做主机名限定：GitHub 与公司 GitLab 都要能用（只看它是不是地址拼接器接受的基址）。
   assert.ok(
-    /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+$/.test(pkg.PLUGIN_REPO),
-    "插件仓库是一个仓库基址（不带 /releases）：" + pkg.PLUGIN_REPO
+    source.parseSource({ kind: "github", base: pkg.PLUGIN_REPO }) != null,
+    "插件仓库要是一个能被发布源接受的基址：" + pkg.PLUGIN_REPO
   );
+  assert.ok(pkg.PLUGIN_REPO.indexOf("/releases") < 0, "插件仓库是仓库基址，不带 /releases");
   assert.strictEqual(pkg.PLUGIN_TAG, String(pin.tag).trim(), "钉住的 tag 以 plugin-pin.json 为准");
   assert.strictEqual(pkg.PLUGIN_REPO, String(pin.repo).trim().replace(/\/+$/, ""), "钉住的仓库以 plugin-pin.json 为准");
+  assert.strictEqual(
+    pkg.PLUGIN_DIR,
+    String(pin.path).trim().replace(/^\/+|\/+$/g, ""),
+    "插件在仓库里的位置以 plugin-pin.json 为准"
+  );
+  assert.ok(/^[^/]+\/[^/]+$/.test(pkg.PLUGIN_DIR), "path 形如 plugins/<插件名>：" + pkg.PLUGIN_DIR);
   assert.strictEqual(pkg.zipName("1.2.3"), pkg.PLUGIN_NAME + "-1.2.3.zip", "zip 名字由插件名与版本拼出");
 
   assert.ok(WORKFLOW.indexOf("scripts/pack-plugin.js") >= 0, "发布流程要调插件打包脚本");
