@@ -127,13 +127,15 @@ powershell -ExecutionPolicy Bypass -File $f
 **下载这一版的 zip → 按发布时那份 `checksums.json` 里的 sha256 校验 → 解压到 `%LOCALAPPDATA%\MasterGoTranscoder` → 建桌面快捷方式**。
 不需要管理员（全在用户目录里），不跑任何安装程序；装完双击里面的 `mastergo-transcoder.exe` 即可（缺运行组件它自己补）。
 
-**非 GitHub 形状的来源**（公司 GitLab、内网目录、任意镜像）不猜地址 —— 直接把 zip 直链与它的 sha256 给过来：
+**连不上 github.com 的机器**（内网 / 公司 GitLab / 任意镜像）：先把**安装脚本本身**也从那边取
+（把 Release 上的 `install-client.ps1` 拷进内网目录即可），再给出 zip 直链与它的 sha256 —— 地址长什么样由那边决定，这里不猜：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File install-client.ps1 -ZipUrl <zip 的完整地址> -Sha256 <64 位哈希>
 ```
 
-`-Base` 只用于 GitHub 形状（`<基址>/releases/…`），它的默认值与 `lib/source.js` 的 `DEFAULT_BASE` 一致（有用例盯着不许漂）。
+`-Base` 只用于 GitHub 形状（`<基址>/releases/…`），上面那段命令里的基址就是 `lib/source.js` 的 `DEFAULT_BASE` ——
+默认源只在那一处定义，文档与脚本都被用例盯着不许漂。
 其余参数：`-Version`（默认 latest）、`-Target`（默认 `%LOCALAPPDATA%\MasterGoTranscoder`）、`-NoShortcut`。
 
 ## 四、更新与回退

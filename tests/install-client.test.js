@@ -55,6 +55,13 @@ function main() {
     assert.ok(SCRIPT.indexOf(token) < 0, "不能用 PowerShell 7 才有的语法：" + token);
   }
 
+  // 安装文档里那段「先取脚本再运行」写的是默认基址：它也得跟着 DEFAULT_BASE 走，别在文档里留一份会过期的副本。
+  const DOC = fs.readFileSync(path.join(ROOT, "docs", "install.md"), "utf8");
+  assert.ok(
+    DOC.indexOf(source.DEFAULT_BASE) >= 0,
+    "安装文档里的取脚本地址要与 lib/source.js 的 DEFAULT_BASE 一致（改默认源时一起改）"
+  );
+
   console.log("install-client.test.js 全部通过");
 }
 

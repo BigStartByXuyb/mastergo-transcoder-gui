@@ -71,16 +71,7 @@ winget 认两种内网源：**REST 源**（一个实现 winget REST 接口的服
 
 ## 这两条都到位之前，客户机怎么装
 
-用 Release 上的 `install-client.ps1`（一条命令，不需要管理员、不需要源）：
+不需要源、不需要管理员的那条路（取脚本 → 下载 zip → 按 `checksums.json` 校验 → 解压到用户目录 → 建快捷方式）
+写在 `docs/install.md` 的「一条命令装」，包含连不上 github.com 时的内网变体，这里不重复。
 
-```powershell
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-$f = "$env:TEMP\install-client.ps1"
-Invoke-WebRequest -UseBasicParsing "https://github.com/BigStartByXuyb/mastergo-transcoder-gui/releases/latest/download/install-client.ps1" -OutFile $f
-powershell -ExecutionPolicy Bypass -File $f
-```
-
-内网来源：把最后一行换成 `powershell -ExecutionPolicy Bypass -File $f -ZipUrl <zip 直链> -Sha256 <哈希>`。
-
-它做的与 winget portable 内部一样：下载 → 按 `checksums.json` 校验 → 解压到用户目录 → 建快捷方式。
 等内网源建好之后，再让客户机改用 winget 装（两者用的都是同一份 zip）。

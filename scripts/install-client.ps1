@@ -11,7 +11,8 @@
       # 内网 / GitLab / 任意镜像：地址长什么样由那边决定，这里不猜 —— 直接给 zip 直链与它的 sha256
       powershell -ExecutionPolicy Bypass -File install-client.ps1 -ZipUrl <zip 直链> -Sha256 <64 位哈希>
 
-    机器上还没有这个脚本时（一条命令取下来再跑）：
+    机器上还没有这个脚本时（先取下来再跑；这段的完整说明在 docs/install.md 的「一条命令装」）：
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
       $u = "<基址>/releases/latest/download/install-client.ps1"; $f = "$env:TEMP\install-client.ps1"
       Invoke-WebRequest -UseBasicParsing $u -OutFile $f; powershell -ExecutionPolicy Bypass -File $f
 
