@@ -113,7 +113,7 @@ export function PluginCard() {
                   onEdit={() => setEditingSource(true)}
                 />
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button size="sm" variant="outline" disabled={Boolean(busy)} onClick={() => void update.check()}>
+                  <Button size="sm" variant="outline" disabled={!update.canCheck} onClick={() => void update.check()}>
                     {update.busy === PLUGIN_UPDATE_KEYS.check ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : (
@@ -164,7 +164,8 @@ export function PluginCard() {
                       key={row.id}
                       row={row}
                       installState={row.members.includes("install") && update.update ? describePluginInstall(update.update).label : ""}
-                      busy={busy}
+                      busy={sources.busy}
+                      frozen={Boolean(busy)}
                       onOpen={() => setOpened(row.id)}
                       onChoose={() => void sources.choose(row.pluginRoot, row.id)}
                     />
@@ -196,7 +197,9 @@ export function PluginCard() {
           <PluginSourceDialog
             row={selected}
             update={selected.members.includes("install") ? update.update : null}
-            busy={busy}
+            busy={sources.busy}
+            updateBusy={update.busy}
+            canCheck={update.canCheck}
             onClose={() => setOpened("")}
             onChoose={(path, key) => void sources.choose(path, key)}
             onCheck={() => void update.check()}
@@ -222,7 +225,10 @@ function SlotMark(props: { slot: PluginSourceSlot }) {
 function PluginSourceLine(props: {
   row: PluginSourceRow
   installState: string
+  /** 来源清单那一半的忙碌位：只有拿它比行 id 才是「这一行自己的动作在跑」。 */
   busy: string
+  /** 哪一半在跑都算忙：忙的时候不给换一份（会顶掉正在跑的那一份）。 */
+  frozen: boolean
   onOpen: () => void
   onChoose: () => void
 }) {
@@ -254,7 +260,7 @@ function PluginSourceLine(props: {
       <TableCell className="align-top text-right whitespace-normal">
         <div className="flex justify-end gap-2" onClick={(event) => event.stopPropagation()}>
           {row.exists && !row.active && (
-            <Button size="sm" variant="outline" disabled={Boolean(props.busy)} onClick={props.onChoose}>
+            <Button size="sm" variant="outline" disabled={props.frozen} onClick={props.onChoose}>
               {props.busy === row.id && <Loader2 className="size-4 animate-spin" />}
               用这份
             </Button>

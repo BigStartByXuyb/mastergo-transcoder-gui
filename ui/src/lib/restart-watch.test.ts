@@ -113,17 +113,4 @@ describe("restartAndWait", () => {
     expect(outcome).toEqual({ ok: false, note: "没起来" })
   })
 
-  it("reloadEnv 原样交给重启那一步", async () => {
-    const seen: boolean[] = []
-    await restartAndWait({
-      reloadEnv: true,
-      probe: async () => undefined,
-      failedNote: "没起来",
-      restart: async (reloadEnv) => {
-        seen.push(reloadEnv)
-      },
-      wait: { initialDelayMs: 0 }
-    })
-    expect(seen).toEqual([true])
-  })
 })

@@ -89,7 +89,7 @@ export function pluginLookup(sources: PluginSource[]): PluginLookup {
    */
   const rowById = new Map<string, PluginSourceRow>(rows.map((row) => [row.id, row]))
   const slots: PluginSourceSlot[] = resolved.map((entry) => {
-    const keeper = mergedInto.get(entry.item.id);
+    const keeper = mergedInto.get(entry.item.id)
     // 自己就是那一行、或并进了某一档：都取那一行的状态，顺序条与表不会各说一套。
     const kept = rowById.get(keeper ?? entry.item.id)
     return {

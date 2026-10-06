@@ -43,13 +43,21 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   收进 `activePluginSource()` 的 `argMissing`，定位只读结论；「打开目录」失败与「选择目录」同形状
   （`{ok:false, reason}`），目录不存在时不给这个按钮；复制两条路都不成时照实说，不再报「已复制」。
   第二轮复核的三条同样按「收到一处」改掉：「正在传」只读 `update-state.isDownloading`；轮询与「改完发布源
-  立刻重读」共用同一段 `adopt(status)`（含「装完了」那一下刷新来源清单）；忙碌位的 key 加 `update:` 前缀，
-  与来源清单那一半的行 id（自带那一行也叫 `install`）不再撞名（同时点两处会两颗按钮一起转圈）。
+  立刻重读」共用同一段 `adopt(status)`（含「装完了」那一下刷新来源清单）；两半各报自己的忙碌位
+  （来源清单报行 id、自带那半报 `check`/`install`），卡片与面板分别收，不再合成一个字符串
+  （自带那一行的 id 也叫 `install`，合起来会让两颗按钮一起转圈）。
+- 第三轮复核接着收口：环境变量那一档的**后端**也一起删了 —— `GET/POST /api/plugin/env`、`lib/env-var.js`
+  （含 `.ps1`）、`lib/launch.js` 的重读判据与 `/api/client/restart` 的 `reloadEnv`、界面那条 `restart-watch`
+  参数：原来界面没了、接口还留着，读/写与「重启让它生效」全都没有调用方。现在这一档只是查找顺序里的一条
+  （值从进程继承来的那份读），文档也照实写。另：「检查更新」能不能点由 `use-plugin-update` 算一处
+  （`canCheck`），卡片与面板读同一个值；`lib/system-open.js` 保证不 reject，`server.js` 那颗近乎恒真的
+  `catch` 随之去掉。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。
 - 第 2 档的显示名统一成「我指定的那一份」（与页面上那条、与文档一致，原来写的是「设置里选的」）。
-- `ui/src/lib/api.ts`：删掉环境变量那一对接口封装（界面不再提供改它的入口；后端接口与读取保留）。
+- `ui/src/lib/api.ts`：删掉环境变量那一对接口封装；后端那两个接口随后也一并删掉（见下面的第三轮收口）——
+  界面没了、接口就没有调用方，不再留一半。
 - `docs/install.md`、`README.md`：这一页的三块结构、八档顺序、行内动作照实写。
 
 ### 点过的东西

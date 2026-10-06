@@ -9,7 +9,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { resolveLaunch, pluginEnvDecision } = require("../lib/launch.js");
+const { resolveLaunch, RESTART_CODE } = require("../lib/launch.js");
 
 function makeHome() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-launch-"));
@@ -52,48 +52,7 @@ assert.strictEqual(resolveLaunch(home).dir, home, "指针读不出来就退回�
 
 fs.rmSync(home, { recursive: true, force: true });
 
-// ---- 起子进程时怎么对待「插件根」那个环境变量 ----
-const P = "D:" + "\\plugin";
-const Q = "D:" + "\\other";
-
-// 界面上没改过它：一律沿用继承来的那份（连注册表都不读）。
-assert.deepStrictEqual(pluginEnvDecision(P, null, ""), { action: "keep", value: "", seen: "" });
-
-// 改了：新的一份要用新值，并记住「这是注册表来的」。
-assert.deepStrictEqual(
-  pluginEnvDecision(P, { user: Q, machine: "", failure: "" }, ""),
-  { action: "set", value: Q, seen: Q },
-  "注册表里改了值就用新值"
-);
-// 与继承来的一样：不动。
-assert.deepStrictEqual(
-  pluginEnvDecision(Q, { user: Q, machine: "", failure: "" }, Q),
-  { action: "keep", value: "", seen: Q },
-  "与继承来的一样就不动"
-);
-// 用户级没设、机器级有：用机器级那一份。
-assert.deepStrictEqual(
-  pluginEnvDecision("", { user: "", machine: Q, failure: "" }, ""),
-  { action: "set", value: Q, seen: Q },
-  "机器级也算"
-);
-// 刚被清掉、继承来的正是上次从注册表读到的那份：连着删掉，否则「清除」不生效。
-assert.deepStrictEqual(
-  pluginEnvDecision(P, { user: "", machine: "", failure: "" }, P),
-  { action: "remove", value: "", seen: "" },
-  "清掉的那份要从子进程环境里也删掉"
-);
-// 继承来的是命令行临时设的（没在注册表见过）：注册表空着也不动它。
-assert.deepStrictEqual(
-  pluginEnvDecision(P, { user: "", machine: "", failure: "" }, ""),
-  { action: "keep", value: "", seen: "" },
-  "命令行临时设的那份不受影响"
-);
-// 注册表读不出来（例如没有 pwsh）：别动，宁可保持原样也别把用户设置抹掉。
-assert.deepStrictEqual(
-  pluginEnvDecision(P, { user: "", machine: "", failure: "起不来" }, P),
-  { action: "keep", value: "", seen: P },
-  "读不出来就别动"
-);
+// 子进程的退出码就是监督进程的协议：换一份重跑用 75，其余码一律当作结束（两端同读这一份）。
+assert.strictEqual(RESTART_CODE, 75, "重启码是 75，改动它要两端一起改");
 
 process.stdout.write("launch ok\n");

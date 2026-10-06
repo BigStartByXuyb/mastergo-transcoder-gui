@@ -98,6 +98,8 @@ function stub(
     onOpenFolder?: (body: unknown) => void
     /** 记下每一次请求（用例看「打了哪些接口」）。 */
     onRequest?: (url: string, body: unknown) => void
+    /** 装插件那一次挂在这里的 Promise 上（用例要停在「正在装」那一瞬间）。 */
+    installResponse?: Promise<Response>
   } = {}
 ) {
   vi.stubGlobal("fetch", (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -113,6 +115,7 @@ function stub(
     }
     if (url.includes("/api/plugin/update/install")) {
       hooks.onInstall?.()
+      if (hooks.installResponse) return hooks.installResponse
       const status = pluginUpdateFixture({ task: { phase: "done", done: 3, total: 3, downloaded: 3, error: null } })
       return Promise.resolve(new Response(JSON.stringify({ ok: true, started: true, version: "1.0.372", note: "", status }), { status: 200 }))
     }
@@ -354,4 +357,75 @@ describe("PluginCard", () => {
     // 路径本身还能复制（这一档没设时它连路径都没有，那是另一回事）。
     expect(within(dialog).getByRole("button", { name: "复制路径" })).toBeTruthy()
   })
+
+  it("装插件在跑时：只有「下载并安装」转圈，同一行的「用这份」不跟着转", async () => {
+    // 装这一版要等一会：卡住这个请求，让「正在装」那一瞬间停在界面上。
+    let release: (value: Response) => void = () => undefined
+    const pending = new Promise<Response>((resolve) => {
+      release = resolve
+    })
+    stub(view(), {
+      installResponse: pending,
+      update: pluginUpdateFixture({
+        state: "update_available",
+        local: { version: "", dir: "" },
+        available: {
+          version: "1.0.372",
+          tag: "v1.0.372",
+          releasedAt: "2026-10-06T00:00:00.000Z",
+          changed: 12,
+          removed: 0,
+          total: 12,
+          checkedAt: "2026-10-06T01:00:00.000Z"
+        }
+      })
+    })
+    render(<PluginCard />)
+    await waitFor(() => expect(screen.getByText("有新版 v1.0.372")).toBeTruthy())
+    fireEvent.click(screen.getByRole("button", { name: "管理…" }))
+    const dialog = await screen.findByRole("dialog")
+
+    /*
+     * 面板里「客户端自带」那一行的 id 也叫 install，自带的更新动作 key 也是 install。
+     * 两半各报各的忙碌位（来源清单那一半 / 自带那半），所以只有装那颗按钮该转圈。
+     */
+    fireEvent.click(within(dialog).getByRole("button", { name: "下载并安装" }))
+    await waitFor(() => expect(spinning(within(dialog).getByRole("button", { name: "下载并安装" }))).toBe(true))
+    expect(spinning(within(dialog).getByRole("button", { name: "用这份" }))).toBe(false)
+    release(new Response(JSON.stringify({ ok: true, started: true, version: "1.0.372", note: "", status: pluginUpdateFixture() }), { status: 200 }))
+  })
+
+  it("「检查更新」在两处同一个判据：正在传时两边都不给点", async () => {
+    stub(
+      view(),
+      {
+        update: pluginUpdateFixture({
+          state: "update_available",
+          available: {
+            version: "1.0.372",
+            tag: "v1.0.372",
+            releasedAt: "2026-10-06T00:00:00.000Z",
+            changed: 4,
+            removed: 0,
+            total: 12,
+            checkedAt: "2026-10-06T01:00:00.000Z"
+          },
+          task: { phase: "downloading", done: 3, total: 12, downloaded: 3, error: null }
+        })
+      }
+    )
+    render(<PluginCard />)
+    const card = await screen.findByRole("button", { name: "检查更新" })
+    expect((card as HTMLButtonElement).disabled).toBe(true)
+
+    fireEvent.click(screen.getByRole("button", { name: "管理…" }))
+    const dialog = await screen.findByRole("dialog")
+    const panel = within(dialog).getByRole("button", { name: "检查更新" })
+    expect((panel as HTMLButtonElement).disabled).toBe(true)
+  })
 })
+
+/* 这颗按钮正在转圈吗（Loader2 就是一颗带 animate-spin 的 svg）。 */
+function spinning(button: HTMLElement): boolean {
+  return Boolean(button.querySelector("svg.animate-spin"))
+}

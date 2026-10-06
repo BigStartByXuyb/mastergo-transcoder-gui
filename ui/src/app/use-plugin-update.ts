@@ -14,11 +14,11 @@ import { isDownloading, isTaskDone } from "@/lib/update-state"
  * 「客户端自带的那一份」这一半：它的状态要一直跟着（表格里那一行要标「有新版」），
  * 检查只拉清单、装是一条后台下载。装完那一下喊一声 onInstalled（父组件据此重读来源清单）。
  *
- * 忙碌位用的是这两把 key。来源清单那一半（use-plugin-sources）用的是那里每一行的 id，
- * 两边最后会合成一个字符串给界面看（卡片上合成、面板里判「是哪一个在跑」），所以带上 update: 前缀，
- * 免得自带那一行的 id（也叫 install）与这里装插件那把 key 撞名、两颗按钮一起转圈。
+ * 忙碌位只报「这一半」的 key（check / install）：来源清单那一半也有自己的忙碌位（那里每一行的 id），
+ * 两边各报各的，由卡片分别交给界面 —— 不合成一个字符串，也就没有「自带那一行的 id 也叫 install」
+ * 这种撞名问题。
  */
-export const PLUGIN_UPDATE_KEYS = { check: "update:check", install: "update:install" } as const
+export const PLUGIN_UPDATE_KEYS = { check: "check", install: "install" } as const
 
 export function usePluginUpdate(onInstalled: () => void) {
   const [update, setUpdate] = useState<PluginUpdateStatus | null>(null)
@@ -110,11 +110,18 @@ export function usePluginUpdate(onInstalled: () => void) {
     [act, rememberFailure]
   )
 
+  /*
+   * 「检查更新」能不能点：这一条线自己有没有动作在跑、正在传、后端有没有别的任务在跑。
+   * 卡片上那颗与「管理…」面板里那颗是同一个动作，所以读同一个判据，不各写一份禁用条件。
+   */
+  const canCheck = Boolean(update && !update.busy && !transferring && !working)
+
   return {
     update: update,
     probe: probe,
     failure: failure,
     busy: working,
+    canCheck: canCheck,
     check: check,
     checkOutcome: checkOutcome,
     refresh: refresh,

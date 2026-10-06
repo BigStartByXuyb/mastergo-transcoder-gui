@@ -258,10 +258,10 @@ server.on("error", function (error) {
   throw error;
 });
 
-// 打不开浏览器不影响服务本身：这里只把「起没起来」丢掉。
+// 打不开浏览器不影响服务本身：openUrl 把各种失败都归一成返回值（不 reject），这里直接不等结果。
 // 「哪个平台用哪条命令」与插件页的「打开目录」是同一处（lib/system-open.js），不在这里再写一份。
 function openBrowser(url) {
-  void openUrl(url).catch(function () {});
+  void openUrl(url);
 }
 
 server.listen(options.port, options.host, function () {

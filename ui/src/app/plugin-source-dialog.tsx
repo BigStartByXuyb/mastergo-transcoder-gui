@@ -43,7 +43,12 @@ export function PluginSourceDialog(props: {
   row: PluginSourceRow
   /** 自带那一份的状态（插件页在轮询它）；这一行里没有自带的（members 不含 install）时传 null。 */
   update: PluginUpdateStatus | null
+  /** 来源清单那一半的忙碌位（换这份 / 选目录 / 读清单）：只有它是这一行自己的动作。 */
   busy: string
+  /** 自带那一半的忙碌位（检查 / 安装）：两半各报各的，不合成一个字符串。 */
+  updateBusy: string
+  /** 「检查更新」能不能点：与卡片上那颗同一个判据（use-plugin-update 算好）。 */
+  canCheck: boolean
   onClose: () => void
   /** 换一份：把这一档解析到的插件根交给客户端（用这份）。 */
   onChoose: (path: string, key: string) => void
@@ -60,7 +65,9 @@ export function PluginSourceDialog(props: {
   const summary = describePluginInstall(props.update)
   const transferring = props.update ? isDownloading(props.update.task) : false
   const taskFailure = props.update ? taskFailureNote(props.update.task) : ""
-  const canInstall = install && summary.canInstall && !props.busy && !transferring
+  // 有任务在跑、正在传、或这一页有动作在跑时都不动：换一份 / 装一份都会顶掉正在跑的那一份。
+  const frozen = Boolean(props.busy) || Boolean(props.updateBusy) || transferring
+  const canInstall = install && summary.canInstall && !frozen
 
   async function openFolder() {
     setFailure("")
@@ -140,7 +147,7 @@ export function PluginSourceDialog(props: {
               </Button>
             )}
             {row.exists && !row.active && (
-              <Button size="sm" variant="outline" disabled={Boolean(props.busy)} onClick={() => props.onChoose(row.pluginRoot, row.id)}>
+              <Button size="sm" variant="outline" disabled={frozen} onClick={() => props.onChoose(row.pluginRoot, row.id)}>
                 {props.busy === row.id && <Loader2 className="size-4 animate-spin" />}
                 用这份
               </Button>
@@ -150,8 +157,8 @@ export function PluginSourceDialog(props: {
           <div className="flex flex-wrap gap-2">
             {install && (
               <>
-                <Button size="sm" variant="outline" disabled={Boolean(props.busy) || transferring} onClick={() => props.onCheck()}>
-                  {props.busy === PLUGIN_UPDATE_KEYS.check ? (
+                <Button size="sm" variant="outline" disabled={!props.canCheck} onClick={() => props.onCheck()}>
+                  {props.updateBusy === PLUGIN_UPDATE_KEYS.check ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
                     <RefreshCw className="size-4" />
@@ -159,7 +166,9 @@ export function PluginSourceDialog(props: {
                   检查更新
                 </Button>
                 <Button size="sm" disabled={!canInstall} onClick={() => props.onInstall()}>
-                  {(props.busy === PLUGIN_UPDATE_KEYS.install || transferring) && <Loader2 className="size-4 animate-spin" />}
+                  {(props.updateBusy === PLUGIN_UPDATE_KEYS.install || transferring) && (
+                    <Loader2 className="size-4 animate-spin" />
+                  )}
                   {summary.action}
                 </Button>
               </>
