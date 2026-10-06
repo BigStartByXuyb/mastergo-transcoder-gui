@@ -78,6 +78,8 @@ export type PluginUpdateStatus = {
   } | null
   error: UpdateFailure | null
   task: UpdateTask
+  /** 有任务在跑时不能装（装完就可能换掉生效的那一份）；空串＝空闲，界面据此提示并禁用。 */
+  busy: string
 }
 
 export type FrameEntry = {

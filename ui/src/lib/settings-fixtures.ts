@@ -25,6 +25,7 @@ export function pluginUpdateFixture(over: Partial<PluginUpdateStatus> = {}): Plu
     available: null,
     error: null,
     task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
+    busy: "",
     ...over
   }
 }

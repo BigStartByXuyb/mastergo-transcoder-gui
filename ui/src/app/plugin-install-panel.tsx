@@ -8,6 +8,8 @@ import { Progress } from "@/components/ui/progress"
 import { IdentifierText } from "@/app/identifier-text"
 import { useActionRunner } from "@/app/use-action-runner"
 import { api, type PluginUpdateStatus } from "@/lib/api"
+import { startDownload } from "@/lib/download-run"
+import { finishDownload } from "@/app/download-actions"
 import { describePluginInstall, localSituation } from "@/lib/plugin-install"
 import { describeTask, isDownloading, isTaskDone, taskFailureNote, taskPercent } from "@/lib/update-state"
 import { useStatusPoll } from "@/app/use-status-poll"
@@ -23,12 +25,15 @@ import { useStatusPoll } from "@/app/use-status-poll"
 export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () => void }) {
   const [status, setStatus] = useState<PluginUpdateStatus | null>(null)
   const [failure, setFailure] = useState("")
+  // 轮询本身失败（读不到状态）与动作失败分开：与 update-card / codex-card 同一套通道划分。
+  const [probe, setProbe] = useState("")
   const [working, setWorking] = useState("")
 
   const summary = describePluginInstall(status)
   const situation = localSituation(status, props.activeRoot)
   const transferring = status ? isDownloading(status.task) : false
   const taskFailure = status ? taskFailureNote(status.task) : ""
+  const busy = status ? status.busy : ""
 
   /*
    * 「装完了」只认一次：阶段变成 done 那一下（父组件据此重读来源表）。
@@ -46,9 +51,9 @@ export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () 
       if (isTaskDone(payload.status.task) && lastPhase.current !== "done") onInstalled.current()
       lastPhase.current = payload.status.task.phase
       setStatus(payload.status)
-      setFailure("")
+      setProbe("")
     },
-    onError: setFailure
+    onError: setProbe
   })
 
   // 动作骨架在 use-action-runner：与程序更新、Codex、运行时那三张卡同一套。
@@ -68,7 +73,7 @@ export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () 
         <Button
           size="sm"
           variant="outline"
-          disabled={Boolean(working) || transferring}
+          disabled={Boolean(working) || transferring || Boolean(busy)}
           onClick={() => void act("check", () => api.pluginUpdateCheck(), "")}
         >
           {working === "check" ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
@@ -76,13 +81,20 @@ export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () 
         </Button>
         <Button
           size="sm"
-          disabled={Boolean(working) || transferring || !summary.canInstall}
+          disabled={Boolean(working) || transferring || Boolean(busy) || !summary.canInstall}
           onClick={() =>
             void act(
               "install",
-              () => api.pluginUpdateInstall(),
-              // 后端会说清这次是「起了一条下载」还是「本地已经有这一版」，照它说。
-              (payload) => toast.info(payload.note || (payload.started ? "开始装插件 v" + payload.version : "本地已经有这一版"))
+              // 与另外三条下载线共用同一处归一：「起没起来」不再就地判一遍。
+              () => startDownload(() => api.pluginUpdateInstall()),
+              (payload) =>
+                finishDownload(payload, {
+                  setFailure,
+                  onStarted: () =>
+                    toast.info(
+                      "开始装插件 v" + (payload.status && payload.status.available ? payload.status.available.version : "")
+                    )
+                })
             )
           }
         >
@@ -105,6 +117,9 @@ export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () 
 
       {!transferring && taskFailure && <span className="text-destructive text-xs">{taskFailure}</span>}
 
+      {/* 有任务在跑：后端会拒，界面先说清，按钮也已经禁掉。 */}
+      {busy && <span className="text-muted-foreground text-xs">{"有任务在跑（" + busy + "），先等它跑完再装。"}</span>}
+
       <span className="text-muted-foreground text-xs">
         {situation === "none" &&
           "客户机上没有 Codex / Claude 时，用这里装一份客户端自己用的插件（装在下面「客户端自带」那一处）。"}
@@ -115,6 +130,7 @@ export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () 
 
       {summary.note && !transferring && <span className="text-muted-foreground text-xs">{summary.note}</span>}
       {failure && <span className="text-destructive text-xs">{failure}</span>}
+      {probe && <span className="text-destructive text-xs">{probe}</span>}
     </div>
   )
 }
