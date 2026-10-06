@@ -19,10 +19,10 @@
  * 不接受手填（包改了清单就得重生成，这是唯一正确的做法）。
  */
 
-const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
+const { sha256File } = require("../lib/app-manifest.js");
 const source = require("../lib/source.js");
 
 const ROOT = path.join(__dirname, "..");
@@ -39,10 +39,6 @@ function argValue(name, fallback) {
   if (index < 0) return fallback;
   const value = process.argv[index + 1];
   return value === undefined || value.startsWith("--") ? fallback : value;
-}
-
-function sha256File(file) {
-  return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 }
 
 function yamlInstaller(context) {
