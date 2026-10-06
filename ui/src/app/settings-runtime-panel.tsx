@@ -19,7 +19,7 @@ export function SettingsRuntimePanel() {
     <Card>
       <CardHeader>
         <CardTitle>运行环境</CardTitle>
-        <CardDescription>转码需要的组件与当前生效的那一份。</CardDescription>
+        <CardDescription>转码需要的组件，以及此刻生效的是哪一份。</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {offline && <p className="text-destructive text-sm">连不上本地服务。</p>}
@@ -65,6 +65,12 @@ export function SettingsRuntimePanel() {
 
         {/* Node.js / PowerShell 7 / Claude Code 三行：与上面是同一个问题「现在用的是什么」。 */}
         <div className="border-t pt-4">
+          <p className="text-muted-foreground pb-3 text-xs">
+            「客户端自带」指客户端自己管理的那两份：版本由我们钉死，装好之后放在<strong>安装目录的
+            runtime\ 下</strong>，跟客户机上装没装无关。安装包里<strong>不带</strong>它们
+            （Node 约 100 MB、PowerShell 7 约 245 MB），第一次点那一行的「下载」把它取回来；
+            取不到外网就在那一行的「来源」里改从内网地址取。
+          </p>
           <RuntimePanel />
         </div>
       </CardContent>

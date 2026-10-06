@@ -88,7 +88,10 @@ export function CodexCard() {
     <Card>
       <CardHeader>
         <CardTitle>Codex 引擎</CardTitle>
-        <CardDescription>「对话」与自动补输入用它跑模型，默认自带一份，与你本机装的互不影响。</CardDescription>
+        <CardDescription>
+          「对话」与自动补输入用它跑模型：默认用我们下载的那一份（独立目录、版本我们钉死），
+          不碰你本机装的 Codex；也可以点「用本机那份」。
+        </CardDescription>
         <div className="flex flex-wrap items-center gap-2 pt-2">
           <Badge variant={summary.tone}>
             <Bot className="size-3" />
