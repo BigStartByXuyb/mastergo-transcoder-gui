@@ -69,7 +69,9 @@ function uploadRelease(options) {
     run("gh", ["release", "upload", tag].concat(options.blobPaths, ["--clobber"]));
   }
   else {
-    run("gh", ["release", "create", tag, "--title", options.title || tag, "--notes", options.notes || tag].concat(options.blobPaths));
+    // 说明由调用方给（客户端一份、插件一份），模块不自带缺省文案 —— 免得同一种措辞出现两处。
+    if (!options.notes) throw new Error("创建 Release 要给 --notes（这一版改了什么）");
+    run("gh", ["release", "create", tag, "--title", options.title || tag, "--notes", options.notes].concat(options.blobPaths));
   }
   run("gh", ["release", "upload", tag, options.manifestPath, "--clobber"]);
 }

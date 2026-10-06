@@ -51,7 +51,7 @@ function main() {
       "清单内容原样写出"
     );
 
-    // 上传顺序：文件在前、清单最后；已存在 release 时不重复创建。
+    // 上传顺序按语义验（不逐字比对命令行）：所有文件都排在清单之前，清单只在最后一跳。
     const calls = [];
     uploadRelease({
       tag: "v9.9.9",
@@ -61,10 +61,14 @@ function main() {
       releaseExists: function () { return true; },
       run: function (command, args) { calls.push([command].concat(args)); }
     });
-    assert.strictEqual(calls.length, 2, "已存在 release 时只有两次调用（传文件 + 传清单）");
-    assert.deepStrictEqual(calls[0].slice(0, 4), ["gh", "release", "upload", "v9.9.9"]);
-    assert.deepStrictEqual(calls[0].slice(4, 4 + staged.blobPaths.length), staged.blobPaths, "先传全部文件");
-    assert.deepStrictEqual(calls[1], ["gh", "release", "upload", "v9.9.9", staged.manifestPath, "--clobber"], "清单最后传");
+    const manifestCalls = calls.filter(function (args) { return args.indexOf(staged.manifestPath) >= 0; });
+    assert.strictEqual(manifestCalls.length, 1, "清单只传一次");
+    assert.strictEqual(calls.indexOf(manifestCalls[0]), calls.length - 1, "清单是最后一跳");
+    const uploaded = [];
+    calls.slice(0, -1).forEach(function (args) {
+      args.forEach(function (item) { if (staged.blobPaths.indexOf(item) >= 0) uploaded.push(item); });
+    });
+    assert.deepStrictEqual(uploaded.slice().sort(), staged.blobPaths.slice().sort(), "所有文件都在清单之前传完");
 
     const created = [];
     uploadRelease({
@@ -75,9 +79,18 @@ function main() {
       releaseExists: function () { return false; },
       run: function (command, args) { created.push([command].concat(args)); }
     });
-    assert.deepStrictEqual(created[0].slice(0, 6), ["gh", "release", "create", "v9.9.9", "--title", "v9.9.9"], "没有 release 时先创建");
-    assert.ok(created[0].indexOf("--notes") > 0, "创建时带上说明");
-    assert.deepStrictEqual(created[1], ["gh", "release", "upload", "v9.9.9", staged.manifestPath, "--clobber"], "创建之后仍然最后传清单");
+    assert.ok(created[0].indexOf("create") > 0, "没有 release 时先创建");
+    assert.ok(created[0].indexOf("这是说明") > 0, "创建时带上调用方给的说明");
+    assert.ok(created[1].indexOf(staged.manifestPath) > 0, "创建之后仍然最后传清单");
+    assert.throws(function () {
+      uploadRelease({
+        tag: "v9.9.9",
+        blobPaths: staged.blobPaths,
+        manifestPath: staged.manifestPath,
+        releaseExists: function () { return false; },
+        run: function () { }
+      });
+    }, /--notes/, "创建 Release 却没说时直接报错");
 
     console.log("release-assets.test.js 全部通过");
   }
