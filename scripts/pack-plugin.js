@@ -21,7 +21,8 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { execFileSync } = require("child_process");
-const { PLUGIN_NAME, pluginVersionFrom, MANIFEST_FILE, zipName } = require("../lib/plugin-package.js");
+const { PLUGIN_NAME, isPluginRoot, pluginVersionFrom, MANIFEST_FILE, zipName, versionOfTag } = require("../lib/plugin-package.js");
+const { PLUGIN_MARKER } = require("../lib/plugin-root.js");
 
 // 打哪一版由 pin 文件决定（默认 plugin-pin.json，改它不用改代码）；它只属于发布流程，不进运行树。
 const DEFAULT_PIN = path.join(__dirname, "..", "plugin-pin.json");
@@ -57,10 +58,6 @@ function git(repoDir, args) {
   return execFileSync("git", ["-C", repoDir].concat(args), { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 }
 
-function versionOfTag(tag) {
-  return String(tag || "").trim().replace(/^v/, "");
-}
-
 function readPin(pinPath) {
   const raw = JSON.parse(fs.readFileSync(pinPath, "utf8"));
   return {
@@ -86,6 +83,20 @@ function pack(args, pin) {
   const where = splitPluginDir(pin.dir);
   if (where.name !== PLUGIN_NAME) {
     throw new Error("pin 的 path 里那个目录要叫 " + PLUGIN_NAME + "（市场按这个名字认插件）：" + pin.dir);
+  }
+  // 客户端是靠这个标记文件认出「这是一份插件根」的：连判据一起复用（isPluginRoot），
+  // 而且与版本门禁一样看钉住的那个 tag —— 同一个包不能一半看检出目录、一半看 tag。
+  const treeDir = path.join(repoDir, pin.dir);
+  let markerAtTag = "";
+  try {
+    // git 里的路径只能用正斜杠（PLUGIN_MARKER 在 Windows 上是反斜杠）。
+    markerAtTag = git(repoDir, ["show", pin.tag + ":" + pin.dir + "/" + PLUGIN_MARKER.replace(/\\/g, "/")]);
+  }
+  catch {
+    markerAtTag = "";
+  }
+  if (!markerAtTag || !isPluginRoot(treeDir)) {
+    throw new Error("这个 tag 里没有 " + PLUGIN_MARKER + "，客户端认不出它是一份插件：" + pin.dir);
   }
 
   // 版本以插件自己的清单为准，读法与客户端定位那份完全一样（plugin-root.js 的 pluginVersionFrom）：
