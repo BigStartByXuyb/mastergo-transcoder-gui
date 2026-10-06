@@ -9,7 +9,7 @@ import { IdentifierText } from "@/app/identifier-text"
 import { useActionRunner } from "@/app/use-action-runner"
 import { api, type PluginUpdateStatus } from "@/lib/api"
 import { describePluginInstall, localSituation } from "@/lib/plugin-install"
-import { describeTask, isDownloading, taskPercent } from "@/lib/update-state"
+import { describeTask, isDownloading, isTaskDone, taskFailureNote, taskPercent } from "@/lib/update-state"
 import { useStatusPoll } from "@/app/use-status-poll"
 
 /*
@@ -28,6 +28,7 @@ export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () 
   const summary = describePluginInstall(status)
   const situation = localSituation(status, props.activeRoot)
   const transferring = status ? isDownloading(status.task) : false
+  const taskFailure = status ? taskFailureNote(status.task) : ""
 
   /*
    * 「装完了」只认一次：阶段变成 done 那一下（父组件据此重读来源表）。
@@ -42,9 +43,8 @@ export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () 
     load: () => api.pluginUpdateStatus(),
     working: transferring,
     onData: (payload) => {
-      const phase = payload.status.task.phase
-      if (phase === "done" && lastPhase.current !== "done") onInstalled.current()
-      lastPhase.current = phase
+      if (isTaskDone(payload.status.task) && lastPhase.current !== "done") onInstalled.current()
+      lastPhase.current = payload.status.task.phase
       setStatus(payload.status)
       setFailure("")
     },
@@ -103,9 +103,7 @@ export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () 
         </div>
       )}
 
-      {!transferring && status && status.task.phase === "error" && (
-        <span className="text-destructive text-xs">{status.task.error ? status.task.error.message : "装插件失败"}</span>
-      )}
+      {!transferring && taskFailure && <span className="text-destructive text-xs">{taskFailure}</span>}
 
       <span className="text-muted-foreground text-xs">
         {situation === "none" &&

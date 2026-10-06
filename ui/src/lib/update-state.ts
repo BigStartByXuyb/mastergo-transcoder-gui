@@ -148,6 +148,16 @@ export function isDownloading(task: UpdateTask): boolean {
   return task.phase === "downloading" || task.phase === "materializing"
 }
 
+/** 下完了（正在下载 → 下完那一下，界面据此重读一次来源表）。 */
+export function isTaskDone(task: UpdateTask): boolean {
+  return task.phase === "done"
+}
+
+/** 下载失败那一句；没失败就是空串。兜底词与 describeTask 同一处，不再各写一个。 */
+export function taskFailureNote(task: UpdateTask): string {
+  return task.phase === "error" ? describeTask(task) : ""
+}
+
 export function taskPercent(task: UpdateTask): number {
   if (task.total <= 0) return 0
   return Math.min(100, Math.round((task.done / task.total) * 100))

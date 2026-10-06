@@ -8,6 +8,8 @@ import {
   describeTask,
   describeUpdate,
   isDownloading,
+  isTaskDone,
+  taskFailureNote,
   taskPercent,
   versionList
 } from "@/lib/update-state"
@@ -22,6 +24,20 @@ describe("compareVersions", () => {
     // 同一段里有非数字时，两边都退到整串比较：不会把 abc 与 abc 判成「不一样」。
     expect(compareVersions("abc", "abc")).toBe(0)
     expect(compareVersions("1.0.371-rc", "1.0.370")).toBe("1.0.371-rc".localeCompare("1.0.370"))
+  })
+})
+
+describe("任务阶段", () => {
+  it("下完那一下认 done，其余不算", () => {
+    expect(isTaskDone(task({ phase: "done" }))).toBe(true)
+    expect(isTaskDone(task({ phase: "downloading" }))).toBe(false)
+    expect(isTaskDone(task({ phase: "error" }))).toBe(false)
+  })
+
+  it("失败那一句只在失败阶段给，兜底词与 describeTask 同一处", () => {
+    expect(taskFailureNote(task({ phase: "error", error: { code: "X", message: "拼装对不上", hint: "a.js" } }))).toBe("拼装对不上")
+    expect(taskFailureNote(task({ phase: "error" }))).toBe("下载失败")
+    expect(taskFailureNote(task({ phase: "downloading" }))).toBe("")
   })
 })
 
