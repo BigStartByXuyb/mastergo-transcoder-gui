@@ -89,7 +89,8 @@ function pack(args, pin) {
   const treeDir = path.join(repoDir, pin.dir);
   let markerAtTag = "";
   try {
-    markerAtTag = git(repoDir, ["show", pin.tag + ":" + pin.dir + "/" + PLUGIN_MARKER]);
+    // git 里的路径只能用正斜杠（PLUGIN_MARKER 在 Windows 上是反斜杠）。
+    markerAtTag = git(repoDir, ["show", pin.tag + ":" + pin.dir + "/" + PLUGIN_MARKER.replace(/\\/g, "/")]);
   }
   catch {
     markerAtTag = "";
