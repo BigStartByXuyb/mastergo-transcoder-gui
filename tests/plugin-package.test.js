@@ -39,6 +39,16 @@ function main() {
   assert.ok(/^[^/]+\/[^/]+$/.test(pkg.PLUGIN_DIR), "path 形如 plugins/<插件名>：" + pkg.PLUGIN_DIR);
   assert.strictEqual(pkg.zipName("1.2.3"), pkg.PLUGIN_NAME + "-1.2.3.zip", "zip 名字由插件名与版本拼出");
 
+  // 「插件自己声明的版本」只有一条读法：先 .claude-plugin，再回落 .codex-plugin；坏 JSON 不炸、继续试下一个。
+  const reader = (files) => (rel) => files[rel] || "";
+  assert.strictEqual(pkg.pluginVersionFrom(reader({ ".codex-plugin/plugin.json": '{"version":"9.9.9"}' })), "9.9.9");
+  assert.strictEqual(
+    pkg.pluginVersionFrom(reader({ ".claude-plugin/plugin.json": "{ 坏", ".codex-plugin/plugin.json": '{"version":"1.0.0"}' })),
+    "1.0.0",
+    "前一个清单读不动时回落下一个"
+  );
+  assert.strictEqual(pkg.pluginVersionFrom(reader({})), "", "一个清单都没有时给空");
+
   assert.ok(WORKFLOW.indexOf("scripts/pack-plugin.js") >= 0, "发布流程要调插件打包脚本");
   // 名字只在模块里定义：流程里再写一遍就等于同一件事有两处实现，改名时必有一处漏掉。
   assert.ok(WORKFLOW.indexOf(pkg.MANIFEST_FILE) < 0, "流程里不该再写一遍清单名");

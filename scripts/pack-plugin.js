@@ -20,8 +20,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { execFileSync } = require("child_process");
-const { PLUGIN_NAME, PLUGIN_TAG, PLUGIN_DIR, MANIFEST_FILE, zipName } = require("../lib/plugin-package.js");
-const { pluginVersionFrom } = require("../lib/plugin-root.js");
+const { PLUGIN_NAME, pluginVersionFrom, PLUGIN_TAG, PLUGIN_DIR, MANIFEST_FILE, zipName } = require("../lib/plugin-package.js");
 
 function usage(message) {
   if (message) process.stderr.write(message + "\n");
