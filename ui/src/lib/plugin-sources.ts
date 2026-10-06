@@ -48,9 +48,12 @@ export function pluginLookup(sources: PluginSource[]): PluginLookup {
     if (!keeperOf.has(entry.root)) keeperOf.set(entry.root, entry.item.id)
   }
 
-  // 被合并的来源名挂到留下那一行上；生效标记也跟着并过去（界面仍然只标一处）。
+  /*
+   * 被合并的来源名挂到留下那一行上。
+   * 「正在用」不用另并一次：后端只在真正生效的那一档上标 active，而那一档必定就是它那个插件根的
+   * 最先命中者（＝留下的那一行），所以被并掉的那几档本来就不会带 active。
+   */
   const extrasOf = new Map<string, string[]>()
-  const activeKeepers = new Set<string>()
   const mergedInto = new Map<string, string>()
   for (const entry of resolved) {
     const keeper = entry.root ? keeperOf.get(entry.root) : undefined
@@ -59,7 +62,6 @@ export function pluginLookup(sources: PluginSource[]): PluginLookup {
     const list = extrasOf.get(keeper)
     if (list) list.push(entry.item.label)
     else extrasOf.set(keeper, [entry.item.label])
-    if (entry.item.active) activeKeepers.add(keeper)
   }
 
   const memberIdsOf = new Map<string, string[]>()
@@ -77,7 +79,6 @@ export function pluginLookup(sources: PluginSource[]): PluginLookup {
     rows.push({
       ...entry.item,
       order: entry.order,
-      active: entry.item.active || activeKeepers.has(entry.item.id),
       alsoFrom: extrasOf.get(entry.item.id) ?? [],
       members: memberIdsOf.get(entry.item.id) ?? [entry.item.id]
     })
