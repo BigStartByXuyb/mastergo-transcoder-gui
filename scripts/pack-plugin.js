@@ -24,7 +24,7 @@ const path = require("path");
 const { execFileSync } = require("child_process");
 // 判据只有一处实现（lib/plugin-root.js）：这里直接用它的公开函数，不再另建一层转口。
 const { PLUGIN_NAME, PLUGIN_MARKER, isPluginRoot, pluginVersionOf } = require("../lib/plugin-root.js");
-const { listFilesUnder, sha256File } = require("../lib/app-manifest.js");
+const { listFilesUnder, hashFiles } = require("../lib/app-manifest.js");
 const { stageAssets, uploadRelease } = require("./lib/release-assets.js");
 
 // 发布件的名字只属于发布流程（不进运行树，客户端那半接的时候按同一套协议另说）。
@@ -125,9 +125,8 @@ function pack(args, pin) {
 
 function writePackage(args, pin, version, treeDir) {
   const outDir = path.resolve(args.out);
-  const files = {};
-  // 扫树这条规则用 lib/app-manifest.js 那一份（与运行树同一套：/ 分隔、字典序）。
-  for (const rel of listFilesUnder(treeDir)) files[rel] = sha256File(path.join(treeDir, rel));
+  // 扫树与算哈希都用 lib/app-manifest.js 那一份（/ 分隔、字典序；插件树不排除任何目录）。
+  const files = hashFiles(treeDir, listFilesUnder(treeDir));
   const manifest = {
     name: PLUGIN_NAME,
     version: version,
