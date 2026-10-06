@@ -24,7 +24,7 @@ export function SourceStatusBadge(props: { row: PluginSourceRow }) {
     return (
       <Badge variant="secondary">
         <Check className="size-3" />
-        正在用
+        {sourceStatusText(true, props.row.exists)}
       </Badge>
     )
   }

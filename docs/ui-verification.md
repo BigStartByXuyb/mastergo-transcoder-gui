@@ -63,6 +63,8 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   卡片里那两个忙碌位只合成布尔（`frozen`），「哪一半哪个动作在跑」仍各读各的字符串。
 - 第六轮复核两条：「这一档的处境怎么说」收到一处（`sourceStatusText`：顺序条与表/面板不再是「有」对「可用」）；
   `/api/client/restart` 补回 `body: true`（界面按这一页的惯例发空 JSON 体，两边契约一致）。
+- 第七轮复核一条：删掉环境变量路由后 `lib/routes.js` 遗留的未使用 `PLUGIN_NAME` 导入；顺手让「正在用」那句也走
+  `sourceStatusText`（徽章两条分支读同一处文案）。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。
