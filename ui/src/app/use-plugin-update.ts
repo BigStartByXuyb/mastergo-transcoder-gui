@@ -76,9 +76,10 @@ export function usePluginUpdate(onInstalled: () => void) {
   }, [reload])
 
   /*
-   * 卡片上那颗「检查更新」：与「程序更新」那张卡同形（act 套状态，这里只顺手清掉轮询留下的提示）。
+   * 跑一次检查（act 骨架）：与「程序更新」那张卡同形，顺手清掉轮询留下的提示。
+   * 卡片上那颗与「保存并检查」那一下都走这一条 —— 两条路只有「结果怎么说」不同。
    */
-  const check = useCallback(
+  const runCheck = useCallback(
     () =>
       act(PLUGIN_UPDATE_KEYS.check, async function () {
         const payload = await api.pluginUpdateCheck()
@@ -88,15 +89,18 @@ export function usePluginUpdate(onInstalled: () => void) {
     [act]
   )
 
+  /** 卡片上那颗「检查更新」。 */
+  const check = runCheck
+
   /*
    * 「保存并检查」用的那一次：走同一个接口、同一套说法（describePluginInstall），
    * 只是要把结果说成弹窗要的两句话，所以这里不返回状态而返回那两句话。
    */
   const checkOutcome = useCallback(async function () {
-    const payload = await act(PLUGIN_UPDATE_KEYS.check, () => api.pluginUpdateCheck())
+    const payload = await runCheck()
     if (!payload) return { failure: failureRef.current, note: "" }
     return sourceCheckOutcome(describePluginInstall(payload.status), payload.status.state === "error")
-  }, [act])
+  }, [runCheck])
 
   // 装最新那一版：与另外三条下载线同形（startDownload 归一结果 → finishDownload 按 kind 落地）。
   const install = useCallback(
