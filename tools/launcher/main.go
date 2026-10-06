@@ -11,6 +11,15 @@
 //     → 校验 sha256 → 解压到 runtime\node\<版本>\ → 写指针 → 再起
 //     包里那份 zip 如果已经在 runtime\blobs\<sha256> 里，直接用它，不再下载。
 //
+// 两处与 Node 侧（lib/runtime.js）的关系，写在明处：
+//   * 「自带那份在哪」两边各实现一次：Go 这边读不懂 JS。共同的契约只有布局本身
+//     （runtime\<工具>\<版本>\ + current.json 指针 + current 链接），改布局要同时改两处。
+//   * 「用系统 node 起客户端」是有意为之：启动器只负责把客户端拉起来，不负责版本一致性 ——
+//     版本对齐靠界面「运行环境」里点一下下载（下完下次启动就走第 1 条）。客户机上那份够新时，
+//     不为了 40 MB 卡住第一次启动。设置里选过「系统上那一份」的，与这条自然一致。
+//   * 下载不带凭据（token 是 DPAPI 加密的，Go 解不开）：给启动器用的内网镜像应当免凭据；
+//     需要凭据的场景走 Node 侧那条下载（它能解密 token）。
+//
 // 不是安装器：不写注册表、不装服务、不碰别的目录，卸载=删目录。
 // PowerShell 7 不归它管：能起到这一步就说明 Node 已经有了，那一份在界面里点「下载」即可。
 package main
@@ -176,45 +185,51 @@ func fetchZip(root string, spec toolSpec, mirror string) (string, error) {
 	}
 	fmt.Println("正在下载 Node.js " + spec.Version + "：" + url)
 	client := &http.Client{Timeout: 30 * time.Minute}
+	// 网络抖一下就报「补运行时失败」太钝：两次机会，第一次失败等 2 秒。
+	var lastErr error
+	for attempt := 1; attempt <= 2; attempt += 1 {
+		lastErr = downloadTo(client, url, blob)
+		if lastErr == nil {
+			return blob, nil
+		}
+		if attempt < 2 {
+			fmt.Println("这次没成（" + lastErr.Error() + "），2 秒后再试一次。")
+			time.Sleep(2 * time.Second)
+		}
+	}
+	return "", lastErr
+}
+
+func downloadTo(client *http.Client, url string, blob string) error {
 	response, err := client.Get(url)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("下载失败：HTTP %d（%s）", response.StatusCode, url)
+		return fmt.Errorf("下载失败：HTTP %d（%s）", response.StatusCode, url)
 	}
 	if err := os.MkdirAll(filepath.Dir(blob), 0o755); err != nil {
-		return "", err
+		return err
 	}
 	out, err := os.Create(blob)
 	if err != nil {
-		return "", err
+		return err
 	}
 	if _, err := io.Copy(out, response.Body); err != nil {
 		out.Close()
 		os.Remove(blob)
-		return "", err
+		return err
 	}
 	out.Close()
-	return blob, nil
+	return nil
 }
 
-/*
- * 解压：zip 里第一层（Node 的包带一层 node-v…/）按 strip 剥掉。
- * 落到 .building-<pid>，搬进版本目录，最后写指针 —— 中途失败不会留下一个「像装好了」的目录。
- */
-func unpack(blob string, root string, spec toolSpec) (string, error) {
-	staging := filepath.Join(root, "runtime", nodeTool, ".building-"+strconv.Itoa(os.Getpid()))
-	target := filepath.Join(root, "runtime", nodeTool, spec.Version)
-	os.RemoveAll(staging)
-	if err := os.MkdirAll(staging, 0o755); err != nil {
-		return "", err
-	}
-
+/* 把 zip 解到 staging：第一层（Node 的包带一层 node-v…/）按 strip 剥掉。 */
+func unzipTo(blob string, staging string, spec toolSpec) error {
 	archive, err := zip.OpenReader(blob)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer archive.Close()
 	for _, item := range archive.File {
@@ -229,39 +244,41 @@ func unpack(blob string, root string, spec toolSpec) (string, error) {
 		destination := filepath.Join(staging, filepath.FromSlash(rel))
 		if item.FileInfo().IsDir() || strings.HasSuffix(item.Name, "/") {
 			if err := os.MkdirAll(destination, 0o755); err != nil {
-				return "", err
+				return err
 			}
 			continue
 		}
 		if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
-			return "", err
+			return err
 		}
 		source, err := item.Open()
 		if err != nil {
-			return "", err
+			return err
 		}
 		file, err := os.Create(destination)
 		if err != nil {
 			source.Close()
-			return "", err
+			return err
 		}
 		if _, err := io.Copy(file, source); err != nil {
 			file.Close()
 			source.Close()
-			return "", err
+			return err
 		}
 		file.Close()
 		source.Close()
 	}
+	return nil
+}
 
+/* 把拼好的那一份搬进版本目录，并写下「当前生效的是哪一版」。 */
+func publish(staging string, target string, root string, spec toolSpec) error {
 	if _, err := os.Stat(filepath.Join(staging, spec.Exe)); err != nil {
-		os.RemoveAll(staging)
-		return "", fmt.Errorf("解压后没找到 %s", spec.Exe)
+		return fmt.Errorf("解压后没找到 %s", spec.Exe)
 	}
 	os.RemoveAll(target)
 	if err := os.Rename(staging, target); err != nil {
-		os.RemoveAll(staging)
-		return "", err
+		return err
 	}
 	pointer, _ := json.MarshalIndent(nodePointer{
 		Version:   spec.Version,
@@ -269,10 +286,42 @@ func unpack(blob string, root string, spec toolSpec) (string, error) {
 		Installed: time.Now().UTC().Format(time.RFC3339),
 	}, "", "  ")
 	_ = os.WriteFile(filepath.Join(root, "runtime", nodeTool, "current.json"), append(pointer, '\n'), 0o644)
-	// current 链接是 start.cmd 用的稳定入口；建不了（非 NTFS、没权限）不影响程序本身。
+	return nil
+}
+
+/* current 链接是 start.cmd 用的稳定入口；建不了（非 NTFS、没权限）不影响程序本身。 */
+func refreshLink(root string, target string) {
 	link := filepath.Join(root, "runtime", nodeTool, "current")
 	os.Remove(link)
 	_ = exec.Command("cmd", "/c", "mklink", "/J", link, target).Run()
+}
+
+/*
+ * 解压到版本目录：先拼到 .building-<pid>，成功了才搬过去 —— 中途失败不会留下一个「像装好了」的目录。
+ * 三件事分开：拼（unzipTo）→ 搬 + 写指针（publish）→ 建 current 链接（refreshLink）。
+ */
+func unpack(blob string, root string, spec toolSpec) (string, error) {
+	staging := filepath.Join(root, "runtime", nodeTool, ".building-"+strconv.Itoa(os.Getpid()))
+	target := filepath.Join(root, "runtime", nodeTool, spec.Version)
+	os.RemoveAll(staging)
+	if err := os.MkdirAll(staging, 0o755); err != nil {
+		return "", err
+	}
+
+	if err := unzipTo(blob, staging, spec); err != nil {
+		os.RemoveAll(staging)
+		return "", err
+	}
+
+	if _, err := os.Stat(filepath.Join(staging, spec.Exe)); err != nil {
+		os.RemoveAll(staging)
+		return "", fmt.Errorf("解压后没找到 %s", spec.Exe)
+	}
+	if err := publish(staging, target, root, spec); err != nil {
+		os.RemoveAll(staging)
+		return "", err
+	}
+	refreshLink(root, target)
 	return filepath.Join(target, spec.Exe), nil
 }
 
