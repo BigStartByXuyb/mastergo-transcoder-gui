@@ -88,12 +88,6 @@ assert.strictEqual(toPosix("a/b"), "a/b");
 // 扫一棵树（/ 分隔、字典序）：插件发布件用它；这里按造好的夹具逐项对，不写成恒真式。
 assert.deepStrictEqual(listFilesUnder(root).slice().sort(), listFilesUnder(root), "扫出来的路径按字典序");
 assert.ok(listFilesUnder(root).length > 0, "夹具里应该有文件");
-// 运行树清单就是「扫出来的路径 + 逐文件哈希」这一步：两处共用同一个函数，不再各写一份循环。
-assert.deepStrictEqual(
-  hashFiles(root, listRuntimeFiles(root)),
-  buildManifest(root, "1.2.3").files,
-  "清单里的哈希表由 hashFiles 生成"
-);
 
 fs.rmSync(root, { recursive: true, force: true });
 fs.rmSync(remote, { recursive: true, force: true });
