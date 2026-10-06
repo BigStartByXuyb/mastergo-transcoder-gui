@@ -22,10 +22,10 @@
 
 const fs = require("fs");
 const path = require("path");
-const { spawnSync } = require("child_process");
 
 const { buildManifest } = require("../lib/app-manifest.js");
 const { notesOf, notesText } = require("../lib/changelog.js");
+const { stageAssets, uploadRelease } = require("./lib/release-assets.js");
 
 const ROOT = path.join(__dirname, "..");
 
@@ -34,11 +34,6 @@ function argValue(name, fallback) {
   if (index < 0) return fallback;
   const value = process.argv[index + 1];
   return value === undefined || value.startsWith("--") ? fallback : value;
-}
-
-function run(command, args) {
-  const result = spawnSync(command, args, { stdio: "inherit", shell: process.platform === "win32" });
-  if (result.status !== 0) throw new Error(command + " 退出码 " + result.status);
 }
 
 function main() {
@@ -52,7 +47,6 @@ function main() {
   }
 
   const outDir = path.resolve(ROOT, argValue("out", path.join("dist", "update")));
-  const filesDir = path.join(outDir, "files");
   const manifest = buildManifest(ROOT, pkg.version);
   manifest.releasedAt = new Date().toISOString();
   manifest.minClientVersion = argValue("min-client", "");
@@ -60,40 +54,22 @@ function main() {
   // 这一版改了什么跟着清单一起发：客户端检查更新时就能显示，不用再多打一次 GitHub API。
   manifest.notes = notesOf(ROOT, pkg.version);
 
-  fs.rmSync(outDir, { recursive: true, force: true });
-  fs.mkdirSync(filesDir, { recursive: true });
-  const written = new Map();
-  for (const rel of Object.keys(manifest.files)) {
-    const hash = manifest.files[rel];
-    if (written.has(hash)) continue;
-    fs.copyFileSync(path.join(ROOT, rel), path.join(filesDir, hash));
-    written.set(hash, rel);
-  }
-  fs.writeFileSync(path.join(outDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n", "utf8");
-  // 历史版本也要留一份自己的清单：静态源没有「某一版的 release」这种概念，只能按版本目录取。
-  const versionDir = path.join(outDir, "v" + manifest.version);
-  fs.mkdirSync(versionDir, { recursive: true });
-  fs.writeFileSync(path.join(versionDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n", "utf8");
-
-  const unique = written.size;
+  const staged = stageAssets({ root: ROOT, manifest: manifest, outDir: outDir, manifestName: "manifest.json" });
   process.stdout.write(
-    "v" + manifest.version + "：运行树 " + Object.keys(manifest.files).length + " 个文件，"
-    + "内容去重后 " + unique + " 份，产物在 " + outDir + "\n"
+    "v" + manifest.version + "：运行树 " + staged.fileCount + " 个文件，"
+    + "内容去重后 " + staged.uniqueCount + " 份，产物在 " + outDir + "\n"
   );
 
   if (process.argv.indexOf("--upload") < 0) return;
   const tag = "v" + manifest.version;
-  const existing = spawnSync("gh", ["release", "view", tag], { encoding: "utf8", shell: process.platform === "win32" });
-  const blobs = Array.from(written.keys()).map(function (hash) { return path.join(filesDir, hash); });
-  if (existing.status === 0) {
-    run("gh", ["release", "upload", tag].concat(blobs, ["--clobber"]));
-  }
-  else {
-    const notes = notesText(ROOT, pkg.version) || "MasterGo 转码客户端 " + tag;
-    run("gh", ["release", "create", tag, "--title", tag, "--notes", notes].concat(blobs));
-  }
-  run("gh", ["release", "upload", tag, path.join(outDir, "manifest.json"), "--clobber"]);
-  process.stdout.write("已上传 " + tag + "（manifest.json 最后传）\n");
+  uploadRelease({
+    tag: tag,
+    blobPaths: staged.blobPaths,
+    manifestPath: staged.manifestPath,
+    title: tag,
+    notes: notesText(ROOT, pkg.version) || "MasterGo 转码客户端 " + tag
+  });
+  process.stdout.write("已上传 " + tag + "（清单最后传）\n");
 }
 
 main();
