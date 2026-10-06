@@ -5,7 +5,7 @@
  * 打插件发布件：<插件名>-<版本>.zip + plugin-manifest.json。发布流程在打 tag 时调它。
  *
  * 用法：node scripts/pack-plugin.js --repo-dir <插件仓库的检出目录> [--out dist] [--pin plugin-pin.json]
- *       node scripts/pack-plugin.js --print-pin [--pin plugin-pin.json]   # 按行给出仓库与 tag，自己去检出
+ *       node scripts/pack-plugin.js --print-pin [--pin plugin-pin.json]   # 报出 repo= / tag=，自己去检出
  * 产物按前缀写到标准输出（发布流程按前缀取，不猜行序）：`blob=<zip 路径>`、`manifest=<清单路径>`；
  * 说明写到标准错误。
  *
@@ -77,12 +77,18 @@ function readPin(pinPath) {
   };
 }
 
-// 插件在仓库里的位置（plugin-pin.json 的 path）：git archive 要在它的上一级目录里跑，
-// 路径按相对当前目录给。
-function splitPluginDir(dir) {
-  const parts = String(dir || "").split("/").filter(Boolean);
+/*
+ * 插件在仓库里的位置（plugin-pin.json 的 path）只在这里解析一次：判据（这棵树是不是插件根）、
+ * 打包（在它的上一级目录里跑 git archive）、报错信息全用它 —— 不会出现「门禁看一个目录、打包用另一个」。
+ */
+function pluginDirParts(dir) {
+  const parts = String(dir || "").replace(/\\/g, "/").split("/").filter(Boolean);
   if (parts.length < 2) throw new Error("plugin-pin.json 的 path 要形如 plugins/<插件名>：" + dir);
-  return { parent: parts.slice(0, -1).join("/"), name: parts[parts.length - 1] };
+  const name = parts[parts.length - 1];
+  if (name !== PLUGIN_NAME) {
+    throw new Error("pin 的 path 里那个目录要叫 " + PLUGIN_NAME + "（市场按这个名字认插件）：" + dir);
+  }
+  return { parent: parts.slice(0, -1).join("/"), name: name, parts: parts };
 }
 
 function pack(args, pin) {
@@ -90,10 +96,7 @@ function pack(args, pin) {
   if (!fs.existsSync(repoDir)) throw new Error("插件仓库的检出目录不存在：" + repoDir);
   const version = versionOfTag(pin.tag);
   if (!/^\d+(\.\d+)*$/.test(version)) throw new Error("钉住的插件版本不像版本号：" + pin.tag);
-  const where = splitPluginDir(pin.dir);
-  if (where.name !== PLUGIN_NAME) {
-    throw new Error("pin 的 path 里那个目录要叫 " + PLUGIN_NAME + "（市场按这个名字认插件）：" + pin.dir);
-  }
+  const where = pluginDirParts(pin.dir);
   /*
    * 要发布的是 tag 里的内容：先把它摊到一个临时目录，后面两道门禁（是不是插件根、版本是多少）
    * 都用客户端那一套目录判据，不再为 git 树另写一份；最后包也从同一个 tag 取。
@@ -103,14 +106,14 @@ function pack(args, pin) {
   fs.mkdirSync(staging, { recursive: true });
   try {
     const tarball = path.join(staging, "tree.tar");
-    git(repoDir, ["archive", "--format=tar", pin.tag, pin.dir, "-o", tarball]);
+    git(repoDir, ["archive", "--format=tar", pin.tag, where.parts.join("/"), "-o", tarball]);
     execFileSync("tar", ["-xf", tarball, "-C", staging], { windowsHide: true });
-    // 「是不是插件根」用定位那份的公开函数来判：它内部就是「标记文件在不在」这条判据。
-    const roots = pluginRootsUnder(staging);
-    if (!roots.length) {
+    // 要发布的那棵树就是 pin 指的那一个：用定位那份的公开函数判「它自己是不是插件根」。
+    const treeDir = path.join(staging, ...where.parts);
+    const roots = pluginRootsUnder(treeDir);
+    if (!roots.length || path.resolve(roots[0]) !== path.resolve(treeDir)) {
       throw new Error("这个 tag 里没有 " + PLUGIN_MARKER + "，客户端认不出它是一份插件：" + pin.dir);
     }
-    const treeDir = roots[0];
     const declared = pluginVersionOf(treeDir);
     if (String(declared) !== version) {
       throw new Error(pin.tag + " 里的插件版本是 " + declared + "，与标签对不上。");
@@ -155,7 +158,7 @@ function main() {
   const pin = readPin(path.resolve(args.pin));
   // 发布流程先问这一句「打的是哪个仓库、哪个 tag」，再自己去检出：pin 只在 plugin-pin.json 一处。
   if (args.printPin) {
-    process.stdout.write(pin.repo + "\n" + pin.tag + "\n");
+    process.stdout.write("repo=" + pin.repo + "\n" + "tag=" + pin.tag + "\n");
     return;
   }
   pack(args, pin);

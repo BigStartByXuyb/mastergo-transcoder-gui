@@ -2,9 +2,9 @@
 "use strict";
 
 /*
- * 插件发布件的约定：名字只在 lib/plugin-package.js 一处，钉哪一版只在 plugin-pin.json 一处。
+ * 插件发布件的约定：名字由打包脚本与 lib/plugin-root.js 定，钉哪一版只在 plugin-pin.json 一处。
  * 门禁不只做文本匹配 —— 这里造一个临时的插件仓库当夹具，真的调一遍打包脚本，
- * 核对产出的 zip 与清单、可复现的哈希、以及「tag 与插件自己声明的版本对不上就打不出来」。
+ * 核对产出的 zip 与清单、可复现的哈希，以及两条会拦下来的情况（tag 与声明版本对不上、缺标记文件）。
  *
  * 跑法：node tests/plugin-package.test.js
  */
@@ -127,7 +127,6 @@ function packInto(base) {
 }
 
 function main() {
-  assert.strictEqual(pluginRoot.PLUGIN_NAME, pluginRoot.PLUGIN_NAME, "插件名只有 lib/plugin-root.js 一处定义");
   assert.strictEqual(pkg.zipName("1.2.3"), pluginRoot.PLUGIN_NAME + "-1.2.3.zip", "zip 名字由插件名与版本拼出");
   assert.ok(pkg.MANIFEST_FILE.endsWith(".json"), "清单是 json");
 
@@ -145,7 +144,7 @@ function main() {
   const printed = node([PACK, "--print-pin"]).trim().split("\n");
   assert.deepStrictEqual(
     printed,
-    [String(pin.repo).trim().replace(/\/+$/, ""), String(pin.tag).trim()],
+    ["repo=" + String(pin.repo).trim().replace(/\/+$/, ""), "tag=" + String(pin.tag).trim()],
     "打包脚本报出的 pin 要与 plugin-pin.json 一致"
   );
   assert.ok(WORKFLOW.indexOf("pack-plugin.js") >= 0, "发布流程要调插件打包脚本");
