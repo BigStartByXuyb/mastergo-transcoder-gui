@@ -10,7 +10,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { listRuntimeFiles, listFilesUnder, buildManifest, diffManifests, safeJoin, sha256File, toPosix } = require("../lib/app-manifest.js");
+const { listRuntimeFiles, listFilesUnder, hashFiles, buildManifest, diffManifests, safeJoin, sha256File, toPosix } = require("../lib/app-manifest.js");
 
 function makeTree(files) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-manifest-"));
@@ -94,6 +94,12 @@ assert.deepStrictEqual(
 assert.ok(
   listFilesUnder(root).every(function (rel) { return rel.indexOf("\\") < 0; }),
   "路径一律用正斜杠"
+);
+// 运行树清单就是「扫出来的路径 + 逐文件哈希」这一步：两处共用同一个函数，不再各写一份循环。
+assert.deepStrictEqual(
+  hashFiles(root, listRuntimeFiles(root)),
+  buildManifest(root, "1.2.3").files,
+  "清单里的哈希表由 hashFiles 生成"
 );
 
 fs.rmSync(root, { recursive: true, force: true });
