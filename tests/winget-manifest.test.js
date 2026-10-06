@@ -67,6 +67,23 @@ function main() {
   assert.match(internalInstaller, /PackageIdentifier: BigStart\.MasterGoTranscoder\.Internal/, "标识要用带 .Internal 的那个");
   assert.match(internalInstaller, new RegExp("InstallerSha256: " + sha), "同一份包的哈希相同");
 
+  /*
+   * 源类型要跟着基址换：GitLab 的通用包路径与 GitHub 的 release 路径不是一种形状，
+   * 只换基址不换类型会拼出一个取不到的地址。
+   */
+  const gitlabOut = path.join(tmp, "winget-gitlab");
+  const gitlab = run(["--zip", zip, "--out", gitlabOut, "--base", base, "--kind", "gitlab"]);
+  assert.strictEqual(gitlab.status, 0, "GitLab 那份也要能生成：" + String(gitlab.stderr || ""));
+  const gitlabInstaller = fs.readFileSync(path.join(out, "BigStart.MasterGoTranscoder.installer.yaml"), "utf8");
+  assert.match(gitlabInstaller, /releases\/download\/v/, "默认那份仍是 GitHub 的 release 路径");
+  const gitlabBody = fs.readFileSync(path.join(gitlabOut, "BigStart.MasterGoTranscoder.installer.yaml"), "utf8");
+  assert.match(gitlabBody, /-\/packages\/generic\//, "GitLab 那份走通用包路径");
+
+  // 不认识的源类型要报错，不能回落成 GitHub 悄悄指到别处。
+  const badKind = run(["--zip", zip, "--out", out, "--base", base, "--kind", "svn"]);
+  assert.notStrictEqual(badKind.status, 0);
+  assert.match(String(badKind.stderr || ""), /不认识的源类型/);
+
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log("winget-manifest.test.js 全部通过");
 }

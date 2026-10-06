@@ -7,8 +7,9 @@
  *
  * 用法：
  *   node scripts/winget-manifest.js                     # 用 dist/ 里这一版的 zip，基址＝内置 GitHub 仓库
- *   node scripts/winget-manifest.js --base https://git.公司.com/组/仓库   # 换成公司地址（回公司后就用这条）
- *   node scripts/winget-manifest.js --base … --id BigStart.MasterGoTranscoder.Internal   # 内网那一份（标识分开）
+ *   node scripts/winget-manifest.js --base https://git.公司.com/组/仓库 --kind gitlab     # 换成公司 GitLab
+ *   node scripts/winget-manifest.js --base http://10.0.0.9/updates --kind static          # 内网静态目录
+ *   node scripts/winget-manifest.js --base … --id BigStart.MasterGoTranscoder.Internal    # 内网那一份（标识分开）
  *   node scripts/winget-manifest.js --zip dist/xxx.zip --out dist/winget  # 指定包与输出目录
  *
  * 产物：dist/winget/ 下三个 YAML（version / locale / installer），可直接提 PR 到 winget-pkgs，
@@ -96,8 +97,15 @@ function yamlVersion(context) {
 function main() {
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
   const version = pkg.version;
-  // 默认基址与地址拼法都取 lib/source.js 那一处：清单里的包地址跟客户端自己下载用的是同一套规则。
-  const base = String(argValue("base", source.DEFAULT_BASE)).replace(/\/+$/, "");
+  /*
+   * 默认基址与地址拼法都取 lib/source.js 那一处：清单里的包地址跟客户端自己下载用的是同一套规则。
+   * 源类型也要跟着换 —— GitHub 的 release 路径与 GitLab 的通用包路径不是一种形状；
+   * 不认识就直说（normalizeSource 会回落，回落了就等于悄悄换了地址，那更糟）。
+   */
+  const kind = String(argValue("kind", "github"));
+  const normalized = source.normalizeSource({ kind: kind, base: argValue("base", source.DEFAULT_BASE) });
+  if (normalized.kind !== kind) throw new Error("不认识的源类型：" + kind + "（可用：github / gitlab / static）");
+  const base = normalized.base;
   const id = String(argValue("id", IDENTIFIER));
   const folder = "mastergo-transcoder-gui-" + version;
   const zip = path.resolve(ROOT, argValue("zip", path.join("dist", folder + ".zip")));
@@ -109,7 +117,7 @@ function main() {
   const context = {
     id: id,
     version: version,
-    url: source.assetUrl({ kind: "github", base: base }, version, folder + ".zip"),
+    url: source.assetUrl(normalized, version, folder + ".zip"),
     sha256: sha256File(zip).toUpperCase(),
     // zip 里保留着那一层目录，所以相对路径要带上它。
     relativeExe: folder + "/mastergo-transcoder.exe"

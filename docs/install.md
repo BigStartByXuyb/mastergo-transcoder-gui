@@ -106,11 +106,14 @@ winget install BigStart.MasterGoTranscoder
 | 现在（测试期，GitHub） | 本仓库的 release：`…/releases/download/v<版本>/mastergo-transcoder-gui-<版本>.zip` | 发布时生成的三个 YAML 随 Release 一起发；也可以把清单提 PR 到 `winget-pkgs`，之后客户 `winget install BigStart.MasterGoTranscoder` 直接可用 |
 | 回公司后（内网） | 公司 GitLab / 内网目录里那个 zip 的地址 | 把那三个 YAML 放内网：由 IT 建内网源则客户直接 `winget install BigStart.MasterGoTranscoder.Internal`；不想建源就 `winget install --manifest <目录>`（需管理员开 `LocalManifestFiles`） |
 
-**内网那一份怎么生成**（发布那一步已经在跑公网这条；回公司后加跑下面这条，把地址与标识都换掉）：
+**内网那一份怎么生成**（发布那一步已经在跑公网这条；回公司后加跑下面这条，把基址、源类型与标识都换掉）：
 
 ```powershell
-node scripts/winget-manifest.js --base https://git.公司.com/组/仓库 --id BigStart.MasterGoTranscoder.Internal
+node scripts/winget-manifest.js --base https://git.公司.com/组/仓库 --kind gitlab --id BigStart.MasterGoTranscoder.Internal
 ```
+
+`--kind` 与基址要成对：GitHub 是 `releases/download/v<版本>/…`，GitLab 走通用包 `/-/packages/generic/…`，
+内网静态目录是 `--kind static`（`<基址>/v<版本>/…`）—— 只换基址不换类型会拼出一个取不到的地址，所以生成器不认识就直接报错。
 
 清单里的版本号取 `package.json`、哈希是现算的 zip sha256、入口固定指向包里的 `mastergo-transcoder.exe` ——
 这三样不接受手填，包换了就重新生成一次。
