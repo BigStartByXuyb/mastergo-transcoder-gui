@@ -11,6 +11,7 @@ const os = require("os");
 const path = require("path");
 
 const { hashFiles, listFilesUnder } = require("../lib/app-manifest.js");
+const { pluginRootsUnder } = require("../lib/plugin-root.js");
 const { createPluginUpdate } = require("../lib/plugin-update.js");
 const { PLUGIN_MANIFEST_NAME, MANIFEST_NAME } = require("../lib/source.js");
 
@@ -295,6 +296,23 @@ async function main() {
     assert.strictEqual(done.task.phase, "done");
     assert.ok(seen.some(function (item) { return item.url.startsWith("http://10.0.0.9/updates/files/"); }));
     assert.strictEqual(update.status().local.version, "1.0.5");
+  }
+
+  /*
+   * ---- 八、正在拼的那份落在插件定位扫不到的地方 ----
+   *
+   * 插件定位认的是「插件目录下的版本子目录」（有 skills/mastergo-to-wpf/SKILL.md 就算一份），
+   * 所以半成品绝不能出现在那一层：进程中途退出留下的残骸会被当成一份插件用。
+   * 这里直接摆一份残骸，验它不在定位能看见的范围内。
+   */
+  {
+    const home = sandbox();
+    const leftover = makePlugin(path.join(installDir(home), ".partial", ".building-5.0.0-1"), "5.0.0");
+    const update = createPluginUpdate({ home: home, source: { kind: "github", base: BASE }, fetchImpl: async function () { throw new Error("不该联网"); } });
+    assert.ok(fs.existsSync(path.join(leftover, MARKER)), "残骸确实是一棵像样的插件树");
+    assert.deepStrictEqual(pluginRootsUnder(path.join(home, "plugins")), [], "插件定位一份都看不到");
+    assert.strictEqual(update.status().local.version, "", "半成品不算本地那一份");
+    assert.strictEqual(update.status().installed.length, 0);
   }
 
   console.log("plugin-update: 全部通过");

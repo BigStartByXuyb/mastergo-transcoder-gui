@@ -23,6 +23,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - `lib/plugin-update.js`（新）：插件那一半。按发布件里的 `plugin-manifest.json`（与客户端本体同一套
   「一份清单 + 按 sha256 取文件」的协议）差分下载，装到 `<安装根>\plugins\mastergo-wpf-transcoder\<插件版本>\`。
   内容库、校验、落盘复用 `lib/bundle-store.js`；没有版本指针 —— 插件定位按最高版本现取，落盘即生效。
+- `lib/manifest-fetch.js`（新）：取清单那一套（源 / 凭据 / 地址 / 重试超时 / 形状校验）只有一份实现，
+  程序更新与插件那一半都走它，只是清单名不同；`lib/bundle-store.js` 加 `hasVersion`（「拼好没有」与
+  「要不要复用」读同一份判据）与 `buildDir`（正在拼的那份落到插件定位扫不到的地方）。
 - `lib/source.js`：清单名收一个参数，插件那一半按同一套协议取自己那份清单；两份清单名只在这一处定义
   （发布侧 `scripts/pack-plugin.js` 也从这里取，写一个名、找另一个名不可能）。
 - `lib/bundle-store.js`：目录名（blobs / versions / 指针）可以用 layout 换，第二条内容库不再另写一份实现。
@@ -59,9 +62,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | 命令 | 结果 |
 | --- | --- |
 | `npm test` | 通过，47 个文件全过（含新增 `tests/plugin-update.test.js`） |
-| `npm run test:coverage` | 通过，lines 94.57 / branch 82.34 / funcs 95.93（门禁 90/75/90） |
+| `npm run test:coverage` | 通过，lines 94.63 / branch 82.54 / funcs 95.94（门禁 90/75/90） |
 | `npm --prefix ui run test` | 通过，53 文件 321 用例（含新增面板与判定用例） |
-| `npm --prefix ui run test:coverage` | 通过，stmts 94.63 / branch 91.57 / funcs 95.65 |
+| `npm --prefix ui run test:coverage` | 通过，stmts 94.71 / branch 91.57 / funcs 95.68 |
 | `npm run build:ui` | 通过，`public/` 已重建并入库 |
 | `node <cicd>/check-app-structure.mjs --root .` | PASS（硬编码路径 / 孤儿导出 / 分层 / CI 钉死 均 0 条） |
 

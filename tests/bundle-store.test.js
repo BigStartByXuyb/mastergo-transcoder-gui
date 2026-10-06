@@ -77,6 +77,9 @@ async function main() {
   assert.strictEqual(built.downloaded, 0, "内容都在 blobs 里，只做本地拼装");
   assert.strictEqual(fs.readFileSync(path.join(built.dir, "lib", "a.js"), "utf8"), "a");
   assert.deepStrictEqual(store.verifyDir(built.dir, manifest), []);
+  // 「拼好没有」与「要不要复用」是同一份判据：两边都读 hasVersion。
+  assert.strictEqual(store.hasVersion("0.2.0", manifest), true);
+  assert.strictEqual(store.hasVersion("0.1.0", manifest), false, "没有这一版");
 
   const again = await store.materialize(manifest, async function () { throw new Error("不该再下东西"); });
   assert.strictEqual(again.reused, true, "已经拼好且校验通过就直接复用");
@@ -84,6 +87,7 @@ async function main() {
   // 版本目录被改坏：校验能看出来，重拼会覆盖成正确内容。
   fs.writeFileSync(path.join(built.dir, "lib", "b.js"), "被人改过", "utf8");
   assert.deepStrictEqual(store.verifyDir(built.dir, manifest), ["lib/b.js"]);
+  assert.strictEqual(store.hasVersion("0.2.0", manifest), false, "被改坏就不算拼好");
   const rebuilt = await store.materialize(manifest, async function () { throw new Error("不该再下东西"); });
   assert.strictEqual(rebuilt.reused, false);
   assert.deepStrictEqual(store.verifyDir(rebuilt.dir, manifest), []);
@@ -109,13 +113,16 @@ async function main() {
   const nested = createBundleStore(path.join(home, "plugins", "mastergo-wpf-transcoder"), {
     blobsDir: "blobs",
     versionsDir: "",
-    pointerName: ""
+    pointerName: "",
+    buildDir: ".partial"
   });
   const placed = await nested.materialize(manifest, async function (hash, rel) {
     return Buffer.from(contents[rel], "utf8");
   });
   assert.strictEqual(placed.dir, path.join(home, "plugins", "mastergo-wpf-transcoder", "0.2.0"), "版本目录就在这一层");
   assert.strictEqual(fs.existsSync(path.join(home, "plugins", "mastergo-wpf-transcoder", "blobs", manifest.files["lib/a.js"])), true);
+  // 拼的时候用的临时目录另指一处：插件定位扫的就是版本目录那一层，半成品不能落在那里。
+  assert.strictEqual(fs.existsSync(path.join(home, "plugins", "mastergo-wpf-transcoder", ".partial")), true);
   assert.strictEqual(nested.readPointer(), null, "没有指针这一说");
   assert.throws(function () { nested.writePointer({ version: "0.2.0" }); }, /没有版本指针/);
 
