@@ -30,7 +30,8 @@ function defaultRun(command, args) {
 function stageAssets(options) {
   const root = path.resolve(options.root);
   const manifest = options.manifest;
-  const manifestName = options.manifestName || "manifest.json";
+  // 清单名由调用方给（客户端发布 / 插件发布各一份），这里不认识具体名字。
+  const manifestName = options.manifestName;
   const outDir = path.resolve(options.outDir);
   fs.rmSync(outDir, { recursive: true, force: true });
   const filesDir = path.join(outDir, "files");
