@@ -14,7 +14,7 @@ import { SourceAlsoFrom, SourceCopyCount, SourceStatusBadge, SourceVersion } fro
 import { SourceDialog } from "@/app/source-dialog"
 import { UpdateSourceRow } from "@/app/update-source-row"
 import { usePluginSources } from "@/app/use-plugin-sources"
-import { usePluginUpdate } from "@/app/use-plugin-update"
+import { PLUGIN_UPDATE_KEYS, usePluginUpdate } from "@/app/use-plugin-update"
 import { describePluginInstall } from "@/lib/plugin-install"
 import { pluginLookup, slotState, type PluginSourceRow, type PluginSourceSlot } from "@/lib/plugin-sources"
 
@@ -114,7 +114,11 @@ export function PluginCard() {
                 />
                 <div className="flex flex-wrap items-center gap-2">
                   <Button size="sm" variant="outline" disabled={Boolean(busy)} onClick={() => void update.check()}>
-                    {update.busy === "check" ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                    {update.busy === PLUGIN_UPDATE_KEYS.check ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="size-4" />
+                    )}
                     检查更新
                   </Button>
                   <span className="text-muted-foreground text-xs">

@@ -8,12 +8,17 @@ import { api, type PluginUpdateStatus } from "@/lib/api"
 import { startDownload } from "@/lib/download-run"
 import { describePluginInstall } from "@/lib/plugin-install"
 import { sourceCheckOutcome } from "@/lib/source-check"
-import { isTaskDone } from "@/lib/update-state"
+import { isDownloading, isTaskDone } from "@/lib/update-state"
 
 /*
  * 「客户端自带的那一份」这一半：它的状态要一直跟着（表格里那一行要标「有新版」），
  * 检查只拉清单、装是一条后台下载。装完那一下喊一声 onInstalled（父组件据此重读来源清单）。
+ *
+ * 忙碌位用的是这两把 key。来源清单那一半（use-plugin-sources）用的是那里每一行的 id，
+ * 两边最后会合成一个字符串给界面看（卡片上合成、面板里判「是哪一个在跑」），所以带上 update: 前缀，
+ * 免得自带那一行的 id（也叫 install）与这里装插件那把 key 撞名、两颗按钮一起转圈。
  */
+export const PLUGIN_UPDATE_KEYS = { check: "update:check", install: "update:install" } as const
 
 export function usePluginUpdate(onInstalled: () => void) {
   const [update, setUpdate] = useState<PluginUpdateStatus | null>(null)
@@ -30,22 +35,29 @@ export function usePluginUpdate(onInstalled: () => void) {
     setFailure(message)
   }, [])
 
-  const transferring = update ? update.task.phase === "downloading" || update.task.phase === "materializing" : false
+  // 「正在传」的判据只有 update-state.isDownloading 一处（面板里那颗进度条读的也是它）。
+  const transferring = update ? isDownloading(update.task) : false
   // 回调放 ref 里：轮询的取数路径不跟着父组件重渲染换闭包。
   const installed = useRef(onInstalled)
   installed.current = onInstalled
   const lastPhase = useRef("")
 
+  /*
+   * 读一次状态并落到界面：轮询与「改完发布源立刻重读」都走这一条。
+   * 「装完了」那一下也在这里判（父组件据此重读来源清单），两条路不会一条刷新、一条不刷新。
+   */
+  const adopt = useCallback(function (status: PluginUpdateStatus) {
+    const done = isTaskDone(status.task) && lastPhase.current !== "done"
+    lastPhase.current = status.task.phase
+    setUpdate(status)
+    setProbe("")
+    if (done) installed.current()
+  }, [])
+
   useStatusPoll({
     load: () => api.pluginUpdateStatus(),
     working: transferring,
-    onData: (payload) => {
-      const done = isTaskDone(payload.status.task) && lastPhase.current !== "done"
-      lastPhase.current = payload.status.task.phase
-      setUpdate(payload.status)
-      setProbe("")
-      if (done) installed.current()
-    },
+    onData: (payload) => adopt(payload.status),
     onError: setProbe
   })
 
@@ -55,17 +67,16 @@ export function usePluginUpdate(onInstalled: () => void) {
   /* 立刻重读一次状态：改完发布源要马上看到这一份说的是新地址（同一条取数，不另拼请求）。 */
   const refresh = useCallback(async function () {
     const payload = await api.pluginUpdateStatus()
-    setUpdate(payload.status)
-    setProbe("")
+    adopt(payload.status)
     return payload.status
-  }, [])
+  }, [adopt])
 
   /*
    * 卡片上那颗「检查更新」：与「程序更新」那张卡同形（act 套状态，这里只顺手清掉轮询留下的提示）。
    */
   const check = useCallback(
     () =>
-      act("check", async function () {
+      act(PLUGIN_UPDATE_KEYS.check, async function () {
         const payload = await api.pluginUpdateCheck()
         setProbe("")
         return payload
@@ -78,7 +89,7 @@ export function usePluginUpdate(onInstalled: () => void) {
    * 只是要把结果说成弹窗要的两句话，所以这里不返回状态而返回那两句话。
    */
   const checkOutcome = useCallback(async function () {
-    const payload = await act("check", () => api.pluginUpdateCheck())
+    const payload = await act(PLUGIN_UPDATE_KEYS.check, () => api.pluginUpdateCheck())
     if (!payload) return { failure: failureRef.current, note: "" }
     return sourceCheckOutcome(describePluginInstall(payload.status), payload.status.state === "error")
   }, [act])
@@ -87,7 +98,7 @@ export function usePluginUpdate(onInstalled: () => void) {
   const install = useCallback(
     () =>
       act(
-        "install",
+        PLUGIN_UPDATE_KEYS.install,
         () => startDownload(() => api.pluginUpdateInstall()),
         (payload) =>
           finishDownload(payload, {

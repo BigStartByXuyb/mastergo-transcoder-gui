@@ -19,6 +19,7 @@ import { describeFailure } from "@/lib/describe-failure"
 import { describePluginInstall } from "@/lib/plugin-install"
 import type { PluginSourceRow } from "@/lib/plugin-sources"
 import { describeTask, isDownloading, taskFailureNote, taskPercent } from "@/lib/update-state"
+import { PLUGIN_UPDATE_KEYS } from "@/app/use-plugin-update"
 
 /*
  * 插件页某一行点开后的面板 —— 按这一档是「谁在管」分三种：
@@ -150,11 +151,15 @@ export function PluginSourceDialog(props: {
             {install && (
               <>
                 <Button size="sm" variant="outline" disabled={Boolean(props.busy) || transferring} onClick={() => props.onCheck()}>
-                  {props.busy === "check" ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                  {props.busy === PLUGIN_UPDATE_KEYS.check ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="size-4" />
+                  )}
                   检查更新
                 </Button>
                 <Button size="sm" disabled={!canInstall} onClick={() => props.onInstall()}>
-                  {(props.busy === "install" || transferring) && <Loader2 className="size-4 animate-spin" />}
+                  {(props.busy === PLUGIN_UPDATE_KEYS.install || transferring) && <Loader2 className="size-4 animate-spin" />}
                   {summary.action}
                 </Button>
               </>

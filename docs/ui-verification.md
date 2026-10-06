@@ -42,6 +42,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   骨架（新增 `useValueRunner` 给结果不带 `{status}` 的动作用）；「给了 `--plugin` 却没解析到」这条判据
   收进 `activePluginSource()` 的 `argMissing`，定位只读结论；「打开目录」失败与「选择目录」同形状
   （`{ok:false, reason}`），目录不存在时不给这个按钮；复制两条路都不成时照实说，不再报「已复制」。
+  第二轮复核的三条同样按「收到一处」改掉：「正在传」只读 `update-state.isDownloading`；轮询与「改完发布源
+  立刻重读」共用同一段 `adopt(status)`（含「装完了」那一下刷新来源清单）；忙碌位的 key 加 `update:` 前缀，
+  与来源清单那一半的行 id（自带那一行也叫 `install`）不再撞名（同时点两处会两颗按钮一起转圈）。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。
