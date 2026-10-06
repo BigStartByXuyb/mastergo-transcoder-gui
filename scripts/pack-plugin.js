@@ -26,15 +26,13 @@ const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
 const { execFileSync } = require("child_process");
-const {
-  PLUGIN_NAME,
-  PLUGIN_MARKER,
-  isPluginRoot,
-  pluginVersionOf,
-  MANIFEST_FILE,
-  zipName,
-  versionOfTag
-} = require("../lib/plugin-package.js");
+// 判据只有一处实现（lib/plugin-root.js）：这里直接用它的公开函数，不再另建一层转口。
+const { PLUGIN_NAME, PLUGIN_MARKER, pluginRootsUnder, pluginVersionOf } = require("../lib/plugin-root.js");
+
+// 发布件的名字只属于发布流程（不进运行树，客户端那半接的时候按同一套协议另说）。
+const MANIFEST_FILE = "plugin-manifest.json";
+const zipName = function (version) { return PLUGIN_NAME + "-" + String(version || "").trim() + ".zip"; };
+const versionOfTag = function (tag) { return String(tag || "").trim().replace(/^v/, ""); };
 
 // 打哪一版由 pin 文件决定（默认 plugin-pin.json，改它不用改代码）；它只属于发布流程，不进运行树。
 const DEFAULT_PIN = path.join(__dirname, "..", "plugin-pin.json");
@@ -107,10 +105,12 @@ function pack(args, pin) {
     const tarball = path.join(staging, "tree.tar");
     git(repoDir, ["archive", "--format=tar", pin.tag, pin.dir, "-o", tarball]);
     execFileSync("tar", ["-xf", tarball, "-C", staging], { windowsHide: true });
-    const treeDir = path.join(staging, pin.dir);
-    if (!isPluginRoot(treeDir)) {
+    // 「是不是插件根」用定位那份的公开函数来判：它内部就是「标记文件在不在」这条判据。
+    const roots = pluginRootsUnder(staging);
+    if (!roots.length) {
       throw new Error("这个 tag 里没有 " + PLUGIN_MARKER + "，客户端认不出它是一份插件：" + pin.dir);
     }
+    const treeDir = roots[0];
     const declared = pluginVersionOf(treeDir);
     if (String(declared) !== version) {
       throw new Error(pin.tag + " 里的插件版本是 " + declared + "，与标签对不上。");
@@ -161,4 +161,6 @@ function main() {
   pack(args, pin);
 }
 
-main();
+module.exports = { MANIFEST_FILE: MANIFEST_FILE, zipName: zipName, versionOfTag: versionOfTag };
+
+if (require.main === module) main();
