@@ -84,6 +84,11 @@ function main() {
   assert.notStrictEqual(badKind.status, 0);
   assert.match(String(badKind.stderr || ""), /不认识的源类型/);
 
+  // 基址写坏也要报错：不能回落成内置的公网源，那样清单会悄悄指到 GitHub。
+  const badBase = run(["--zip", zip, "--out", out, "--base", "svn://10.0.0.9/updates"]);
+  assert.notStrictEqual(badBase.status, 0);
+  assert.match(String(badBase.stderr || ""), /基址不合法/);
+
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log("winget-manifest.test.js 全部通过");
 }

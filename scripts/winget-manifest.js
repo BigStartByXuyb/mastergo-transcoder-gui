@@ -100,11 +100,14 @@ function main() {
   /*
    * 默认基址与地址拼法都取 lib/source.js 那一处：清单里的包地址跟客户端自己下载用的是同一套规则。
    * 源类型也要跟着换 —— GitHub 的 release 路径与 GitLab 的通用包路径不是一种形状；
-   * 不认识就直说（normalizeSource 会回落，回落了就等于悄悄换了地址，那更糟）。
+   * 类型不认识、或基址不合法，都要直说：normalizeSource 会回落成内置的公网源，
+   * 回落了就变成「清单悄悄指到 GitHub」，比报错难查得多。
    */
   const kind = String(argValue("kind", "github"));
-  const normalized = source.normalizeSource({ kind: kind, base: argValue("base", source.DEFAULT_BASE) });
-  if (normalized.kind !== kind) throw new Error("不认识的源类型：" + kind + "（可用：github / gitlab / static）");
+  if (!source.KINDS.includes(kind)) throw new Error("不认识的源类型：" + kind + "（可用：" + source.KINDS.join(" / ") + "）");
+  const wantedBase = String(argValue("base", source.DEFAULT_BASE)).trim().replace(/\/+$/, "");
+  const normalized = source.normalizeSource({ kind: kind, base: wantedBase });
+  if (normalized.base !== wantedBase) throw new Error("基址不合法（要 http/https）：" + wantedBase);
   const base = normalized.base;
   const id = String(argValue("id", IDENTIFIER));
   const folder = "mastergo-transcoder-gui-" + version;
