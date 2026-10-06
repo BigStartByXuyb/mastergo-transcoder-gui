@@ -73,7 +73,6 @@ export function usePluginUpdate(onInstalled: () => void) {
 
   return {
     update: update,
-    transferring: transferring,
     probe: probe,
     failure: failure,
     busy: busy,

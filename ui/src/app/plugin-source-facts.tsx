@@ -5,7 +5,7 @@ import { IdentifierText } from "@/app/identifier-text"
 import type { PluginSourceRow } from "@/lib/plugin-sources"
 
 /*
- * 一个来源的几条事实：状态徽章 / 版本 / 这一处有几份 / 同时来自。
+ * 一个来源的几条事实：状态徽章 / 版本 / 这一处有几份 / 同时来自 / 解析到哪一份。
  * 表里那一行与点开后的面板都渲染这一份 —— 两处说的是同一份数据，就不该各写一遍
  * （改口径只改这里，表与面板不会一处说「可用」、另一处说别的）。
  */
@@ -22,9 +22,9 @@ export function SourceStatusBadge(props: { row: PluginSourceRow }) {
   return <Badge variant="outline">{props.row.exists ? "可用" : "没有"}</Badge>
 }
 
-export function SourceVersion(props: { row: PluginSourceRow; className?: string }) {
+export function SourceVersion(props: { row: PluginSourceRow }) {
   if (!props.row.exists || !props.row.version) return <span className="text-muted-foreground">—</span>
-  return <span className={props.className ? "font-mono " + props.className : "font-mono"}>v{props.row.version}</span>
+  return <span className="font-mono">v{props.row.version}</span>
 }
 
 export function SourceCopyCount(props: { row: PluginSourceRow }) {

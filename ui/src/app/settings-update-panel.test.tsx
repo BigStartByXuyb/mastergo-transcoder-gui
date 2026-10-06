@@ -85,13 +85,6 @@ function stub() {
       const url = String(input)
       if (url.includes("/api/health")) return okResponse(health())
       if (url.includes("/api/plugin/sources")) return okResponse(sources())
-      if (url.includes("/api/plugin/env")) {
-        return okResponse({
-          ok: true,
-          name: "MASTERGO_GUI_TEST_ENV",
-          envScopes: { name: "MASTERGO_GUI_TEST_ENV", process: "", user: "", machine: "", written: false, unsupported: false, failure: "" }
-        })
-      }
       if (url.includes("/api/update/status")) return okResponse({ ok: true, status: status() })
       if (url.includes("/api/plugin/update/status")) return okResponse({ ok: true, status: pluginUpdateFixture() })
       return okResponse({ ok: true })

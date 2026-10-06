@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest"
 
 import type { PluginUpdateStatus } from "@/lib/api"
-import { describePluginInstall, localSituation } from "@/lib/plugin-install"
+import { describePluginInstall } from "@/lib/plugin-install"
 import { drive } from "@/lib/settings-fixtures"
 
 const LOCAL_DIR = drive("D", "app", "plugins", "mastergo-wpf-transcoder", "1.0.371")
-const AGENT_ROOT = drive("C", "codex", "plugins", "cache", "mastergo-wpf-transcoder")
 
 function status(over: Partial<PluginUpdateStatus> = {}): PluginUpdateStatus {
   // 状态与「有没有远端信息」保持一致：没查过就是 unchecked，别拿「已是最新」去表示没查过。
@@ -103,23 +102,5 @@ describe("describePluginInstall", () => {
     expect(summary.tone).toBe("destructive")
     expect(summary.note).toContain("plugin-manifest.json")
     expect(summary.canInstall).toBe(false)
-  })
-})
-
-describe("localSituation", () => {
-  it("没有自带那一份", () => {
-    expect(localSituation(status({ local: { version: "", dir: "" } }), AGENT_ROOT)).toBe("none")
-    expect(localSituation(null, AGENT_ROOT)).toBe("none")
-  })
-
-  it("正在用的就是自带那一份", () => {
-    expect(localSituation(status(), LOCAL_DIR)).toBe("active")
-    // Windows 路径大小写不敏感、分隔符也可能不一样：同一份不该被判成「另一份」。
-    expect(localSituation(status({ local: { version: "1.0.371", dir: drive("d", "APP", "Plugins", "MasterGo-WPF-Transcoder", "1.0.371") } }), LOCAL_DIR)).toBe("active")
-    expect(localSituation(status({ local: { version: "1.0.371", dir: LOCAL_DIR.replace(/\\/g, "/") } }), LOCAL_DIR)).toBe("active")
-  })
-
-  it("装了，但此刻用的是别处那份", () => {
-    expect(localSituation(status(), AGENT_ROOT)).toBe("other")
   })
 })

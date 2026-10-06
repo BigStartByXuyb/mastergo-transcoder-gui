@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
 import { IdentifierText } from "@/app/identifier-text"
-import { SourceAlsoFrom, SourceCopyCount, SourceStatusBadge, SourceVersion } from "@/app/plugin-source-facts"
+import {
+  SourceAlsoFrom,
+  SourceCopyCount,
+  SourceResolvedRoot,
+  SourceStatusBadge,
+  SourceVersion
+} from "@/app/plugin-source-facts"
 import { api, type PluginUpdateStatus } from "@/lib/api"
 import { copyText } from "@/lib/copy-text"
 import { describeFailure } from "@/lib/describe-failure"
@@ -23,9 +29,10 @@ import { describeTask, isDownloading, taskFailureNote, taskPercent } from "@/lib
  * 版本、路径、这一处几份、「正在用」这些事实都来自同一份来源清单（后端 pluginSources()）。
  */
 
+/* 每一档「归谁管」。变量名、路径这些标识符一律用后端给的那一份（row.label），这里不重述。 */
 const KIND_NOTE: Record<string, string> = {
   arg: "启动参数 --plugin 给的那一份：只被它自己压过（--plugin 指错客户端会直接停下）。改它要在启动时换参数。",
-  env: "系统环境变量 MASTERGO_PLUGIN_ROOT 给的那一份：写给用户级（别的工具与命令行也认），新起的进程才读到。",
+  env: "系统环境变量给的那一份：在系统里设（或启动前设），客户端启动时继承，新起的进程才读到。",
   agent: "这一份归 Codex / Claude 自己管：客户端只读不改，装与更新都在它们那边做。",
   install: "客户端自带的那一份：机器上没有 Codex / Claude 时，用它「下载并安装」装一份。",
   chosen: "这一档就是插件页上面那条「我指定的那一份」：用上面的「指定一个目录…」换，或用「交给客户端找」清掉。"
@@ -87,9 +94,7 @@ export function PluginSourceDialog(props: {
             </span>
             <SourceCopyCount row={row} />
             <IdentifierText className="text-muted-foreground text-xs" text={row.path} />
-            {row.found.length > 0 && (
-              <IdentifierText className="text-muted-foreground text-xs" text={"解析到：" + row.pluginRoot} />
-            )}
+            <SourceResolvedRoot row={row} />
             <SourceAlsoFrom row={row} />
           </div>
 

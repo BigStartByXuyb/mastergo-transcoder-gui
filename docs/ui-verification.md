@@ -31,9 +31,12 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   八档序号因此固定，与文档里的顺序对得上；只有「给了 `--plugin` 却解析不到插件」才硬失败。
 - `lib/open-folder.js`（新）+ `POST /api/system/open-folder`：面板里的「打开目录」；
   `ui/src/lib/copy-text.ts`（新）：「复制路径」，与控件查询页共用同一处复制实现。
-- `ui/src/app/plugin-source-facts.tsx`（新）：状态徽章 / 版本 / 这一处有几份 / 同时来自 —— 表里那一行与
-  点开后的面板渲染同一份，不各写一遍；`ui/src/app/use-plugin-sources.ts`、`use-plugin-update.ts`（新）：
-  来源清单与指针动作、自带那一份的更新与轮询，各自一个 hook，卡片只编排与渲染。
+- `ui/src/app/plugin-source-facts.tsx`（新）：状态徽章 / 版本 / 这一处有几份 / 同时来自 / 「解析到」
+  —— 表里那一行与点开后的面板渲染同一份，不各写一遍；`ui/src/app/use-plugin-sources.ts`、
+  `use-plugin-update.ts`（新）：来源清单与指针动作、自带那一份的更新与轮询，各自一个 hook，
+  卡片只编排与渲染。
+- 复核收口：自带那一份「正在用/在别处」的判据由来源清单自己的 `active` 与 `members` 表达，
+  不再另留一份按路径比对的 `localSituation`；`use-plugin-update` 不再返回没人消费的 `transferring`。
 - `ui/src/lib/api.ts`：删掉环境变量那一对接口封装（界面不再提供改它的入口；后端接口与读取保留）。
 - `docs/install.md`、`README.md`：这一页的三块结构、八档顺序、行内动作照实写。
 
