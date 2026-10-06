@@ -1,4 +1,4 @@
-import type { Health, PluginUpdateStatus } from "@/lib/api"
+import type { Health, PluginUpdateStatus, UpdateSource } from "@/lib/api"
 
 /*
  * 设置页用例共用的那几件夹具：路径拼法、客户端健康快照、假响应。
@@ -16,6 +16,16 @@ export const ENGINE = drive("D", "app", "lib", "node-controls.js")
 /** 客户端自带那一处：装好之后是 <安装根>/plugins/<插件名>/<版本>/。 */
 export const INSTALL_PARENT = drive("D", "app", "plugins")
 export const INSTALLED_ROOT = drive("D", "app", "plugins", "mastergo-wpf-transcoder", "1.0.369")
+
+/** 发布源：程序更新与插件那一半显示的是同一处设置，夹具也只做一份。 */
+export function sourceFixture(base = "https://github.com/BigStartByXuyb/mastergo-transcoder-gui"): UpdateSource {
+  return {
+    kind: "github",
+    base: base,
+    manifestUrl: base + "/releases/latest/download/manifest.json",
+    kinds: ["github", "gitlab", "static"]
+  }
+}
 
 /** 自带那一份插件的状态：没传覆盖项就是「本地装了 1.0.369，查过远端且是最新」。 */
 export function pluginUpdateFixture(over: Partial<PluginUpdateStatus> = {}): PluginUpdateStatus {
@@ -35,6 +45,9 @@ export function pluginUpdateFixture(over: Partial<PluginUpdateStatus> = {}): Plu
     error: null,
     task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
     busy: "",
+    // 插件从哪儿取：与程序更新同一处设置（清单名不同），所以夹具也只做这一份。
+    source: sourceFixture(),
+    hasToken: false,
     ...over
   }
 }

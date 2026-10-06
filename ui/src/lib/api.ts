@@ -29,7 +29,7 @@ export type PluginSource = {
 export type PluginSources = {
   ok: true
   plugin: PluginSummary
-  /** 设置里选的那一份；空串＝按内置顺序自动找。 */
+  /** 插件页上「我指定的那一份」；空串＝按内置顺序自动找。 */
   chosen: string
   sources: PluginSource[]
 }
@@ -57,7 +57,21 @@ export type PluginUpdateStatus = {
   task: UpdateTask
   /** 有任务在跑时不能装（装完就可能换掉生效的那一份）；空串＝空闲，界面据此提示并禁用。 */
   busy: string
+  /**
+   * 这一份插件从哪儿取：与程序更新同一处设置、同一份拼法（后端 lib/source.js），只是清单名不同。
+   * 插件页的「更新来源」那一行照实显示它。
+   */
+  source: UpdateSource
+  /** 私有源存没存 token（值本身不出后端）。 */
+  hasToken: boolean
 }
+
+/**
+ * 现在从哪儿取清单：类型、基址、拼出来的清单地址（界面照实显示，不让用户自己拼），
+ * 以及后端认哪几种源类型 —— 下拉照 kinds 渲染，不在前端另抄一份校验名单。
+ * 程序更新与插件那一半显示的是同一种东西，所以只有这一个类型。
+ */
+export type UpdateSource = { kind: string; base: string; manifestUrl: string; kinds: string[] }
 
 export type FrameEntry = {
   fileId: string
@@ -640,11 +654,8 @@ export type UpdateStatus = {
   available: UpdateAvailable | null
   error: UpdateFailure | null
   task: UpdateTask
-  /**
-   * 现在从哪儿取清单：类型、基址、拼出来的清单地址（界面照实显示，不让用户自己拼），
-   * 以及后端认哪几种源类型 —— 下拉照 kinds 渲染，不在前端另抄一份校验名单。
-   */
-  source: { kind: string; base: string; manifestUrl: string; kinds: string[] }
+  /** 现在从哪儿取清单（与插件那一半是同一个类型、同一个来源）。 */
+  source: UpdateSource
   /** 私有源存没存 token（值本身不出后端）。 */
   hasToken: boolean
 }

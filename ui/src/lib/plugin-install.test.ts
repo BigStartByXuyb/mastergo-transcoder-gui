@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { PluginUpdateStatus } from "@/lib/api"
 import { describePluginInstall } from "@/lib/plugin-install"
-import { drive } from "@/lib/settings-fixtures"
+import { drive, sourceFixture } from "@/lib/settings-fixtures"
 
 const LOCAL_DIR = drive("D", "app", "plugins", "mastergo-wpf-transcoder", "1.0.371")
 
@@ -16,6 +16,8 @@ function status(over: Partial<PluginUpdateStatus> = {}): PluginUpdateStatus {
     error: null,
     task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
     busy: "",
+    source: sourceFixture(),
+    hasToken: false,
     ...over
   }
 }

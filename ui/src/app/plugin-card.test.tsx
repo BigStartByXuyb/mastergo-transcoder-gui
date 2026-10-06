@@ -96,11 +96,14 @@ function stub(
     onInstall?: () => void
     onCheck?: () => void
     onOpenFolder?: (body: unknown) => void
+    /** 记下每一次请求（用例看「打了哪些接口」）。 */
+    onRequest?: (url: string, body: unknown) => void
   } = {}
 ) {
   vi.stubGlobal("fetch", (_input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(_input)
     const body = init?.body ? JSON.parse(String(init.body)) : null
+    hooks.onRequest?.(url, body)
     if (url.includes("/api/plugin/update/status")) {
       return Promise.resolve(new Response(JSON.stringify({ ok: true, status: hooks.update ?? pluginUpdateFixture() }), { status: 200 }))
     }
@@ -155,13 +158,13 @@ describe("PluginCard", () => {
     expect(screen.getAllByText("（有）").length).toBe(3)
   })
 
-  it("「设置里选的」指到某一份时：只列最先命中的那一档，后几档并进它", async () => {
+  it("「我指定的那一份」指到某一份时：只列最先命中的那一档，后几档并进它", async () => {
     stub({
       ...view({ activeId: "codex-cache" }),
       chosen: CODEX_ROOT,
       sources: [
         source("chosen", {
-          label: "设置里选的",
+          label: "我指定的那一份",
           kind: "chosen",
           path: CODEX_ROOT,
           exists: true,
@@ -175,9 +178,9 @@ describe("PluginCard", () => {
     })
     render(<PluginCard />)
     await waitFor(() => expect(screen.getByText("同时来自：Codex 插件缓存")).toBeTruthy())
-    // 留下的是最先命中的那一档（1. 设置里选的），Codex 缓存不再单独占一行。
+    // 留下的是最先命中的那一档（1. 我指定的那一份），Codex 缓存不再单独占一行。
     const table = within(screen.getByRole("table"))
-    expect(table.getByText("设置里选的")).toBeTruthy()
+    expect(table.getByText("我指定的那一份")).toBeTruthy()
     expect(table.queryByText("Codex 插件缓存")).toBeNull()
   })
 
@@ -214,7 +217,7 @@ describe("PluginCard", () => {
       chosen: INSTALLED_ROOT,
       sources: [
         source("chosen", {
-          label: "设置里选的",
+          label: "我指定的那一份",
           kind: "chosen",
           path: INSTALLED_ROOT,
           exists: true,
@@ -230,7 +233,7 @@ describe("PluginCard", () => {
     await waitFor(() => expect(within(screen.getByRole("table")).getByText("同时来自：客户端自带")).toBeTruthy())
 
     // 合成的那一行给的是「管理…」，面板里带自带的更新块。
-    const row = within(screen.getByRole("table")).getByText("设置里选的").closest("tr") as HTMLElement
+    const row = within(screen.getByRole("table")).getByText("我指定的那一份").closest("tr") as HTMLElement
     fireEvent.click(within(row).getByRole("button", { name: "管理…" }))
     expect(await screen.findByRole("button", { name: "检查更新" })).toBeTruthy()
     expect(screen.getByText(/同时也是「客户端自带」那一份/)).toBeTruthy()
@@ -302,5 +305,53 @@ describe("PluginCard", () => {
     render(<PluginCard />)
     await waitFor(() => expect(screen.getByText("没找到插件")).toBeTruthy())
     expect(screen.getByText(new RegExp("已查找：" + INSTALL_DIR.replace(/\\/g, "\\\\") + "（没有）"))).toBeTruthy()
+  })
+
+  it("更新来源那一行显示现在的发布源，点「修改发布源」开的是插件这一半的弹窗", async () => {
+    const asked: string[] = []
+    stub(view(), { onCheck: () => asked.push("check"), onRequest: (url) => asked.push("req:" + url) })
+    render(<PluginCard />)
+    // 卡片上就能看见「从哪儿取」：类型 + 地址（不是只有「程序更新」那一半看得见）。
+    await waitFor(() => expect(screen.getByText("更新来源")).toBeTruthy())
+    expect(screen.getByText(pluginUpdateFixture().source.base)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole("button", { name: "修改发布源" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(within(dialog).getByText("修改发布源 · 插件（流水线）")).toBeTruthy()
+    expect((within(dialog).getByLabelText("地址") as HTMLInputElement).value).toBe(pluginUpdateFixture().source.base)
+
+    // 保存并检查：先存这一处设置，再按插件那份清单验一次（不是程序更新那条）。
+    fireEvent.click(within(dialog).getByRole("button", { name: "保存并检查" }))
+    await waitFor(() => expect(asked).toContain("check"))
+    expect(asked.some((item) => item.includes("/api/settings"))).toBe(true)
+  })
+
+  it("卡片上的「检查更新」与「管理…」面板里那颗打到同一个接口", async () => {
+    let checks = 0
+    stub(view(), { onCheck: () => (checks += 1) })
+    render(<PluginCard />)
+    await waitFor(() => expect(screen.getByRole("button", { name: "检查更新" })).toBeTruthy())
+
+    fireEvent.click(screen.getByRole("button", { name: "检查更新" }))
+    await waitFor(() => expect(checks).toBe(1))
+  })
+
+  it("详情面板里「没有」的那一档不给「打开目录」（那里没有目录可开）", async () => {
+    const market = drive("C", "Users", "me", ".codex", "plugins", "marketplaces")
+    stub({
+      ...view(),
+      sources: [
+        ...view().sources,
+        source("codex-market", { label: "Codex 插件市场", path: market, exists: false })
+      ]
+    })
+    render(<PluginCard />)
+    await waitFor(() => expect(within(screen.getByRole("table")).getByText("Codex 插件市场")).toBeTruthy())
+    const row = within(screen.getByRole("table")).getByText("Codex 插件市场").closest("tr") as HTMLElement
+    fireEvent.click(within(row).getByRole("button", { name: "详情…" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(within(dialog).queryByRole("button", { name: "打开目录" })).toBeNull()
+    // 路径本身还能复制（这一档没设时它连路径都没有，那是另一回事）。
+    expect(within(dialog).getByRole("button", { name: "复制路径" })).toBeTruthy()
   })
 })

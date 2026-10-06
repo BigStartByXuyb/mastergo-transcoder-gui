@@ -154,7 +154,7 @@ function caseRuntime() {
   assert.strictEqual(runtime.current().root, fx.claude, "换一份之后立刻生效，不用重启");
   assert.strictEqual(settings.read().pluginRoot, fx.claude, "选的那一份记进设置");
   assert.strictEqual(runtime.sources().find((item) => item.active).id, "chosen");
-  assert.strictEqual(runtime.sources().find((item) => item.id === "chosen").label, "设置里选的");
+  assert.strictEqual(runtime.sources().find((item) => item.id === "chosen").label, "我指定的那一份");
 
   runtime.choose("");
   assert.strictEqual(runtime.current().root, fx.codexNew, "清掉选择就回到按顺序自动");

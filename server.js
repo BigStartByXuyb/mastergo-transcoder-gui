@@ -9,6 +9,7 @@
  *   lib/plugin-root.js 插件定位
  *   lib/plugin.js      插件信息与步骤契约
  *   lib/resolve.js     控件查询（链接 → 控件 ID）
+ *   lib/system-open.js 交给系统打开（起完服务打开界面、插件页的「打开目录」）
  *
  * 用法：
  *   node server.js                                  # 起服务并打开浏览器（默认 127.0.0.1:8787）
@@ -25,7 +26,7 @@ const fs = require("fs");
 const http = require("http");
 const os = require("os");
 const path = require("path");
-const { spawnSync } = require("child_process");
+const { openUrl } = require("./lib/system-open.js");
 
 const { createResolver } = require("./lib/resolve.js");
 const { readPipelineSteps, createPluginRuntime } = require("./lib/plugin.js");
@@ -257,15 +258,10 @@ server.on("error", function (error) {
   throw error;
 });
 
+// 打不开浏览器不影响服务本身：这里只把「起没起来」丢掉。
+// 「哪个平台用哪条命令」与插件页的「打开目录」是同一处（lib/system-open.js），不在这里再写一份。
 function openBrowser(url) {
-  try {
-    if (process.platform === "win32") spawnSync("cmd", ["/c", "start", "", url], { windowsHide: true });
-    else if (process.platform === "darwin") spawnSync("open", [url]);
-    else spawnSync("xdg-open", [url]);
-  }
-  catch {
-    /* 打不开浏览器不影响服务本身 */
-  }
+  void openUrl(url).catch(function () {});
 }
 
 server.listen(options.port, options.host, function () {

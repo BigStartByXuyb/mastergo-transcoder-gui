@@ -35,7 +35,7 @@ describe("pluginLookup", () => {
   it("同一份插件只列一行：留下最先命中的那一档，后几档并进它（含「正在用」）", () => {
     const same = "cache/codex/bigstart/mastergo-wpf-transcoder/1.0.369"
     const lookup = pluginLookup([
-      source("chosen", "chosen", true, { pluginRoot: same, label: "设置里选的" }),
+      source("chosen", "chosen", true, { pluginRoot: same, label: "我指定的那一份" }),
       source("codex-cache", "agent", false, { pluginRoot: same })
     ])
 

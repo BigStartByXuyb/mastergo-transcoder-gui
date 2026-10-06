@@ -13,7 +13,7 @@ import type { PluginSource } from "@/lib/api"
 export type PluginSourceRow = PluginSource & {
   /** 查找顺序里的第几档（后端给的序号）。 */
   order: number
-  /** 与这一行指向同一份插件、被合并掉的来源名（如「设置里选的」）。 */
+  /** 与这一行指向同一份插件、被合并掉的来源名（如「客户端自带」）。 */
   alsoFrom: string[]
   /**
    * 这一行代表哪几档（含它自己那一档的 id，按查找顺序）。

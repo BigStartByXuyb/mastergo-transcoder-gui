@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { FolderSearch, Loader2 } from "lucide-react"
+import { FolderSearch, Loader2, RefreshCw } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -11,6 +11,8 @@ import { IdentifierText } from "@/app/identifier-text"
 import { PixelLoader } from "@/app/pixel-loader"
 import { PluginSourceDialog } from "@/app/plugin-source-dialog"
 import { SourceAlsoFrom, SourceCopyCount, SourceStatusBadge, SourceVersion } from "@/app/plugin-source-facts"
+import { SourceDialog } from "@/app/source-dialog"
+import { UpdateSourceRow } from "@/app/update-source-row"
 import { usePluginSources } from "@/app/use-plugin-sources"
 import { usePluginUpdate } from "@/app/use-plugin-update"
 import { describePluginInstall } from "@/lib/plugin-install"
@@ -23,11 +25,14 @@ import { pluginLookup, slotState, type PluginSourceRow, type PluginSourceSlot } 
 //   按什么顺序找 —— 上面那条顺序，每一档都列出来（后端给的顺序，界面不重排）
 //   每一档是什么 —— 一张表：来源 / 版本 / 状态 / 路径 / 操作；点开某一行是那一档的详情，
 //                  点开「客户端自带」那一行是它的管理（检查更新 / 下载并安装 / 进度）。
+// 另外一块：客户端自带那一份从哪儿取（更新来源：GitHub / GitLab / 静态目录）——
+// 与「程序更新」是同一处设置、同一个弹窗，改完两边都按新的走。
 //
 // 取数分两半，各有各的 hook：来源清单与指针动作（use-plugin-sources）、
 // 自带那一份的更新与轮询（use-plugin-update）；本组件只编排与渲染。
 export function PluginCard() {
   const [opened, setOpened] = useState("")
+  const [editingSource, setEditingSource] = useState(false)
   const sources = usePluginSources()
   const update = usePluginUpdate(() => void sources.load())
 
@@ -94,6 +99,31 @@ export function PluginCard() {
               </Button>
             </div>
 
+            {/*
+              自带那一份从哪儿取：与程序更新同一处设置（后端 lib/source.js 一处拼地址），
+              这里也显示、也能改 —— 「GitHub / GitLab 在哪儿配」不能只有程序更新那一半看得见。
+              「检查更新」与「管理…」面板里那颗是同一个动作（同一个函数、同一套禁用条件）。
+            */}
+            {update.update && (
+              <div className="flex flex-col gap-2">
+                <UpdateSourceRow
+                  source={update.update.source}
+                  hasToken={update.update.hasToken}
+                  disabled={Boolean(busy)}
+                  onEdit={() => setEditingSource(true)}
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button size="sm" variant="outline" disabled={Boolean(busy)} onClick={() => void update.check()}>
+                    {update.busy === "check" ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                    检查更新
+                  </Button>
+                  <span className="text-muted-foreground text-xs">
+                    要装哪一版，点表里「客户端自带」那一行的「管理…」
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* 查找顺序：每一档一句话，谁在生效、谁没有、哪两档是同一份，一眼看完。 */}
             <div className="flex flex-wrap items-center gap-x-1 gap-y-2 text-xs">
               {lookup.slots.map((slot, index) => (
@@ -143,6 +173,19 @@ export function PluginCard() {
             {update.failure && <span className="text-destructive text-xs">{update.failure}</span>}
             {update.probe && <span className="text-destructive text-xs">{update.probe}</span>}
           </>
+        )}
+
+        {editingSource && update.update && (
+          <SourceDialog
+            subject="插件（流水线）"
+            view={{ source: update.update.source, hasToken: update.update.hasToken }}
+            onClose={() => setEditingSource(false)}
+            reload={async () => {
+              const latest = await update.refresh()
+              return { source: latest.source, hasToken: latest.hasToken }
+            }}
+            check={update.checkOutcome}
+          />
         )}
 
         {selected && (

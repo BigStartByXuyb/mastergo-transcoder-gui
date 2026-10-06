@@ -9,10 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ClampText } from "@/app/clamp-text"
 import { ConfirmSwitchDialog } from "@/app/confirm-switch-dialog"
 import { BusyOverlay } from "@/app/busy-overlay"
-import { IdentifierText } from "@/app/identifier-text"
 import { Pager } from "@/app/pager"
 import { Progress } from "@/components/ui/progress"
 import { SourceDialog } from "@/app/source-dialog"
+import { UpdateSourceRow } from "@/app/update-source-row"
 import { api, type UpdateStatus } from "@/lib/api"
 import { pageSlice } from "@/lib/paging"
 import { finishDownload } from "@/app/download-actions"
@@ -21,6 +21,7 @@ import { useStatusPoll } from "@/app/use-status-poll"
 import { startUpdateDownload } from "@/lib/update-download"
 import { runSwitch } from "@/lib/update-switch"
 import { missingFeatures } from "@/lib/version-features"
+import { sourceCheckOutcome } from "@/lib/source-check"
 import {
   blockedNote,
   canSwitch,
@@ -182,15 +183,14 @@ export function UpdateCard() {
           </Alert>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border p-2">
-          <span className="text-muted-foreground text-xs">更新来源</span>
-          {status && <Badge variant="secondary">{status.source.kind}</Badge>}
-          {status && status.hasToken && <Badge variant="outline">已带 token</Badge>}
-          {status && <IdentifierText text={status.source.base} className="min-w-0 flex-1 text-xs" />}
-          <Button variant="outline" size="sm" disabled={!status || frozen} onClick={() => setEditingSource(true)}>
-            修改发布源
-          </Button>
-        </div>
+        {status && (
+          <UpdateSourceRow
+            source={status.source}
+            hasToken={status.hasToken}
+            disabled={frozen}
+            onEdit={() => setEditingSource(true)}
+          />
+        )}
 
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" disabled={Boolean(working)} onClick={() => void act("check", () => api.updateCheck())}>
@@ -219,7 +219,22 @@ export function UpdateCard() {
     </Card>
 
       {editingSource && status && (
-        <SourceDialog status={status} onClose={() => setEditingSource(false)} onStatus={setStatus} />
+        <SourceDialog
+          subject="程序更新"
+          view={{ source: status.source, hasToken: status.hasToken }}
+          onClose={() => setEditingSource(false)}
+          reload={async () => {
+            const latest = (await api.updateStatus()).status
+            setStatus(latest)
+            return { source: latest.source, hasToken: latest.hasToken }
+          }}
+          check={async () => {
+            const checked = (await api.updateCheck()).status
+            setStatus(checked)
+            // 报的这句话与卡片上那句同一处口径（describeUpdate），这里只说放哪一格。
+            return sourceCheckOutcome(describeUpdate(checked), checked.state === "error")
+          }}
+        />
       )}
 
       {confirming && (

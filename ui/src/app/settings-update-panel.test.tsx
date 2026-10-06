@@ -9,7 +9,8 @@ import {
   drive,
   healthFixture,
   okResponse,
-  pluginUpdateFixture
+  pluginUpdateFixture,
+  sourceFixture
 } from "@/lib/settings-fixtures"
 
 /*
@@ -68,12 +69,7 @@ function status(): UpdateStatus {
     available: null,
     error: null,
     task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
-    source: {
-      kind: "github",
-      base: "https://github.com/BigStartByXuyb/mastergo-transcoder-gui",
-      manifestUrl: "https://github.com/BigStartByXuyb/mastergo-transcoder-gui/releases/latest/download/manifest.json",
-      kinds: ["github", "gitlab", "static"]
-    },
+    source: sourceFixture(),
     hasToken: false
   }
 }
