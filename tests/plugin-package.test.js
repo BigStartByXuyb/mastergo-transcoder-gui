@@ -89,7 +89,6 @@ function packInto(base) {
   assert.strictEqual(first.zip.name, pkg.zipName("1.2.3"));
   assert.strictEqual(first.zip.sha256, sha256(zipFile), "清单里的哈希要真的是那个 zip 的哈希");
   assert.strictEqual(fs.readFileSync(zipFile).subarray(0, 2).toString("latin1"), "PK", "打出来的是 zip");
-  assert.strictEqual(first.zip.sha256, sha256(zipFile));
 
   const firstHash = first.zip.sha256;
   node(args);
@@ -115,9 +114,18 @@ function main() {
   );
   assert.strictEqual(String(pin.path).split("/").pop(), pkg.PLUGIN_NAME, "pin 的 path 里那个目录要叫 " + pkg.PLUGIN_NAME);
 
-  // 随客户端发货的运行时代码不许依赖运行树以外的文件（pin 不随包发）。
-  const runtime = fs.readFileSync(path.join(ROOT, "lib", "plugin-package.js"), "utf8");
-  assert.ok(runtime.indexOf('require("../plugin-pin.json")') < 0, "运行时代码不 require pin（它不随包发）");
+  // 随客户端发货的运行时代码不许依赖运行树以外的文件：把这两个 lib 模块单独拷出来加载一遍，
+  // 旁边没有 plugin-pin.json —— 能加载就说明它真的不依赖那份不随包发的配置。
+  const runtime = fs.mkdtempSync(path.join(os.tmpdir(), "mgtg-runtime-"));
+  try {
+    fs.copyFileSync(path.join(ROOT, "lib", "plugin-package.js"), path.join(runtime, "plugin-package.js"));
+    fs.copyFileSync(path.join(ROOT, "lib", "plugin-root.js"), path.join(runtime, "plugin-root.js"));
+    const loaded = require(path.join(runtime, "plugin-package.js"));
+    assert.strictEqual(loaded.PLUGIN_NAME, pkg.PLUGIN_NAME, "运行时代码单独加载也要能用");
+  }
+  finally {
+    fs.rmSync(runtime, { recursive: true, force: true });
+  }
 
   // 发布流程取 pin 用的就是这一条命令：跑一遍，保证接线是通的。
   const printed = node([PACK, "--print-pin"]).trim().split("\n");
