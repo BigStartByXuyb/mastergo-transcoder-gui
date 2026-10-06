@@ -17,6 +17,7 @@ import { api, type UpdateStatus } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
 import { finishDownload } from "@/app/download-actions"
+import { useStatusPoll } from "@/app/use-status-poll"
 import { startUpdateDownload } from "@/lib/update-download"
 import { runSwitch } from "@/lib/update-switch"
 import { missingFeatures } from "@/lib/version-features"
@@ -32,8 +33,6 @@ import {
 } from "@/lib/update-state"
 import { cn } from "@/lib/utils"
 
-const IDLE_POLL_MS = 15000
-const WORKING_POLL_MS = 1500
 // 一页五版：一屏放得下，多出来的翻页。
 const PAGE_SIZE = 5
 
@@ -70,28 +69,15 @@ export function UpdateCard() {
       .catch(() => setSupervised(false))
   }, [])
 
-  useEffect(() => {
-    let stopped = false
-
-    async function tick() {
-      try {
-        const payload = await api.updateStatus()
-        if (stopped) return
-        setStatus(payload.status)
-        setProbe("")
-      } catch (error) {
-        if (stopped) return
-        setProbe(describeFailure(error))
-      }
-    }
-
-    void tick()
-    const timer = window.setInterval(tick, transferring ? WORKING_POLL_MS : IDLE_POLL_MS)
-    return () => {
-      stopped = true
-      window.clearInterval(timer)
-    }
-  }, [transferring])
+  useStatusPoll({
+    load: () => api.updateStatus(),
+    working: transferring,
+    onData: (payload) => {
+      setStatus(payload.status)
+      setProbe("")
+    },
+    onError: setProbe
+  })
 
   /*
    * 页面上的每个动作都走这里：置 working → 清旧错 → 跑 → 套用返回的状态 → 提示 → 收尾。

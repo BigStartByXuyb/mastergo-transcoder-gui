@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Bot, Download, Loader2, RefreshCw, RotateCcw, ShieldCheck } from "lucide-react"
 import { toast } from "sonner"
 
@@ -14,9 +14,7 @@ import { finishDownload } from "@/app/download-actions"
 import { startDownload } from "@/lib/download-run"
 import { describeFailure } from "@/lib/describe-failure"
 import { describeTask, isDownloading, taskPercent } from "@/lib/update-state"
-
-const IDLE_POLL_MS = 15000
-const WORKING_POLL_MS = 1000
+import { useStatusPoll } from "@/app/use-status-poll"
 
 /*
  * Codex 引擎：检查有没有新版 → 下载 → 自检 → 切版本 / 回退。
@@ -30,28 +28,17 @@ export function CodexCard() {
 
   const transferring = status ? isDownloading(status.task) : false
 
-  useEffect(() => {
-    let stopped = false
-
-    async function tick() {
-      try {
-        const payload = await api.codexStatus()
-        if (stopped) return
-        setStatus(payload.status)
-        setProbe("")
-      } catch (error) {
-        if (stopped) return
-        setProbe(describeFailure(error))
-      }
-    }
-
-    void tick()
-    const timer = window.setInterval(tick, transferring ? WORKING_POLL_MS : IDLE_POLL_MS)
-    return () => {
-      stopped = true
-      window.clearInterval(timer)
-    }
-  }, [transferring])
+  useStatusPoll({
+    load: () => api.codexStatus(),
+    working: transferring,
+    // 引擎包是几十兆的大件，进度刷新比别处更勤一点。
+    workingMs: 1000,
+    onData: (payload) => {
+      setStatus(payload.status)
+      setProbe("")
+    },
+    onError: setProbe
+  })
 
   async function act(key: string, run: () => Promise<{ status: CodexStatus }>, done = "") {
     setWorking(key)

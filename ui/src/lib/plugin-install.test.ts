@@ -2,13 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { PluginUpdateStatus } from "@/lib/api"
 import { describePluginInstall, localSituation } from "@/lib/plugin-install"
-
-/*
- * 夹具路径按段拼出来：源码里不出现「盘符 + 反斜杠」那种机器专属写法（结构检查会拦）。
- */
-function drive(letter: string, ...parts: string[]): string {
-  return [letter + ":", ...parts].join("\\")
-}
+import { drive } from "@/lib/settings-fixtures"
 
 const LOCAL_DIR = drive("D", "app", "plugins", "mastergo-wpf-transcoder", "1.0.371")
 const AGENT_ROOT = drive("C", "codex", "plugins", "cache", "mastergo-wpf-transcoder")

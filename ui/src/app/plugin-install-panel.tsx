@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { Download, Loader2, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 
@@ -10,9 +10,7 @@ import { api, type PluginUpdateStatus } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { describePluginInstall, localSituation } from "@/lib/plugin-install"
 import { describeTask, isDownloading, taskPercent } from "@/lib/update-state"
-
-const IDLE_POLL_MS = 15000
-const WORKING_POLL_MS = 1500
+import { useStatusPoll } from "@/app/use-status-poll"
 
 /*
  * 客户端自带的那一份插件：检查 → 下载并安装。
@@ -31,37 +29,25 @@ export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () 
   const transferring = status ? isDownloading(status.task) : false
 
   /*
-   * 「装完了」只认一次：轮询里看到从「在下」变成「下完了」才算（父组件据此重读来源表）。
-   * 回调放 ref 里，定时器不跟着父组件的重渲染重挂。
+   * 「装完了」只认一次：从「在下」变成「下完了」那一下才算（父组件据此重读来源表）。
+   * onInstalled 放 ref 里：轮询的取数路径不跟着父组件的重渲染换闭包。
    */
   const onInstalled = useRef(props.onInstalled)
   onInstalled.current = props.onInstalled
   const wasTransferring = useRef(false)
 
-  useEffect(() => {
-    let stopped = false
-
-    async function tick() {
-      try {
-        const payload = await api.pluginUpdateStatus()
-        if (stopped) return
-        const running = isDownloading(payload.status.task)
-        if (wasTransferring.current && !running && payload.status.task.phase === "done") onInstalled.current()
-        wasTransferring.current = running
-        setStatus(payload.status)
-        setFailure("")
-      } catch (error) {
-        if (!stopped) setFailure(describeFailure(error))
-      }
-    }
-
-    void tick()
-    const timer = window.setInterval(tick, transferring ? WORKING_POLL_MS : IDLE_POLL_MS)
-    return () => {
-      stopped = true
-      window.clearInterval(timer)
-    }
-  }, [transferring])
+  useStatusPoll({
+    load: () => api.pluginUpdateStatus(),
+    working: transferring,
+    onData: (payload) => {
+      const running = isDownloading(payload.status.task)
+      if (wasTransferring.current && !running && payload.status.task.phase === "done") onInstalled.current()
+      wasTransferring.current = running
+      setStatus(payload.status)
+      setFailure("")
+    },
+    onError: setFailure
+  })
 
   async function act(key: string, run: () => Promise<{ status: PluginUpdateStatus }>, done: string) {
     setWorking(key)

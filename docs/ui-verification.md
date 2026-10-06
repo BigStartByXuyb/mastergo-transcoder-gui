@@ -30,6 +30,10 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - `lib/update-task.js`（新）：一条版本线下载时的编排也只有一份 —— `syncManifest` 做「远端清单 ↔ 本地清单」
   （算本地清单 → 同内容进内容库 → 写缓存），`createDownloadTask` 管 `task` 生命周期、进度换算与「一次只跑一条」；
   两条线各自特有的部分（怎么算本地清单、算不算「已经有」、下完收什么尾）由钩子给。
+- `lib/versions.js`（新）：版本号怎么比只有一处；程序更新、Codex、插件三条线都从这里取。
+  缓存翻成界面摘要的公共那几项收进 `summarizeCache`（`lib/manifest-fetch.js`），两条线再各加自己特有的字段。
+- `ui/src/app/use-status-poll.ts`（新）：「空闲 15 秒 / 传输中 1.5 秒」的轮询只有一处；
+  程序更新、Codex 引擎、运行时、插件安装四张卡片都走它（引擎与运行时的包大，另给 1 秒）。
 - `lib/source.js`：清单名收一个参数，插件那一半按同一套协议取自己那份清单；两份清单名只在这一处定义
   （发布侧 `scripts/pack-plugin.js` 也从这里取，写一个名、找另一个名不可能）。
 - `lib/bundle-store.js`：目录名（blobs / versions / 指针）可以用 layout 换，第二条内容库不再另写一份实现。
@@ -66,9 +70,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | 命令 | 结果 |
 | --- | --- |
 | `npm test` | 通过，47 个文件全过（含新增 `tests/plugin-update.test.js`） |
-| `npm run test:coverage` | 通过，lines 94.69 / branch 82.41 / funcs 95.83（门禁 90/75/90） |
-| `npm --prefix ui run test` | 通过，53 文件 321 用例（含新增面板与判定用例） |
-| `npm --prefix ui run test:coverage` | 通过，stmts 94.69 / branch 91.43 / funcs 95.71 |
+| `npm run test:coverage` | 通过，lines 94.69 / branch 82.65 / funcs 95.83（门禁 90/75/90） |
+| `npm --prefix ui run test` | 通过，54 文件 326 用例（含新增面板、判定与轮询用例） |
+| `npm --prefix ui run test:coverage` | 通过，stmts 94.79 / branch 91.73 / funcs 95.74 |
 | `npm run build:ui` | 通过，`public/` 已重建并入库 |
 | `node <cicd>/check-app-structure.mjs --root .` | PASS（硬编码路径 / 孤儿导出 / 分层 / CI 钉死 均 0 条） |
 

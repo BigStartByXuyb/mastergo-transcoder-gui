@@ -3,15 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { PluginCard } from "@/app/plugin-card"
 import type { PluginEnvScopes, PluginSources, PluginUpdateStatus } from "@/lib/api"
-import { INSTALLED_ROOT, INSTALL_PARENT, pluginUpdateFixture } from "@/lib/settings-fixtures"
+import { INSTALLED_ROOT, INSTALL_PARENT, drive, pluginUpdateFixture } from "@/lib/settings-fixtures"
 
-/*
- * 夹具路径按段拼出来：源码里不出现「盘符 + 反斜杠」那种机器专属写法（结构检查会拦）。
- */
-function drive(letter: string, ...parts: string[]): string {
-  return [letter + ":", ...parts].join("\\")
-}
-
+// 夹具路径按段拼（drive 在 settings-fixtures 里）：源码里不出现「盘符 + 反斜杠」那种机器专属写法。
 const CODEX_CACHE = drive("C", "Users", "me", ".codex", "plugins", "cache")
 const CODEX_ROOT = drive("C", "Users", "me", ".codex", "plugins", "cache", "bigstart", "mastergo-wpf-transcoder", "1.0.369")
 const CLAUDE_CACHE = drive("C", "Users", "me", ".claude", "plugins", "cache")

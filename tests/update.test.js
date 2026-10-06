@@ -11,7 +11,8 @@ const os = require("os");
 const path = require("path");
 
 const { buildManifest } = require("../lib/app-manifest.js");
-const { createUpdate, compareVersions } = require("../lib/update.js");
+const { createUpdate } = require("../lib/update.js");
+const { compareVersions } = require("../lib/versions.js");
 
 function makeTree(files) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-update-"));
