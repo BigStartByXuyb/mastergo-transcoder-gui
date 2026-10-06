@@ -113,3 +113,17 @@ export function slotState(slot: PluginSourceSlot): PluginSlotState {
   if (slot.active) return "active"
   return slot.exists ? "available" : "missing"
 }
+
+/*
+ * 「换用这一档」这件事的两条判据只有这一处：给不给换（表里那一行与点开的面板都读它）、
+ * 换了记哪个目录。记的是这一档**所在的目录**（不是此刻解析到的那一个版本目录）——
+ * 定位认「指到插件根、或指到装着它的目录」两种，记目录才会在装了新版本后跟着取最高版本；
+ * 记死版本目录的话，客户端自带那份装完新版反而不生效。
+ */
+export function canChooseThis(row: Pick<PluginSource, "exists" | "active">): boolean {
+  return Boolean(row.exists && !row.active)
+}
+
+export function choosePathOf(row: Pick<PluginSource, "path" | "pluginRoot">): string {
+  return row.path || row.pluginRoot
+}

@@ -73,6 +73,10 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   （选目录与换过去在同一层，「换完落地」那份收尾两处共用一处）。
 - 第十轮复核两条：`manifest-fetch` 不再对外返回没人调的 `token`；`pluginLookup` 去掉 `activeKeepers`
   那条死分支（后端只在真正生效那一档标 active，而那一档必定是它那个插件根的最先命中者＝留下的那一行）。
+- 第十一轮复核三条：顶部那颗徽章改读 slots 里「我指定的那一份」那一档的结论（没有兜底分支，也不再看设置值）；
+  「用这份」的两条判据（给不给换、换了记哪个目录）收进 `lib/plugin-sources` 的 `canChooseThis` / `choosePathOf`，
+  行内与面板都调它；发布源类型的中文名收进 `lib/source-kind.ts`，徽章与弹窗里的下拉同词（不再一处 `github`、
+  一处「GitHub 仓库」）。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。

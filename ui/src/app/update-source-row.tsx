@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { IdentifierText } from "@/app/identifier-text"
 import type { UpdateSource } from "@/lib/api"
+import { sourceKindLabel } from "@/lib/source-kind"
 
 /*
  * 「更新来源」那一行：现在从哪儿取（类型 / 地址）、有没有带 token、点一下改。
@@ -32,11 +33,12 @@ export function UpdateSourceRow(props: {
 /**
  * 发布源的两颗徽标（类型 + 有没有带 token）：「更新来源」那一行与改发布源的弹窗都渲染这一份，
  * 口径改动只改这里，两处不会一处说「已带 token」、另一处忘了说。
+ * 类型的写法与弹窗里的下拉同一处（sourceKindLabel）—— 同一字段不会一处写 github、另一处写「GitHub 仓库」。
  */
 export function SourceBadges(props: { source: UpdateSource; hasToken: boolean }) {
   return (
     <>
-      <Badge variant="secondary">{props.source.kind}</Badge>
+      <Badge variant="secondary">{sourceKindLabel(props.source.kind)}</Badge>
       {props.hasToken && <Badge variant="outline">已带 token</Badge>}
     </>
   )

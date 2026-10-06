@@ -17,7 +17,7 @@ import { api, type PluginUpdateStatus } from "@/lib/api"
 import { copyText } from "@/lib/copy-text"
 import { describeFailure } from "@/lib/describe-failure"
 import { describePluginInstall } from "@/lib/plugin-install"
-import type { PluginSourceRow } from "@/lib/plugin-sources"
+import { canChooseThis, choosePathOf, type PluginSourceRow } from "@/lib/plugin-sources"
 import { describeTask, isDownloading, taskFailureNote, taskPercent } from "@/lib/update-state"
 import { PLUGIN_UPDATE_KEYS } from "@/app/use-plugin-update"
 
@@ -146,18 +146,16 @@ export function PluginSourceDialog(props: {
                 复制路径
               </Button>
             )}
-            {row.exists && !row.active && (
+            {canChooseThis(row) && (
               <Button
                 size="sm"
                 variant="outline"
                 disabled={frozen}
                 aria-busy={props.busy === row.id}
                 /*
-                 * 记这一档**所在的目录**（不是此刻解析到的那一个版本目录）：定位认「指到插件根、
-                 * 或指到装着它的目录」两种，记目录才会在装了新版本之后跟着取最高版本 ——
-                 * 记死版本目录的话，客户端自带那份装完新版反而不会生效。
+                 * 记哪个目录由 choosePathOf 说（库那一处）：记这一档所在的目录，不是此刻那一个版本目录。
                  */
-                onClick={() => props.onChoose(row.path || row.pluginRoot, row.id)}
+                onClick={() => props.onChoose(choosePathOf(row), row.id)}
               >
                 {props.busy === row.id && <Loader2 className="size-4 animate-spin" />}
                 用这份

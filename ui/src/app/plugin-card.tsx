@@ -16,7 +16,14 @@ import { UpdateSourceRow } from "@/app/update-source-row"
 import { usePluginSources } from "@/app/use-plugin-sources"
 import { PLUGIN_UPDATE_KEYS, usePluginUpdate } from "@/app/use-plugin-update"
 import { describePluginInstall } from "@/lib/plugin-install"
-import { pluginLookup, slotState, type PluginSourceRow, type PluginSourceSlot } from "@/lib/plugin-sources"
+import {
+  canChooseThis,
+  choosePathOf,
+  pluginLookup,
+  slotState,
+  type PluginSourceRow,
+  type PluginSourceSlot
+} from "@/lib/plugin-sources"
 
 // 插件：转码引擎来自 mastergo-wpf-transcoder 插件，客户端不自带引擎。
 //
@@ -38,8 +45,11 @@ export function PluginCard() {
 
   const lookup = sources.view ? pluginLookup(sources.view.sources) : { slots: [], rows: [] }
   const selected = lookup.rows.find((row) => row.id === opened) ?? null
-  // 「我指定的那一份」那一刻的处境：与表里那一行同一份结论（这一档被并进哪一行，就看那一行）。
-  const chosenRow = lookup.rows.find((row) => row.members.includes("chosen")) ?? null
+  /*
+   * 「我指定的那一份」那一刻的处境：读后端那条结论（slots 里这一档的 active / exists），与表、顺序条同一份。
+   * 不能只看「设置里有没有值」——那份插件可能已经不在那个目录了，这时候生效的是后面某一档。
+   */
+  const chosenSlot = lookup.slots.find((slot) => slot.id === "chosen") ?? null
   // 有任一半在跑就冻住换一份 / 改发布源这类动作。这里只是布尔语义：
   // 「哪一半的哪个动作在跑」由各自那一半的 busy 字符串回答（不合成成同一个字符串再比对）。
   const frozen = Boolean(sources.busy || update.busy)
@@ -82,9 +92,12 @@ export function PluginCard() {
                 <>
                   {/*
                     「正在用」不在这一块另判一次：指定了不等于它在生效（那目录里没有插件、或被 --plugin
-                    压过时，生效的是后面某一档）。这一档的处境与表、顺序条读同一份结论（chosenRow）。
+                    压过时，生效的是后面某一档）。这一档的处境与表、顺序条读同一份结论（chosenSlot）；
+                    措辞也走同一处（sourceStatusText）。
                   */}
-                  {chosenRow ? <SourceStatusBadge row={chosenRow} /> : <Badge variant="outline">没在用</Badge>}
+                  <Badge variant={chosenSlot && chosenSlot.active ? "secondary" : "outline"}>
+                    {sourceStatusText(Boolean(chosenSlot && chosenSlot.active), Boolean(chosenSlot && chosenSlot.exists))}
+                  </Badge>
                   <IdentifierText className="text-muted-foreground min-w-0 flex-1 text-xs" text={sources.view.chosen} />
                 </>
               ) : (
@@ -188,8 +201,8 @@ export function PluginCard() {
                       busy={sources.busy}
                       frozen={frozen}
                       onOpen={() => setOpened(row.id)}
-                      // 行内「用这份」与面板里那颗同一口径：记这一档所在的目录（装了新版本能跟着升级）。
-                      onChoose={() => void sources.choose(row.path || row.pluginRoot, row.id)}
+                      // 行内「用这份」与面板里那颗同一口径（判据与记哪个目录都在 lib/plugin-sources）。
+                      onChoose={() => void sources.choose(choosePathOf(row), row.id)}
                     />
                   ))}
                 </TableBody>
@@ -281,7 +294,7 @@ function PluginSourceLine(props: {
       </TableCell>
       <TableCell className="align-top text-right whitespace-normal">
         <div className="flex justify-end gap-2" onClick={(event) => event.stopPropagation()}>
-          {row.exists && !row.active && (
+          {canChooseThis(row) && (
             <Button size="sm" variant="outline" disabled={props.frozen} onClick={props.onChoose}>
               {props.busy === row.id && <Loader2 className="size-4 animate-spin" />}
               用这份

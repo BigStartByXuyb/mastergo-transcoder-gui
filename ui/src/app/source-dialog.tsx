@@ -13,6 +13,7 @@ import { IdentifierText } from "@/app/identifier-text"
 import { SourceBadges } from "@/app/update-source-row"
 import { api, type UpdateSource } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
+import { sourceKindLabel } from "@/lib/source-kind"
 
 /*
  * 改发布源：「程序更新」与「插件（流水线）」两半都从这一处设置取（后端 lib/source.js 一处拼地址），
@@ -22,12 +23,6 @@ import { describeFailure } from "@/lib/describe-failure"
  * （认不出的类型直接用原值当显示名）。地址怎么拼只有后端 lib/source.js 一处，这里只把拼出来的
  * 清单地址照实显示，不再自己拼一套。
  */
-const KIND_LABELS: Record<string, string> = {
-  github: "GitHub 仓库",
-  gitlab: "GitLab 通用包",
-  static: "静态目录（nginx / 共享盘）"
-}
-
 export function SourceDialog(props: {
   /** 说的是哪一件事的发布源（标题与说明里照实写）。 */
   subject: string
@@ -130,7 +125,7 @@ export function SourceDialog(props: {
                 <SelectContent>
                   {current.source.kinds.map((value) => (
                     <SelectItem key={value} value={value}>
-                      {KIND_LABELS[value] ?? value}
+                      {sourceKindLabel(value)}
                     </SelectItem>
                   ))}
                 </SelectContent>
