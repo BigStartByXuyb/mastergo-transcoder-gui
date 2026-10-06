@@ -84,6 +84,15 @@ describe("describePluginInstall", () => {
     expect(summary.canInstall).toBe(false)
   })
 
+  it("装了但读不出版本、远端有清单：按钮写「按远端重装」，不装作没装", () => {
+    const summary = describePluginInstall(
+      status({ state: "update_available", local: { version: "", dir: LOCAL_DIR }, available: avail })
+    )
+    expect(summary.action).toBe("按远端重装")
+    expect(summary.note).toContain("读不出版本")
+    expect(summary.canInstall).toBe(true)
+  })
+
   it("检查失败：说出原因，不给装", () => {
     const summary = describePluginInstall(
       status({ state: "error", error: { code: "HTTP_404", message: "下载失败（HTTP 404）", hint: "…/plugin-manifest.json" } })

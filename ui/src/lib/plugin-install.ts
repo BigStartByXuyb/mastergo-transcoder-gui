@@ -38,11 +38,13 @@ export function describePluginInstall(status: PluginUpdateStatus | null): Plugin
     }
   }
   if (status.state === "update_available" && status.available) {
+    const installed = Boolean(status.local.dir)
     return {
       label: "有新版 v" + status.available.version,
       tone: "secondary",
       note: changeNote(status),
-      action: status.local.version ? "更新到 v" + status.available.version : "下载并安装",
+      // 「装了没有」只认目录（定位认它是一份插件就算装了）；版本号读不出时就照实说重装。
+      action: installed ? (status.local.version ? "更新到 v" + status.available.version : "按远端重装") : "下载并安装",
       canInstall: true
     }
   }
@@ -73,7 +75,8 @@ export function describePluginInstall(status: PluginUpdateStatus | null): Plugin
 function changeNote(status: PluginUpdateStatus): string {
   const available = status.available
   if (!available) return ""
-  if (!status.local.version) return "远端 v" + available.version + "，共 " + available.total + " 个文件"
+  if (!status.local.dir) return "远端 v" + available.version + "，共 " + available.total + " 个文件"
+  if (!status.local.version) return "远端 v" + available.version + "：本地这一份读不出版本，按它重装一遍"
   return "远端 v" + available.version + "，差 " + available.changed + " 个文件"
 }
 
