@@ -16,6 +16,34 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-10-06 接入 winget（v0.6.45）
+
+### 改了什么
+
+- 新增 `scripts/winget-manifest.js`：按 package.json 的版本、现算的 zip sha256、内置的包名/入口，
+  生成三个 winget 清单（version / locale / installer）。`--base` 换包地址基址（默认本仓库 release），
+  `--zip` 指定包，`--out` 指定输出目录。类型是 `zip` + `NestedInstallerType: portable`，
+  入口 `mastergo-transcoder-gui-<版本>/mastergo-transcoder.exe`，命令别名 `mastergo-transcoder`。
+- 发布作业在打包之后生成清单并把三个 YAML 作为 Release 资产传上去（和 zip 一起）。
+- `docs/install.md` 新增「用 winget 装」：公网（提 PR 到 winget-pkgs）与内网
+  （`winget install --manifest <目录>`，需开启 `LocalManifestFiles`）两条路，以及换公司地址的那一条命令。
+- 新增 `tests/winget-manifest.test.js`：版本/地址/哈希/入口/许可证字段各一条断言，包不存在要报错。
+
+### 为什么
+
+用户问「要不要把公司地址也接进 winget」。是 —— 但要说清是**哪一层**的地址：
+清单里的 `InstallerUrl`（客户机 `winget install` 时下 zip 的地方）与「客户机从哪儿拿到清单」是两件事；
+而客户端自己更新、自己补运行时用的地址（发布源 / 安装包来源）跟 winget 无关，那两样已经在设置里配。
+
+### 点过/跑过的东西
+
+| 操作 | 观察到 | 结论 |
+| --- | --- | --- |
+| `node scripts/winget-manifest.js`（本机 0.6.44 的 zip） | 生成三个 YAML；包地址 `…/releases/download/v0.6.44/mastergo-transcoder-gui-0.6.44.zip`、sha256 现算、入口 `…/mastergo-transcoder.exe` | 通过 |
+| `winget validate dist/winget` | 第一次报 `Missing required property 'License'` → 补上 License/Moniker → **清单验证成功** | 通过 |
+| 用例 | 版本取 package.json、地址＝基址+包名、哈希与包一致、入口与别名对、缺包时报错 | 通过 |
+| 全量门禁 | 后端 43 条、前端 52 文件 307 条、`tsc`、oxlint、结构检查 PASS | 通过 |
+
 ## 2026-10-06 启动器：干净机器双击即可，缺什么自己补（v0.6.44）
 
 ### 改了什么

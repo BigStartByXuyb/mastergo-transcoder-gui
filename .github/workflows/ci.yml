@@ -115,5 +115,9 @@ jobs:
         run: |
           node scripts/pack-bundle.js --version "${GITHUB_REF_NAME#v}"
           gh release upload "$GITHUB_REF_NAME" "dist/mastergo-transcoder-gui-${GITHUB_REF_NAME#v}.zip" --clobber
+          # winget 清单：portable 包，入口就是包里的 mastergo-transcoder.exe。
+          # 默认基址＝这个仓库的 release；换公司地址时用 --base <公司地址> 重生成即可（见 docs/install.md）。
+          node scripts/winget-manifest.js --base "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+          gh release upload "$GITHUB_REF_NAME" dist/winget/*.yaml --clobber
         env:
           GH_TOKEN: ${{ github.token }}

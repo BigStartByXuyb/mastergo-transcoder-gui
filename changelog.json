@@ -1,5 +1,21 @@
 [
   {
+    "version": "0.6.45",
+    "date": "2026-10-06",
+    "notes": [
+      "接入 winget：发布时自动生成三个清单文件（portable 包，入口就是包里的 mastergo-transcoder.exe），随 Release 一起发；客户机之后可以 `winget install BigStart.MasterGoTranscoder`，不跑任何安装程序",
+      "清单里的包地址默认指向本仓库的 release；回公司换成公司 GitLab / 内网目录时只改一个参数：`node scripts/winget-manifest.js --base https://git.公司.com/组/仓库`",
+      "清单里的版本号取 package.json、sha256 是现算的 zip 哈希、入口固定指向启动器 —— 都不接受手填，包换了就重生成",
+      "单测与 winget 自己的模式校验都过了（`winget validate` 通过）"
+    ],
+    "features": [
+      {
+        "id": "winget-manifest",
+        "label": "winget：发布时生成清单，客户一条命令装（基址可换公司地址）"
+      }
+    ]
+  },
+  {
     "version": "0.6.44",
     "date": "2026-10-06",
     "notes": [

@@ -87,6 +87,31 @@ Release 上有两种东西：
 
 ## 四、更新与回退
 
+## 三之一、用 winget 装（推荐给批量发放）
+
+winget 装的是 portable 包：**下载 zip → 解压到它自己的包目录 → 把 `mastergo-transcoder.exe` 链进 PATH**，
+不跑任何安装程序 —— 保密环境里也一样。
+
+```powershell
+winget install BigStart.MasterGoTranscoder
+```
+
+装完在任意目录敲 `mastergo-transcoder` 就能起。清单从哪儿来、包从哪儿下，有两条路：
+
+| 场景 | 包地址（清单里的 InstallerUrl） | 客户机怎么拿到清单 |
+| --- | --- | --- |
+| 现在（测试期，GitHub） | 本仓库的 release：`…/releases/download/v<版本>/mastergo-transcoder-gui-<版本>.zip` | 发布时生成的三个 YAML 随 Release 一起发；也可以把清单提 PR 到 `winget-pkgs`，之后客户 `winget install BigStart.MasterGoTranscoder` 直接可用 |
+| 回公司后（内网） | 公司 GitLab / 内网目录里那个 zip 的地址 | 把那三个 YAML 放内网，客户 `winget install --manifest <目录>`（需管理员开 `LocalManifestFiles`）；由 IT 建内网源则更省事 |
+
+**换成公司地址只改一个参数**（发布那一步已经在跑这条命令）：
+
+```powershell
+node scripts/winget-manifest.js --base https://git.公司.com/组/仓库
+```
+
+清单里的版本号取 `package.json`、哈希是现算的 zip sha256、入口固定指向包里的 `mastergo-transcoder.exe` ——
+这三样不接受手填，包换了就重新生成一次。
+
 **更新从哪儿来**：设置 → 更新 → 「程序更新」卡片里那一行 **更新来源** → **修改发布源**。默认是内置的 GitHub 仓库（发布侧在打 tag 时把清单与文件传上去）；
 客户环境可以改成自己的 GitLab（填项目地址，走通用包）或内网静态目录（把发布产物铺到那个目录即可）。
 私有源另填一个只读 token（DPAPI 加密存本机）。三种源共用同一套协议：**一份清单 + 按文件哈希取差异**，
