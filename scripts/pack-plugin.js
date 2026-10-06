@@ -84,9 +84,17 @@ function pack(args, pin) {
   if (where.name !== PLUGIN_NAME) {
     throw new Error("pin 的 path 里那个目录要叫 " + PLUGIN_NAME + "（市场按这个名字认插件）：" + pin.dir);
   }
-  // 客户端是靠这个标记文件认出「这是一份插件根」的：打之前先确认它在，别发一个客户端认不出的包。
+  // 客户端是靠这个标记文件认出「这是一份插件根」的（判据同样是「它是个文件」）：
+  // 打之前先按同一条判据确认，别发一个客户端认不出的包。
   const markerPath = path.join(repoDir, pin.dir, PLUGIN_MARKER);
-  if (!fs.existsSync(markerPath)) {
+  let markerIsFile = false;
+  try {
+    markerIsFile = fs.statSync(markerPath).isFile();
+  }
+  catch {
+    markerIsFile = false;
+  }
+  if (!markerIsFile) {
     throw new Error("这个 tag 里没有 " + PLUGIN_MARKER + "，客户端认不出它是一份插件：" + pin.dir);
   }
 

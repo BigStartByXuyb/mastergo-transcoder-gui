@@ -24,6 +24,7 @@ const source = require("../lib/source.js");
 
 const PACK = path.join(ROOT, "scripts", "pack-plugin.js");
 const WORKFLOW = fs.readFileSync(path.join(ROOT, ".github", "workflows", "ci.yml"), "utf8");
+const MARKER_PARTS = String(pluginRoot.PLUGIN_MARKER).split(/[\\/]/);
 
 function node(args, options) {
   return execFileSync(process.execPath, args, Object.assign({ encoding: "utf8" }, options || {}));
@@ -45,8 +46,8 @@ function makePluginRepo(baseDir, version, options) {
   fs.mkdirSync(path.join(dir, ".claude-plugin"), { recursive: true });
   fs.writeFileSync(path.join(dir, ".claude-plugin", "plugin.json"), JSON.stringify({ name: pkg.PLUGIN_NAME, version: version }));
   if (withMarker) {
-    fs.mkdirSync(path.join(dir, "skills", "mastergo-to-wpf"), { recursive: true });
-    fs.writeFileSync(path.join(dir, "skills", "mastergo-to-wpf", "SKILL.md"), "# 夹具\n");
+    fs.mkdirSync(path.join(dir, ...MARKER_PARTS.slice(0, -1)), { recursive: true });
+    fs.writeFileSync(path.join(dir, ...MARKER_PARTS), "# 夹具\n");
   }
   git(repo, ["init", "-q"]);
   git(repo, ["config", "user.email", "ci@example.com"]);
