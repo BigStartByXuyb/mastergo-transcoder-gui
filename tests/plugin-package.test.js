@@ -2,9 +2,9 @@
 "use strict";
 
 /*
- * 插件发布件的约定：名字只在 lib/plugin-package.js 一处，钉哪一版只在 plugin-pin.json 一处。
+ * 插件发布件的约定：名字由打包脚本与 lib/plugin-root.js 定，钉哪一版只在 plugin-pin.json 一处。
  * 门禁不只做文本匹配 —— 这里造一个临时的插件仓库当夹具，真的调一遍打包脚本，
- * 核对产出的 zip 与清单、可复现的哈希、以及「tag 与插件自己声明的版本对不上就打不出来」。
+ * 核对产出的 zip 与清单、可复现的哈希，以及两条会拦下来的情况（tag 与声明版本对不上、缺标记文件）。
  *
  * 跑法：node tests/plugin-package.test.js
  */
@@ -17,14 +17,14 @@ const path = require("path");
 const { execFileSync } = require("child_process");
 
 const ROOT = path.join(__dirname, "..");
-const pkg = require("../lib/plugin-package.js");
+const pkg = require("../scripts/pack-plugin.js");
 const pin = require("../plugin-pin.json");
 const pluginRoot = require("../lib/plugin-root.js");
 const source = require("../lib/source.js");
 
 const PACK = path.join(ROOT, "scripts", "pack-plugin.js");
 const WORKFLOW = fs.readFileSync(path.join(ROOT, ".github", "workflows", "ci.yml"), "utf8");
-const MARKER_PARTS = String(pkg.PLUGIN_MARKER).split(/[\\/]/);
+const MARKER_PARTS = String(pluginRoot.PLUGIN_MARKER).split(/[\\/]/);
 
 function node(args, options) {
   return execFileSync(process.execPath, args, Object.assign({ encoding: "utf8" }, options || {}));
@@ -42,9 +42,9 @@ function sha256(file) {
 function makePluginRepo(baseDir, version, options) {
   const withMarker = !options || options.marker !== false;
   const repo = path.join(baseDir, "plugin-repo-" + version + (withMarker ? "" : "-nomarker"));
-  const dir = path.join(repo, "plugins", pkg.PLUGIN_NAME);
+  const dir = path.join(repo, "plugins", pluginRoot.PLUGIN_NAME);
   fs.mkdirSync(path.join(dir, ".claude-plugin"), { recursive: true });
-  fs.writeFileSync(path.join(dir, ".claude-plugin", "plugin.json"), JSON.stringify({ name: pkg.PLUGIN_NAME, version: version }));
+  fs.writeFileSync(path.join(dir, ".claude-plugin", "plugin.json"), JSON.stringify({ name: pluginRoot.PLUGIN_NAME, version: version }));
   if (withMarker) {
     fs.mkdirSync(path.join(dir, ...MARKER_PARTS.slice(0, -1)), { recursive: true });
     fs.writeFileSync(path.join(dir, ...MARKER_PARTS), "# 夹具\n");
@@ -60,7 +60,7 @@ function makePluginRepo(baseDir, version, options) {
 
 function writePin(baseDir, repo, tag) {
   const file = path.join(baseDir, "pin.json");
-  fs.writeFileSync(file, JSON.stringify({ repo: repo, tag: tag, path: "plugins/" + pkg.PLUGIN_NAME }));
+  fs.writeFileSync(file, JSON.stringify({ repo: repo, tag: tag, path: "plugins/" + pluginRoot.PLUGIN_NAME }));
   return file;
 }
 
@@ -80,7 +80,7 @@ function packTwice() {
 function packInto(base) {
   const repo = makePluginRepo(base, "1.2.3");
   // 同一个夹具上顺手验一下判据的正例：打包侧用的是客户端那条「是不是插件根」。
-  assert.strictEqual(pkg.isPluginRoot(path.join(repo, "plugins", pkg.PLUGIN_NAME)), true, "夹具应当是插件根");
+  assert.strictEqual(pluginRoot.isPluginRoot(path.join(repo, "plugins", pluginRoot.PLUGIN_NAME)), true, "夹具应当是插件根");
   const pinFile = writePin(base, repo, "v1.2.3");
   const out = path.join(base, "out");
   const args = [PACK, "--repo-dir", repo, "--out", out, "--pin", pinFile];
@@ -98,7 +98,7 @@ function packInto(base) {
   const manifestFile = path.join(out, pkg.MANIFEST_FILE);
   const zipFile = path.join(out, pkg.zipName("1.2.3"));
   const first = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
-  assert.strictEqual(first.name, pkg.PLUGIN_NAME);
+  assert.strictEqual(first.name, pluginRoot.PLUGIN_NAME);
   assert.strictEqual(first.version, "1.2.3");
   assert.strictEqual(first.tag, "v1.2.3");
   assert.strictEqual(first.zip.name, pkg.zipName("1.2.3"));
@@ -127,8 +127,7 @@ function packInto(base) {
 }
 
 function main() {
-  assert.strictEqual(pkg.PLUGIN_NAME, pluginRoot.PLUGIN_NAME, "插件名只有 lib/plugin-root.js 一处定义");
-  assert.strictEqual(pkg.zipName("1.2.3"), pkg.PLUGIN_NAME + "-1.2.3.zip", "zip 名字由插件名与版本拼出");
+  assert.strictEqual(pkg.zipName("1.2.3"), pluginRoot.PLUGIN_NAME + "-1.2.3.zip", "zip 名字由插件名与版本拼出");
   assert.ok(pkg.MANIFEST_FILE.endsWith(".json"), "清单是 json");
 
   // pin 只属于发布流程：填全、形状对，而且里面那个目录名必须就是插件名（不然两处名字会各说各话）。
@@ -139,26 +138,13 @@ function main() {
     source.parseSource({ kind: "github", base: String(pin.repo).trim().replace(/\/+$/, "") }) != null,
     "pin 的仓库要是一个能被发布源接受的基址：" + pin.repo
   );
-  assert.strictEqual(String(pin.path).split("/").pop(), pkg.PLUGIN_NAME, "pin 的 path 里那个目录要叫 " + pkg.PLUGIN_NAME);
-
-  // 随客户端发货的运行时代码不许依赖运行树以外的文件：把这两个 lib 模块单独拷出来加载一遍，
-  // 旁边没有 plugin-pin.json —— 能加载就说明它真的不依赖那份不随包发的配置。
-  const runtime = fs.mkdtempSync(path.join(os.tmpdir(), "mgtg-runtime-"));
-  try {
-    fs.copyFileSync(path.join(ROOT, "lib", "plugin-package.js"), path.join(runtime, "plugin-package.js"));
-    fs.copyFileSync(path.join(ROOT, "lib", "plugin-root.js"), path.join(runtime, "plugin-root.js"));
-    const loaded = require(path.join(runtime, "plugin-package.js"));
-    assert.strictEqual(loaded.PLUGIN_NAME, pkg.PLUGIN_NAME, "运行时代码单独加载也要能用");
-  }
-  finally {
-    fs.rmSync(runtime, { recursive: true, force: true });
-  }
+  assert.strictEqual(String(pin.path).split("/").pop(), pluginRoot.PLUGIN_NAME, "pin 的 path 里那个目录要叫 " + pluginRoot.PLUGIN_NAME);
 
   // 发布流程取 pin 用的就是这一条命令：跑一遍，保证接线是通的。
   const printed = node([PACK, "--print-pin"]).trim().split("\n");
   assert.deepStrictEqual(
     printed,
-    [String(pin.repo).trim().replace(/\/+$/, ""), String(pin.tag).trim()],
+    ["repo=" + String(pin.repo).trim().replace(/\/+$/, ""), "tag=" + String(pin.tag).trim()],
     "打包脚本报出的 pin 要与 plugin-pin.json 一致"
   );
   assert.ok(WORKFLOW.indexOf("pack-plugin.js") >= 0, "发布流程要调插件打包脚本");

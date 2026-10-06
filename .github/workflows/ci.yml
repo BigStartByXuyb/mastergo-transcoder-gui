@@ -133,8 +133,15 @@ jobs:
         run: |
           # pin（哪个仓库、哪个 tag）由打包脚本报出，流程不自己读配置、也不自己拼名字。
           mapfile -t plugin_pin < <(node scripts/pack-plugin.js --print-pin)
-          git clone --depth 1 --branch "${plugin_pin[1]}" "${plugin_pin[0]}" "$RUNNER_TEMP/plugin"
-          # 打包脚本自己报出产物路径，流程不再拼一遍名字（名字只在 lib/plugin-package.js 一处定义）。
+          plugin_repo=""; plugin_tag=""
+          for line in "${plugin_pin[@]}"; do
+            case "$line" in
+              repo=*) plugin_repo="${line#repo=}" ;;
+              tag=*) plugin_tag="${line#tag=}" ;;
+            esac
+          done
+          git clone --depth 1 --branch "$plugin_tag" "$plugin_repo" "$RUNNER_TEMP/plugin"
+          # 打包脚本自己报出产物路径，流程不再拼一遍名字（名字只在打包脚本一处定义）。
           mapfile -t plugin_report < <(node scripts/pack-plugin.js --repo-dir "$RUNNER_TEMP/plugin" --out dist)
           plugin_blobs=()
           plugin_manifest=""
