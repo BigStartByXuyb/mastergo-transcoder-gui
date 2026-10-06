@@ -1,5 +1,22 @@
 [
   {
+    "version": "0.6.44",
+    "date": "2026-10-06",
+    "notes": [
+      "包大不了一点：新增 6.7 MB 的启动器 mastergo-transcoder.exe（不依赖 Node），Node 与 PowerShell 7 仍然不随包发 —— 干净机器第一次跑它，缺什么自己补什么",
+      "启动器的顺序「有就用、没有才下」：① 我们自带那份在就直接起；② 没有就看这台机器 PATH 上的 node（版本够新就用，并写明「这次用的是系统上的 node，版本不受我们控制」）；③ 都没有才下载（约 40 MB）→ 校验 sha256 → 解压到 runtime\\node\\<版本>\\ → 再起",
+      "安装包已经有了就不重复下：启动器先用 runtime\\blobs\\<sha256> 里那份缓存；取不到外网时按「运行环境 → 来源」里配的内网地址取",
+      "start.cmd 仍然保留（它需要 Node）；没有 Node 的机器请双击 mastergo-transcoder.exe",
+      "CI 新增一关专门验启动器：go vet + go test + 交叉编译（推代码时就验，不必等到发版）"
+    ],
+    "features": [
+      {
+        "id": "launcher-bootstrap",
+        "label": "启动器：干净机器双击即可，缺的运行组件自己按配置的源补齐"
+      }
+    ]
+  },
+  {
     "version": "0.6.43",
     "date": "2026-10-06",
     "notes": [

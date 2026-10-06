@@ -38,3 +38,7 @@ runtime/
 # 模型依赖：从 node_modules 收成的压缩件与解出来的那一份（发布时由 CI 现收，不入库）
 vendor/openai.tgz
 vendor/openai/
+
+# 发版时生成的启动器与它的钉死表（构建产物，不进仓库；见 tools/launcher 与 scripts/runtime-assets.js）
+mastergo-transcoder.exe
+runtime-assets.json

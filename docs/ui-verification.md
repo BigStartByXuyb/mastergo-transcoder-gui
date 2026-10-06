@@ -16,6 +16,42 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-10-06 启动器：干净机器双击即可，缺什么自己补（v0.6.44）
+
+### 改了什么
+
+- 新增 `tools/launcher`（Go，stdlib；编译出 6.7 MB 的 `mastergo-transcoder.exe`）：
+  不依赖 Node，**在还没有 Node 的机器上**先把运行时凑齐再拉起客户端。顺序「有就用、没有才下」：
+  ① 我们自带那份（`runtime\node\<版本>\`，按 `current.json` 找）→ ② 系统 PATH 上的 `node`
+  （`node -v` 主版本 ≥ 18 才算，并提示「版本不受我们控制」）→ ③ 都没有才下载
+  → sha256 校验 → 解压（剥掉 zip 第一层）到版本目录 → 写指针 → 建 `current` 链接 → 再起。
+  下载前先看 `runtime\blobs\<sha256>`：同一份内容已经在缓存里就不重复下。
+  多一个 `--check-runtime`：只补齐、不起客户端（排障与自动化用）。
+- `runtime-assets.json`：启动器要用的钉死表（版本/文件名/sha256/官方地址/strip/程序名），
+  由新增的 `scripts/runtime-assets.js` 从 `lib/runtime.js` 的 `TOOLS` 导出 —— 单一来源不变。
+- 两个构建产物进运行树清单（`lib/app-manifest.js`）：`mastergo-transcoder.exe` 与 `runtime-assets.json`，
+  于是 zip 与后续的差分更新都会带上它们；同时进 `.gitignore`（构建产物不进仓库）。
+- CI：release job 在打清单之前 `setup-go` + 交叉编译 + 导出钉死表；另加一个并行 job `launcher`
+  （`go vet` + `go test` + 交叉编译），推代码时就验，不必等发版。
+- `docs/install.md` 第一次跑改成「双击 `mastergo-transcoder.exe`（推荐）」，并写清它补运行时的顺序。
+
+### 为什么
+
+用户的原话：不把 Node 打进 zip，而是启动时检测 ——「有的话就用，没有的话就直接用指令下载」。
+唯一的技术约束是：`start.cmd` 自己就要 Node，机器上没 Node 时它跑不起来，
+所以「启动后检测」必须由一个不依赖 Node 的东西来做 —— 就是这个 exe（6.7 MB，包从 3.4 MB 变约 10 MB，
+而把 Node 打进包要涨到约 40 MB）。
+
+### 点过的东西（本机实测，三条路径）
+
+| 场景 | 观察到 | 结论 |
+| --- | --- | --- |
+| A. 自带那份在（本机现状） | `mastergo-transcoder.exe --check-runtime` → `运行时已就绪：…\runtime\node\24.21.0\node.exe` | 通过 |
+| B. 模拟干净机器（无自带、PATH 里也没有 node）+ 缓存里有那份 zip | `没有找到客户端自带的 Node.js 24.21.0，准备补上` → `安装包已在本地缓存里，直接用` → `校验通过，解压到 runtime\node\24.21.0` → `运行时已就绪`；目录里出现 `24.21.0\`、`current\`、`current.json` | 通过（不联网也走完补齐链） |
+| C. 干净机器但装着系统 node | `这次用系统上装的 Node：C:\Program Files\nodejs\node.exe` + 「版本不受我们控制…」→ 就绪；**没有**产生 `runtime\node\`（没下载） | 通过 |
+| Go 用例 | 剥层解压 + 指针 + `bundledNode` 按指针找回；坏包校验不过要删缓存并报错；有 blob 不再下载；版本号解析 | 通过 |
+| 全量门禁 | 后端 42 条、前端 52 文件 307 条、`tsc`、oxlint、结构检查 PASS | 通过 |
+
 ## 2026-10-06 把「自带」说清楚（v0.6.43）
 
 ### 改了什么（纯文案，不动逻辑）
