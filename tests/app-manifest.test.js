@@ -85,9 +85,13 @@ assert.throws(function () { safeJoin(root, "../outside.js"); }, /运行目录外
 assert.throws(function () { safeJoin(root, path.join("lib", "..", "..", "x.js")); }, /运行目录外/);
 assert.strictEqual(toPosix("a/b"), "a/b");
 
-// 扫一棵树（/ 分隔、字典序）：插件发布件用它；这里按造好的夹具逐项对，不写成恒真式。
-assert.deepStrictEqual(listFilesUnder(root).slice().sort(), listFilesUnder(root), "扫出来的路径按字典序");
-assert.ok(listFilesUnder(root).length > 0, "夹具里应该有文件");
+// 扫一棵树（递归、/ 分隔、字典序）：插件发布件用它。按一棵现造的树逐项对，不看别的夹具的脸色。
+const scanRoot = fs.mkdtempSync(path.join(os.tmpdir(), "gui-scan-"));
+fs.mkdirSync(path.join(scanRoot, "skills"), { recursive: true });
+fs.writeFileSync(path.join(scanRoot, "b.txt"), "b");
+fs.writeFileSync(path.join(scanRoot, "skills", "a.txt"), "a");
+assert.deepStrictEqual(listFilesUnder(scanRoot), ["b.txt", "skills/a.txt"], "递归扫、/ 分隔、字典序");
+fs.rmSync(scanRoot, { recursive: true, force: true });
 
 fs.rmSync(root, { recursive: true, force: true });
 fs.rmSync(remote, { recursive: true, force: true });
