@@ -38,6 +38,8 @@ export function PluginCard() {
 
   const lookup = sources.view ? pluginLookup(sources.view.sources) : { slots: [], rows: [] }
   const selected = lookup.rows.find((row) => row.id === opened) ?? null
+  // 「我指定的那一份」那一刻的处境：与表里那一行同一份结论（这一档被并进哪一行，就看那一行）。
+  const chosenRow = lookup.rows.find((row) => row.members.includes("chosen")) ?? null
   // 有任一半在跑就冻住换一份 / 改发布源这类动作。这里只是布尔语义：
   // 「哪一半的哪个动作在跑」由各自那一半的 busy 字符串回答（不合成成同一个字符串再比对）。
   const frozen = Boolean(sources.busy || update.busy)
@@ -78,7 +80,11 @@ export function PluginCard() {
               <span className="text-sm font-medium">我指定的那一份</span>
               {sources.view.chosen ? (
                 <>
-                  <Badge variant="secondary">正在用</Badge>
+                  {/*
+                    「正在用」不在这一块另判一次：指定了不等于它在生效（那目录里没有插件、或被 --plugin
+                    压过时，生效的是后面某一档）。这一档的处境与表、顺序条读同一份结论（chosenRow）。
+                  */}
+                  {chosenRow ? <SourceStatusBadge row={chosenRow} /> : <Badge variant="outline">没在用</Badge>}
                   <IdentifierText className="text-muted-foreground min-w-0 flex-1 text-xs" text={sources.view.chosen} />
                 </>
               ) : (

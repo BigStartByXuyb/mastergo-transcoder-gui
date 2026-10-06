@@ -65,6 +65,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   `/api/client/restart` 补回 `body: true`（界面按这一页的惯例发空 JSON 体，两边契约一致）。
 - 第七轮复核一条：删掉环境变量路由后 `lib/routes.js` 遗留的未使用 `PLUGIN_NAME` 导入；顺手让「正在用」那句也走
   `sourceStatusText`（徽章两条分支读同一处文案）。
+- 第八轮复核两条：「有没有 token」的回落判断收进 `lib/manifest-fetch.js`（装配处注入的廉价判断优先，
+  两条版本线都只调 `manifestFetch.hasToken()`，不再各写一遍三元）；顶部「我指定的那一份」那颗徽章改读后端结论
+  （`chosenRow`，与表/顺序条同一份），不再「指定了就写正在用」。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。
@@ -89,6 +92,7 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | 同上 | 点「交给客户端找」 | 清掉指定的那一份，回到按顺序自动（顺序条与表随之重排） | 通过 |
 | 同上 | 一处都没有时 | 顶部照常打开，表里逐条列「没有」与各自的路径 | 通过 |
 | 同上 | 指定的那一份正好是自带那份时 | 合成一行「2. 我指定的那一份 / 同时来自：客户端自带」，状态「正在用 是最新 v1.0.371」，动作是 **管理…**；点开后面板里带检查更新 / 下载并安装，并写明「这一份同时也是「客户端自带」那一份」 | 通过 |
+| 同上 | 指定的那一份被 `--plugin` 压过时（另起一份服务带 `--plugin` 指到 Codex 缓存那一份） | 顶部那颗徽章写「可用」而不是「正在用」；顺序条「1. 启动参数 --plugin（正在用）」「2. 我指定的那一份（可用）」，表里也只有 1 那一行标「正在用」（`output/playwright/plugin-page-chosen-not-active.png`） | 通过 |
 
 ### 没点的
 
