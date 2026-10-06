@@ -6,7 +6,8 @@
  *
  * 用法：node scripts/pack-plugin.js --repo-dir <插件仓库的检出目录> [--out dist] [--pin plugin-pin.json]
  *       node scripts/pack-plugin.js --print-pin [--pin plugin-pin.json]   # 按行给出仓库与 tag，自己去检出
- * 结果按「每行一个文件路径」写到标准输出（发布流程直接拿它上传），说明写到标准错误。
+ * 产物按前缀写到标准输出（发布流程按前缀取，不猜行序）：`blob=<zip 路径>`、`manifest=<清单路径>`；
+ * 说明写到标准错误。
  *
  * 内容用 git archive 从钉住的 tag 取：只含那次提交里的文件，条目时间取 commit 时间，
  * 同一个 tag 打出来哈希一致。命令在 plugins/ 目录下跑、路径按「相对当前目录」给 ——
@@ -21,8 +22,14 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { execFileSync } = require("child_process");
-const { PLUGIN_NAME, isPluginRoot, pluginVersionFrom, MANIFEST_FILE, zipName, versionOfTag } = require("../lib/plugin-package.js");
-const { PLUGIN_MARKER } = require("../lib/plugin-root.js");
+const {
+  PLUGIN_NAME,
+  PLUGIN_MARKER,
+  pluginVersionFrom,
+  MANIFEST_FILE,
+  zipName,
+  versionOfTag
+} = require("../lib/plugin-package.js");
 
 // 打哪一版由 pin 文件决定（默认 plugin-pin.json，改它不用改代码）；它只属于发布流程，不进运行树。
 const DEFAULT_PIN = path.join(__dirname, "..", "plugin-pin.json");
@@ -84,31 +91,24 @@ function pack(args, pin) {
   if (where.name !== PLUGIN_NAME) {
     throw new Error("pin 的 path 里那个目录要叫 " + PLUGIN_NAME + "（市场按这个名字认插件）：" + pin.dir);
   }
-  // 客户端是靠这个标记文件认出「这是一份插件根」的：连判据一起复用（isPluginRoot），
-  // 而且与版本门禁一样看钉住的那个 tag —— 同一个包不能一半看检出目录、一半看 tag。
-  const treeDir = path.join(repoDir, pin.dir);
-  let markerAtTag = "";
-  try {
-    // git 里的路径只能用正斜杠（PLUGIN_MARKER 在 Windows 上是反斜杠）。
-    markerAtTag = git(repoDir, ["show", pin.tag + ":" + pin.dir + "/" + PLUGIN_MARKER.replace(/\\/g, "/")]);
-  }
-  catch {
-    markerAtTag = "";
-  }
-  if (!markerAtTag || !isPluginRoot(treeDir)) {
-    throw new Error("这个 tag 里没有 " + PLUGIN_MARKER + "，客户端认不出它是一份插件：" + pin.dir);
-  }
-
-  // 版本以插件自己的清单为准，读法与客户端定位那份完全一样（plugin-root.js 的 pluginVersionFrom）：
-  // tag 与它不一致时宁可打不出包。
-  const declared = pluginVersionFrom(function (rel) {
+  // 读某个路径在钉住的那个 tag 里的内容（git 路径只能用正斜杠）。
+  const readAtTag = function (rel) {
     try {
       return git(repoDir, ["show", pin.tag + ":" + pin.dir + "/" + rel]);
     }
     catch {
       return "";
     }
-  });
+  };
+  // 客户端靠这个标记文件认出「这是一份插件根」：与版本门禁同一个来源（都读 tag），
+  // 有一说一 —— 要发布的是 tag 里的内容，不是检出目录里可能被改过的东西。
+  if (!readAtTag(String(PLUGIN_MARKER).replace(/\\/g, "/"))) {
+    throw new Error("这个 tag 里没有 " + PLUGIN_MARKER + "，客户端认不出它是一份插件：" + pin.dir);
+  }
+
+  // 版本以插件自己的清单为准，读法与客户端定位那份完全一样（plugin-root.js 的 pluginVersionFrom）：
+  // tag 与它不一致时宁可打不出包。
+  const declared = pluginVersionFrom(readAtTag);
   if (String(declared) !== version) {
     throw new Error(pin.tag + " 里的插件版本是 " + declared + "，与标签对不上。");
   }
@@ -135,7 +135,8 @@ function pack(args, pin) {
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
   // 上传方要的是文件名，别在流程里再拼一遍（拼一遍就等于同一件事有两处实现）。
   process.stderr.write("插件包已生成：" + zipPath + "（" + manifest.version + "）\n");
-  process.stdout.write(zipPath + "\n" + manifestPath + "\n");
+  // 按名字报产物（上传方按前缀取，不去猜行序）：包在前，清单在后。
+  process.stdout.write("blob=" + zipPath + "\n" + "manifest=" + manifestPath + "\n");
 }
 
 function main() {

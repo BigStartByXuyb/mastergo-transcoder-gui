@@ -24,7 +24,7 @@ const source = require("../lib/source.js");
 
 const PACK = path.join(ROOT, "scripts", "pack-plugin.js");
 const WORKFLOW = fs.readFileSync(path.join(ROOT, ".github", "workflows", "ci.yml"), "utf8");
-const MARKER_PARTS = String(pluginRoot.PLUGIN_MARKER).split(/[\\/]/);
+const MARKER_PARTS = String(pkg.PLUGIN_MARKER).split(/[\\/]/);
 
 function node(args, options) {
   return execFileSync(process.execPath, args, Object.assign({ encoding: "utf8" }, options || {}));
