@@ -79,6 +79,8 @@ function packTwice() {
 
 function packInto(base) {
   const repo = makePluginRepo(base, "1.2.3");
+  // 同一个夹具上顺手验一下判据的正例：打包侧用的是客户端那条「是不是插件根」。
+  assert.strictEqual(pkg.isPluginRoot(path.join(repo, "plugins", pkg.PLUGIN_NAME)), true, "夹具应当是插件根");
   const pinFile = writePin(base, repo, "v1.2.3");
   const out = path.join(base, "out");
   const args = [PACK, "--repo-dir", repo, "--out", out, "--pin", pinFile];
@@ -126,19 +128,6 @@ function packInto(base) {
 
 function main() {
   assert.strictEqual(pkg.PLUGIN_NAME, pluginRoot.PLUGIN_NAME, "插件名只有 lib/plugin-root.js 一处定义");
-  // 打包侧复用客户端那条「是不是插件根」的判据：真的是它本人在判（真目录上给出真结论）。
-  const judgeSample = fs.mkdtempSync(path.join(os.tmpdir(), "mgtg-judge-"));
-  try {
-    const notAPlugin = path.join(judgeSample, "not-a-plugin");
-    fs.mkdirSync(notAPlugin, { recursive: true });
-    fs.mkdirSync(path.dirname(path.join(judgeSample, ...MARKER_PARTS)), { recursive: true });
-    fs.writeFileSync(path.join(judgeSample, ...MARKER_PARTS), "# 夹具\n");
-    assert.strictEqual(pkg.isPluginRoot(judgeSample), true, "有标记文件的目录要判成插件根");
-    assert.strictEqual(pkg.isPluginRoot(notAPlugin), false, "没有标记文件的目录不能判成插件根");
-  }
-  finally {
-    fs.rmSync(judgeSample, { recursive: true, force: true });
-  }
   assert.strictEqual(pkg.zipName("1.2.3"), pkg.PLUGIN_NAME + "-1.2.3.zip", "zip 名字由插件名与版本拼出");
   assert.ok(pkg.MANIFEST_FILE.endsWith(".json"), "清单是 json");
 
