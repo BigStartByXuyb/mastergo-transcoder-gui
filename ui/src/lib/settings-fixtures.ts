@@ -17,12 +17,21 @@ export const ENGINE = drive("D", "app", "lib", "node-controls.js")
 export const INSTALL_PARENT = drive("D", "app", "plugins")
 export const INSTALLED_ROOT = drive("D", "app", "plugins", "mastergo-wpf-transcoder", "1.0.369")
 
-/** 自带那一份插件的状态：没传覆盖项就是「本地装了 1.0.369，且是最新」。 */
+/** 自带那一份插件的状态：没传覆盖项就是「本地装了 1.0.369，查过远端且是最新」。 */
 export function pluginUpdateFixture(over: Partial<PluginUpdateStatus> = {}): PluginUpdateStatus {
   return {
     state: "up_to_date",
     local: { version: "1.0.369", dir: INSTALLED_ROOT },
-    available: null,
+    // 查过一次、远端就是这一版（「没查过」的用例自己传 available: null）。
+    available: {
+      version: "1.0.369",
+      tag: "v1.0.369",
+      releasedAt: "2026-10-06T00:00:00.000Z",
+      changed: 0,
+      removed: 0,
+      total: 12,
+      checkedAt: "2026-10-06T01:00:00.000Z"
+    },
     error: null,
     task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
     busy: "",

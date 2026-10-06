@@ -46,17 +46,27 @@ export function describePluginInstall(status: PluginUpdateStatus | null): Plugin
       canInstall: true
     }
   }
-  if (!status.local.version) {
-    // 没查过（或启动时那次静默检查没成）就是这样：先让人点「检查更新」。
+  /*
+   * 没有远端信息（一次都没查成：离线首启，或启动时那次静默检查没成）时，别说「是最新」——
+   * 本地有没有装分成两句，都说清「还没检查过」，人知道该点「检查更新」。
+   */
+  if (!status.available) {
     return {
-      label: "还没装",
+      label: status.local.dir ? (status.local.version ? "已装 v" + status.local.version : "已装（读不出版本）") : "还没装",
       tone: "outline",
-      note: "先点「检查更新」，看发布源里有没有插件发布件。",
-      action: "下载并安装",
+      note: "还没检查过远端：点「检查更新」，看发布源里有没有插件发布件。",
+      action: status.local.dir ? "先检查更新" : "下载并安装",
       canInstall: false
     }
   }
-  return { label: "是最新 v" + status.local.version, tone: "outline", note: "", action: "已是最新版", canInstall: false }
+  // 走到这里：远端清单在，且不比本地新 —— 本地读得出版本才说得上「是最新」。
+  return {
+    label: status.local.version ? "是最新 v" + status.local.version : "已装",
+    tone: "outline",
+    note: "",
+    action: "已是最新版",
+    canInstall: false
+  }
 }
 
 /* 差了几个文件：本地一份都没有就按全部文件说，本地有一版就按改动说。 */

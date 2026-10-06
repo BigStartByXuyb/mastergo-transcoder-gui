@@ -29,6 +29,9 @@ const avail = {
   checkedAt: "2026-10-06T01:00:00.000Z"
 }
 
+// 查过、远端就是本地这一版：说「是最新」要凭这个，不能凭「没查过」。
+const availSame = { ...avail, version: "1.0.371", tag: "v1.0.371", changed: 0 }
+
 describe("describePluginInstall", () => {
   it("没读到状态时说读取中，且不让装", () => {
     const summary = describePluginInstall(null)
@@ -54,16 +57,30 @@ describe("describePluginInstall", () => {
   })
 
   it("已是最新：不给装，按钮写「已是最新版」", () => {
-    const summary = describePluginInstall(status())
+    const summary = describePluginInstall(status({ available: availSame }))
     expect(summary.label).toBe("是最新 v1.0.371")
     expect(summary.action).toBe("已是最新版")
     expect(summary.canInstall).toBe(false)
   })
 
-  it("没查过（或启动那次没查成）：先让人点检查更新", () => {
-    const summary = describePluginInstall(status({ local: { version: "", dir: "" } }))
+  it("一次都没查成、本地也没有：说还没装，让人点检查更新", () => {
+    const summary = describePluginInstall(status({ local: { version: "", dir: "" }, available: null }))
     expect(summary.label).toBe("还没装")
     expect(summary.note).toContain("检查更新")
+    expect(summary.canInstall).toBe(false)
+  })
+
+  it("一次都没查成、但本地已装：不能说「是最新」，让人先去查", () => {
+    const summary = describePluginInstall(status({ available: null }))
+    expect(summary.label).toBe("已装 v1.0.371")
+    expect(summary.action).toBe("先检查更新")
+    expect(summary.note).toContain("还没检查过远端")
+    expect(summary.canInstall).toBe(false)
+  })
+
+  it("装了但读不出版本（插件清单里没写版本号）：照实说", () => {
+    const summary = describePluginInstall(status({ local: { version: "", dir: LOCAL_DIR }, available: null }))
+    expect(summary.label).toBe("已装（读不出版本）")
     expect(summary.canInstall).toBe(false)
   })
 

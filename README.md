@@ -113,11 +113,14 @@ lib/launch.js       读 current.json，判断那一份能不能跑
 插件根的查找顺序：
 
 1. `--plugin <目录>`
-2. 环境变量 `MASTERGO_PLUGIN_ROOT`
-3. `<CODEX_HOME>/plugins/{cache,marketplaces}` 下的同名插件（有版本目录时取最高版本）
-4. `~/.claude/plugins/{cache,marketplaces}` 下的同名插件（同上）
+2. 设置里选的那一份
+3. 环境变量 `MASTERGO_PLUGIN_ROOT`
+4. `<CODEX_HOME>/plugins/{cache,marketplaces}` 下的同名插件（有版本目录时取最高版本）
+5. `~/.claude/plugins/{cache,marketplaces}` 下的同名插件（同上）
+6. 客户端自带的 `plugins/`（客户端能给自己装一份，见下一段）
 
-四项都没命中时**直接失败并报告已查找的路径**，不回退到自带副本。
+六项都没命中时**直接失败并报告已查找的路径**：客户端不随包（zip）分发插件，要用自带那一份就按下一段自己装；
+插件本体一条实现仍然只在插件仓库那一处，本仓库不自带引擎副本。
 
 「客户端自带」那一份不用先装 Codex / Claude：设置 → 更新 → 插件（流水线）里「下载并安装」，
 客户端按发布件里的 `plugin-manifest.json`（与客户端本体同一套协议：一份清单 + 按 sha256 取文件）
