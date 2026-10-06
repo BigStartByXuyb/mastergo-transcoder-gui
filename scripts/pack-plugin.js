@@ -27,7 +27,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { execFileSync } = require("child_process");
 // 判据只有一处实现（lib/plugin-root.js）：这里直接用它的公开函数，不再另建一层转口。
-const { PLUGIN_NAME, PLUGIN_MARKER, pluginRootsUnder, pluginVersionOf } = require("../lib/plugin-root.js");
+const { PLUGIN_NAME, PLUGIN_MARKER, isPluginRoot, pluginVersionOf } = require("../lib/plugin-root.js");
 
 // 发布件的名字只属于发布流程（不进运行树，客户端那半接的时候按同一套协议另说）。
 const MANIFEST_FILE = "plugin-manifest.json";
@@ -108,10 +108,9 @@ function pack(args, pin) {
     const tarball = path.join(staging, "tree.tar");
     git(repoDir, ["archive", "--format=tar", pin.tag, where.parts.join("/"), "-o", tarball]);
     execFileSync("tar", ["-xf", tarball, "-C", staging], { windowsHide: true });
-    // 要发布的那棵树就是 pin 指的那一个：用定位那份的公开函数判「它自己是不是插件根」。
+    // 要发布的那棵树就是 pin 指的那一个：用定位那份的同一条判据（标记文件在不在）。
     const treeDir = path.join(staging, ...where.parts);
-    const roots = pluginRootsUnder(treeDir);
-    if (!roots.length || path.resolve(roots[0]) !== path.resolve(treeDir)) {
+    if (!isPluginRoot(treeDir)) {
       throw new Error("这个 tag 里没有 " + PLUGIN_MARKER + "，客户端认不出它是一份插件：" + pin.dir);
     }
     const declared = pluginVersionOf(treeDir);

@@ -80,7 +80,7 @@ function packTwice() {
 function packInto(base) {
   const repo = makePluginRepo(base, "1.2.3");
   // 同一个夹具上顺手验一下判据的正例：打包侧用的是客户端那条「是不是插件根」。
-  assert.strictEqual(pluginRoot.pluginRootsUnder(path.join(repo, "plugins", pluginRoot.PLUGIN_NAME)).length, 1, "夹具应当是插件根");
+  assert.strictEqual(pluginRoot.isPluginRoot(path.join(repo, "plugins", pluginRoot.PLUGIN_NAME)), true, "夹具应当是插件根");
   const pinFile = writePin(base, repo, "v1.2.3");
   const out = path.join(base, "out");
   const args = [PACK, "--repo-dir", repo, "--out", out, "--pin", pinFile];
