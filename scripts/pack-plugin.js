@@ -5,6 +5,7 @@
  * 打插件发布件：<插件名>-<版本>.zip + plugin-manifest.json。发布流程在打 tag 时调它。
  *
  * 用法：node scripts/pack-plugin.js --repo-dir <插件仓库的检出目录> [--out dist]
+ *       node scripts/pack-plugin.js --print-pin          # 发布流程用：按行给出仓库与 tag，自己去检出
  * 结果按「每行一个文件路径」写到标准输出（发布流程直接拿它上传），说明写到标准错误。
  *
  * 内容用 git archive 从钉住的 tag 取：只含那次提交里的文件，条目时间取 commit 时间，
@@ -30,20 +31,27 @@ const PLUGIN_DIR = String(PIN.path || "").trim().replace(/^\/+|\/+$/g, "");
 
 function usage(message) {
   if (message) process.stderr.write(message + "\n");
-  process.stderr.write("用法：node scripts/pack-plugin.js --repo-dir <插件仓库的检出目录> [--out dist]\n");
+  process.stderr.write(
+    "用法：node scripts/pack-plugin.js --repo-dir <插件仓库的检出目录> [--out dist]\n" +
+    "      node scripts/pack-plugin.js --print-pin\n"
+  );
   process.exit(2);
 }
 
 function parseArgs(argv) {
-  const out = { repoDir: "", out: "dist" };
+  const out = { repoDir: "", out: "dist", printPin: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
+    if (arg === "--print-pin") {
+      out.printPin = true;
+      continue;
+    }
     if (arg === "--repo-dir") out.repoDir = String(argv[i + 1] || "");
     else if (arg === "--out") out.out = String(argv[i + 1] || "");
     else usage("认不出的参数：" + arg);
     i += 1;
   }
-  if (!out.repoDir) usage("要给 --repo-dir：插件仓库的检出目录。");
+  if (!out.printPin && !out.repoDir) usage("要给 --repo-dir：插件仓库的检出目录。");
   return out;
 }
 
@@ -65,6 +73,11 @@ function splitPluginDir(dir) {
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
+  // 发布流程先问这一句「打的是哪个仓库、哪个 tag」，再自己去检出：pin 只在 plugin-pin.json 一处。
+  if (args.printPin) {
+    process.stdout.write(PLUGIN_REPO + "\n" + PLUGIN_TAG + "\n");
+    return;
+  }
   const repoDir = path.resolve(args.repoDir);
   if (!fs.existsSync(repoDir)) throw new Error("插件仓库的检出目录不存在：" + repoDir);
   const version = versionOfTag(PLUGIN_TAG);

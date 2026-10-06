@@ -131,9 +131,9 @@ jobs:
       # 与客户端的发布件放同一个 Release —— 客户机因此只需要配一个发布源。
       - name: Pack the plugin release
         run: |
-          pin_tag="$(node -p "require('./lib/plugin-package.js').PLUGIN_TAG")"
-          pin_repo="$(node -p "require('./lib/plugin-package.js').PLUGIN_REPO")"
-          git clone --depth 1 --branch "$pin_tag" "$pin_repo" "$RUNNER_TEMP/plugin"
+          # pin（哪个仓库、哪个 tag）由打包脚本报出，流程不自己读配置、也不自己拼名字。
+          mapfile -t plugin_pin < <(node scripts/pack-plugin.js --print-pin)
+          git clone --depth 1 --branch "${plugin_pin[1]}" "${plugin_pin[0]}" "$RUNNER_TEMP/plugin"
           # 打包脚本自己报出产物路径，流程不再拼一遍名字（名字只在 lib/plugin-package.js 一处定义）。
           mapfile -t plugin_assets < <(node scripts/pack-plugin.js --repo-dir "$RUNNER_TEMP/plugin" --out dist)
           gh release upload "$GITHUB_REF_NAME" "${plugin_assets[@]}" --clobber

@@ -10,6 +10,7 @@
  */
 
 const assert = require("assert");
+const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
@@ -36,6 +37,12 @@ function main() {
     packaged.indexOf('require("../plugin-pin.json")') < 0,
     "运行时代码不 require 发布流程的 pin 文件（它不随包发）"
   );
+
+  // 发布流程取 pin 用的就是这一条命令：这里跑一遍，保证接线是通的（不是只看流程文本里有没有那个名字）。
+  const printed = execFileSync(process.execPath, [path.join(ROOT, "scripts", "pack-plugin.js"), "--print-pin"], {
+    encoding: "utf8"
+  }).trim().split("\n");
+  assert.deepStrictEqual(printed, [String(pin.repo).trim().replace(/\/+$/, ""), String(pin.tag).trim()], "打包脚本报出的 pin 要与 plugin-pin.json 一致");
   assert.strictEqual(pkg.zipName("1.2.3"), pkg.PLUGIN_NAME + "-1.2.3.zip", "zip 名字由插件名与版本拼出");
 
   // 「插件自己声明的版本」只有一条读法：先 .claude-plugin，再回落 .codex-plugin；坏 JSON 不炸、继续试下一个。
