@@ -1,5 +1,20 @@
 [
   {
+    "version": "0.6.48",
+    "date": "2026-10-06",
+    "notes": [
+      "新增 docs/winget-publish.md：把「用 winget 装」两条路写清 —— 公网提交到 winget-pkgs（用 wingetcreate submit，谁提交、要什么账号、之后怎么发新版）与内网建源（官方 REST 源样例 + 客户机 source add；或管理员开 LocalManifestFiles 走 --manifest）",
+      "说明白「客户机能装」与「包放在哪」是两件事：包地址在清单里（InstallerUrl），源地址在客户机的 winget 配置里 —— 保密机连不上公网源，就必须走内网源那条",
+      "安装文档里那处提示补上指向：两条路的落地细节看新文档"
+    ],
+    "features": [
+      {
+        "id": "winget-publish-doc",
+        "label": "winget 两条路的落地说明（公网 winget-pkgs / 内网 REST 源）"
+      }
+    ]
+  },
+  {
     "version": "0.6.47",
     "date": "2026-10-06",
     "notes": [

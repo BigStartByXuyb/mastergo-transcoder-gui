@@ -91,6 +91,7 @@ Release 上有两种东西：
 > winget 只从它配置的源里找包，而我们的清单目前只是 Release 上的附件，没进任何源。
 > 想让它一条命令就用，要么把清单提交到公网 `winget-pkgs`（要过审核），要么由 IT 在内网建一个 winget 源。
 > **今天就要装**请用下面「一条命令装」那一节（不需要管理员、不需要 winget 源）。
+> 两条路各自怎么落地（谁做什么、用什么命令）见 `docs/winget-publish.md`。
 
 winget 装的是 portable 包：**下载 zip → 解压到它自己的包目录 → 把 `mastergo-transcoder.exe` 链进 PATH**，
 不跑任何安装程序 —— 保密环境里也一样。
