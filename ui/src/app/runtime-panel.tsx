@@ -22,6 +22,7 @@ import {
 } from "@/lib/runtime-state"
 import { failureText } from "@/lib/describe-failure"
 import { useStatusPoll } from "@/app/use-status-poll"
+import { useActionRunner } from "@/app/use-action-runner"
 
 /*
  * 运行时这一段（挂在「运行环境」页那张卡里）：跑插件的 Node.js 与 PowerShell 7 各钉死一份放进
@@ -56,14 +57,15 @@ export function RuntimePanel() {
     onError: setProbe
   })
 
+  // 下载也走同一条动作骨架（骨架在 use-action-runner）：状态由 act 套用，这里只按 kind 落地。
+  const act = useActionRunner<RuntimeStatus>({ setWorking, setFailure, setStatus })
+
   async function download(tool: RuntimeId) {
-    setWorking(tool)
-    setFailure("")
-    const got = await startDownload(function () {
-      return api.runtimeDownload(tool)
-    })
-    finishDownload(got, { setStatus, setFailure })
-    setWorking("")
+    await act(
+      tool,
+      () => startDownload(() => api.runtimeDownload(tool)),
+      (payload) => finishDownload(payload, { setFailure })
+    )
   }
 
   const summary = describeRuntime(status)

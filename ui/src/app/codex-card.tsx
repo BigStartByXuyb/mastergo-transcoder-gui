@@ -43,13 +43,12 @@ export function CodexCard() {
   const act = useActionRunner<CodexStatus>({ setWorking, setFailure, setStatus })
 
   async function download() {
-    setWorking("download")
-    setFailure("")
-    const got = await startDownload(function () {
-      return api.codexDownload()
-    })
-    finishDownload(got, { setStatus, setFailure })
-    setWorking("")
+    // 下载也走同一条动作骨架：状态由 act 套用，这里只按 kind 落地（失败写红字、本来就有说一句）。
+    await act(
+      "download",
+      () => startDownload(() => api.codexDownload()),
+      (payload) => finishDownload(payload, { setFailure })
+    )
   }
 
   const summary = describeEngine(status)

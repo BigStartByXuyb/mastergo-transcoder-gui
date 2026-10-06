@@ -111,10 +111,15 @@ function stub(
     updateAfterInstall?: PluginUpdateStatus
     onInstall?: () => void
     onCheck?: () => void
+    onSources?: () => void
   } = {}
 ) {
   vi.stubGlobal("fetch", (_input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(_input)
+    if (url.includes("/api/plugin/sources")) {
+      hooks.onSources?.()
+      return Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }))
+    }
     if (url.includes("/api/plugin/update/status")) {
       return Promise.resolve(new Response(JSON.stringify({ ok: true, status: hooks.update ?? pluginUpdateFixture() }), { status: 200 }))
     }
@@ -362,5 +367,21 @@ describe("PluginCard", () => {
     render(<PluginCard />)
     await waitFor(() => expect(screen.getByText("检查失败")).toBeTruthy())
     expect(screen.getByText(/plugin-manifest\.json/)).toBeTruthy()
+  })
+
+  it("插件装完（哪怕第一次轮询就已经是完成）会让来源表重读一次", async () => {
+    let sources = 0
+    stub(view({ activeId: "codex-cache" }), {
+      update: pluginUpdateFixture({
+        task: { phase: "done", done: 3, total: 3, downloaded: 3, error: null }
+      }),
+      onSources: () => {
+        sources += 1
+      }
+    })
+    render(<PluginCard />)
+    await waitFor(() => expect(screen.getByText("是最新 v1.0.369")).toBeTruthy())
+    // 第一次是进页面读的；装完那一下要再读一次，表格里「客户端自带」那一行的版本才跟着变。
+    await waitFor(() => expect(sources).toBeGreaterThan(1))
   })
 })

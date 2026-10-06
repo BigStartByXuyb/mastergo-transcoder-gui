@@ -1,5 +1,6 @@
 import { useRef, useState } from "react"
 import { Download, Loader2, RefreshCw } from "lucide-react"
+import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -29,20 +30,21 @@ export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () 
   const transferring = status ? isDownloading(status.task) : false
 
   /*
-   * 「装完了」只认一次：从「在下」变成「下完了」那一下才算（父组件据此重读来源表）。
+   * 「装完了」只认一次：阶段变成 done 那一下（父组件据此重读来源表）。
+   * 不要求先看见「在下」——小插件可能在第一次轮询之前就装完了，那时也要刷新。
    * onInstalled 放 ref 里：轮询的取数路径不跟着父组件的重渲染换闭包。
    */
   const onInstalled = useRef(props.onInstalled)
   onInstalled.current = props.onInstalled
-  const wasTransferring = useRef(false)
+  const lastPhase = useRef("")
 
   useStatusPoll({
     load: () => api.pluginUpdateStatus(),
     working: transferring,
     onData: (payload) => {
-      const running = isDownloading(payload.status.task)
-      if (wasTransferring.current && !running && payload.status.task.phase === "done") onInstalled.current()
-      wasTransferring.current = running
+      const phase = payload.status.task.phase
+      if (phase === "done" && lastPhase.current !== "done") onInstalled.current()
+      lastPhase.current = phase
       setStatus(payload.status)
       setFailure("")
     },
@@ -79,7 +81,8 @@ export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () 
             void act(
               "install",
               () => api.pluginUpdateInstall(),
-              status && status.available ? "开始装插件 v" + status.available.version : "开始装插件"
+              // 后端会说清这次是「起了一条下载」还是「本地已经有这一版」，照它说。
+              (payload) => toast.info(payload.note || (payload.started ? "开始装插件 v" + payload.version : "本地已经有这一版"))
             )
           }
         >
