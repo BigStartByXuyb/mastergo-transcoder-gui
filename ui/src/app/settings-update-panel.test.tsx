@@ -3,7 +3,14 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { SettingsUpdatePanel } from "@/app/settings-update-panel"
 import type { PluginSources, UpdateStatus } from "@/lib/api"
-import { ENGINE, PLUGIN_ROOT, drive, healthFixture, okResponse } from "@/lib/settings-fixtures"
+import {
+  ENGINE,
+  PLUGIN_ROOT,
+  drive,
+  healthFixture,
+  okResponse,
+  pluginUpdateFixture
+} from "@/lib/settings-fixtures"
 
 /*
  * 更新页里的两段切换：客户端与插件（流水线）。
@@ -75,6 +82,7 @@ function stub() {
         })
       }
       if (url.includes("/api/update/status")) return okResponse({ ok: true, status: status() })
+      if (url.includes("/api/plugin/update/status")) return okResponse({ ok: true, status: pluginUpdateFixture() })
       return okResponse({ ok: true })
     })
   )
@@ -103,5 +111,7 @@ describe("SettingsUpdatePanel", () => {
     expect(screen.getByRole("button", { name: /插件（流水线）/ }).getAttribute("aria-current")).toBe("true")
     await waitFor(() => expect(screen.getByText("Codex 插件缓存")).toBeTruthy())
     expect(screen.queryByText("已是最新 v0.6.34")).toBeNull()
+    // 自带那一份的状态也在这段里（客户端能自己装一份插件）。
+    await waitFor(() => expect(screen.getByText("是最新 v1.0.369")).toBeTruthy())
   })
 })

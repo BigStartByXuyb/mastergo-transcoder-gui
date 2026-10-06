@@ -25,6 +25,12 @@ function caseGithub() {
     source.blobUrl(GH, "0.6.30", "abc123"),
     "https://github.com/BigStartByXuyb/mastergo-transcoder-gui/releases/download/v0.6.30/abc123"
   );
+  // 插件那一半按同一套协议换清单名：地址只有文件名不同（最新那份，落在同一个 Release 上）。
+  assert.strictEqual(source.MANIFEST_NAME, "manifest.json");
+  assert.strictEqual(
+    source.manifestUrl(GH, source.PLUGIN_MANIFEST_NAME),
+    "https://github.com/BigStartByXuyb/mastergo-transcoder-gui/releases/latest/download/plugin-manifest.json"
+  );
 }
 
 function caseGitlab() {
@@ -87,6 +93,11 @@ function caseDescribe() {
     // 界面下拉照 kinds 渲染：类型名单只有这一处，前端不另抄一份。
     kinds: ["github", "gitlab", "static"]
   });
+  // 插件那一半的「去哪儿取清单」也由这一处拼：换清单名就换一整套地址。
+  assert.strictEqual(
+    source.describeSource(ST, source.PLUGIN_MANIFEST_NAME).manifestUrl,
+    "http://10.0.0.9/updates/plugin-manifest.json"
+  );
 }
 
 try {

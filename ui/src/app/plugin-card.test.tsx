@@ -2,20 +2,15 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { PluginCard } from "@/app/plugin-card"
-import type { PluginEnvScopes, PluginSources } from "@/lib/api"
+import type { PluginEnvScopes, PluginSources, PluginUpdateStatus } from "@/lib/api"
+import { INSTALLED_ROOT, INSTALL_PARENT, drive, pluginUpdateFixture } from "@/lib/settings-fixtures"
 
-/*
- * 夹具路径按段拼出来：源码里不出现「盘符 + 反斜杠」那种机器专属写法（结构检查会拦）。
- */
-function drive(letter: string, ...parts: string[]): string {
-  return [letter + ":", ...parts].join("\\")
-}
-
+// 夹具路径按段拼（drive 在 settings-fixtures 里）：源码里不出现「盘符 + 反斜杠」那种机器专属写法。
 const CODEX_CACHE = drive("C", "Users", "me", ".codex", "plugins", "cache")
 const CODEX_ROOT = drive("C", "Users", "me", ".codex", "plugins", "cache", "bigstart", "mastergo-wpf-transcoder", "1.0.369")
 const CLAUDE_CACHE = drive("C", "Users", "me", ".claude", "plugins", "cache")
 const CLAUDE_ROOT = drive("C", "Users", "me", ".claude", "plugins", "cache", "bigstart", "mastergo-wpf-transcoder")
-const INSTALL_DIR = drive("D", "app", "plugins")
+const INSTALL_DIR = INSTALL_PARENT
 // 环境变量那几条用例用的路径同样按段拼，别在源码里出现盘符加反斜杠。
 const ENV_OLD = drive("D", "old-plugin")
 const ENV_NEW = drive("D", "new-plugin")
@@ -108,10 +103,37 @@ function scopes(over: Partial<PluginEnvScopes> = {}): PluginEnvScopes {
 
 function stub(
   payload: unknown,
-  hooks: { onChoose?: (body: unknown) => void; onEnv?: (body: unknown) => void; env?: Partial<PluginEnvScopes> } = {}
+  hooks: {
+    onChoose?: (body: unknown) => void
+    onEnv?: (body: unknown) => void
+    env?: Partial<PluginEnvScopes>
+    update?: PluginUpdateStatus
+    updateAfterInstall?: PluginUpdateStatus
+    onInstall?: () => void
+    onCheck?: () => void
+    onSources?: () => void
+  } = {}
 ) {
   vi.stubGlobal("fetch", (_input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(_input)
+    if (url.includes("/api/plugin/sources")) {
+      hooks.onSources?.()
+      return Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }))
+    }
+    if (url.includes("/api/plugin/update/status")) {
+      return Promise.resolve(new Response(JSON.stringify({ ok: true, status: hooks.update ?? pluginUpdateFixture() }), { status: 200 }))
+    }
+    if (url.includes("/api/plugin/update/check")) {
+      hooks.onCheck?.()
+      return Promise.resolve(new Response(JSON.stringify({ ok: true, status: hooks.update ?? pluginUpdateFixture() }), { status: 200 }))
+    }
+    if (url.includes("/api/plugin/update/install")) {
+      hooks.onInstall?.()
+      const next = hooks.updateAfterInstall ?? pluginUpdateFixture()
+      return Promise.resolve(
+        new Response(JSON.stringify({ ok: true, started: true, version: "1.0.372", note: "", status: next }), { status: 200 })
+      )
+    }
     if (url.includes("/api/plugin/choose")) {
       hooks.onChoose?.(JSON.parse(String(init?.body ?? "{}")))
       return Promise.resolve(new Response(JSON.stringify(view({ activeId: "claude-cache", chosen: "picked" })), { status: 200 }))
@@ -274,5 +296,92 @@ describe("PluginCard", () => {
     expect(screen.queryByText("本机指定的位置")).toBeNull()
     expect(screen.getByText("同时来自：设置里选的")).toBeTruthy()
     expect(screen.getAllByText("正在用").length).toBe(1)
+  })
+
+  it("自带那一份没装时：给「下载并安装」，点它去装最新那版", async () => {
+    const asked: string[] = []
+    stub(view({ activeId: "codex-cache" }), {
+      update: pluginUpdateFixture({
+        state: "update_available",
+        local: { version: "", dir: "" },
+        available: {
+          version: "1.0.370",
+          tag: "v1.0.370",
+          releasedAt: "2026-10-06T00:00:00.000Z",
+          changed: 12,
+          removed: 0,
+          total: 12,
+          checkedAt: "2026-10-06T01:00:00.000Z"
+        }
+      }),
+      onInstall: () => asked.push("install")
+    })
+    render(<PluginCard />)
+    await waitFor(() => expect(screen.getByText("有新版 v1.0.370")).toBeTruthy())
+    expect(screen.getByText("远端 v1.0.370，共 12 个文件")).toBeTruthy()
+
+    const install = screen.getByRole("button", { name: "下载并安装" })
+    expect(install.hasAttribute("disabled")).toBe(false)
+    fireEvent.click(install)
+    await waitFor(() => expect(asked).toEqual(["install"]))
+  })
+
+  it("自带那一份已是最新时：不给装，说清现在就是这一版", async () => {
+    stub(view({ activeId: "codex-cache" }), { update: pluginUpdateFixture() })
+    render(<PluginCard />)
+    await waitFor(() => expect(screen.getByText("是最新 v1.0.369")).toBeTruthy())
+    expect(screen.getByRole("button", { name: "已是最新版" }).hasAttribute("disabled")).toBe(true)
+  })
+
+  it("自带那一份装了、但此刻用的不是它：说清去哪一行换过来", async () => {
+    stub(view({ activeId: "codex-cache" }), { update: pluginUpdateFixture() })
+    render(<PluginCard />)
+    await waitFor(() => expect(screen.getByText(/此刻用的不是这一份/)).toBeTruthy())
+  })
+
+  it("正在用的就是自带那一份：直说这一份", async () => {
+    const payload = view({ activeId: "install" })
+    stub(
+      {
+        ...payload,
+        plugin: { ...payload.plugin, root: INSTALLED_ROOT, version: "1.0.369" },
+        sources: payload.sources.map((item) =>
+          item.id === "install"
+            ? { ...item, exists: true, pluginRoot: INSTALLED_ROOT, version: "1.0.369", found: [INSTALLED_ROOT], active: true }
+            : { ...item, active: false }
+        )
+      },
+      { update: pluginUpdateFixture() }
+    )
+    render(<PluginCard />)
+    await waitFor(() => expect(screen.getByText("正在用的就是这一份。")).toBeTruthy())
+  })
+
+  it("检查更新失败时：把后端给的原因照实说出来", async () => {
+    stub(view({ activeId: "codex-cache" }), {
+      update: pluginUpdateFixture({
+        state: "error",
+        error: { code: "HTTP_404", message: "下载失败（HTTP 404）", hint: "…/plugin-manifest.json" }
+      })
+    })
+    render(<PluginCard />)
+    await waitFor(() => expect(screen.getByText("检查失败")).toBeTruthy())
+    expect(screen.getByText(/plugin-manifest\.json/)).toBeTruthy()
+  })
+
+  it("插件装完（哪怕第一次轮询就已经是完成）会让来源表重读一次", async () => {
+    let sources = 0
+    stub(view({ activeId: "codex-cache" }), {
+      update: pluginUpdateFixture({
+        task: { phase: "done", done: 3, total: 3, downloaded: 3, error: null }
+      }),
+      onSources: () => {
+        sources += 1
+      }
+    })
+    render(<PluginCard />)
+    await waitFor(() => expect(screen.getByText("是最新 v1.0.369")).toBeTruthy())
+    // 第一次是进页面读的；装完那一下要再读一次，表格里「客户端自带」那一行的版本才跟着变。
+    await waitFor(() => expect(sources).toBeGreaterThan(1))
   })
 })

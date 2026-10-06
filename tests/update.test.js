@@ -11,7 +11,8 @@ const os = require("os");
 const path = require("path");
 
 const { buildManifest } = require("../lib/app-manifest.js");
-const { createUpdate, compareVersions } = require("../lib/update.js");
+const { createUpdate } = require("../lib/update.js");
+const { compareVersions } = require("../lib/versions.js");
 
 function makeTree(files) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-update-"));
@@ -57,6 +58,8 @@ function remote(root, version, extra) {
         if (buffer) return ok(buffer.toString("utf8"));
         return { ok: false, status: 404 };
       }
+      // 其它某一版的清单：GitHub 上就是 404（这一版没有这个资产）。
+      if (/\/releases\/download\/v[^/]+\/manifest\.json$/.test(url)) return { ok: false, status: 404 };
       return { ok: false, status: 500 };
     }
   };

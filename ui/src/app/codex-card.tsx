@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Bot, Download, Loader2, RefreshCw, RotateCcw, ShieldCheck } from "lucide-react"
-import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -12,11 +11,9 @@ import { api, type CodexStatus } from "@/lib/api"
 import { canDownload, canRollback, canSwitchTo, describeEngine, describeRelease, describeVersion } from "@/lib/codex-state"
 import { finishDownload } from "@/app/download-actions"
 import { startDownload } from "@/lib/download-run"
-import { describeFailure } from "@/lib/describe-failure"
 import { describeTask, isDownloading, taskPercent } from "@/lib/update-state"
-
-const IDLE_POLL_MS = 15000
-const WORKING_POLL_MS = 1000
+import { useActionRunner } from "@/app/use-action-runner"
+import { useStatusPoll } from "@/app/use-status-poll"
 
 /*
  * Codex 引擎：检查有没有新版 → 下载 → 自检 → 切版本 / 回退。
@@ -30,51 +27,28 @@ export function CodexCard() {
 
   const transferring = status ? isDownloading(status.task) : false
 
-  useEffect(() => {
-    let stopped = false
-
-    async function tick() {
-      try {
-        const payload = await api.codexStatus()
-        if (stopped) return
-        setStatus(payload.status)
-        setProbe("")
-      } catch (error) {
-        if (stopped) return
-        setProbe(describeFailure(error))
-      }
-    }
-
-    void tick()
-    const timer = window.setInterval(tick, transferring ? WORKING_POLL_MS : IDLE_POLL_MS)
-    return () => {
-      stopped = true
-      window.clearInterval(timer)
-    }
-  }, [transferring])
-
-  async function act(key: string, run: () => Promise<{ status: CodexStatus }>, done = "") {
-    setWorking(key)
-    setFailure("")
-    try {
-      const payload = await run()
+  useStatusPoll({
+    load: () => api.codexStatus(),
+    working: transferring,
+    // 引擎包是几十兆的大件，进度刷新比别处更勤一点。
+    workingMs: 1000,
+    onData: (payload) => {
       setStatus(payload.status)
-      if (done) toast.success(done)
-    } catch (error) {
-      setFailure(describeFailure(error))
-    } finally {
-      setWorking("")
-    }
-  }
+      setProbe("")
+    },
+    onError: setProbe
+  })
+
+  // 动作骨架在 use-action-runner：置 working → 清旧错 → 跑 → 套用状态 → 提示 → 收尾。
+  const act = useActionRunner<CodexStatus>({ setWorking, setFailure, setStatus })
 
   async function download() {
-    setWorking("download")
-    setFailure("")
-    const got = await startDownload(function () {
-      return api.codexDownload()
-    })
-    finishDownload(got, { setStatus, setFailure })
-    setWorking("")
+    // 下载也走同一条动作骨架：状态由 act 套用，这里只按 kind 落地（失败写红字、本来就有说一句）。
+    await act(
+      "download",
+      () => startDownload(() => api.codexDownload()),
+      (payload) => finishDownload(payload, { setFailure })
+    )
   }
 
   const summary = describeEngine(status)

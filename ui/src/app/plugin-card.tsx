@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Check, FolderSearch, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -11,6 +11,7 @@ import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
 import { PixelLoader } from "@/app/pixel-loader"
 import { PluginEnvPanel } from "@/app/plugin-env-panel"
+import { PluginInstallPanel } from "@/app/plugin-install-panel"
 import { api, type PluginSources } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { groupPluginSources, type PluginSourceRow } from "@/lib/plugin-sources"
@@ -29,19 +30,28 @@ export function PluginCard() {
   const [failure, setFailure] = useState("")
   const [busy, setBusy] = useState("")
 
-  useEffect(() => {
-    let stopped = false
-    async function load() {
-      try {
-        const payload = await api.pluginSources()
-        if (!stopped) setView(payload)
-      } catch (error) {
-        if (!stopped) setFailure(describeFailure(error))
-      }
+  // 卸载之后迟到的响应不再落状态（首次读取与装完刷新走的是同一个 load）。
+  const alive = useRef(true)
+
+  /* 读一遍来源清单：首次进来读一次；装完插件、换过一份之后也要重读（表里那一行的状态跟着变）。 */
+  async function load() {
+    try {
+      const payload = await api.pluginSources()
+      if (!alive.current) return
+      setView(payload)
+      setFailure("")
+    } catch (error) {
+      if (!alive.current) return
+      setFailure(describeFailure(error))
     }
+  }
+
+  useEffect(() => {
+    // StrictMode 下会「挂载 → 卸下 → 再挂载」：这里要重新放行，否则首次读取永远被拦掉。
+    alive.current = true
     void load()
     return () => {
-      stopped = true
+      alive.current = false
     }
   }, [])
 
@@ -106,6 +116,14 @@ export function PluginCard() {
 
         {view && (
           <>
+            {/* 客户端自带的那一份从哪儿来、装到哪儿：装在别处的那几份在下面两张表里。 */}
+            <PluginInstallPanel
+              activeRoot={view.plugin.root}
+              onInstalled={() => {
+                void load()
+              }}
+            />
+
             {/* 两个动作分开：一个让客户端自己按顺序找，一个直接指定位置。 */}
             <div className="grid gap-3 md:grid-cols-2">
               <div className="flex flex-col gap-1 rounded-md border p-3">

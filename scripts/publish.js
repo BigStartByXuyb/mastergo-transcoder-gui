@@ -25,6 +25,7 @@ const path = require("path");
 
 const { buildManifest } = require("../lib/app-manifest.js");
 const { notesOf, notesText } = require("../lib/changelog.js");
+const { MANIFEST_NAME } = require("../lib/source.js");
 const { stageAssets, uploadRelease } = require("./lib/release-assets.js");
 
 const ROOT = path.join(__dirname, "..");
@@ -54,7 +55,7 @@ function main() {
   // 这一版改了什么跟着清单一起发：客户端检查更新时就能显示，不用再多打一次 GitHub API。
   manifest.notes = notesOf(ROOT, pkg.version);
 
-  const staged = stageAssets({ root: ROOT, manifest: manifest, outDir: outDir, manifestName: "manifest.json" });
+  const staged = stageAssets({ root: ROOT, manifest: manifest, outDir: outDir, manifestName: MANIFEST_NAME });
   process.stdout.write(
     "v" + manifest.version + "：运行树 " + staged.fileCount + " 个文件，"
     + "内容去重后 " + staged.uniqueCount + " 份，产物在 " + outDir + "\n"

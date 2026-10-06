@@ -17,7 +17,10 @@ export type VersionRow = {
   remote: boolean
 }
 
-// 版本号只按数字段比大小，段数不齐时短的补 0；全仓只这一处比法，顺序才不会一处一个样。
+/*
+ * 版本号只按数字段比大小，段数不齐时短的补 0；非数字段（dev、1.0.371-rc 这种）按字符串比兜底 ——
+ * 与后端 lib/versions.js 同一口径（前后端不能互相引代码，各自一份，比法保持一致）。
+ */
 export function compareVersions(a: string, b: string): number {
   const left = a.split(".")
   const right = b.split(".")
@@ -25,6 +28,7 @@ export function compareVersions(a: string, b: string): number {
   for (let index = 0; index < length; index += 1) {
     const x = Number(left[index] ?? 0)
     const y = Number(right[index] ?? 0)
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return a.localeCompare(b)
     if (x !== y) return x < y ? -1 : 1
   }
   return 0
@@ -142,6 +146,16 @@ export function describeTask(task: UpdateTask): string {
 
 export function isDownloading(task: UpdateTask): boolean {
   return task.phase === "downloading" || task.phase === "materializing"
+}
+
+/** 下完了（正在下载 → 下完那一下，界面据此重读一次来源表）。 */
+export function isTaskDone(task: UpdateTask): boolean {
+  return task.phase === "done"
+}
+
+/** 下载失败那一句；没失败就是空串。兜底词与 describeTask 同一处，不再各写一个。 */
+export function taskFailureNote(task: UpdateTask): string {
+  return task.phase === "error" ? describeTask(task) : ""
 }
 
 export function taskPercent(task: UpdateTask): number {

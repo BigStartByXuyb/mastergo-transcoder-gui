@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { Download, Loader2, Terminal } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -20,10 +20,9 @@ import {
   runtimeTaskPercent,
   sourceLabel
 } from "@/lib/runtime-state"
-import { describeFailure, failureText } from "@/lib/describe-failure"
-
-const IDLE_POLL_MS = 15000
-const WORKING_POLL_MS = 1000
+import { failureText } from "@/lib/describe-failure"
+import { useStatusPoll } from "@/app/use-status-poll"
+import { useActionRunner } from "@/app/use-action-runner"
 
 /*
  * 运行时这一段（挂在「运行环境」页那张卡里）：跑插件的 Node.js 与 PowerShell 7 各钉死一份放进
@@ -44,42 +43,29 @@ export function RuntimePanel() {
   const transferring = status ? isRuntimeWorking(status.task) : false
 
   /*
-   * 拉一次状态：轮询用它，改完设置要立刻刷新也用它（不然要等下一轮，同页两处会短暂对不上）。
-   * 卸载之后不再回写状态 —— 与 lib/use-health.ts 同一约定；抽成 refresh 之后守卫改用引用带着走。
+   * 拉状态：轮询与「改完设置立刻刷新」都走这一条（`reload` 就是立刻取一次）。
+   * 节拍、卸载守卫都在 useStatusPoll 里；运行时的包也是大件，刷新比别处勤一点。
    */
-  const alive = useRef(true)
-  useEffect(() => {
-    // StrictMode 下会「挂载 → 卸下 → 再挂载」：这里要重新置回 true，否则 refresh 永远被拦掉。
-    alive.current = true
-    return () => { alive.current = false }
-  }, [])
-
-  const refresh = useCallback(async () => {
-    try {
-      const payload = await api.runtimeStatus()
-      if (!alive.current) return
+  const { reload: refresh } = useStatusPoll({
+    load: () => api.runtimeStatus(),
+    working: transferring,
+    workingMs: 1000,
+    onData: (payload) => {
       setStatus(payload.status)
       setProbe("")
-    } catch (error) {
-      if (!alive.current) return
-      setProbe(describeFailure(error))
-    }
-  }, [])
+    },
+    onError: setProbe
+  })
 
-  useEffect(() => {
-    void refresh()
-    const timer = window.setInterval(() => void refresh(), transferring ? WORKING_POLL_MS : IDLE_POLL_MS)
-    return () => window.clearInterval(timer)
-  }, [refresh, transferring])
+  // 下载也走同一条动作骨架（骨架在 use-action-runner）：状态由 act 套用，这里只按 kind 落地。
+  const act = useActionRunner<RuntimeStatus>({ setWorking, setFailure, setStatus })
 
   async function download(tool: RuntimeId) {
-    setWorking(tool)
-    setFailure("")
-    const got = await startDownload(function () {
-      return api.runtimeDownload(tool)
-    })
-    finishDownload(got, { setStatus, setFailure })
-    setWorking("")
+    await act(
+      tool,
+      () => startDownload(() => api.runtimeDownload(tool)),
+      (payload) => finishDownload(payload, { setFailure })
+    )
   }
 
   const summary = describeRuntime(status)
