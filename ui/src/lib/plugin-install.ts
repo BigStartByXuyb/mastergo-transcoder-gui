@@ -68,9 +68,14 @@ function changeNote(status: PluginUpdateStatus): string {
 
 /**
  * 自带那一份的处境：没有 / 就是正在用的那份 / 装了但不是正在用的那份。
- * 判据用插件定位解析出的根（两边都是同一份来源算出来的绝对路径），不按版本号猜。
+ * 判据用插件定位解析出的根（两边都是同一份来源算出来的绝对路径），不按版本号猜；
+ * 比之前先归一 —— Windows 路径大小写不敏感，反斜杠与正斜杠也都能出现。
  */
 export function localSituation(status: PluginUpdateStatus | null, activeRoot: string): "none" | "active" | "other" {
   if (!status || !status.local.dir) return "none"
-  return status.local.dir === activeRoot ? "active" : "other"
+  return samePath(status.local.dir, activeRoot) ? "active" : "other"
+}
+
+function samePath(a: string, b: string): boolean {
+  return a.replace(/\\/g, "/").toLowerCase() === b.replace(/\\/g, "/").toLowerCase()
 }

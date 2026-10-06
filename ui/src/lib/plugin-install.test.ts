@@ -91,6 +91,9 @@ describe("localSituation", () => {
 
   it("正在用的就是自带那一份", () => {
     expect(localSituation(status(), LOCAL_DIR)).toBe("active")
+    // Windows 路径大小写不敏感、分隔符也可能不一样：同一份不该被判成「另一份」。
+    expect(localSituation(status({ local: { version: "1.0.371", dir: drive("d", "APP", "Plugins", "MasterGo-WPF-Transcoder", "1.0.371") } }), LOCAL_DIR)).toBe("active")
+    expect(localSituation(status({ local: { version: "1.0.371", dir: LOCAL_DIR.replace(/\\/g, "/") } }), LOCAL_DIR)).toBe("active")
   })
 
   it("装了，但此刻用的是别处那份", () => {
