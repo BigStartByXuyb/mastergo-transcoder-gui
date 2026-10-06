@@ -34,6 +34,9 @@ export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () 
   const transferring = status ? isDownloading(status.task) : false
   const taskFailure = status ? taskFailureNote(status.task) : ""
   const busy = status ? status.busy : ""
+  // 起步那句要说清是哪一版：远端清单里那份的版本号（还没查过就是空串）。
+  const pluginVersionOf = (current: PluginUpdateStatus | null) =>
+    current && current.available ? current.available.version : ""
 
   /*
    * 「装完了」只认一次：阶段变成 done 那一下（父组件据此重读来源表）。
@@ -59,6 +62,22 @@ export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () 
   // 动作骨架在 use-action-runner：与程序更新、Codex、运行时那三张卡同一套。
   const act = useActionRunner<PluginUpdateStatus>({ setWorking, setFailure, setStatus })
 
+  /*
+   * 装最新那一版：与另外三条下载线同一套（发起下载 → 按 DownloadResult 落地），
+   * 只有「起步时说哪一版」这一处是插件线自己的。
+   */
+  async function install() {
+    await act(
+      "install",
+      () => startDownload(() => api.pluginUpdateInstall()),
+      (payload) =>
+        finishDownload(payload, {
+          setFailure,
+          onStarted: () => toast.info("开始装插件 v" + pluginVersionOf(status))
+        })
+    )
+  }
+
   return (
     <div className="flex flex-col gap-3 rounded-md border p-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -73,7 +92,8 @@ export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () 
         <Button
           size="sm"
           variant="outline"
-          disabled={Boolean(working) || transferring || Boolean(busy)}
+          // 检查只拉一份远端清单，不动本地：有任务在跑也照样能查（与更新页的「检查更新」同一口径）。
+          disabled={Boolean(working) || transferring}
           onClick={() => void act("check", () => api.pluginUpdateCheck(), "")}
         >
           {working === "check" ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
@@ -82,21 +102,7 @@ export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () 
         <Button
           size="sm"
           disabled={Boolean(working) || transferring || Boolean(busy) || !summary.canInstall}
-          onClick={() =>
-            void act(
-              "install",
-              // 与另外三条下载线共用同一处归一：「起没起来」不再就地判一遍。
-              () => startDownload(() => api.pluginUpdateInstall()),
-              (payload) =>
-                finishDownload(payload, {
-                  setFailure,
-                  onStarted: () =>
-                    toast.info(
-                      "开始装插件 v" + (payload.status && payload.status.available ? payload.status.available.version : "")
-                    )
-                })
-            )
-          }
+          onClick={() => void install()}
         >
           {working === "install" || transferring ? (
             <Loader2 className="size-4 animate-spin" />
