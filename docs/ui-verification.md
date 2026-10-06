@@ -16,6 +16,37 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-10-06 一条命令装：机器上没有脚本也能跑 + 客户机的 Windows PowerShell 5.1（v0.6.49）
+
+### 用户报的问题
+
+客户机上跑 `powershell -ExecutionPolicy Bypass -File install-client.ps1` →
+**-File 形式参数的实际参数"install-client.ps1"不存在**（那条命令要的是当前目录里真有这个文件）。
+顺带暴露一个更要命的：客户机默认是 Windows PowerShell 5.1，而脚本当时是**无 BOM 的 UTF-8 + 中文** ——
+5.1 会按系统 ANSI（本机 GBK）解码，轻则乱码，重则双字节前导吞掉后面的引号、报「字符串缺少终止符」。
+
+### 改了什么
+
+| 改动 | 为什么 |
+| --- | --- |
+| 用法里给出「先取脚本、再运行它」的整段命令 | 客户机上一个文件都没有也能装 |
+| 脚本存成 UTF-8 **带 BOM** | 5.1 按 BOM 取编码；不带 BOM 就会拿系统 ANSI 去解 UTF-8 的中文 |
+| 脚本开头显式 `[Net.ServicePointManager]::SecurityProtocol = Tls12` | 5.1 默认可能只开 TLS 1.0，GitHub 只收 TLS 1.2+ |
+| 单测加三条硬约束 | BOM 必须在；TLS 1.2 必须在；`??` `&&` `\|\|` `?.` `-SkipHttpErrorCheck` `-Parallel` 这些 PS7 才有的语法不许出现 |
+
+### 跑过的东西
+
+| 操作 | 观察到 | 结论 |
+| --- | --- | --- |
+| `pwsh -File scripts/install-client.ps1 -Version 0.6.48 -Target <临时目录> -NoShortcut` | 取 checksums.json → 下载 zip → sha256 通过 → 解压 → 打印安装位置 | 通过 |
+| 装出来的那份里跑 `mastergo-transcoder.exe --check-runtime` | `运行时已就绪：C:\Program Files\nodejs\node.exe` | 通过（发布件 + 启动器整条链是通的） |
+| 全文扫描脚本 | 5 处 `Join-Path` 全是两参形式；`??` `&&` `\|\|` `?.` `-SkipHttpErrorCheck` `-Parallel` 均 0 处 | 通过（没有 5.1 跑不了的语法） |
+
+### 没跑的
+
+- 本机没能用 Windows PowerShell 5.1 亲自跑一遍：执行环境策略禁止调 `powershell.exe`。
+  5.1 这条线靠 BOM（编码）+ 无 PS7 专有语法 + 显式 TLS 1.2 三道静态守门，客户机上再实测一次。
+
 ## 2026-10-06 客户机上「装不上」的排查 + 一条命令装（v0.6.47）
 
 ### 用户报的问题

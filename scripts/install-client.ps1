@@ -1,4 +1,4 @@
-<#
+﻿<#
     一条命令装客户端（不依赖 winget 源、不需要管理员、不跑安装程序）。
 
     winget 的 portable 包内部就是「下载 zip → 解压到自己的目录 → 建一个入口」；
@@ -10,6 +10,10 @@
       powershell -ExecutionPolicy Bypass -File install-client.ps1 -Version 0.6.47
       # 内网 / GitLab / 任意镜像：地址长什么样由那边决定，这里不猜 —— 直接给 zip 直链与它的 sha256
       powershell -ExecutionPolicy Bypass -File install-client.ps1 -ZipUrl <zip 直链> -Sha256 <64 位哈希>
+
+    机器上还没有这个脚本时（一条命令取下来再跑）：
+      $u = "<基址>/releases/latest/download/install-client.ps1"; $f = "$env:TEMP\install-client.ps1"
+      Invoke-WebRequest -UseBasicParsing $u -OutFile $f; powershell -ExecutionPolicy Bypass -File $f
 
     参数：
       -Version  要装的版本；默认 latest（从远端清单读当前最新）
@@ -34,6 +38,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# Windows PowerShell 5.1 默认可能只开 TLS 1.0，而 GitHub 只收 TLS 1.2+；显式打开，PowerShell 7 上无副作用。
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch { }
+
 $Base = $Base.TrimEnd("/")
 
 function Step([string] $text) { Write-Host ("→ " + $text) }

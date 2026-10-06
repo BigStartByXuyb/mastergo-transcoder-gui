@@ -2,9 +2,10 @@
 "use strict";
 
 /*
- * 安装脚本（scripts/install-client.ps1）的两条硬约束：
+ * 安装脚本（scripts/install-client.ps1）的硬约束：
  *   ① 它的默认基址必须与 lib/source.js 的 DEFAULT_BASE 一致 —— 两处语言不同，只能靠用例盯着别漂；
  *   ② 校验值来自发布时产出的 checksums.json，不去解析 winget 清单（那是另一个产物，不该互相绑死）。
+ *   ③ 它要在客户机默认的 Windows PowerShell 5.1 上跑得起来 —— 客户机上没有 pwsh，也没有管理员。
  * 只做文本级检查：脚本是 PowerShell，跨语言没法直接调；这里盯的是「不许悄悄改约定」。
  *
  * 跑法：node tests/install-client.test.js
@@ -15,7 +16,8 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.join(__dirname, "..");
-const SCRIPT = fs.readFileSync(path.join(ROOT, "scripts", "install-client.ps1"), "utf8");
+const SCRIPT_PATH = path.join(ROOT, "scripts", "install-client.ps1");
+const SCRIPT = fs.readFileSync(SCRIPT_PATH, "utf8");
 const source = require("../lib/source.js");
 
 function main() {
@@ -36,6 +38,23 @@ function main() {
     2,
     "「releases/download」的拼法只应出现在 GitHub 形状那一条路上"
   );
+
+  // Windows PowerShell 5.1 按 BOM 取编码：不带 BOM 就会拿系统 ANSI（本机 GBK）去解 UTF-8 的中文，
+  // 轻则乱码，重则双字节前导吞掉后面的引号、报「字符串缺少终止符」。
+  const bytes = fs.readFileSync(SCRIPT_PATH);
+  assert.ok(
+    bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf,
+    "脚本要存成 UTF-8 带 BOM：客户机上跑的是 Windows PowerShell 5.1"
+  );
+  assert.ok(
+    SCRIPT.indexOf("SecurityProtocolType]::Tls12") >= 0,
+    "要显式打开 TLS 1.2：5.1 默认可能只开 TLS 1.0，连不上 GitHub"
+  );
+  // 客户机上是 5.1，PowerShell 7 才有的语法一律不许出现在这个脚本里。
+  for (const token of ["??", "&&", "||", "?.", "-SkipHttpErrorCheck", "-Parallel"]) {
+    assert.ok(SCRIPT.indexOf(token) < 0, "不能用 PowerShell 7 才有的语法：" + token);
+  }
+
   console.log("install-client.test.js 全部通过");
 }
 

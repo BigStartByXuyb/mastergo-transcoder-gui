@@ -110,11 +110,18 @@ winget install BigStart.MasterGoTranscoder
 
 ## 三之二、一条命令装（不需要管理员、不需要 winget 源）
 
-把 Release 上的 `install-client.ps1` 下到客户机（或者直接从仓库里拷），然后：
+客户机上一个文件都没有也能装：下面这段在 Windows PowerShell 5.1 里直接粘贴运行即可。
+它先把安装脚本取到本地，再运行它。
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File install-client.ps1
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$f = "$env:TEMP\install-client.ps1"
+Invoke-WebRequest -UseBasicParsing "https://github.com/BigStartByXuyb/mastergo-transcoder-gui/releases/latest/download/install-client.ps1" -OutFile $f
+powershell -ExecutionPolicy Bypass -File $f
 ```
+
+脚本已经在本机时，直接 `powershell -ExecutionPolicy Bypass -File install-client.ps1` 即可；
+`-File` 后面要的是**真实存在的路径**，在别的目录里跑会报「-File 的实际参数不存在」。
 
 它做的三步与 winget portable 内部完全一样，只是我们自己走一遍：
 **下载这一版的 zip → 按发布时那份 `checksums.json` 里的 sha256 校验 → 解压到 `%LOCALAPPDATA%\MasterGoTranscoder` → 建桌面快捷方式**。
