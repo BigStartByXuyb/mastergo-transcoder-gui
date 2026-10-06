@@ -61,6 +61,10 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 
 - 「打开目录」：会真的弹出资源管理器窗口，留给实际使用时点；这条链路由 `tests/open-folder.test.js` 覆盖
   （平台命令、带空格路径、不是目录/不存在时拒绝）。
+
+收口改完又照上面这份夹具重跑了一遍（`output/playwright/plugin-page-final2.png`）：顺序条八档照旧、
+第 2 档那一行「管理…」面板里版本 / 路径 / 「解析到」/ 检查更新 / 已是最新版都在，第 3 档「详情…」面板
+说的是第 3 档自己的处境（标题里的变量名仍来自后端给的 label）。
 - 「复制路径」：走浏览器剪贴板，`ui/src/lib/copy-text.test.ts` 覆盖（Clipboard API、退路、空值）。
 - 有任务在跑时点「下载并安装」：会跑真流水线，留给下一次实跑（拒绝逻辑由 `tests/plugin-update.test.js` 覆盖）。
 
