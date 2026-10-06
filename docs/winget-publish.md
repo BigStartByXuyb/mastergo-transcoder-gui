@@ -16,10 +16,11 @@
 
 前提：GitHub 账号（用你的账号提交，我用不了你的账号）+ 能访问 github.com。
 
-1. 先本机生成这一版的清单（发布流程已经做了这一步，Release 上就有那三个 YAML）：
+1. 先本机生成这一版的清单（发布流程已经做了这一步，Release 上就有那三个 YAML）。
+   下面 `<版本>` 一律换成要发布的那一版（与 package.json 一致）：
 
    ```powershell
-   node scripts/pack-bundle.js --version 0.6.47
+   node scripts/pack-bundle.js --version <版本>
    node scripts/winget-manifest.js            # 默认基址＝GitHub 仓库，产物在 dist/winget
    winget validate dist/winget                # 本地先过一遍模式校验
    ```

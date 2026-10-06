@@ -94,37 +94,19 @@ Release 上有两种东西：
 > 两条路各自怎么落地（谁做什么、用什么命令）见 `docs/winget-publish.md`。
 
 winget 装的是 portable 包：**下载 zip → 解压到它自己的包目录 → 把 `mastergo-transcoder.exe` 链进 PATH**，
-不跑任何安装程序 —— 保密环境里也一样。
+不跑任何安装程序 —— 保密环境里也一样。装完在任意目录敲 `mastergo-transcoder` 就能起。
 
 ```powershell
 winget install BigStart.MasterGoTranscoder
 ```
 
-装完在任意目录敲 `mastergo-transcoder` 就能起。**两条命令对应两个不同的包标识**（同一台机器上两个同名包会打架，内网那份也不该出现在公网 winget-pkgs 里）：
+**两条命令对应两个不同的包标识**（同一台机器上两个同名包会打架，内网那份也不该出现在公网 winget-pkgs 里）：
 
 - 公网 / GitHub（现在默认）：`winget install BigStart.MasterGoTranscoder`
-- 内网 / 公司 GitLab：`winget install BigStart.MasterGoTranscoder.Internal`（清单由下面那条命令生成，标识带 `.Internal`）
+- 内网 / 公司 GitLab：`winget install BigStart.MasterGoTranscoder.Internal`
 
-清单从哪儿来、包从哪儿下，两条路：
-
-| 场景 | 包地址（清单里的 InstallerUrl） | 客户机怎么拿到清单 |
-| --- | --- | --- |
-| 现在（测试期，GitHub） | 本仓库的 release：`…/releases/download/v<版本>/mastergo-transcoder-gui-<版本>.zip` | 发布时生成的三个 YAML 随 Release 一起发；也可以把清单提 PR 到 `winget-pkgs`，之后客户 `winget install BigStart.MasterGoTranscoder` 直接可用 |
-| 回公司后（内网） | 公司 GitLab / 内网目录里那个 zip 的地址 | 把那三个 YAML 放内网：由 IT 建内网源则客户直接 `winget install BigStart.MasterGoTranscoder.Internal`；不想建源就 `winget install --manifest <目录>`（需管理员开 `LocalManifestFiles`） |
-
-**内网那一份怎么生成**（发布那一步已经在跑公网这条；回公司后加跑下面这条，把基址、源类型与标识都换掉）：
-
-```powershell
-node scripts/winget-manifest.js --base https://git.公司.com/组/仓库 --kind gitlab --id BigStart.MasterGoTranscoder.Internal
-```
-
-`--kind` 与基址要成对：GitHub 是 `releases/download/v<版本>/…`，GitLab 走通用包 `/-/packages/generic/…`，
-内网静态目录是 `--kind static`（`<基址>/v<版本>/…`）—— 只换基址不换类型会拼出一个取不到的地址，所以生成器不认识就直接报错。
-
-清单里的版本号取 `package.json`、哈希是现算的 zip sha256、入口固定指向包里的 `mastergo-transcoder.exe` ——
-这三样不接受手填，包换了就重新生成一次。
-默认基址只有一个来源：`lib/source.js` 的 `DEFAULT_BASE`（与客户端「发布源」的默认值同一处）——
-回公司正式换默认源时，改那一行，公网那份清单也会跟着指过去。
+包地址与清单怎么落地（公网提 PR / 内网建源，谁做什么、用什么命令）**全在 `docs/winget-publish.md`**，
+这里不重复；生成内网那份清单的那条命令也在那篇里。
 
 ## 三之二、一条命令装（不需要管理员、不需要 winget 源）
 
