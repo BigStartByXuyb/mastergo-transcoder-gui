@@ -121,7 +121,20 @@ jobs:
           # 默认基址＝这个仓库的 release；换公司地址时用 --base <公司地址> 重生成即可（见 docs/install.md）。
           node scripts/winget-manifest.js --base "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
           gh release upload "$GITHUB_REF_NAME" dist/winget/*.yaml --clobber
-          # 一条命令装（不依赖 winget 源、不需要管理员）：也作为资产发出去，客户机下一个文件就能装。
+      # 一条命令装（不依赖 winget 源、不需要管理员）：也作为资产发出去，客户机下一个文件就能装。
           gh release upload "$GITHUB_REF_NAME" scripts/install-client.ps1 --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # 插件包：客户机上没有 Codex/Claude 时，客户端按这份清单自己下载并装一份。
+      # 插件源码在它自己的仓库（marketplace）里，这里按钉住的 tag 取出来打成 zip + 清单，
+      # 与客户端的发布件放同一个 Release —— 客户机因此只需要配一个发布源。
+      - name: Pack the plugin release
+        run: |
+          plugin_tag="$(node -p "require('./lib/plugin-package.js').PLUGIN_TAG")"
+          plugin_repo="$(node -p "require('./lib/plugin-package.js').PLUGIN_REPO")"
+          git clone --depth 1 --branch "$plugin_tag" "$plugin_repo" "$RUNNER_TEMP/plugin"
+          node scripts/pack-plugin.js --repo-dir "$RUNNER_TEMP/plugin" --out dist
+          gh release upload "$GITHUB_REF_NAME" dist/plugin-manifest.json dist/mastergo-wpf-transcoder-*.zip --clobber
         env:
           GH_TOKEN: ${{ github.token }}
