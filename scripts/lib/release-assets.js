@@ -52,7 +52,6 @@ function stageAssets(options) {
   fs.writeFileSync(path.join(versionDir, manifestName), text, "utf8");
 
   return {
-    filesDir: filesDir,
     manifestPath: manifestPath,
     blobPaths: Array.from(written.keys()).map(function (hash) { return path.join(filesDir, hash); }),
     fileCount: Object.keys(manifest.files).length,
