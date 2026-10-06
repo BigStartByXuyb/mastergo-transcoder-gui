@@ -38,13 +38,16 @@ function sha256(file) {
 }
 
 // 一个最小的插件仓库：只有「插件自己的清单」和一个 skill 标记文件（客户端靠后者认出插件根）。
-function makePluginRepo(baseDir, version) {
-  const repo = path.join(baseDir, "plugin-repo");
+function makePluginRepo(baseDir, version, options) {
+  const withMarker = !options || options.marker !== false;
+  const repo = path.join(baseDir, "plugin-repo-" + version + (withMarker ? "" : "-nomarker"));
   const dir = path.join(repo, "plugins", pkg.PLUGIN_NAME);
   fs.mkdirSync(path.join(dir, ".claude-plugin"), { recursive: true });
-  fs.mkdirSync(path.join(dir, "skills", "mastergo-to-wpf"), { recursive: true });
   fs.writeFileSync(path.join(dir, ".claude-plugin", "plugin.json"), JSON.stringify({ name: pkg.PLUGIN_NAME, version: version }));
-  fs.writeFileSync(path.join(dir, "skills", "mastergo-to-wpf", "SKILL.md"), "# 夹具\n");
+  if (withMarker) {
+    fs.mkdirSync(path.join(dir, "skills", "mastergo-to-wpf"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "skills", "mastergo-to-wpf", "SKILL.md"), "# 夹具\n");
+  }
   git(repo, ["init", "-q"]);
   git(repo, ["config", "user.email", "ci@example.com"]);
   git(repo, ["config", "user.name", "ci"]);
@@ -100,6 +103,15 @@ function packInto(base) {
   assert.throws(function () {
     node([PACK, "--repo-dir", repo, "--out", path.join(base, "out2"), "--pin", wrongPin], { stdio: "pipe" });
   }, /版本/, "tag 与插件声明的版本对不上时要失败");
+
+  // 缺「客户端借以认出插件根」的标记文件：也要失败，不能发一个客户端认不出的包。
+  const noMarker = makePluginRepo(base, "3.0.0", { marker: false });
+  const noMarkerDir = path.join(base, "nomarker");
+  fs.mkdirSync(noMarkerDir, { recursive: true });
+  const noMarkerPin = writePin(noMarkerDir, noMarker, "v3.0.0");
+  assert.throws(function () {
+    node([PACK, "--repo-dir", noMarker, "--out", path.join(base, "out3"), "--pin", noMarkerPin], { stdio: "pipe" });
+  }, /SKILL\.md/, "缺标记文件时要失败");
 }
 
 function main() {
@@ -108,8 +120,9 @@ function main() {
   assert.ok(pkg.MANIFEST_FILE.endsWith(".json"), "清单是 json");
 
   // pin 只属于发布流程：填全、形状对，而且里面那个目录名必须就是插件名（不然两处名字会各说各话）。
-  // 与打包脚本同一条判据：去掉开头的 v 之后是版本号。
-  assert.ok(/^\d+(\.\d+)*$/.test(String(pin.tag).trim().replace(/^v/, "")), "pin 的 tag 形如 v1.0.371：" + pin.tag);
+  // tag → 版本号用生产代码那条判据（不在这里再写一份正则）。
+  assert.ok(/^\d+(\.\d+)*$/.test(pkg.versionOfTag(pin.tag)), "pin 的 tag 形如 v1.0.371：" + pin.tag);
+  assert.strictEqual(pkg.versionOfTag("v1.0.371"), "1.0.371");
   assert.ok(
     source.parseSource({ kind: "github", base: String(pin.repo).trim().replace(/\/+$/, "") }) != null,
     "pin 的仓库要是一个能被发布源接受的基址：" + pin.repo
