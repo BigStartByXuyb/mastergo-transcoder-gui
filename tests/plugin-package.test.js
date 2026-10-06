@@ -24,7 +24,7 @@ const source = require("../lib/source.js");
 
 const PACK = path.join(ROOT, "scripts", "pack-plugin.js");
 const WORKFLOW = fs.readFileSync(path.join(ROOT, ".github", "workflows", "ci.yml"), "utf8");
-const MARKER_PARTS = String(pluginRoot.PLUGIN_MARKER).split(/[\\/]/);
+const MARKER_PARTS = String(pkg.PLUGIN_MARKER).split(/[\\/]/);
 
 function node(args, options) {
   return execFileSync(process.execPath, args, Object.assign({ encoding: "utf8" }, options || {}));
@@ -79,11 +79,22 @@ function packTwice() {
 
 function packInto(base) {
   const repo = makePluginRepo(base, "1.2.3");
+  // 同一个夹具上顺手验一下判据的正例：打包侧用的是客户端那条「是不是插件根」。
+  assert.strictEqual(pkg.isPluginRoot(path.join(repo, "plugins", pkg.PLUGIN_NAME)), true, "夹具应当是插件根");
   const pinFile = writePin(base, repo, "v1.2.3");
   const out = path.join(base, "out");
   const args = [PACK, "--repo-dir", repo, "--out", out, "--pin", pinFile];
 
-  node(args);
+  // 发布流程按前缀取产物（不猜行序）：这里跑一遍同一条命令，盯住这个协议。
+  const printed = node(args).trim().split("\n");
+  assert.ok(
+    printed[0].startsWith("blob=") && printed[0].endsWith(pkg.zipName("1.2.3")),
+    "按 blob= 前缀报包路径：" + printed[0]
+  );
+  assert.ok(
+    printed[1].startsWith("manifest=") && printed[1].endsWith(pkg.MANIFEST_FILE),
+    "按 manifest= 前缀报清单路径：" + printed[1]
+  );
   const manifestFile = path.join(out, pkg.MANIFEST_FILE);
   const zipFile = path.join(out, pkg.zipName("1.2.3"));
   const first = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
