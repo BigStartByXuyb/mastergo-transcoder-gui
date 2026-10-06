@@ -207,6 +207,35 @@ describe("PluginCard", () => {
     expect(screen.getByText(/查找顺序里的第 4 档/)).toBeTruthy()
   })
 
+  it("指定的那一份正好是客户端自带那份时：合成一行，管理入口也在这一行上", async () => {
+    const installSources = view({ activeId: "install" }).sources
+    stub({
+      ...view({ activeId: "install" }),
+      chosen: INSTALLED_ROOT,
+      sources: [
+        source("chosen", {
+          label: "设置里选的",
+          kind: "chosen",
+          path: INSTALLED_ROOT,
+          exists: true,
+          pluginRoot: INSTALLED_ROOT,
+          version: "1.0.369",
+          found: [INSTALLED_ROOT],
+          active: true
+        }),
+        ...installSources
+      ]
+    })
+    render(<PluginCard />)
+    await waitFor(() => expect(within(screen.getByRole("table")).getByText("同时来自：客户端自带")).toBeTruthy())
+
+    // 合成的那一行给的是「管理…」，面板里带自带的更新块。
+    const row = within(screen.getByRole("table")).getByText("设置里选的").closest("tr") as HTMLElement
+    fireEvent.click(within(row).getByRole("button", { name: "管理…" }))
+    expect(await screen.findByRole("button", { name: "检查更新" })).toBeTruthy()
+    expect(screen.getByText(/同时也是「客户端自带」那一份/)).toBeTruthy()
+  })
+
   it("面板里的「下载并安装」「打开目录」分别打到对应接口", async () => {
     const asked: string[] = []
     stub(view(), {

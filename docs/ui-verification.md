@@ -31,6 +31,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   八档序号因此固定，与文档里的顺序对得上；只有「给了 `--plugin` 却解析不到插件」才硬失败。
 - `lib/open-folder.js`（新）+ `POST /api/system/open-folder`：面板里的「打开目录」；
   `ui/src/lib/copy-text.ts`（新）：「复制路径」，与控件查询页共用同一处复制实现。
+- `ui/src/app/plugin-source-facts.tsx`（新）：状态徽章 / 版本 / 这一处有几份 / 同时来自 —— 表里那一行与
+  点开后的面板渲染同一份，不各写一遍；`ui/src/app/use-plugin-sources.ts`、`use-plugin-update.ts`（新）：
+  来源清单与指针动作、自带那一份的更新与轮询，各自一个 hook，卡片只编排与渲染。
 - `ui/src/lib/api.ts`：删掉环境变量那一对接口封装（界面不再提供改它的入口；后端接口与读取保留）。
 - `docs/install.md`、`README.md`：这一页的三块结构、八档顺序、行内动作照实写。
 
@@ -49,6 +52,7 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | 同上 | 点别的行的「详情…」 | 只读面板：第 N 档说明、版本、路径、解析到、「这一处有 4 份，用最高版本」、打开目录 / 复制路径 / 用这份 | 通过 |
 | 同上 | 点「交给客户端找」 | 清掉指定的那一份，回到按顺序自动（顺序条与表随之重排） | 通过 |
 | 同上 | 一处都没有时 | 顶部照常打开，表里逐条列「没有」与各自的路径 | 通过 |
+| 同上 | 指定的那一份正好是自带那份时 | 合成一行「2. 设置里选的 / 同时来自：客户端自带」，状态「正在用 是最新 v1.0.371」，动作是 **管理…**；点开后面板里带检查更新 / 下载并安装，并写明「这一份同时也是「客户端自带」那一份」 | 通过 |
 
 ### 没点的
 
@@ -62,9 +66,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | 命令 | 结果 |
 | --- | --- |
 | `npm test` | 通过，48 个文件全过（含新增 `tests/open-folder.test.js`） |
-| `npm run test:coverage` | 通过，lines 94.77 / branch 82.77 / funcs 95.85（门禁 90/75/90） |
-| `npm --prefix ui run test` | 通过，56 文件 330 用例 |
-| `npm --prefix ui run test:coverage` | 通过，stmts 94.97 / branch 91.56 / funcs 95.86 |
+| `npm run test:coverage` | 通过，lines 94.77 / branch 82.77 / funcs 96（门禁 90/75/90） |
+| `npm --prefix ui run test` | 通过，58 文件 340 用例（含新增两个插件页 hook 的用例） |
+| `npm --prefix ui run test:coverage` | 通过，stmts 95.32 / branch 91.41 / funcs 96 |
 | `npm run build:ui` | 通过，`public/` 已重建入库 |
 | `node <cicd>/check-app-structure.mjs --root .` | PASS（硬编码路径 / 孤儿导出 / 分层 / CI 钉死 均 0 条） |
 

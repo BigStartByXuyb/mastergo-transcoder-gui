@@ -1,11 +1,12 @@
 import { useState } from "react"
-import { Check, Copy, FolderOpen, Loader2, RefreshCw } from "lucide-react"
+import { Copy, FolderOpen, Loader2, RefreshCw } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
 import { IdentifierText } from "@/app/identifier-text"
+import { SourceAlsoFrom, SourceCopyCount, SourceStatusBadge, SourceVersion } from "@/app/plugin-source-facts"
 import { api, type PluginUpdateStatus } from "@/lib/api"
 import { copyText } from "@/lib/copy-text"
 import { describeFailure } from "@/lib/describe-failure"
@@ -32,7 +33,7 @@ const KIND_NOTE: Record<string, string> = {
 
 export function PluginSourceDialog(props: {
   row: PluginSourceRow
-  /** 自带那一份的状态（插件页在轮询它）；别的行用不到。 */
+  /** 自带那一份的状态（插件页在轮询它）；这一行里没有自带的（members 不含 install）时传 null。 */
   update: PluginUpdateStatus | null
   busy: string
   onClose: () => void
@@ -43,7 +44,10 @@ export function PluginSourceDialog(props: {
 }) {
   const [failure, setFailure] = useState("")
   const row = props.row
-  const install = row.kind === "install"
+  /* 这一行里有没有「客户端自带」那一档：有就带更新块（检查更新 / 下载并安装 / 进度）。
+     自带的副本正好被指针指着时（两者合成一行），管理的入口也在这一行上。 */
+  const install = row.members.includes("install")
+  const ownInstall = row.kind === "install"
 
   const summary = describePluginInstall(props.update)
   const transferring = props.update ? isDownloading(props.update.task) : false
@@ -66,19 +70,11 @@ export function PluginSourceDialog(props: {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {row.label}
-            {row.active ? (
-              <Badge variant="secondary">
-                <Check className="size-3" />
-                正在用
-              </Badge>
-            ) : row.exists ? (
-              <Badge variant="outline">可用</Badge>
-            ) : (
-              <Badge variant="outline">没有</Badge>
-            )}
+            <SourceStatusBadge row={row} />
           </DialogTitle>
           <DialogDescription>
             查找顺序里的第 {row.order} 档。{KIND_NOTE[row.kind] || ""}
+            {install && !ownInstall && "这一份同时也是「客户端自带」那一份，下面可以检查、下载它。"}
           </DialogDescription>
         </DialogHeader>
 
@@ -87,18 +83,14 @@ export function PluginSourceDialog(props: {
           <div className="flex flex-col gap-1">
             <span className="text-muted-foreground text-xs">这一档</span>
             <span className="text-xs">
-              版本：{row.exists && row.version ? <span className="font-mono">v{row.version}</span> : "—"}
+              版本：<SourceVersion row={row} />
             </span>
-            {row.found.length > 1 && (
-              <span className="text-muted-foreground text-xs">这一处有 {row.found.length} 份，用最高版本</span>
-            )}
+            <SourceCopyCount row={row} />
             <IdentifierText className="text-muted-foreground text-xs" text={row.path} />
             {row.found.length > 0 && (
               <IdentifierText className="text-muted-foreground text-xs" text={"解析到：" + row.pluginRoot} />
             )}
-            {row.alsoFrom.length > 0 && (
-              <span className="text-muted-foreground text-xs">同时来自：{row.alsoFrom.join("、")}</span>
-            )}
+            <SourceAlsoFrom row={row} />
           </div>
 
           {/* 客户端自带那一份：状态与两个动作在这里，行内不再各摆一套。 */}

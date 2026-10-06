@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
 import { Copy, Loader2, Search } from "lucide-react"
-import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ClampText } from "@/app/clamp-text"
@@ -14,6 +13,7 @@ import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ApiFailure, api, type ResolveResult, type ResolvedNode } from "@/lib/api"
 import { mappedAncestorOf, type ControlNode } from "@/lib/control-ancestry"
+import { copyText } from "@/lib/copy-text"
 import { cn } from "@/lib/utils"
 
 const STORAGE_KEY = "mastergo-transcoder-gui.query"
@@ -37,21 +37,6 @@ function posOf(node: ResolvedNode): string {
   const h = typeof node.height === "number" ? Math.round(node.height) : null
   if (x === null || y === null) return ""
   return x + "," + y + (w !== null && h !== null ? " · " + w + "×" + h : "")
-}
-
-async function copyText(value: string, label: string) {
-  if (!value) return
-  try {
-    await navigator.clipboard.writeText(value)
-  } catch {
-    const area = document.createElement("textarea")
-    area.value = value
-    document.body.appendChild(area)
-    area.select()
-    document.execCommand("copy")
-    document.body.removeChild(area)
-  }
-  toast.success("已复制" + (label ? "：" + label : ""))
 }
 
 type Failure = { message: string; hint: string }

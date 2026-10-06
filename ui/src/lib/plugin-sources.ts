@@ -15,6 +15,11 @@ export type PluginSourceRow = PluginSource & {
   order: number
   /** 与这一行指向同一份插件、被合并掉的来源名（如「设置里选的」）。 */
   alsoFrom: string[]
+  /**
+   * 这一行代表哪几档（含它自己那一档的 id，按查找顺序）。
+   * 用来判断「这一行里有没有客户端自带」——自带的更新动作要能在这一行上做。
+   */
+  members: string[]
 }
 
 export type PluginSourceSlot = PluginSource & {
@@ -57,6 +62,15 @@ export function pluginLookup(sources: PluginSource[]): PluginLookup {
     if (entry.item.active) activeKeepers.add(keeper)
   }
 
+  const memberIdsOf = new Map<string, string[]>()
+  for (const entry of resolved) {
+    const keeper = entry.root ? keeperOf.get(entry.root) : undefined
+    if (!keeper) continue
+    const list = memberIdsOf.get(keeper)
+    if (list) list.push(entry.item.id)
+    else memberIdsOf.set(keeper, [entry.item.id])
+  }
+
   const rows: PluginSourceRow[] = []
   for (const entry of resolved) {
     if (mergedInto.has(entry.item.id)) continue
@@ -64,7 +78,8 @@ export function pluginLookup(sources: PluginSource[]): PluginLookup {
       ...entry.item,
       order: entry.order,
       active: entry.item.active || activeKeepers.has(entry.item.id),
-      alsoFrom: extrasOf.get(entry.item.id) ?? []
+      alsoFrom: extrasOf.get(entry.item.id) ?? [],
+      members: memberIdsOf.get(entry.item.id) ?? [entry.item.id]
     })
   }
 
