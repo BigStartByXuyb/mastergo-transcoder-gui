@@ -50,9 +50,12 @@ export function PluginCard() {
    * 不能只看「设置里有没有值」——那份插件可能已经不在那个目录了，这时候生效的是后面某一档。
    */
   const chosenSlot = lookup.slots.find((slot) => slot.id === "chosen") ?? null
-  // 有任一半在跑就冻住换一份 / 改发布源这类动作。这里只是布尔语义：
-  // 「哪一半的哪个动作在跑」由各自那一半的 busy 字符串回答（不合成成同一个字符串再比对）。
-  const frozen = Boolean(sources.busy || update.busy)
+  /*
+   * 有任一半在跑、或正在传，就冻住「换一份 / 改发布源」这类动作。这里只是布尔语义：
+   * 「哪一半的哪个动作在跑」由各自那一半的 busy 字符串回答（不合成成同一个字符串再比对）。
+   * 正在传也要算上 —— 这时候换一份会顶掉正在装的那一份（与面板里那颗同一套条件）。
+   */
+  const frozen = Boolean(sources.busy || update.busy || update.transferring)
 
   return (
     <Card>

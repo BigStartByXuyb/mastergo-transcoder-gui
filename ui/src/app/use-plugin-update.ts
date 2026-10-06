@@ -126,6 +126,8 @@ export function usePluginUpdate(onInstalled: () => void) {
 
   return {
     update: update,
+    /** 正在传（下载/落盘）：卡片与面板据此一起冻住「换一份 / 改发布源」。 */
+    transferring: transferring,
     probe: probe,
     failure: failure,
     busy: working,

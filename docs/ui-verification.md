@@ -79,6 +79,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   一处「GitHub 仓库」）。
 - 第十二轮复核两条：「检查更新」在 `use-plugin-update` 里只剩一条实现（`runCheck`，卡片那颗与「保存并检查」
   都走它，收尾也一致）；`runtime-source-dialog` 的 `onSaved` 上叠着两句注释，合并成一句。
+- 第十三轮复核两条：卡片上的 `frozen` 也算上「正在传」（`use-plugin-update` 再把 `transferring` 交出来），
+  与面板里那颗同一套条件 —— 正在装的时候不给换一份；「找不到插件」时那句「已查找」只列真的查过的位置
+  （没设的那三档 path 是空串，不再列出空档）。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。
