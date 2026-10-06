@@ -58,13 +58,14 @@ export type PluginEnvView = {
   envScopes: PluginEnvScopes
 }
 
-/** 客户端自带的那一份插件：装到哪儿、装的是哪一版、远端有没有新的。 */
+/**
+ * 客户端自带的那一份插件：本地是哪一版、远端有没有新的。
+ * 「装了哪几版、此刻用哪一份」由 /api/plugin/sources 那份来源表说（插件定位的判据在那边）。
+ */
 export type PluginUpdateStatus = {
   state: "up_to_date" | "update_available" | "error"
-  /** 客户端自带的那一份；此刻生效的可能是别的来源，那由来源表说。 */
+  /** 客户端自带的那一份（装在哪、哪一版）；一份都没有时都是空串。 */
   local: { version: string; dir: string }
-  /** 这一处已装的几份（高版本在前）。 */
-  installed: { version: string; dir: string }[]
   /** 上一次检查到的远端版本与差异；没检查过就是 null。 */
   available: {
     version: string
@@ -77,9 +78,6 @@ export type PluginUpdateStatus = {
   } | null
   error: UpdateFailure | null
   task: UpdateTask
-  /** 现在从哪儿取插件清单（插件发布件与客户端本体挂在同一个 Release 上，只是清单名不同）。 */
-  source: { kind: string; base: string; manifestUrl: string; kinds: string[] }
-  hasToken: boolean
 }
 
 export type FrameEntry = {

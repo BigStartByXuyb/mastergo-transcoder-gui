@@ -17,17 +17,9 @@ function status(over: Partial<PluginUpdateStatus> = {}): PluginUpdateStatus {
   return {
     state: "up_to_date",
     local: { version: "1.0.371", dir: LOCAL_DIR },
-    installed: [{ version: "1.0.371", dir: LOCAL_DIR }],
     available: null,
     error: null,
     task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
-    source: {
-      kind: "github",
-      base: "https://github.com/BigStartByXuyb/mastergo-transcoder-gui",
-      manifestUrl: "https://github.com/BigStartByXuyb/mastergo-transcoder-gui/releases/latest/download/plugin-manifest.json",
-      kinds: ["github", "gitlab", "static"]
-    },
-    hasToken: false,
     ...over
   }
 }
@@ -51,7 +43,7 @@ describe("describePluginInstall", () => {
 
   it("本地一份都没有、远端有：按钮是「下载并安装」，说清一共几个文件", () => {
     const summary = describePluginInstall(
-      status({ state: "update_available", local: { version: "", dir: "" }, installed: [], available: avail })
+      status({ state: "update_available", local: { version: "", dir: "" }, available: avail })
     )
     expect(summary.label).toBe("有新版 v1.0.372")
     expect(summary.action).toBe("下载并安装")
@@ -74,7 +66,7 @@ describe("describePluginInstall", () => {
   })
 
   it("没查过（或启动那次没查成）：先让人点检查更新", () => {
-    const summary = describePluginInstall(status({ local: { version: "", dir: "" }, installed: [] }))
+    const summary = describePluginInstall(status({ local: { version: "", dir: "" } }))
     expect(summary.label).toBe("还没装")
     expect(summary.note).toContain("检查更新")
     expect(summary.canInstall).toBe(false)

@@ -17,22 +17,14 @@ export const ENGINE = drive("D", "app", "lib", "node-controls.js")
 export const INSTALL_PARENT = drive("D", "app", "plugins")
 export const INSTALLED_ROOT = drive("D", "app", "plugins", "mastergo-wpf-transcoder", "1.0.369")
 
-/** 自带那一份插件的状态：没传覆盖项就是「已装 1.0.369，且是最新」。 */
+/** 自带那一份插件的状态：没传覆盖项就是「本地装了 1.0.369，且是最新」。 */
 export function pluginUpdateFixture(over: Partial<PluginUpdateStatus> = {}): PluginUpdateStatus {
   return {
     state: "up_to_date",
     local: { version: "1.0.369", dir: INSTALLED_ROOT },
-    installed: [{ version: "1.0.369", dir: INSTALLED_ROOT }],
     available: null,
     error: null,
     task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
-    source: {
-      kind: "github",
-      base: "https://github.com/BigStartByXuyb/mastergo-transcoder-gui",
-      manifestUrl: "https://github.com/BigStartByXuyb/mastergo-transcoder-gui/releases/latest/download/plugin-manifest.json",
-      kinds: ["github", "gitlab", "static"]
-    },
-    hasToken: false,
     ...over
   }
 }

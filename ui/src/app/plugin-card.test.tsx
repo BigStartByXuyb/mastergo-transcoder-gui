@@ -305,7 +305,6 @@ describe("PluginCard", () => {
       update: pluginUpdateFixture({
         state: "update_available",
         local: { version: "", dir: "" },
-        installed: [],
         available: {
           version: "1.0.370",
           tag: "v1.0.370",

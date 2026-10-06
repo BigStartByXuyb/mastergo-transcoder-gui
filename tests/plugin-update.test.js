@@ -124,9 +124,8 @@ async function main() {
     const initial = update.status();
     assert.strictEqual(initial.state, "up_to_date", "没查过又没缓存就是最新");
     assert.deepStrictEqual(initial.local, { dir: "", version: "" }, "一份都没有时本地是空");
-    assert.deepStrictEqual(initial.installed, [], "一份都没有时不列已装版本");
     assert.strictEqual(initial.available, null, "没查过就没有远端信息");
-    assert.ok(initial.source.manifestUrl.endsWith("/" + PLUGIN_MANIFEST_NAME), "状态里要说清去哪儿取插件清单");
+    assert.strictEqual(initial.error, null);
 
     const checked = await update.check();
     assert.strictEqual(checked.state, "update_available", "远端有一版、本地没有，就是有新版");
@@ -173,7 +172,6 @@ async function main() {
     const before = update.status();
     assert.strictEqual(before.local.version, "1.0.1");
     assert.strictEqual(before.local.dir, localTree);
-    assert.strictEqual(before.installed.length, 1);
 
     const checked = await update.check();
     // SKILL.md 与 plugin.json 的内容都带版本号，所以一共动了 4 个文件（另加 extra.js）。
@@ -193,11 +191,7 @@ async function main() {
     assert.strictEqual(blobCalls.length, 4, "同内容的那一份不进下载（本地那份直接收进内容库）");
     assert.ok(server.urls.length > urlsBefore, "确实去远端取过");
     assert.strictEqual(update.status().local.version, "1.0.2", "插件定位按最高版本取：装完就是新的那一份");
-    assert.deepStrictEqual(
-      update.status().installed.map(function (item) { return item.version; }),
-      ["1.0.2", "1.0.1"],
-      "已装的几份按高版本在前"
-    );
+    assert.strictEqual(update.status().local.dir, path.join(installDir(home), "1.0.2"));
   }
 
   // ---- 三、远端给的内容与清单对不上：当场失败，不留半份 ----
@@ -276,7 +270,6 @@ async function main() {
       home: home,
       source: { kind: "static", base: "http://10.0.0.9/updates" },
       token: "secret",
-      hasToken: function () { return true; },
       fetchImpl: async function (url, init) {
         seen.push({ url: url, headers: (init && init.headers) || null });
         if (url === "http://10.0.0.9/updates/" + PLUGIN_MANIFEST_NAME) {
@@ -290,7 +283,6 @@ async function main() {
     await update.check();
     assert.strictEqual(seen[0].url, "http://10.0.0.9/updates/" + PLUGIN_MANIFEST_NAME, "静态源取根目录那一份清单");
     assert.deepStrictEqual(seen[0].headers, { authorization: "Bearer secret" }, "私有源带凭据");
-    assert.strictEqual(update.status().hasToken, true);
     update.install();
     const done = await settle(update);
     assert.strictEqual(done.task.phase, "done");
@@ -312,7 +304,6 @@ async function main() {
     assert.ok(fs.existsSync(path.join(leftover, MARKER)), "残骸确实是一棵像样的插件树");
     assert.deepStrictEqual(pluginRootsUnder(path.join(home, "plugins")), [], "插件定位一份都看不到");
     assert.strictEqual(update.status().local.version, "", "半成品不算本地那一份");
-    assert.strictEqual(update.status().installed.length, 0);
   }
 
   console.log("plugin-update: 全部通过");
