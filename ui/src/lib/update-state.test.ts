@@ -1,7 +1,29 @@
 import { describe, expect, it } from "vitest"
 
 import type { UpdateStatus, UpdateTask } from "@/lib/api"
-import { blockedNote, canSwitch, describeTask, describeUpdate, isDownloading, taskPercent, versionList } from "@/lib/update-state"
+import {
+  blockedNote,
+  canSwitch,
+  compareVersions,
+  describeTask,
+  describeUpdate,
+  isDownloading,
+  taskPercent,
+  versionList
+} from "@/lib/update-state"
+
+describe("compareVersions", () => {
+  it("按数字段比，段数不齐短的补 0", () => {
+    expect(compareVersions("0.10.0", "0.9.0")).toBe(1)
+    expect(compareVersions("1.0", "1.0.0")).toBe(0)
+  })
+
+  it("非数字段按字符串比兜底：与后端 lib/versions.js 同一口径", () => {
+    // 同一段里有非数字时，两边都退到整串比较：不会把 abc 与 abc 判成「不一样」。
+    expect(compareVersions("abc", "abc")).toBe(0)
+    expect(compareVersions("1.0.371-rc", "1.0.370")).toBe("1.0.371-rc".localeCompare("1.0.370"))
+  })
+})
 
 const task = (patch: Partial<UpdateTask> = {}): UpdateTask => ({
   phase: "idle",

@@ -1,13 +1,12 @@
 import { useRef, useState } from "react"
 import { Download, Loader2, RefreshCw } from "lucide-react"
-import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { IdentifierText } from "@/app/identifier-text"
+import { useActionRunner } from "@/app/use-action-runner"
 import { api, type PluginUpdateStatus } from "@/lib/api"
-import { describeFailure } from "@/lib/describe-failure"
 import { describePluginInstall, localSituation } from "@/lib/plugin-install"
 import { describeTask, isDownloading, taskPercent } from "@/lib/update-state"
 import { useStatusPoll } from "@/app/use-status-poll"
@@ -50,19 +49,8 @@ export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () 
     onError: setFailure
   })
 
-  async function act(key: string, run: () => Promise<{ status: PluginUpdateStatus }>, done: string) {
-    setWorking(key)
-    setFailure("")
-    try {
-      const payload = await run()
-      setStatus(payload.status)
-      if (done) toast.success(done)
-    } catch (error) {
-      setFailure(describeFailure(error))
-    } finally {
-      setWorking("")
-    }
-  }
+  // 动作骨架在 use-action-runner：与程序更新、Codex、运行时那三张卡同一套。
+  const act = useActionRunner<PluginUpdateStatus>({ setWorking, setFailure, setStatus })
 
   return (
     <div className="flex flex-col gap-3 rounded-md border p-3">

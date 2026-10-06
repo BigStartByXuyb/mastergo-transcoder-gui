@@ -14,9 +14,9 @@ import { Pager } from "@/app/pager"
 import { Progress } from "@/components/ui/progress"
 import { SourceDialog } from "@/app/source-dialog"
 import { api, type UpdateStatus } from "@/lib/api"
-import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
 import { finishDownload } from "@/app/download-actions"
+import { useActionRunner } from "@/app/use-action-runner"
 import { useStatusPoll } from "@/app/use-status-poll"
 import { startUpdateDownload } from "@/lib/update-download"
 import { runSwitch } from "@/lib/update-switch"
@@ -80,27 +80,10 @@ export function UpdateCard() {
   })
 
   /*
-   * 页面上的每个动作都走这里：置 working → 清旧错 → 跑 → 套用返回的状态 → 提示 → 收尾。
-   * 「怎么提示」由调用方给一个函数：有的要按结果（DownloadOutcome 的 kind/message）才决定说什么。
+   * 页面上的每个动作都走这一条（骨架在 use-action-runner）：「怎么提示」由调用方给 ——
+   * 有的要按结果（DownloadOutcome 的 kind/message）才决定说什么。
    */
-  async function act<T extends { status: UpdateStatus | null }>(
-    key: string,
-    run: () => Promise<T>,
-    done: string | ((payload: T) => void) = ""
-  ) {
-    setWorking(key)
-    setFailure("")
-    try {
-      const payload = await run()
-      if (payload.status) setStatus(payload.status)
-      if (typeof done === "function") done(payload)
-      else if (done) toast.success(done)
-    } catch (error) {
-      setFailure(describeFailure(error))
-    } finally {
-      setWorking("")
-    }
-  }
+  const act = useActionRunner<UpdateStatus>({ setWorking, setFailure, setStatus })
 
   /*
    * 下某一版（含历史版本）：清单按那一版的 tag 取，之后同一条下载流程。

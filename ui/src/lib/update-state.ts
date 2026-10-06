@@ -17,7 +17,10 @@ export type VersionRow = {
   remote: boolean
 }
 
-// 版本号只按数字段比大小，段数不齐时短的补 0；全仓只这一处比法，顺序才不会一处一个样。
+/*
+ * 版本号只按数字段比大小，段数不齐时短的补 0；非数字段（dev、1.0.371-rc 这种）按字符串比兜底 ——
+ * 与后端 lib/versions.js 同一口径（前后端不能互相引代码，各自一份，比法保持一致）。
+ */
 export function compareVersions(a: string, b: string): number {
   const left = a.split(".")
   const right = b.split(".")
@@ -25,6 +28,7 @@ export function compareVersions(a: string, b: string): number {
   for (let index = 0; index < length; index += 1) {
     const x = Number(left[index] ?? 0)
     const y = Number(right[index] ?? 0)
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return a.localeCompare(b)
     if (x !== y) return x < y ? -1 : 1
   }
   return 0

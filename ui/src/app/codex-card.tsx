@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { Bot, Download, Loader2, RefreshCw, RotateCcw, ShieldCheck } from "lucide-react"
-import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -12,8 +11,8 @@ import { api, type CodexStatus } from "@/lib/api"
 import { canDownload, canRollback, canSwitchTo, describeEngine, describeRelease, describeVersion } from "@/lib/codex-state"
 import { finishDownload } from "@/app/download-actions"
 import { startDownload } from "@/lib/download-run"
-import { describeFailure } from "@/lib/describe-failure"
 import { describeTask, isDownloading, taskPercent } from "@/lib/update-state"
+import { useActionRunner } from "@/app/use-action-runner"
 import { useStatusPoll } from "@/app/use-status-poll"
 
 /*
@@ -40,19 +39,8 @@ export function CodexCard() {
     onError: setProbe
   })
 
-  async function act(key: string, run: () => Promise<{ status: CodexStatus }>, done = "") {
-    setWorking(key)
-    setFailure("")
-    try {
-      const payload = await run()
-      setStatus(payload.status)
-      if (done) toast.success(done)
-    } catch (error) {
-      setFailure(describeFailure(error))
-    } finally {
-      setWorking("")
-    }
-  }
+  // 动作骨架在 use-action-runner：置 working → 清旧错 → 跑 → 套用状态 → 提示 → 收尾。
+  const act = useActionRunner<CodexStatus>({ setWorking, setFailure, setStatus })
 
   async function download() {
     setWorking("download")
