@@ -8,6 +8,7 @@
  * 用法：
  *   node scripts/winget-manifest.js                     # 用 dist/ 里这一版的 zip，基址＝内置 GitHub 仓库
  *   node scripts/winget-manifest.js --base https://git.公司.com/组/仓库   # 换成公司地址（回公司后就用这条）
+ *   node scripts/winget-manifest.js --base … --id BigStart.MasterGoTranscoder.Internal   # 内网那一份（标识分开）
  *   node scripts/winget-manifest.js --zip dist/xxx.zip --out dist/winget  # 指定包与输出目录
  *
  * 产物：dist/winget/ 下三个 YAML（version / locale / installer），可直接提 PR 到 winget-pkgs，
@@ -21,11 +22,13 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
+const source = require("../lib/source.js");
+
 const ROOT = path.join(__dirname, "..");
+// 公网那份的标识；内网那份用 --id 换一个（同一台机器上两个同名包会打架）。
 const IDENTIFIER = "BigStart.MasterGoTranscoder";
 const PACKAGE_NAME = "MasterGo 转码客户端";
 const PUBLISHER = "BigStart";
-const DEFAULT_BASE = "https://github.com/BigStartByXuyb/mastergo-transcoder-gui";
 const SHORT_DESCRIPTION = "MasterGo 设计稿转码客户端：看板跑流水线、待确认、更新与回退";
 // 内部工具：清单里必须有一项 License。这里按「公司内部使用」写，改发布策略时改这一处。
 const LICENSE = "Proprietary";
@@ -44,7 +47,7 @@ function sha256File(file) {
 function yamlInstaller(context) {
   return [
     "# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json",
-    "PackageIdentifier: " + IDENTIFIER,
+    "PackageIdentifier: " + context.id,
     "PackageVersion: " + context.version,
     "InstallerType: zip",
     "NestedInstallerType: portable",
@@ -64,7 +67,7 @@ function yamlInstaller(context) {
 function yamlLocale(context) {
   return [
     "# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json",
-    "PackageIdentifier: " + IDENTIFIER,
+    "PackageIdentifier: " + context.id,
     "PackageVersion: " + context.version,
     "PackageLocale: zh-CN",
     "Publisher: " + PUBLISHER,
@@ -81,7 +84,7 @@ function yamlLocale(context) {
 function yamlVersion(context) {
   return [
     "# yaml-language-server: $schema=https://aka.ms/winget-manifest.version.1.6.0.schema.json",
-    "PackageIdentifier: " + IDENTIFIER,
+    "PackageIdentifier: " + context.id,
     "PackageVersion: " + context.version,
     "DefaultLocale: zh-CN",
     "ManifestType: version",
@@ -93,7 +96,9 @@ function yamlVersion(context) {
 function main() {
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
   const version = pkg.version;
-  const base = String(argValue("base", DEFAULT_BASE)).replace(/\/+$/, "");
+  // 默认基址与地址拼法都取 lib/source.js 那一处：清单里的包地址跟客户端自己下载用的是同一套规则。
+  const base = String(argValue("base", source.DEFAULT_BASE)).replace(/\/+$/, "");
+  const id = String(argValue("id", IDENTIFIER));
   const folder = "mastergo-transcoder-gui-" + version;
   const zip = path.resolve(ROOT, argValue("zip", path.join("dist", folder + ".zip")));
   const outDir = path.resolve(ROOT, argValue("out", path.join("dist", "winget")));
@@ -102,8 +107,9 @@ function main() {
   }
 
   const context = {
+    id: id,
     version: version,
-    url: base + "/releases/download/v" + version + "/" + folder + ".zip",
+    url: source.assetUrl({ kind: "github", base: base }, version, folder + ".zip"),
     sha256: sha256File(zip).toUpperCase(),
     // zip 里保留着那一层目录，所以相对路径要带上它。
     relativeExe: folder + "/mastergo-transcoder.exe"
@@ -112,13 +118,13 @@ function main() {
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir, { recursive: true });
   const files = [
-    [IDENTIFIER + ".yaml", yamlVersion(context)],
-    [IDENTIFIER + ".locale.zh-CN.yaml", yamlLocale(context)],
-    [IDENTIFIER + ".installer.yaml", yamlInstaller(context)]
+    [id + ".yaml", yamlVersion(context)],
+    [id + ".locale.zh-CN.yaml", yamlLocale(context)],
+    [id + ".installer.yaml", yamlInstaller(context)]
   ];
   for (const [name, body] of files) fs.writeFileSync(path.join(outDir, name), body, "utf8");
 
-  process.stdout.write("winget 清单（" + version + "）→ " + outDir + "\n");
+  process.stdout.write("winget 清单（" + id + " · " + version + "）→ " + outDir + "\n");
   process.stdout.write("  包地址：" + context.url + "\n");
   process.stdout.write("  sha256：" + context.sha256 + "\n");
   process.stdout.write("  入口：" + context.relativeExe + "（命令别名 mastergo-transcoder）\n");

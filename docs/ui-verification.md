@@ -16,6 +16,27 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-10-06 winget：公网与内网两份清单（v0.6.46）
+
+### 改了什么
+
+- 生成器支持 `--id`：公网那份 `BigStart.MasterGoTranscoder`（默认），内网那份
+  `BigStart.MasterGoTranscoder.Internal` —— **两条命令、两个标识**，同一台机器上不打架，
+  内网那份也不会出现在公网 winget-pkgs 里。
+- 包地址改从 `lib/source.js` 的 `assetUrl` 拼（复用客户端自己下载用的那一套规则），
+  默认基址取 `source.DEFAULT_BASE` —— 回公司换默认源只改一行，winget 清单跟着指过去。
+- 安装文档修正两处：章节顺序（winget 那节原来插在「四、更新与回退」标题与正文之间）、
+  补上「两条命令」的说明。
+
+### 点过/跑过的东西
+
+| 操作 | 观察到 | 结论 |
+| --- | --- | --- |
+| `node scripts/winget-manifest.js`（0.6.46 的 zip） | 包地址 `…/releases/download/v0.6.46/mastergo-transcoder-gui-0.6.46.zip`、sha256 现算、入口 `…/mastergo-transcoder.exe`；`winget validate dist/winget` **成功** | 通过 |
+| `--id BigStart.MasterGoTranscoder.Internal --base https://git.example.com/team/repo` | 生成带 `.Internal` 标识的第二份；`winget validate dist/winget-internal` **成功**（两个标识互不干扰） | 通过 |
+| 用例 | 两份都要过：版本/地址/哈希/入口，以及内网那份的标识与文件名 | 通过 |
+| 全量门禁 | 后端 43 条、前端 52 文件 307 条、`tsc`、oxlint、结构检查 PASS | 通过 |
+
 ## 2026-10-06 接入 winget（v0.6.45）
 
 ### 改了什么

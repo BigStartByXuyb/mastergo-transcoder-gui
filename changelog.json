@@ -1,5 +1,20 @@
 [
   {
+    "version": "0.6.46",
+    "date": "2026-10-06",
+    "notes": [
+      "winget 支持「两条命令、两个标识」：公网那份是 BigStart.MasterGoTranscoder（现在默认指 GitHub）；内网那份用 --id BigStart.MasterGoTranscoder.Internal --base 公司地址 生成，客户机装的是 .Internal 那一条 —— 同一台机器上两个同名包会打架，内网那份也不该出现在公网 winget-pkgs 里",
+      "清单里的包地址改从 lib/source.js 的 assetUrl 拼（与客户端自己下载走同一套规则），默认基址也取那一处的 DEFAULT_BASE —— 回公司换默认源时只改一行，winget 清单跟着指过去",
+      "安装文档的章节顺序修正（winget 那一节原来插在「四、更新与回退」标题与正文之间）"
+    ],
+    "features": [
+      {
+        "id": "winget-two-identifiers",
+        "label": "winget：公网与内网两份清单、两个标识，一条参数换公司地址"
+      }
+    ]
+  },
+  {
     "version": "0.6.45",
     "date": "2026-10-06",
     "notes": [

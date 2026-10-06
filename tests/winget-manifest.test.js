@@ -52,6 +52,21 @@ function main() {
   assert.notStrictEqual(missing.status, 0);
   assert.match(String(missing.stderr || ""), /找不到这一版的 zip/);
 
+  /*
+   * 内网那一份：换标识 + 换基址生成第二份清单（同一台机器上两个同名包会打架）。
+   * 两份清单的入口与哈希相同，只有标识与包地址不同。
+   */
+  const internalOut = path.join(tmp, "winget-internal");
+  const internal = run(["--zip", zip, "--out", internalOut, "--base", base, "--id", "BigStart.MasterGoTranscoder.Internal"]);
+  assert.strictEqual(internal.status, 0, "内网那份也要能生成：" + String(internal.stderr || ""));
+  assert.ok(
+    fs.existsSync(path.join(internalOut, "BigStart.MasterGoTranscoder.Internal.installer.yaml")),
+    "文件名要带内网标识"
+  );
+  const internalInstaller = fs.readFileSync(path.join(internalOut, "BigStart.MasterGoTranscoder.Internal.installer.yaml"), "utf8");
+  assert.match(internalInstaller, /PackageIdentifier: BigStart\.MasterGoTranscoder\.Internal/, "标识要用带 .Internal 的那个");
+  assert.match(internalInstaller, new RegExp("InstallerSha256: " + sha), "同一份包的哈希相同");
+
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log("winget-manifest.test.js 全部通过");
 }
