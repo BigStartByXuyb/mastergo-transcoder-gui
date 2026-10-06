@@ -57,6 +57,10 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   `lib/system-open.js` 打不开时按类说话（目录说文件管理器、网址说浏览器），命令映射不再导出、平台/进程/
   看盘三样收进一处解析；「已带 token」徽标收成 `SourceBadges` 一处；`lib/plugin-root.js` 头注释对齐八档；
   用例改用 `aria-busy` 判「哪颗按钮在忙」（不再依赖 `svg.animate-spin` 这种图标实现细节）。
+- 第五轮复核继续把「号称一处、实际两处」的地方收掉：`hasToken` 两条版本线同口径（装配处给程序更新与插件
+  都注入同一份廉价判断，`manifest-fetch.hasToken` 只作没注入时的回落，轮询路径不解密）；「改完发布源立刻
+  重读」改走 `useStatusPoll` 返回的 `reload`（与轮询同一跳，卸载守卫也一并走这条），不再手写第二遍取数；
+  卡片里那两个忙碌位只合成布尔（`frozen`），「哪一半哪个动作在跑」仍各读各的字符串。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。
@@ -97,7 +101,7 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 
 | 命令 | 结果 |
 | --- | --- |
-| `npm test` | 通过，48 个文件全过（含新增 `tests/system-open.test.js`） |
+| `npm test` | 通过，47 个文件全过（含新增 `tests/system-open.test.js`；环境变量那一份用例随实现删掉） |
 | `npm run test:coverage` | 通过，lines 94.77 / branch 82.77 / funcs 96（门禁 90/75/90） |
 | `npm --prefix ui run test` | 通过，58 文件 341 用例（含新增两个插件页 hook 与发布源那几处的用例） |
 | `npm --prefix ui run test:coverage` | 通过，stmts 95.32 / branch 91.41 / funcs 96 |

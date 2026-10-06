@@ -54,7 +54,8 @@ export function usePluginUpdate(onInstalled: () => void) {
     if (done) installed.current()
   }, [])
 
-  useStatusPoll({
+  // 轮询与下面的「立刻重读」是同一段取数路径（reload 就是轮询那一跳，含卸载守卫）。
+  const { reload } = useStatusPoll({
     load: () => api.pluginUpdateStatus(),
     working: transferring,
     onData: (payload) => adopt(payload.status),
@@ -64,12 +65,15 @@ export function usePluginUpdate(onInstalled: () => void) {
   // 动作骨架与另外三张卡同一处（use-action-runner）：置 working → 清旧错 → 跑 → 套状态 → 收尾。
   const act = useActionRunner<PluginUpdateStatus>({ setWorking: setWorking, setFailure: rememberFailure, setStatus: setUpdate })
 
-  /* 立刻重读一次状态：改完发布源要马上看到这一份说的是新地址（同一条取数，不另拼请求）。 */
+  /*
+   * 立刻重读一次状态：改完发布源要马上看到这一份说的是新地址。
+   * 走轮询那一跳（useStatusPoll 的 reload），不另拼一条取数 —— 两边的落地与守卫因此只有一处。
+   */
   const refresh = useCallback(async function () {
-    const payload = await api.pluginUpdateStatus()
-    adopt(payload.status)
+    const payload = await reload()
+    if (!payload) throw new Error("读不到插件状态")
     return payload.status
-  }, [adopt])
+  }, [reload])
 
   /*
    * 卡片上那颗「检查更新」：与「程序更新」那张卡同形（act 套状态，这里只顺手清掉轮询留下的提示）。

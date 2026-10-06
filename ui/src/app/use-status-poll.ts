@@ -24,7 +24,7 @@ export function useStatusPoll<T>(settings: {
   working: boolean
   /** 进行中的节拍；默认 WORKING_POLL_MS。 */
   workingMs?: number
-}): { reload: () => Promise<void> } {
+}): { reload: () => Promise<T | null> } {
   const latest = useRef(settings)
   latest.current = settings
 
@@ -37,14 +37,17 @@ export function useStatusPoll<T>(settings: {
     }
   }, [])
 
-  const tick = useCallback(async () => {
+  // 取回来那份原样交回调用方（手动刷新那条路要按它说话）；失败与「已经卸下」都回 null。
+  const tick = useCallback(async function (): Promise<T | null> {
     try {
       const payload = await latest.current.load()
-      if (!alive.current) return
+      if (!alive.current) return null
       latest.current.onData(payload)
+      return payload
     } catch (error) {
-      if (!alive.current) return
+      if (!alive.current) return null
       latest.current.onError(describeFailure(error))
+      return null
     }
   }, [])
 
@@ -55,6 +58,6 @@ export function useStatusPoll<T>(settings: {
     return () => window.clearInterval(timer)
   }, [tick, settings.working, settings.workingMs])
 
-  // 手动立刻刷一次（改完设置不想等下一轮）：与轮询走同一条取数路径。
+  // 手动立刻刷一次（改完设置不想等下一轮）：与轮询走同一条取数路径（卸载守卫也一并走这条）。
   return { reload: tick }
 }

@@ -183,7 +183,9 @@ const pluginUpdate = createPluginUpdate({
   isBusy: busyReason,
   // 与程序更新共用同一个发布源与凭据：插件发布件与客户端本体挂在同一个 Release 上。
   source: function () { return settings.read().source; },
-  token: function () { return settings.readSourceToken(); }
+  token: function () { return settings.readSourceToken(); },
+  // 与程序更新同一份廉价判断（也是状态轮询那条路读的那一份）：有没有 token 不解密。
+  hasToken: function () { return settings.read().source.hasToken; }
 });
 // Codex 引擎：只下载进安装根，用户的 ~/.codex 一概不动；对话与写盘由插件脚本负责。
 const codex = createCodex({

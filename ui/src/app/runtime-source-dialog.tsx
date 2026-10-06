@@ -37,7 +37,8 @@ export function RuntimeSourceDialog(props: {
   onDownload: (tool: RuntimeId) => void
   onClose: () => void
   /** 存完让外层刷一次运行时状态，表格里那一行跟着变。 */
-  onSaved: () => Promise<void>
+  /** 存完把最新状态读回来（读一次，值本身不用看）。 */
+  onSaved: () => Promise<unknown>
 }) {
   const { settings, save } = useSettings()
   const id = props.tool.id

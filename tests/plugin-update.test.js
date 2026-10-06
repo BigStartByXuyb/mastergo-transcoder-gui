@@ -311,6 +311,24 @@ async function main() {
     assert.strictEqual(update.status().local.version, "", "半成品不算本地那一份");
   }
 
+  /*
+   * 有没有 token：装配处（server.js）注入了那份廉价判断（只看设置里记的标记，不解密），
+   * 状态就该读它 —— 注入的那份被问到、取值链那份不被碰（轮询路径不解密）。
+   */
+  {
+    const home = sandbox();
+    const asked = [];
+    const update = createPluginUpdate({
+      home: home,
+      source: { kind: "github", base: BASE },
+      fetchImpl: async function () { throw new Error("不该联网"); },
+      token: function () { asked.push("token"); return "mg_secret"; },
+      hasToken: function () { asked.push("hasToken"); return true; }
+    });
+    assert.strictEqual(update.status().hasToken, true);
+    assert.deepStrictEqual(asked, ["hasToken"], "读状态只问注入的那份廉价判断");
+  }
+
   console.log("plugin-update: 全部通过");
 }
 

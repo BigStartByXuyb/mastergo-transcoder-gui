@@ -38,7 +38,9 @@ export function PluginCard() {
 
   const lookup = sources.view ? pluginLookup(sources.view.sources) : { slots: [], rows: [] }
   const selected = lookup.rows.find((row) => row.id === opened) ?? null
-  const busy = sources.busy || update.busy
+  // 有任一半在跑就冻住换一份 / 改发布源这类动作。这里只是布尔语义：
+  // 「哪一半的哪个动作在跑」由各自那一半的 busy 字符串回答（不合成成同一个字符串再比对）。
+  const frozen = Boolean(sources.busy || update.busy)
 
   return (
     <Card>
@@ -87,21 +89,21 @@ export function PluginCard() {
               <Button
                 size="sm"
                 variant="outline"
-                disabled={Boolean(busy)}
+                disabled={frozen}
                 aria-busy={sources.busy === "pick"}
                 onClick={() => void sources.pickFolder()}
               >
-                {busy === "pick" ? <Loader2 className="size-4 animate-spin" /> : <FolderSearch className="size-4" />}
+                {sources.busy === "pick" ? <Loader2 className="size-4 animate-spin" /> : <FolderSearch className="size-4" />}
                 指定一个目录…
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                disabled={Boolean(busy) || !sources.view.chosen}
+                disabled={frozen || !sources.view.chosen}
                 aria-busy={sources.busy === "auto"}
                 onClick={() => void sources.choose("", "auto")}
               >
-                {busy === "auto" && <Loader2 className="size-4 animate-spin" />}
+                {sources.busy === "auto" && <Loader2 className="size-4 animate-spin" />}
                 交给客户端找
               </Button>
             </div>
@@ -116,7 +118,7 @@ export function PluginCard() {
                 <UpdateSourceRow
                   source={update.update.source}
                   hasToken={update.update.hasToken}
-                  disabled={Boolean(busy)}
+                  disabled={frozen}
                   onEdit={() => setEditingSource(true)}
                 />
                 <div className="flex flex-wrap items-center gap-2">
@@ -178,7 +180,7 @@ export function PluginCard() {
                       row={row}
                       installState={row.members.includes("install") && update.update ? describePluginInstall(update.update).label : ""}
                       busy={sources.busy}
-                      frozen={Boolean(busy)}
+                      frozen={frozen}
                       onOpen={() => setOpened(row.id)}
                       onChoose={() => void sources.choose(row.pluginRoot, row.id)}
                     />
