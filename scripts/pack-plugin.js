@@ -19,13 +19,15 @@
  */
 
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
 const { execFileSync } = require("child_process");
 const {
   PLUGIN_NAME,
   PLUGIN_MARKER,
-  pluginVersionFrom,
+  isPluginRoot,
+  pluginVersionOf,
   MANIFEST_FILE,
   zipName,
   versionOfTag
@@ -91,28 +93,34 @@ function pack(args, pin) {
   if (where.name !== PLUGIN_NAME) {
     throw new Error("pin 的 path 里那个目录要叫 " + PLUGIN_NAME + "（市场按这个名字认插件）：" + pin.dir);
   }
-  // 读某个路径在钉住的那个 tag 里的内容（git 路径只能用正斜杠）。
-  const readAtTag = function (rel) {
-    try {
-      return git(repoDir, ["show", pin.tag + ":" + pin.dir + "/" + rel]);
+  /*
+   * 要发布的是 tag 里的内容：先把它摊到一个临时目录，后面两道门禁（是不是插件根、版本是多少）
+   * 都用客户端那一套目录判据，不再为 git 树另写一份；最后包也从同一个 tag 取。
+   */
+  const staging = path.join(os.tmpdir(), "mgtg-plugin-src-" + process.pid);
+  fs.rmSync(staging, { recursive: true, force: true });
+  fs.mkdirSync(staging, { recursive: true });
+  try {
+    const tarball = path.join(staging, "tree.tar");
+    git(repoDir, ["archive", "--format=tar", pin.tag, pin.dir, "-o", tarball]);
+    execFileSync("tar", ["-xf", tarball, "-C", staging], { windowsHide: true });
+    const treeDir = path.join(staging, pin.dir);
+    if (!isPluginRoot(treeDir)) {
+      throw new Error("这个 tag 里没有 " + PLUGIN_MARKER + "，客户端认不出它是一份插件：" + pin.dir);
     }
-    catch {
-      return "";
+    const declared = pluginVersionOf(treeDir);
+    if (String(declared) !== version) {
+      throw new Error(pin.tag + " 里的插件版本是 " + declared + "，与标签对不上。");
     }
-  };
-  // 客户端靠这个标记文件认出「这是一份插件根」：与版本门禁同一个来源（都读 tag），
-  // 有一说一 —— 要发布的是 tag 里的内容，不是检出目录里可能被改过的东西。
-  if (!readAtTag(String(PLUGIN_MARKER).replace(/\\/g, "/"))) {
-    throw new Error("这个 tag 里没有 " + PLUGIN_MARKER + "，客户端认不出它是一份插件：" + pin.dir);
+    writePackage(args, pin, version, where);
   }
-
-  // 版本以插件自己的清单为准，读法与客户端定位那份完全一样（plugin-root.js 的 pluginVersionFrom）：
-  // tag 与它不一致时宁可打不出包。
-  const declared = pluginVersionFrom(readAtTag);
-  if (String(declared) !== version) {
-    throw new Error(pin.tag + " 里的插件版本是 " + declared + "，与标签对不上。");
+  finally {
+    fs.rmSync(staging, { recursive: true, force: true });
   }
+}
 
+function writePackage(args, pin, version, where) {
+  const repoDir = path.resolve(args.repoDir);
   const outDir = path.resolve(args.out);
   fs.mkdirSync(outDir, { recursive: true });
   const zipPath = path.join(outDir, zipName(version));

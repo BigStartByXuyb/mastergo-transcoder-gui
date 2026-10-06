@@ -83,7 +83,16 @@ function packInto(base) {
   const out = path.join(base, "out");
   const args = [PACK, "--repo-dir", repo, "--out", out, "--pin", pinFile];
 
-  node(args);
+  // 发布流程按前缀取产物（不猜行序）：这里跑一遍同一条命令，盯住这个协议。
+  const printed = node(args).trim().split("\n");
+  assert.ok(
+    printed[0].startsWith("blob=") && printed[0].endsWith(pkg.zipName("1.2.3")),
+    "按 blob= 前缀报包路径：" + printed[0]
+  );
+  assert.ok(
+    printed[1].startsWith("manifest=") && printed[1].endsWith(pkg.MANIFEST_FILE),
+    "按 manifest= 前缀报清单路径：" + printed[1]
+  );
   const manifestFile = path.join(out, pkg.MANIFEST_FILE);
   const zipFile = path.join(out, pkg.zipName("1.2.3"));
   const first = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
@@ -117,6 +126,7 @@ function packInto(base) {
 
 function main() {
   assert.strictEqual(pkg.PLUGIN_NAME, pluginRoot.PLUGIN_NAME, "插件名只有 lib/plugin-root.js 一处定义");
+  assert.strictEqual(typeof pkg.isPluginRoot, "function", "打包侧复用客户端那条「是不是插件根」的判据");
   assert.strictEqual(pkg.zipName("1.2.3"), pkg.PLUGIN_NAME + "-1.2.3.zip", "zip 名字由插件名与版本拼出");
   assert.ok(pkg.MANIFEST_FILE.endsWith(".json"), "清单是 json");
 
