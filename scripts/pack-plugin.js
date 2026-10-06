@@ -25,10 +25,11 @@ const { execFileSync } = require("child_process");
 // 判据只有一处实现（lib/plugin-root.js）：这里直接用它的公开函数，不再另建一层转口。
 const { PLUGIN_NAME, PLUGIN_MARKER, isPluginRoot, pluginVersionOf } = require("../lib/plugin-root.js");
 const { listFilesUnder, hashFiles } = require("../lib/app-manifest.js");
+const { PLUGIN_MANIFEST_NAME } = require("../lib/source.js");
 const { stageAssets, uploadRelease } = require("./lib/release-assets.js");
 
-// 发布件的名字只属于发布流程（不进运行树，客户端那半接的时候按同一套协议另说）。
-const MANIFEST_FILE = "plugin-manifest.json";
+// 发布件的名字与客户端那一半共用 lib/source.js 里的定义（打包写什么名，客户端就找什么名）。
+const MANIFEST_FILE = PLUGIN_MANIFEST_NAME;
 const versionOfTag = function (tag) { return String(tag || "").trim().replace(/^v/, ""); };
 
 // 打哪一版由 pin 文件决定（默认 plugin-pin.json，改它不用改代码）；它只属于发布流程，不进运行树。

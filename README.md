@@ -52,6 +52,7 @@ lib/http.js         JSON / 请求体 / 静态文件
 lib/routes.js       路由表与分发
 lib/plugin-root.js  插件定位
 lib/plugin.js       插件信息与步骤契约
+lib/plugin-update.js 插件那一半：按发布件里的插件清单装一份到客户端自带的位置
 lib/resolve.js      控件查询
 lib/mcp-token.js    MasterGo 取数凭证的取值链（命令行 / 环境变量 / 本机保存 / config.toml）
 lib/node-controls.js 控件查询引擎（客户端编排，ID 与控件代码取插件的实现）
@@ -117,6 +118,11 @@ lib/launch.js       读 current.json，判断那一份能不能跑
 4. `~/.claude/plugins/{cache,marketplaces}` 下的同名插件（同上）
 
 四项都没命中时**直接失败并报告已查找的路径**，不回退到自带副本。
+
+「客户端自带」那一份不用先装 Codex / Claude：设置 → 更新 → 插件（流水线）里「下载并安装」，
+客户端按发布件里的 `plugin-manifest.json`（与客户端本体同一套协议：一份清单 + 按 sha256 取文件）
+下到 `<安装根>\plugins\mastergo-wpf-transcoder\<插件版本>\`。查找顺序里它排在缓存/市场之后，
+装完在插件页点那一行的「用这份」才换过去；插件定位按最高版本现取，落盘即生效。
 
 插件内需要：
 

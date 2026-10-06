@@ -131,7 +131,8 @@ function packInto(base) {
 }
 
 function main() {
-  assert.strictEqual(pkg.MANIFEST_FILE, "plugin-manifest.json", "清单名只有打包脚本一处定义");
+  assert.strictEqual(pkg.MANIFEST_FILE, source.PLUGIN_MANIFEST_NAME, "清单名与客户端那一半共用 lib/source.js 的定义");
+  assert.strictEqual(pkg.MANIFEST_FILE, "plugin-manifest.json", "名字就是发布件里那一份");
   assert.ok(pkg.MANIFEST_FILE.endsWith(".json"), "清单是 json");
 
   // pin 只属于发布流程：填全、形状对，而且里面那个目录名必须就是插件名（不然两处名字会各说各话）。

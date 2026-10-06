@@ -58,6 +58,30 @@ export type PluginEnvView = {
   envScopes: PluginEnvScopes
 }
 
+/** 客户端自带的那一份插件：装到哪儿、装的是哪一版、远端有没有新的。 */
+export type PluginUpdateStatus = {
+  state: "up_to_date" | "update_available" | "error"
+  /** 客户端自带的那一份；此刻生效的可能是别的来源，那由来源表说。 */
+  local: { version: string; dir: string }
+  /** 这一处已装的几份（高版本在前）。 */
+  installed: { version: string; dir: string }[]
+  /** 上一次检查到的远端版本与差异；没检查过就是 null。 */
+  available: {
+    version: string
+    tag: string
+    releasedAt: string
+    changed: number
+    removed: number
+    total: number
+    checkedAt: string
+  } | null
+  error: UpdateFailure | null
+  task: UpdateTask
+  /** 现在从哪儿取插件清单（插件发布件与客户端本体挂在同一个 Release 上，只是清单名不同）。 */
+  source: { kind: string; base: string; manifestUrl: string; kinds: string[] }
+  hasToken: boolean
+}
+
 export type FrameEntry = {
   fileId: string
   layerId: string
@@ -826,6 +850,15 @@ export const api = {
   /** value 为空串＝清掉这个环境变量；写完由新起的进程读到。 */
   pluginEnvSave: (value: string) =>
     post<PluginEnvView & { resolves: boolean }>("/api/plugin/env", { value }),
+  pluginUpdateStatus: () => request<{ ok: true; status: PluginUpdateStatus }>("/api/plugin/update/status"),
+  /** 拉插件清单：失败也回 200，原因在 status.error 里。 */
+  pluginUpdateCheck: () => post<{ ok: true; status: PluginUpdateStatus }>("/api/plugin/update/check", {}),
+  /** 装最新那一版：跑在后台，进度与结果都在 status.task 里；装完立刻可用。 */
+  pluginUpdateInstall: () =>
+    post<{ ok: true; started: boolean; version: string; note: string; status: PluginUpdateStatus }>(
+      "/api/plugin/update/install",
+      {}
+    ),
   resolve: (body: { link: string; frameLink: string; projectDir: string }) => post<ResolveResult>("/api/resolve", body),
   /** 续跑认看板任务 id：jobId 每次续跑都会被换掉，当钥匙就会「找不到这次运行」。 */
   runResume: (taskId: string) =>

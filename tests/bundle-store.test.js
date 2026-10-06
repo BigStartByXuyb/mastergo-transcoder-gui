@@ -102,6 +102,23 @@ async function main() {
   const verifier = createBundleStore(path.join(home, "second"));
   assert.deepStrictEqual(verifier.listVersions(), [], "还没下载过就是空");
 
+  /*
+   * 第二条内容库（插件那一半）：三段目录名可以换，且可以没有版本指针。
+   * 版本目录直接落在自己的根下 —— 插件定位就是按「同名目录下的版本子目录」认的。
+   */
+  const nested = createBundleStore(path.join(home, "plugins", "mastergo-wpf-transcoder"), {
+    blobsDir: "blobs",
+    versionsDir: "",
+    pointerName: ""
+  });
+  const placed = await nested.materialize(manifest, async function (hash, rel) {
+    return Buffer.from(contents[rel], "utf8");
+  });
+  assert.strictEqual(placed.dir, path.join(home, "plugins", "mastergo-wpf-transcoder", "0.2.0"), "版本目录就在这一层");
+  assert.strictEqual(fs.existsSync(path.join(home, "plugins", "mastergo-wpf-transcoder", "blobs", manifest.files["lib/a.js"])), true);
+  assert.strictEqual(nested.readPointer(), null, "没有指针这一说");
+  assert.throws(function () { nested.writePointer({ version: "0.2.0" }); }, /没有版本指针/);
+
   fs.rmSync(home, { recursive: true, force: true });
   process.stdout.write("bundle-store ok\n");
 }

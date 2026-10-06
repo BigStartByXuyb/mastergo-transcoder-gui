@@ -16,6 +16,55 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-10-06 插件：客户端自带那一份的下载与安装
+
+### 改了什么
+
+- `lib/plugin-update.js`（新）：插件那一半。按发布件里的 `plugin-manifest.json`（与客户端本体同一套
+  「一份清单 + 按 sha256 取文件」的协议）差分下载，装到 `<安装根>\plugins\mastergo-wpf-transcoder\<插件版本>\`。
+  内容库、校验、落盘复用 `lib/bundle-store.js`；没有版本指针 —— 插件定位按最高版本现取，落盘即生效。
+- `lib/source.js`：清单名收一个参数，插件那一半按同一套协议取自己那份清单；两份清单名只在这一处定义
+  （发布侧 `scripts/pack-plugin.js` 也从这里取，写一个名、找另一个名不可能）。
+- `lib/bundle-store.js`：目录名（blobs / versions / 指针）可以用 layout 换，第二条内容库不再另写一份实现。
+- `lib/routes.js`、`server.js`：`/api/plugin/update/{status,check,install}`；启动时静默查一次插件版本；
+  装完重新定位一次插件（`pluginRuntime.reload`）。
+- `ui/src/lib/plugin-install.ts`、`ui/src/app/plugin-install-panel.tsx`、`ui/src/app/plugin-card.tsx`：
+  插件页最上面那块「客户端自带的那一份」——状态徽标 / 检查更新 / 下载并安装 / 进度 / 已装说明。
+- `docs/install.md`、`README.md`：客户机没有 Codex / Claude 时怎么让客户端自己装一份插件。
+
+### 点过的东西
+
+夹具：一个临时安装根（`MASTERGO_HOME`）+ 内网静态源（把 `plugin-manifest.json` 与按哈希命名的文件铺成一个目录），
+插件版本 9.9.9；本机另有 Codex 缓存里的 1.0.371，用来验「装了但不是正在用的那份」。
+
+| 页面 | 操作 | 观察到 | 结论 |
+| --- | --- | --- | --- |
+| 设置 → 更新 → 插件（流水线） | 打开 `#settings?tab=update&part=plugin` | 最上面那块：徽标「有新版 v9.9.9」，两行说明「客户机上没有 Codex / Claude 时……」「远端 v9.9.9，共 3 个文件」 | 通过 |
+| 同上 | 点「下载并安装」 | 按钮变禁用并出现进度条 + 「正在下载 n/n（其中新内容 n 个）」；几秒后徽标变「是最新 v9.9.9」，按钮变「已是最新版」（禁用） | 通过 |
+| 同上 | 装完看说明 | 「已装，但此刻用的不是这一份：下面表格里标「正在用」的那一行才是现在生效的……」 | 通过 |
+| 同上 | 看来源表「客户端自带」那一行 | 出现 v9.9.9（装之前是「没有」），路径 `…\plugins\mastergo-wpf-transcoder\9.9.9`，有「用这份」 | 通过 |
+| 同上 | 点该行「用这份」 | 那一行状态变「正在用」，旁边标注「同时来自：设置里选的」；上面那块说明变「正在用的就是这一份。」 | 通过 |
+| 设置 → 更新 → 插件（流水线） | 点「检查更新」 | 徽标与「远端 vX」按远端清单刷新（离线/没有发布件时徽标变「检查失败」并把原因写在下面） | 通过 |
+| 顶栏 | 装完看右上角 | 「插件 v9.9.9」跟着换成正在用的那一份 | 通过 |
+
+### 没点的
+
+- 断网 / 发布件缺文件 / 哈希不符：只在 `tests/plugin-update.test.js` 里造（失败后不留半份，也不改本地这一份）。
+- 有任务在跑时点「下载并安装」：会跑真流水线，留给下一次实跑（拒绝逻辑已由 `tests/plugin-update.test.js` 覆盖）。
+- 公网 GitHub 与公司 GitLab 两种源：本机只对静态源做真机验证，另两种走 `tests/source.test.js` 的地址拼法。
+- 装完之后真跑一次流水线：装的是夹具插件（没有 `run-all.ps1`），接真插件跑流水线留给下一次实跑。
+
+### 自动化门禁
+
+| 命令 | 结果 |
+| --- | --- |
+| `npm test` | 通过，47 个文件全过（含新增 `tests/plugin-update.test.js`） |
+| `npm run test:coverage` | 通过，lines 94.57 / branch 82.34 / funcs 95.93（门禁 90/75/90） |
+| `npm --prefix ui run test` | 通过，53 文件 321 用例（含新增面板与判定用例） |
+| `npm --prefix ui run test:coverage` | 通过，stmts 94.63 / branch 91.57 / funcs 95.65 |
+| `npm run build:ui` | 通过，`public/` 已重建并入库 |
+| `node <cicd>/check-app-structure.mjs --root .` | PASS（硬编码路径 / 孤儿导出 / 分层 / CI 钉死 均 0 条） |
+
 ## 2026-10-06 一条命令装：机器上没有脚本也能跑 + 客户机的 Windows PowerShell 5.1（v0.6.49）
 
 ### 用户报的问题

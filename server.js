@@ -43,6 +43,7 @@ const { createLayoutRegistrar } = require("./lib/plugin-layout.js");
 const { createPendingQueue } = require("./lib/pending-queue.js");
 const { createMapping } = require("./lib/mapping.js");
 const { createUpdate } = require("./lib/update.js");
+const { createPluginUpdate } = require("./lib/plugin-update.js");
 const { createCodex } = require("./lib/codex.js");
 const { createRuntime, resolvePwshExe } = require("./lib/runtime.js");
 const runtimePolicy = require("./lib/runtime-policy.js");
@@ -170,6 +171,20 @@ const update = createUpdate({
   token: function () { return settings.readSourceToken(); },
   hasToken: function () { return settings.read().source.hasToken; }
 });
+/*
+ * 插件那一半：客户机上没有 Codex/Claude 时，客户端按发布件里的插件清单自己装一份，装在安装根
+ * 的 plugins/ 下（插件定位里「客户端自带」那一条）。装完重新定位一次，这一份立刻可用。
+ */
+const pluginUpdate = createPluginUpdate({
+  home: HOME,
+  onInstalled: function () { pluginRuntime.reload(); },
+  // 装完就是生效，所以和「换一份插件」同一道门禁：有任务在跑时先不换。
+  isBusy: busyReason,
+  // 与程序更新共用同一个发布源与凭据：插件发布件与客户端本体挂在同一个 Release 上。
+  source: function () { return settings.read().source; },
+  token: function () { return settings.readSourceToken(); },
+  hasToken: function () { return settings.read().source.hasToken; }
+});
 // Codex 引擎：只下载进安装根，用户的 ~/.codex 一概不动；对话与写盘由插件脚本负责。
 const codex = createCodex({
   home: HOME,
@@ -211,6 +226,7 @@ const routes = createRoutes({
   pendingQueue: pendingQueue,
   mapping: mapping,
   update: update,
+  pluginUpdate: pluginUpdate,
   codex: codex,
   runtime: runtime
 });
@@ -280,6 +296,8 @@ server.listen(options.port, options.host, function () {
   void update.check({ silent: true });
   // 之后每 10 分钟再查一次：界面顶上的「有新版」标注靠它保持新鲜。
   update.startWatch();
+  // 插件那一半只在启动时静默查一次：插件页打开就能看到「有没有新版」，不必每次都去问远端。
+  void pluginUpdate.check({ silent: true });
   void codex.check({ silent: true });
   if (options.open) openBrowser(url);
 });
