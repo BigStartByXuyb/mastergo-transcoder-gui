@@ -5,6 +5,7 @@
  * 打插件发布件：<插件名>-<版本>.zip + plugin-manifest.json。发布流程在打 tag 时调它。
  *
  * 用法：node scripts/pack-plugin.js --repo-dir <插件仓库的检出目录> [--out dist]
+ * 结果按「每行一个文件路径」写到标准输出（发布流程直接拿它上传），说明写到标准错误。
  *
  * 内容用 git archive 从钉住的 tag 取：只含那次提交里的文件，条目时间取 commit 时间，
  * 同一个 tag 打出来哈希一致。命令在 plugins/ 目录下跑、路径按「相对当前目录」给 ——
@@ -81,8 +82,11 @@ function main() {
       sha256: crypto.createHash("sha256").update(fs.readFileSync(zipPath)).digest("hex")
     }
   };
-  fs.writeFileSync(path.join(outDir, MANIFEST_FILE), JSON.stringify(manifest, null, 2) + "\n");
-  process.stdout.write("插件包已生成：" + path.join(outDir, manifest.zip.name) + "（" + manifest.version + "）\n");
+  const manifestPath = path.join(outDir, MANIFEST_FILE);
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  // 上传方要的是文件名，别在流程里再拼一遍（拼一遍就等于同一件事有两处实现）。
+  process.stderr.write("插件包已生成：" + zipPath + "（" + manifest.version + "）\n");
+  process.stdout.write(zipPath + "\n" + manifestPath + "\n");
 }
 
 main();
