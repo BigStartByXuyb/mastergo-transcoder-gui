@@ -78,14 +78,7 @@ function splitPluginDir(dir) {
   return { parent: parts.slice(0, -1).join("/"), name: parts[parts.length - 1] };
 }
 
-function main() {
-  const args = parseArgs(process.argv.slice(2));
-  const pin = readPin(path.resolve(args.pin));
-  // 发布流程先问这一句「打的是哪个仓库、哪个 tag」，再自己去检出：pin 只在 plugin-pin.json 一处。
-  if (args.printPin) {
-    process.stdout.write(pin.repo + "\n" + pin.tag + "\n");
-    return;
-  }
+function pack(args, pin) {
   const repoDir = path.resolve(args.repoDir);
   if (!fs.existsSync(repoDir)) throw new Error("插件仓库的检出目录不存在：" + repoDir);
   const version = versionOfTag(pin.tag);
@@ -132,6 +125,17 @@ function main() {
   // 上传方要的是文件名，别在流程里再拼一遍（拼一遍就等于同一件事有两处实现）。
   process.stderr.write("插件包已生成：" + zipPath + "（" + manifest.version + "）\n");
   process.stdout.write(zipPath + "\n" + manifestPath + "\n");
+}
+
+function main() {
+  const args = parseArgs(process.argv.slice(2));
+  const pin = readPin(path.resolve(args.pin));
+  // 发布流程先问这一句「打的是哪个仓库、哪个 tag」，再自己去检出：pin 只在 plugin-pin.json 一处。
+  if (args.printPin) {
+    process.stdout.write(pin.repo + "\n" + pin.tag + "\n");
+    return;
+  }
+  pack(args, pin);
 }
 
 main();

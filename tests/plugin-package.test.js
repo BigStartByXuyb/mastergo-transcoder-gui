@@ -95,6 +95,7 @@ function packInto(base) {
   assert.strictEqual(JSON.parse(fs.readFileSync(manifestFile, "utf8")).zip.sha256, firstHash, "同一个 tag 打两次哈希要一致");
 
   // tag 与插件自己声明的版本对不上：宁可打不出来。
+  git(repo, ["tag", "v9.9.9"]);
   const wrongPin = writePin(base, repo, "v9.9.9");
   assert.throws(function () {
     node([PACK, "--repo-dir", repo, "--out", path.join(base, "out2"), "--pin", wrongPin], { stdio: "pipe" });
@@ -107,7 +108,8 @@ function main() {
   assert.ok(pkg.MANIFEST_FILE.endsWith(".json"), "清单是 json");
 
   // pin 只属于发布流程：填全、形状对，而且里面那个目录名必须就是插件名（不然两处名字会各说各话）。
-  assert.ok(/^v\d+(\.\d+)*$/.test(String(pin.tag).trim()), "pin 的 tag 形如 v1.0.371：" + pin.tag);
+  // 与打包脚本同一条判据：去掉开头的 v 之后是版本号。
+  assert.ok(/^\d+(\.\d+)*$/.test(String(pin.tag).trim().replace(/^v/, "")), "pin 的 tag 形如 v1.0.371：" + pin.tag);
   assert.ok(
     source.parseSource({ kind: "github", base: String(pin.repo).trim().replace(/\/+$/, "") }) != null,
     "pin 的仓库要是一个能被发布源接受的基址：" + pin.repo
