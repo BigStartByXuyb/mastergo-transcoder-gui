@@ -12,12 +12,17 @@
  */
 
 const fs = require("fs");
+const crypto = require("crypto");
 const path = require("path");
 const { spawnSync } = require("child_process");
 
 const { buildManifest } = require("../lib/app-manifest.js");
 
 const ROOT = path.join(__dirname, "..");
+
+function sha256File(file) {
+  return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+}
 
 function argValue(name, fallback) {
   const index = process.argv.indexOf("--" + name);
@@ -63,6 +68,15 @@ function main() {
     process.stdout.write("本机没有 zip / tar，只铺了目录：" + stage + "\n");
     return;
   }
+  /*
+   * 顺带产一份 checksums.json：安装脚本（scripts/install-client.ps1）按它校验下载到的 zip。
+   * 以前那份脚本是拿正则去啃 winget 清单的，等于把「安装脚本」和「winget 产物」绑成一个隐式契约 ——
+   * 这里给一份专门给安装用的文件，两个产物各管各的。
+   */
+  fs.writeFileSync(path.join(outDir, "checksums.json"), JSON.stringify({
+    version: version,
+    zip: { name: folder + ".zip", sha256: sha256File(zipFile) }
+  }, null, 2) + "\n", "utf8");
   process.stdout.write("打包完成：" + zipFile + "\n");
 }
 

@@ -134,16 +134,17 @@ powershell -ExecutionPolicy Bypass -File install-client.ps1
 ```
 
 它做的三步与 winget portable 内部完全一样，只是我们自己走一遍：
-**下载这一版的 zip → 按清单里的 sha256 校验 → 解压到 `%LOCALAPPDATA%\MasterGoTranscoder` → 建桌面快捷方式**。
+**下载这一版的 zip → 按发布时那份 `checksums.json` 里的 sha256 校验 → 解压到 `%LOCALAPPDATA%\MasterGoTranscoder` → 建桌面快捷方式**。
 不需要管理员（全在用户目录里），不跑任何安装程序；装完双击里面的 `mastergo-transcoder.exe` 即可（缺运行组件它自己补）。
 
-内网机器（取不到 GitHub）把 -Base 指到内网地址，指定版本更稳（latest 要查一下远端清单）：
+**非 GitHub 形状的来源**（公司 GitLab、内网目录、任意镜像）不猜地址 —— 直接把 zip 直链与它的 sha256 给过来：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File install-client.ps1 -Base https://git.公司.com/组/仓库 -Version 0.6.47
+powershell -ExecutionPolicy Bypass -File install-client.ps1 -ZipUrl <zip 的完整地址> -Sha256 <64 位哈希>
 ```
 
-参数：`-Version`（默认 latest）、`-Base`（默认内置 GitHub 仓库）、`-Target`（默认 `%LOCALAPPDATA%\MasterGoTranscoder`）、`-NoShortcut`。
+`-Base` 只用于 GitHub 形状（`<基址>/releases/…`），它的默认值与 `lib/source.js` 的 `DEFAULT_BASE` 一致（有用例盯着不许漂）。
+其余参数：`-Version`（默认 latest）、`-Target`（默认 `%LOCALAPPDATA%\MasterGoTranscoder`）、`-NoShortcut`。
 
 ## 四、更新与回退
 

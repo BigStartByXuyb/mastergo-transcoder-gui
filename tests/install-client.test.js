@@ -1,0 +1,48 @@
+#!/usr/bin/env node
+"use strict";
+
+/*
+ * 安装脚本（scripts/install-client.ps1）的两条硬约束：
+ *   ① 它的默认基址必须与 lib/source.js 的 DEFAULT_BASE 一致 —— 两处语言不同，只能靠用例盯着别漂；
+ *   ② 校验值来自发布时产出的 checksums.json，不去解析 winget 清单（那是另一个产物，不该互相绑死）。
+ * 只做文本级检查：脚本是 PowerShell，跨语言没法直接调；这里盯的是「不许悄悄改约定」。
+ *
+ * 跑法：node tests/install-client.test.js
+ */
+
+const assert = require("assert");
+const fs = require("fs");
+const path = require("path");
+
+const ROOT = path.join(__dirname, "..");
+const SCRIPT = fs.readFileSync(path.join(ROOT, "scripts", "install-client.ps1"), "utf8");
+const source = require("../lib/source.js");
+
+function main() {
+  assert.ok(
+    SCRIPT.indexOf('$Base = "' + source.DEFAULT_BASE + '"') >= 0,
+    "脚本里的默认基址要与 lib/source.js 的 DEFAULT_BASE 一致（改默认源时两处一起改）"
+  );
+  assert.ok(SCRIPT.indexOf("checksums.json") >= 0, "校验值取 checksums.json");
+  assert.ok(
+    SCRIPT.indexOf("BigStart.MasterGoTranscoder.installer.yaml") < 0,
+    "不该再去解析 winget 清单：两个产物各管各的"
+  );
+  assert.ok(SCRIPT.indexOf("$ZipUrl") >= 0 && SCRIPT.indexOf("$Sha256") >= 0, "非 GitHub 形状的来源要能显式给地址与哈希");
+  // 非 GitHub 形状不能再自己拼「releases/download」那种地址：那一形状只出现在 GitHub 那条分支里
+  // （zip 一次、checksums.json 一次），给了 -ZipUrl 就不走这两行。
+  assert.strictEqual(
+    (SCRIPT.match(/releases\/download/g) || []).length,
+    2,
+    "「releases/download」的拼法只应出现在 GitHub 形状那一条路上"
+  );
+  console.log("install-client.test.js 全部通过");
+}
+
+try {
+  main();
+}
+catch (error) {
+  console.error(error);
+  process.exitCode = 1;
+}

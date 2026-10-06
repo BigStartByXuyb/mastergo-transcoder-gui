@@ -2,17 +2,21 @@
     一条命令装客户端（不依赖 winget 源、不需要管理员、不跑安装程序）。
 
     winget 的 portable 包内部就是「下载 zip → 解压到自己的目录 → 建一个入口」；
-    保密机上 winget 源不一定可用（清单要提交到公网 winget-pkgs 或由 IT 建内网源），
-    这个脚本把那三步自己走一遍：下载 → 按清单里的 sha256 校验 → 解压到用户目录 → 建快捷方式。
+    保密机上 winget 源不一定可用（清单要提交到公网 winget-pkgs，或由 IT 建内网源），
+    这个脚本把那三步自己走一遍：下载 → 按发布时那份 checksums.json 校验 → 解压到用户目录 → 建快捷方式。
 
     用法（普通用户权限即可）：
       powershell -ExecutionPolicy Bypass -File install-client.ps1
-      powershell -ExecutionPolicy Bypass -File install-client.ps1 -Version 0.6.46
-      powershell -ExecutionPolicy Bypass -File install-client.ps1 -Base https://git.公司.com/组/仓库 -Version 0.6.46
+      powershell -ExecutionPolicy Bypass -File install-client.ps1 -Version 0.6.47
+      # 内网 / GitLab / 任意镜像：地址长什么样由那边决定，这里不猜 —— 直接给 zip 直链与它的 sha256
+      powershell -ExecutionPolicy Bypass -File install-client.ps1 -ZipUrl <zip 直链> -Sha256 <64 位哈希>
 
     参数：
-      -Version  要装的版本；默认 latest（从清单里读当前最新）
-      -Base     从哪个地址取（默认内置 GitHub 仓库；换公司 GitLab/内网目录时给这个）
+      -Version  要装的版本；默认 latest（从远端清单读当前最新）
+      -Base     从哪个基址取（**只支持 GitHub 形状**：<基址>/releases/…）。
+                默认值与 lib/source.js 的 DEFAULT_BASE 一致，换默认源时两处一起改（有用例盯着不许漂）。
+      -ZipUrl   直接给 zip 的完整地址（配 -Sha256 一起用）；给了它就不查版本、不查 checksums.json
+      -Sha256   上面那个 zip 的 sha256（十六进制）
       -Target   装到哪儿；默认 %LOCALAPPDATA%\MasterGoTranscoder（不需要管理员）
       -NoShortcut 不建桌面快捷方式
 
@@ -21,7 +25,10 @@
 [CmdletBinding()]
 param(
     [string] $Version = "latest",
+    # 与 lib/source.js 的 DEFAULT_BASE 保持一致（tests/install-client.test.js 会盯着这两处别漂）。
     [string] $Base = "https://github.com/BigStartByXuyb/mastergo-transcoder-gui",
+    [string] $ZipUrl = "",
+    [string] $Sha256 = "",
     [string] $Target = "$env:LOCALAPPDATA\MasterGoTranscoder",
     [switch] $NoShortcut
 )
@@ -32,36 +39,44 @@ $Base = $Base.TrimEnd("/")
 function Step([string] $text) { Write-Host ("→ " + $text) }
 function Fail([string] $text) { Write-Host ("✗ " + $text) -ForegroundColor Red; exit 1 }
 
-# 1) 定版本：latest 就读远端清单里的版本号（那是发布时打上去的，不需要额外查 API）
-if ($Version -eq "latest") {
-    Step "读远端清单，看最新是哪一版：$Base/releases/latest/download/manifest.json"
+if ($ZipUrl) {
+    # 非 GitHub 形状的来源：地址与哈希都由调用方给全，这里只负责下载、校验、解压。
+    if ($Sha256 -notmatch "^[0-9A-Fa-f]{64}$") { Fail "-ZipUrl 要配一份 -Sha256（64 位十六进制）" }
+    $zipUrl = $ZipUrl
+    $zipName = Split-Path $zipUrl -Leaf
+    $expected = $Sha256.ToLower()
+    $label = "指定的直链"
+}
+else {
+    # 1) 定版本：latest 就读远端清单里的版本号（那是发布时打上去的，不需要额外查 API）
+    if ($Version -eq "latest") {
+        Step "读远端清单，看最新是哪一版：$Base/releases/latest/download/manifest.json"
+        try {
+            $manifest = Invoke-RestMethod -Uri "$Base/releases/latest/download/manifest.json" -TimeoutSec 60
+        }
+        catch {
+            Fail "取不到清单：$($_.Exception.Message)。内网机器请用 -ZipUrl 直接给 zip 地址与哈希。"
+        }
+        $Version = [string]$manifest.version
+    }
+    if (-not $Version) { Fail "没拿到版本号" }
+
+    $zipName = "mastergo-transcoder-gui-$Version.zip"
+    $zipUrl = "$Base/releases/download/v$Version/$zipName"
+
+    # 2) 期望的哈希：取同一次发布里的 checksums.json（专门给安装用的那一份，不去啃 winget 清单）
+    $sumsUrl = "$Base/releases/download/v$Version/checksums.json"
+    Step "取这一版的校验值：$sumsUrl"
     try {
-        $manifest = Invoke-RestMethod -Uri "$Base/releases/latest/download/manifest.json" -TimeoutSec 60
+        $sums = Invoke-RestMethod -Uri $sumsUrl -TimeoutSec 60
     }
     catch {
-        Fail "取不到清单：$($_.Exception.Message)。内网机器请用 -Base 指到内网地址。"
+        Fail "取不到校验值：$($_.Exception.Message)。也可以用 -ZipUrl + -Sha256 直接指定。"
     }
-    $Version = [string]$manifest.version
+    if (-not $sums.zip -or -not $sums.zip.sha256) { Fail "checksums.json 里没有 zip.sha256" }
+    $expected = ([string]$sums.zip.sha256).ToLower()
+    $label = "v$Version"
 }
-if (-not $Version) { Fail "没拿到版本号" }
-
-$zipName = "mastergo-transcoder-gui-$Version.zip"
-$zipUrl = "$Base/releases/download/v$Version/$zipName"
-$yamlUrl = "$Base/releases/download/v$Version/BigStart.MasterGoTranscoder.installer.yaml"
-
-# 2) 期望的 sha256：取同一次发布里的 winget 清单（那份里的 InstallerSha256 就是 zip 的哈希）
-Step "取这一版的校验值：$yamlUrl"
-try {
-    # 资产是按 octet-stream 发的：Content 是字节数组，得自己按 UTF-8 解出来再匹配。
-    $response = Invoke-WebRequest -UseBasicParsing -Uri $yamlUrl -TimeoutSec 60
-    $yaml = if ($response.Content -is [byte[]]) { [System.Text.Encoding]::UTF8.GetString($response.Content) } else { [string]$response.Content }
-}
-catch {
-    Fail "取不到校验值：$($_.Exception.Message)"
-}
-$match = [regex]::Match($yaml, "InstallerSha256:\s*([0-9A-Fa-f]{64})")
-if (-not $match.Success) { Fail "校验值里没找到 InstallerSha256" }
-$expected = $match.Groups[1].Value.ToLower()
 
 # 3) 下载 + 校验
 $work = Join-Path $env:TEMP ("mgtg-install-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
@@ -78,10 +93,10 @@ Step "校验 sha256"
 $actual = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
 if ($actual -ne $expected) {
     Remove-Item $zip -Force
-    Fail "校验不过：期望 $expected，实际 $actual。包可能不完整，重跑一次或换 -Base。"
+    Fail "校验不过：期望 $expected，实际 $actual。包可能不完整，重跑一次或换来源。"
 }
 
-# 4) 解压到用户目录（覆盖旧的；用户状态在 %LOCALAPPDATA%\MasterGoTranscoder 之外的地方不受影响）
+# 4) 解压到用户目录（覆盖旧的；用户状态不在这里，不受影响）
 $stage = Join-Path $work "unpack"
 Step "解压到 $Target"
 Expand-Archive -LiteralPath $zip -DestinationPath $stage -Force
@@ -111,5 +126,5 @@ if (-not $NoShortcut) {
 }
 
 Write-Host ""
-Write-Host ("装好了：v" + $Version + " → " + $Target) -ForegroundColor Green
+Write-Host ("装好了：" + $label + " → " + $Target) -ForegroundColor Green
 Write-Host ("双击 " + $exe + "（或桌面快捷方式）即可；它缺运行组件时自己补。")

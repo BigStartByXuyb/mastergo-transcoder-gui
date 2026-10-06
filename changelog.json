@@ -3,7 +3,9 @@
     "version": "0.6.47",
     "date": "2026-10-06",
     "notes": [
-      "新增「一条命令装」：Release 上多一个 install-client.ps1 —— 下载这一版的 zip、按清单里的 sha256 校验、解压到 %LOCALAPPDATA%\\MasterGoTranscoder、建桌面快捷方式。不需要管理员、不需要 winget 源、不跑安装程序（与 winget portable 内部做的是同一件事）",
+      "新增「一条命令装」：Release 上多一个 install-client.ps1 —— 下载这一版的 zip、按发布时那份 checksums.json 里的 sha256 校验、解压到 %LOCALAPPDATA%\\MasterGoTranscoder、建桌面快捷方式。不需要管理员、不需要 winget 源、不跑安装程序（与 winget portable 内部做的是同一件事）",
+      "非 GitHub 形状的来源（公司 GitLab、内网目录、任意镜像）不猜地址：用 -ZipUrl 给 zip 直链、-Sha256 给哈希；-Base 只用于 GitHub 形状，默认值与 lib/source.js 的 DEFAULT_BASE 一致（有用例盯着不许漂）",
+      "打包时多产一份 checksums.json（zip 的版本与 sha256）：安装脚本读它，不再去正则解析 winget 清单 —— 安装产物与 winget 产物各管各的",
       "说明白 winget 那条现在为什么装不上：清单只是 Release 上的附件，没进任何 winget 源 —— 公网要提 PR 到 winget-pkgs，内网要 IT 建源；这两条都到位之前，客户机用上面那条命令或直接解压 zip",
       "安装文档补一节「一条命令装」，并写清三条路各自适合什么场景（winget 源 / 这条命令 / 解压即用）"
     ],
