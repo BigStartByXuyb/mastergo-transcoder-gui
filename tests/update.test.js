@@ -58,6 +58,8 @@ function remote(root, version, extra) {
         if (buffer) return ok(buffer.toString("utf8"));
         return { ok: false, status: 404 };
       }
+      // 其它某一版的清单：GitHub 上就是 404（这一版没有这个资产）。
+      if (/\/releases\/download\/v[^/]+\/manifest\.json$/.test(url)) return { ok: false, status: 404 };
       return { ok: false, status: 500 };
     }
   };

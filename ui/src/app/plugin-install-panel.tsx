@@ -16,7 +16,8 @@ import { useStatusPoll } from "@/app/use-status-poll"
  * 客户端自带的那一份插件：检查 → 下载并安装。
  *
  * 客户机上没有 Codex / Claude 时，插件就只能由客户端自己装一份；装到安装根的
- * plugins\mastergo-wpf-transcoder\ 下，插件定位按最高版本取用，装完立刻生效（不用点「用这份」）。
+ * plugins\mastergo-wpf-transcoder\ 下，插件定位按最高版本取用。它在查找顺序里排最后：
+ * 那两处有插件时用的还是它们那份，要用自带这份得点表格里那一行的「用这份」。
  * Codex / Claude 缓存里那几份归它们自己管，这里不碰。
  */
 export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () => void }) {
