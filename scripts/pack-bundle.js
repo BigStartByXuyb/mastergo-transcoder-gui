@@ -12,17 +12,12 @@
  */
 
 const fs = require("fs");
-const crypto = require("crypto");
 const path = require("path");
 const { spawnSync } = require("child_process");
 
-const { buildManifest } = require("../lib/app-manifest.js");
+const { buildManifest, sha256File } = require("../lib/app-manifest.js");
 
 const ROOT = path.join(__dirname, "..");
-
-function sha256File(file) {
-  return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
-}
 
 function argValue(name, fallback) {
   const index = process.argv.indexOf("--" + name);
