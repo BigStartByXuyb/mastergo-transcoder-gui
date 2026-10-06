@@ -134,7 +134,7 @@ powershell -ExecutionPolicy Bypass -File $f
 powershell -ExecutionPolicy Bypass -File install-client.ps1 -ZipUrl <zip 的完整地址> -Sha256 <64 位哈希>
 ```
 
-`-Base` 只用于 GitHub 形状（`<基址>/releases/…`），上面那段命令里的基址就是 `lib/source.js` 的 `DEFAULT_BASE` ——
+`-Base` 只用于 GitHub 形状（`<基址>/releases/…`）；本节前面那段取脚本的命令里的基址，就是 `lib/source.js` 的 `DEFAULT_BASE` ——
 默认源只在那一处定义，文档与脚本都被用例盯着不许漂。
 其余参数：`-Version`（默认 latest）、`-Target`（默认 `%LOCALAPPDATA%\MasterGoTranscoder`）、`-NoShortcut`。
 
