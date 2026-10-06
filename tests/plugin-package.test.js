@@ -50,6 +50,8 @@ function makePluginRepo(baseDir, version, options) {
     fs.writeFileSync(path.join(dir, ...MARKER_PARTS), "# 夹具\n");
   }
   git(repo, ["init", "-q"]);
+  // 夹具不跟着本机的换行设置走：清单里的哈希是 tag 里那份内容的哈希。
+  git(repo, ["config", "core.autocrlf", "false"]);
   git(repo, ["config", "user.email", "ci@example.com"]);
   git(repo, ["config", "user.name", "ci"]);
   git(repo, ["add", "-A"]);
@@ -85,29 +87,31 @@ function packInto(base) {
   const out = path.join(base, "out");
   const args = [PACK, "--repo-dir", repo, "--out", out, "--pin", pinFile];
 
-  // 发布流程按前缀取产物（不猜行序）：这里跑一遍同一条命令，盯住这个协议。
-  const printed = node(args).trim().split("\n");
-  assert.ok(
-    printed[0].startsWith("blob=") && printed[0].endsWith(pkg.zipName("1.2.3")),
-    "按 blob= 前缀报包路径：" + printed[0]
-  );
-  assert.ok(
-    printed[1].startsWith("manifest=") && printed[1].endsWith(pkg.MANIFEST_FILE),
-    "按 manifest= 前缀报清单路径：" + printed[1]
-  );
+  node(args);
   const manifestFile = path.join(out, pkg.MANIFEST_FILE);
-  const zipFile = path.join(out, pkg.zipName("1.2.3"));
   const first = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
   assert.strictEqual(first.name, pluginRoot.PLUGIN_NAME);
   assert.strictEqual(first.version, "1.2.3");
   assert.strictEqual(first.tag, "v1.2.3");
-  assert.strictEqual(first.zip.name, pkg.zipName("1.2.3"));
-  assert.strictEqual(first.zip.sha256, sha256(zipFile), "清单里的哈希要真的是那个 zip 的哈希");
-  assert.strictEqual(fs.readFileSync(zipFile).subarray(0, 2).toString("latin1"), "PK", "打出来的是 zip");
+  // 与客户端同一种清单：{相对路径: sha256}，相对路径用正斜杠。
+  const markerRel = MARKER_PARTS.join("/");
+  assert.ok(first.files[".claude-plugin/plugin.json"], "清单要含插件自己的清单文件");
+  assert.strictEqual(
+    first.files[markerRel],
+    sha256(path.join(repo, "plugins", pluginRoot.PLUGIN_NAME, ...MARKER_PARTS)),
+    "清单里那一项要真的是那个文件的哈希"
+  );
+  // 文件按哈希命名落在 files/ 下（同内容只留一份）。
+  const blobs = fs.readdirSync(path.join(out, "files"));
+  assert.ok(blobs.indexOf(first.files[markerRel]) >= 0, "按内容哈希暂存了标记文件");
 
-  const firstHash = first.zip.sha256;
+  const firstFiles = JSON.stringify(first.files);
   node(args);
-  assert.strictEqual(JSON.parse(fs.readFileSync(manifestFile, "utf8")).zip.sha256, firstHash, "同一个 tag 打两次哈希要一致");
+  assert.strictEqual(
+    JSON.stringify(JSON.parse(fs.readFileSync(manifestFile, "utf8")).files),
+    firstFiles,
+    "同一个 tag 打两次，清单里的哈希要一致"
+  );
 
   // tag 与插件自己声明的版本对不上：宁可打不出来。
   git(repo, ["tag", "v9.9.9"]);
@@ -127,7 +131,7 @@ function packInto(base) {
 }
 
 function main() {
-  assert.strictEqual(pkg.zipName("1.2.3"), pluginRoot.PLUGIN_NAME + "-1.2.3.zip", "zip 名字由插件名与版本拼出");
+  assert.strictEqual(pkg.MANIFEST_FILE, "plugin-manifest.json", "清单名只有打包脚本一处定义");
   assert.ok(pkg.MANIFEST_FILE.endsWith(".json"), "清单是 json");
 
   // pin 只属于发布流程：填全、形状对，而且里面那个目录名必须就是插件名（不然两处名字会各说各话）。

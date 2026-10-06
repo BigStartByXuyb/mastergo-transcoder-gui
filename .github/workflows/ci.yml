@@ -141,18 +141,8 @@ jobs:
             esac
           done
           git clone --depth 1 --branch "$plugin_tag" "$plugin_repo" "$RUNNER_TEMP/plugin"
-          # 打包脚本自己报出产物路径，流程不再拼一遍名字（名字只在打包脚本一处定义）。
-          mapfile -t plugin_report < <(node scripts/pack-plugin.js --repo-dir "$RUNNER_TEMP/plugin" --out dist)
-          plugin_blobs=()
-          plugin_manifest=""
-          for line in "${plugin_report[@]}"; do
-            case "$line" in
-              blob=*) plugin_blobs+=("${line#blob=}") ;;
-              manifest=*) plugin_manifest="${line#manifest=}" ;;
-            esac
-          done
-          # 与客户端发布同一约定：清单最后传（先传文件，清单出现即代表这一版齐了）。
-          gh release upload "$GITHUB_REF_NAME" "${plugin_blobs[@]}" --clobber
-          gh release upload "$GITHUB_REF_NAME" "$plugin_manifest" --clobber
+          # 暂存与上传都交给打包脚本（名字与顺序只在它一处），流程不拼名字、也不猜顺序。
+          node scripts/pack-plugin.js --repo-dir "$RUNNER_TEMP/plugin" --out dist \
+            --upload "$GITHUB_REF_NAME" --notes "插件发布件（跟随客户端 $GITHUB_REF_NAME）"
         env:
           GH_TOKEN: ${{ github.token }}
