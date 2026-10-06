@@ -11,8 +11,9 @@ const os = require("os");
 const path = require("path");
 
 const { hashFiles, listFilesUnder } = require("../lib/app-manifest.js");
+const { BUILDING_PREFIX } = require("../lib/bundle-store.js");
 const { pluginRootsUnder } = require("../lib/plugin-root.js");
-const { createPluginUpdate } = require("../lib/plugin-update.js");
+const { createPluginUpdate, STORE_LAYOUT } = require("../lib/plugin-update.js");
 const { PLUGIN_MANIFEST_NAME, MANIFEST_NAME } = require("../lib/source.js");
 
 const BASE = "https://github.com/BigStartByXuyb/mastergo-transcoder-gui";
@@ -295,11 +296,15 @@ async function main() {
    *
    * 插件定位认的是「插件目录下的版本子目录」（有 skills/mastergo-to-wpf/SKILL.md 就算一份），
    * 所以半成品绝不能出现在那一层：进程中途退出留下的残骸会被当成一份插件用。
-   * 这里直接摆一份残骸，验它不在定位能看见的范围内。
+   * 这里直接摆一份残骸，验它不在定位能看见的范围内；路径按安装器自己的两个常量拼
+   * （buildDir 与 .building- 前缀），它们改名时这份用例跟着一起变，不会各说各话。
    */
   {
     const home = sandbox();
-    const leftover = makePlugin(path.join(installDir(home), ".partial", ".building-5.0.0-1"), "5.0.0");
+    const leftover = makePlugin(
+      path.join(installDir(home), STORE_LAYOUT.buildDir, BUILDING_PREFIX + "5.0.0-1"),
+      "5.0.0"
+    );
     const update = createPluginUpdate({ home: home, source: { kind: "github", base: BASE }, fetchImpl: async function () { throw new Error("不该联网"); } });
     assert.ok(fs.existsSync(path.join(leftover, MARKER)), "残骸确实是一棵像样的插件树");
     assert.deepStrictEqual(pluginRootsUnder(path.join(home, "plugins")), [], "插件定位一份都看不到");

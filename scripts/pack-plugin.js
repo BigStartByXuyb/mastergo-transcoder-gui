@@ -26,6 +26,7 @@ const { execFileSync } = require("child_process");
 const { PLUGIN_NAME, PLUGIN_MARKER, isPluginRoot, pluginVersionOf } = require("../lib/plugin-root.js");
 const { listFilesUnder, hashFiles } = require("../lib/app-manifest.js");
 const { PLUGIN_MANIFEST_NAME } = require("../lib/source.js");
+const { isVersionName } = require("../lib/versions.js");
 const { stageAssets, uploadRelease } = require("./lib/release-assets.js");
 
 // 发布件的名字与客户端那一半共用 lib/source.js 里的定义（打包写什么名，客户端就找什么名）。
@@ -95,7 +96,8 @@ function pack(args, pin) {
   const repoDir = path.resolve(args.repoDir);
   if (!fs.existsSync(repoDir)) throw new Error("插件仓库的检出目录不存在：" + repoDir);
   const version = versionOfTag(pin.tag);
-  if (!/^\d+(\.\d+)*$/.test(version)) throw new Error("钉住的插件版本不像版本号：" + pin.tag);
+  // 「什么算版本号」只有 lib/versions.js 一处（与客户端认版本目录同一口径）。
+  if (!isVersionName(version)) throw new Error("钉住的插件版本不像版本号：" + pin.tag);
   const where = pluginDirParts(pin.dir);
   /*
    * 要发布的是 tag 里的内容：先把它摊到一个临时目录，后面两道门禁（是不是插件根、版本是多少）
