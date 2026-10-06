@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest"
 
 import type { PluginSource } from "@/lib/api"
-import { groupPluginSources } from "@/lib/plugin-sources"
+import { pluginLookup, slotState } from "@/lib/plugin-sources"
 
-function source(id: string, kind: PluginSource["kind"], active = false): PluginSource {
+function source(id: string, kind: PluginSource["kind"], active = false, over: Partial<PluginSource> = {}): PluginSource {
   const where = "cache/" + id
   return {
     id: id as PluginSource["id"],
@@ -14,58 +14,57 @@ function source(id: string, kind: PluginSource["kind"], active = false): PluginS
     pluginRoot: where,
     version: "1.0.0",
     found: [],
-    active: active
+    active: active,
+    ...over
   }
 }
 
-describe("插件来源分组", () => {
-  it("本机指定的排前面（显式优先），自动查找的在后", () => {
-    const groups = groupPluginSources([
-      source("codex-cache", "agent"),
+describe("pluginLookup", () => {
+  it("顺序来自后端：slots 与 rows 都按后端给的次序，序号从 1 起", () => {
+    const lookup = pluginLookup([
+      source("arg", "arg"),
       source("chosen", "chosen"),
-      source("env", "env"),
+      source("codex-cache", "agent"),
       source("install", "install")
     ])
-    expect(groups.map((group) => group.key)).toEqual(["explicit", "automatic"])
-    expect(groups[0].sources.map((item) => item.id)).toEqual(["chosen", "env"])
-    expect(groups[1].sources.map((item) => item.id)).toEqual(["codex-cache", "install"])
+    expect(lookup.slots.map((slot) => slot.id)).toEqual(["arg", "chosen", "codex-cache", "install"])
+    expect(lookup.slots.map((slot) => slot.order)).toEqual([1, 2, 3, 4])
+    expect(lookup.rows.map((row) => row.id)).toEqual(["arg", "chosen", "codex-cache", "install"])
   })
 
-  it("没有的那一组不出现（免得摆一个空表）", () => {
-    const onlyAuto = groupPluginSources([source("claude-cache", "agent")])
-    expect(onlyAuto.map((group) => group.key)).toEqual(["automatic"])
-    const onlyExplicit = groupPluginSources([source("chosen", "chosen")])
-    expect(onlyExplicit.map((group) => group.key)).toEqual(["explicit"])
-    expect(groupPluginSources([])).toEqual([])
-  })
-
-  it("组里保留后端给的顺序与 active 标记，不重排", () => {
-    const groups = groupPluginSources([
-      source("claude-market", "agent"),
-      source("codex-cache", "agent", true)
-    ])
-    expect(groups[0].sources.map((item) => item.id)).toEqual(["claude-market", "codex-cache"])
-    expect(groups[0].sources.filter((item) => item.active).map((item) => item.id)).toEqual(["codex-cache"])
-  })
-
-  it("同一份插件只列一行：指针并到位置那一行，「正在用」也跟着走", () => {
+  it("同一份插件只列一行：留下最先命中的那一档，后几档并进它（含「正在用」）", () => {
     const same = "cache/codex/bigstart/mastergo-wpf-transcoder/1.0.369"
-    const chosen = { ...source("chosen", "chosen", true), pluginRoot: same, exists: true, label: "设置里选的" }
-    const cached = { ...source("codex-cache", "agent"), pluginRoot: same }
-    const groups = groupPluginSources([chosen, cached])
+    const lookup = pluginLookup([
+      source("chosen", "chosen", true, { pluginRoot: same, label: "设置里选的" }),
+      source("codex-cache", "agent", false, { pluginRoot: same })
+    ])
 
-    // 指针那一行不再单独列：只剩「自动查找的位置」一张表，位置那一行标着正在用。
-    expect(groups.map((group) => group.key)).toEqual(["automatic"])
-    expect(groups[0].sources.map((item) => item.id)).toEqual(["codex-cache"])
-    expect(groups[0].sources[0].active).toBe(true)
-    expect(groups[0].sources[0].alsoFrom).toEqual(["设置里选的"])
+    expect(lookup.rows.map((row) => row.id)).toEqual(["chosen"])
+    expect(lookup.rows[0].active).toBe(true)
+    expect(lookup.rows[0].alsoFrom).toEqual(["codex-cache"])
+    // 行号就是查找停下的那一档。
+    expect(lookup.rows[0].order).toBe(1)
+    expect(lookup.slots.map((slot) => slot.mergedInto)).toEqual(["", "chosen"])
+    expect(lookup.slots.map((slot) => slot.mergedIntoOrder)).toEqual([0, 1])
+    expect(slotState(lookup.slots[1])).toBe("same")
+    expect(slotState(lookup.slots[0])).toBe("active")
   })
 
   it("指到别处去的指针照常单独一行，不受合并影响", () => {
-    const chosen = { ...source("chosen", "chosen", true), pluginRoot: "cache/mine/mastergo-wpf-transcoder" }
-    const groups = groupPluginSources([chosen, source("codex-cache", "agent")])
-    expect(groups.map((group) => group.key)).toEqual(["explicit", "automatic"])
-    expect(groups[0].sources.map((item) => item.id)).toEqual(["chosen"])
-    expect(groups[0].sources[0].alsoFrom).toEqual([])
+    const lookup = pluginLookup([
+      source("chosen", "chosen", true, { pluginRoot: "cache/mine/mastergo-wpf-transcoder" }),
+      source("codex-cache", "agent")
+    ])
+    expect(lookup.rows.map((row) => row.id)).toEqual(["chosen", "codex-cache"])
+    expect(lookup.rows[0].alsoFrom).toEqual([])
+  })
+
+  it("一档的处境：正在用 / 有 / 没有", () => {
+    const lookup = pluginLookup([
+      source("chosen", "chosen", true),
+      source("env", "env", false, { exists: false, pluginRoot: "", version: "", found: [] }),
+      source("install", "install")
+    ])
+    expect(lookup.slots.map(slotState)).toEqual(["active", "missing", "available"])
   })
 })

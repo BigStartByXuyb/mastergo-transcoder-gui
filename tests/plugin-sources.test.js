@@ -70,9 +70,12 @@ function caseSources() {
 
   assert.deepStrictEqual(
     sources.map((item) => item.id),
-    ["codex-cache", "codex-market", "claude-cache", "claude-market", "install"],
-    "没显式指定时只列内置的这几条（别的装没装都不影响顺序）"
+    ["arg", "chosen", "env", "codex-cache", "codex-market", "claude-cache", "claude-market", "install"],
+    "八档按固定顺序列出来：显式指定的三档没设也列（标没有），顺序与文档一致"
   );
+  assert.strictEqual(byId.get("arg").exists, false, "没给 --plugin 就说没有");
+  assert.strictEqual(byId.get("chosen").path, "", "没选就没路径");
+  assert.strictEqual(byId.get("env").exists, false);
   assert.strictEqual(byId.get("codex-cache").exists, true, "Codex 缓存里两份都认出来");
   assert.strictEqual(byId.get("codex-cache").pluginRoot, fx.codexNew, "同一处有多份时取最高版本");
   assert.strictEqual(byId.get("codex-cache").version, "1.0.10", "版本读插件自己的清单");

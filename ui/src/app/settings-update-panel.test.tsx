@@ -25,7 +25,6 @@ function sources(): PluginSources {
     ok: true,
     plugin: { root: PLUGIN_ROOT, version: "1.0.369", engine: ENGINE, engineExists: true, runAllExists: true, failure: "" },
     chosen: "",
-    env: "",
     sources: [
       {
         id: "codex-cache",
@@ -37,6 +36,18 @@ function sources(): PluginSources {
         version: "1.0.369",
         found: [PLUGIN_ROOT],
         active: true
+      },
+      {
+        // 客户端自带的那一份也在这张表里（0.6.50 起客户端能自己装一份）：它那一行带更新状态。
+        id: "install",
+        label: "客户端自带",
+        path: drive("C", "Users", "me", "app", "plugins"),
+        kind: "install",
+        exists: true,
+        pluginRoot: drive("C", "Users", "me", "app", "plugins", "mastergo-wpf-transcoder", "1.0.369"),
+        version: "1.0.369",
+        found: [drive("C", "Users", "me", "app", "plugins", "mastergo-wpf-transcoder", "1.0.369")],
+        active: false
       }
     ]
   }
@@ -109,9 +120,10 @@ describe("SettingsUpdatePanel", () => {
 
     render(<SettingsUpdatePanel part="plugin" onPickPart={onPickPart} />)
     expect(screen.getByRole("button", { name: /插件（流水线）/ }).getAttribute("aria-current")).toBe("true")
-    await waitFor(() => expect(screen.getByText("Codex 插件缓存")).toBeTruthy())
+    // 顺序条与表里都会出现来源名：这里只要求那一段渲染出来。
+    await waitFor(() => expect(screen.getAllByText("Codex 插件缓存").length).toBeGreaterThan(0))
     expect(screen.queryByText("已是最新 v0.6.34")).toBeNull()
     // 自带那一份的状态也在这段里（客户端能自己装一份插件）。
-    await waitFor(() => expect(screen.getByText("是最新 v1.0.369")).toBeTruthy())
+    await waitFor(() => expect(screen.getAllByText("是最新 v1.0.369").length).toBeGreaterThan(0))
   })
 })
