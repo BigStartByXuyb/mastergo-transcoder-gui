@@ -35,7 +35,7 @@ export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () 
   const taskFailure = status ? taskFailureNote(status.task) : ""
   const busy = status ? status.busy : ""
   // 起步那句要说清是哪一版：远端清单里那份的版本号（还没查过就是空串）。
-  const pluginVersionOf = (current: PluginUpdateStatus | null) =>
+  const remoteVersionOf = (current: PluginUpdateStatus | null) =>
     current && current.available ? current.available.version : ""
 
   /*
@@ -73,7 +73,7 @@ export function PluginInstallPanel(props: { activeRoot: string; onInstalled: () 
       (payload) =>
         finishDownload(payload, {
           setFailure,
-          onStarted: () => toast.info("开始装插件 v" + pluginVersionOf(status))
+          onStarted: () => toast.info("开始装插件 v" + remoteVersionOf(status))
         })
     )
   }

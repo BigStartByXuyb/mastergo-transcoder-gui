@@ -123,7 +123,7 @@ async function main() {
     });
 
     const initial = update.status();
-    assert.strictEqual(initial.state, "up_to_date", "没查过又没缓存就是最新");
+    assert.strictEqual(initial.state, "unchecked", "没查过远端就是「没查过」，不说「是最新」");
     assert.deepStrictEqual(initial.local, { dir: "", version: "" }, "一份都没有时本地是空");
     assert.strictEqual(initial.available, null, "没查过就没有远端信息");
     assert.strictEqual(initial.error, null);

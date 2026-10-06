@@ -33,10 +33,12 @@ export function describePluginInstall(status: PluginUpdateStatus | null): Plugin
       label: "检查失败",
       tone: "destructive",
       note: status.error ? failureText(status.error) : "",
-      action: "下载并安装",
+      // 不能装时按钮别写「下载并安装」：写它要做的那一步（检查更新），与禁用状态一致。
+      action: "先检查更新",
       canInstall: false
     }
   }
+  // state 已经是 update_available 就一定有 available；这半句只是给类型收窄。
   if (status.state === "update_available" && status.available) {
     const installed = Boolean(status.local.dir)
     return {
@@ -49,15 +51,15 @@ export function describePluginInstall(status: PluginUpdateStatus | null): Plugin
     }
   }
   /*
-   * 没有远端信息（一次都没查成：离线首启，或启动时那次静默检查没成）时，别说「是最新」——
+   * 还没成功问过远端（离线首启，或启动时那次静默检查没成）时，别说「是最新」——
    * 本地有没有装分成两句，都说清「还没检查过」，人知道该点「检查更新」。
    */
-  if (!status.available) {
+  if (status.state === "unchecked") {
     return {
       label: status.local.dir ? (status.local.version ? "已装 v" + status.local.version : "已装（读不出版本）") : "还没装",
       tone: "outline",
       note: "还没检查过远端：点「检查更新」，看发布源里有没有插件发布件。",
-      action: status.local.dir ? "先检查更新" : "下载并安装",
+      action: "先检查更新",
       canInstall: false
     }
   }

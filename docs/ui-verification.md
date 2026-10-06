@@ -72,9 +72,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | 命令 | 结果 |
 | --- | --- |
 | `npm test` | 通过，47 个文件全过（含新增 `tests/plugin-update.test.js`） |
-| `npm run test:coverage` | 通过，lines 94.73 / branch 82.62 / funcs 95.81（门禁 90/75/90） |
+| `npm run test:coverage` | 通过，lines 94.73 / branch 82.64 / funcs 95.81（门禁 90/75/90） |
 | `npm --prefix ui run test` | 通过，55 文件 338 用例（含新增面板、判定、轮询与动作用例） |
-| `npm --prefix ui run test:coverage` | 通过，stmts 94.94 / branch 91.88 / funcs 95.83 |
+| `npm --prefix ui run test:coverage` | 通过，stmts 94.94 / branch 91.75 / funcs 95.83 |
 | `npm run build:ui` | 通过，`public/` 已重建并入库 |
 | `node <cicd>/check-app-structure.mjs --root .` | PASS（硬编码路径 / 孤儿导出 / 分层 / CI 钉死 均 0 条） |
 

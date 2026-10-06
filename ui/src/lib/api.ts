@@ -63,7 +63,8 @@ export type PluginEnvView = {
  * 「装了哪几版、此刻用哪一份」由 /api/plugin/sources 那份来源表说（插件定位的判据在那边）。
  */
 export type PluginUpdateStatus = {
-  state: "up_to_date" | "update_available" | "error"
+  /** unchecked＝还没成功问过远端（首次启动、离线）；它不再借「已是最新」来表示。 */
+  state: "unchecked" | "up_to_date" | "update_available" | "error"
   /** 客户端自带的那一份（装在哪、哪一版）；一份都没有时都是空串。 */
   local: { version: string; dir: string }
   /** 上一次检查到的远端版本与差异；没检查过就是 null。 */

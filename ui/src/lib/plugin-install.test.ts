@@ -8,10 +8,12 @@ const LOCAL_DIR = drive("D", "app", "plugins", "mastergo-wpf-transcoder", "1.0.3
 const AGENT_ROOT = drive("C", "codex", "plugins", "cache", "mastergo-wpf-transcoder")
 
 function status(over: Partial<PluginUpdateStatus> = {}): PluginUpdateStatus {
+  // 状态与「有没有远端信息」保持一致：没查过就是 unchecked，别拿「已是最新」去表示没查过。
+  const available = over.available === undefined ? null : over.available
   return {
-    state: "up_to_date",
+    state: available ? over.state ?? "up_to_date" : over.state ?? "unchecked",
     local: { version: "1.0.371", dir: LOCAL_DIR },
-    available: null,
+    available: available,
     error: null,
     task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
     busy: "",
