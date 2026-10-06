@@ -7,8 +7,8 @@
  *                清单写两份：<outDir>/<清单名> 与 <outDir>/v<版本>/<清单名>；
  *   uploadRelease 先传全部文件、最后传清单 —— 清单先到而文件没到，客户端会下到 404。
  *
- * 客户端发布（scripts/publish.js）与插件发布（scripts/pack-plugin.js）共用这一份，协议只有一处；
- * 两处的差别只有三样：从哪个目录扫文件、清单叫什么名字、发布到哪个 tag。
+ * 客户端发布（scripts/publish.js）已经用它；插件发布（scripts/pack-plugin.js）下一步改成同一套协议时
+ * 也用它 —— 两处的差别只有三样：从哪个目录扫文件、清单叫什么名字、发布到哪个 tag。
  */
 
 const fs = require("fs");
@@ -70,7 +70,7 @@ function uploadRelease(options) {
     run("gh", ["release", "upload", tag].concat(options.blobPaths, ["--clobber"]));
   }
   else {
-    run("gh", ["release", "create", tag, "--title", tag, "--notes", options.notes || tag].concat(options.blobPaths));
+    run("gh", ["release", "create", tag, "--title", options.title || tag, "--notes", options.notes || tag].concat(options.blobPaths));
   }
   run("gh", ["release", "upload", tag, options.manifestPath, "--clobber"]);
 }
