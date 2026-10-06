@@ -313,10 +313,6 @@ func unpack(blob string, root string, spec toolSpec) (string, error) {
 		return "", err
 	}
 
-	if _, err := os.Stat(filepath.Join(staging, spec.Exe)); err != nil {
-		os.RemoveAll(staging)
-		return "", fmt.Errorf("解压后没找到 %s", spec.Exe)
-	}
 	if err := publish(staging, target, root, spec); err != nil {
 		os.RemoveAll(staging)
 		return "", err
