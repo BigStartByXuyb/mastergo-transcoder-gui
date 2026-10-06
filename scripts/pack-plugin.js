@@ -4,8 +4,8 @@
 /*
  * 打插件发布件：<插件名>-<版本>.zip + plugin-manifest.json。发布流程在打 tag 时调它。
  *
- * 用法：node scripts/pack-plugin.js --repo-dir <插件仓库的检出目录> [--out dist]
- *       node scripts/pack-plugin.js --print-pin          # 发布流程用：按行给出仓库与 tag，自己去检出
+ * 用法：node scripts/pack-plugin.js --repo-dir <插件仓库的检出目录> [--out dist] [--pin plugin-pin.json]
+ *       node scripts/pack-plugin.js --print-pin [--pin plugin-pin.json]   # 按行给出仓库与 tag，自己去检出
  * 结果按「每行一个文件路径」写到标准输出（发布流程直接拿它上传），说明写到标准错误。
  *
  * 内容用 git archive 从钉住的 tag 取：只含那次提交里的文件，条目时间取 commit 时间，
@@ -23,11 +23,8 @@ const crypto = require("crypto");
 const { execFileSync } = require("child_process");
 const { PLUGIN_NAME, pluginVersionFrom, MANIFEST_FILE, zipName } = require("../lib/plugin-package.js");
 
-// 打哪一版由 plugin-pin.json 决定（改它不用改代码）；它只属于发布流程，不进运行树。
-const PIN = require("../plugin-pin.json");
-const PLUGIN_REPO = String(PIN.repo || "").trim().replace(/\/+$/, "");
-const PLUGIN_TAG = String(PIN.tag || "").trim();
-const PLUGIN_DIR = String(PIN.path || "").trim().replace(/^\/+|\/+$/g, "");
+// 打哪一版由 pin 文件决定（默认 plugin-pin.json，改它不用改代码）；它只属于发布流程，不进运行树。
+const DEFAULT_PIN = path.join(__dirname, "..", "plugin-pin.json");
 
 function usage(message) {
   if (message) process.stderr.write(message + "\n");
@@ -39,14 +36,15 @@ function usage(message) {
 }
 
 function parseArgs(argv) {
-  const out = { repoDir: "", out: "dist", printPin: false };
+  const out = { repoDir: "", out: "dist", printPin: false, pin: DEFAULT_PIN };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--print-pin") {
       out.printPin = true;
       continue;
     }
-    if (arg === "--repo-dir") out.repoDir = String(argv[i + 1] || "");
+    if (arg === "--pin") out.pin = String(argv[i + 1] || "");
+    else if (arg === "--repo-dir") out.repoDir = String(argv[i + 1] || "");
     else if (arg === "--out") out.out = String(argv[i + 1] || "");
     else usage("认不出的参数：" + arg);
     i += 1;
@@ -63,6 +61,15 @@ function versionOfTag(tag) {
   return String(tag || "").trim().replace(/^v/, "");
 }
 
+function readPin(pinPath) {
+  const raw = JSON.parse(fs.readFileSync(pinPath, "utf8"));
+  return {
+    repo: String(raw.repo || "").trim().replace(/\/+$/, ""),
+    tag: String(raw.tag || "").trim(),
+    dir: String(raw.path || "").trim().replace(/^\/+|\/+$/g, "")
+  };
+}
+
 // 插件在仓库里的位置（plugin-pin.json 的 path）：git archive 要在它的上一级目录里跑，
 // 路径按相对当前目录给。
 function splitPluginDir(dir) {
@@ -73,29 +80,33 @@ function splitPluginDir(dir) {
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
+  const pin = readPin(path.resolve(args.pin));
   // 发布流程先问这一句「打的是哪个仓库、哪个 tag」，再自己去检出：pin 只在 plugin-pin.json 一处。
   if (args.printPin) {
-    process.stdout.write(PLUGIN_REPO + "\n" + PLUGIN_TAG + "\n");
+    process.stdout.write(pin.repo + "\n" + pin.tag + "\n");
     return;
   }
   const repoDir = path.resolve(args.repoDir);
   if (!fs.existsSync(repoDir)) throw new Error("插件仓库的检出目录不存在：" + repoDir);
-  const version = versionOfTag(PLUGIN_TAG);
-  if (!/^\d+(\.\d+)*$/.test(version)) throw new Error("钉住的插件版本不像版本号：" + PLUGIN_TAG);
-  const where = splitPluginDir(PLUGIN_DIR);
+  const version = versionOfTag(pin.tag);
+  if (!/^\d+(\.\d+)*$/.test(version)) throw new Error("钉住的插件版本不像版本号：" + pin.tag);
+  const where = splitPluginDir(pin.dir);
+  if (where.name !== PLUGIN_NAME) {
+    throw new Error("pin 的 path 里那个目录要叫 " + PLUGIN_NAME + "（市场按这个名字认插件）：" + pin.dir);
+  }
 
   // 版本以插件自己的清单为准，读法与客户端定位那份完全一样（plugin-root.js 的 pluginVersionFrom）：
   // tag 与它不一致时宁可打不出包。
   const declared = pluginVersionFrom(function (rel) {
     try {
-      return git(repoDir, ["show", PLUGIN_TAG + ":" + PLUGIN_DIR + "/" + rel]);
+      return git(repoDir, ["show", pin.tag + ":" + pin.dir + "/" + rel]);
     }
     catch {
       return "";
     }
   });
   if (String(declared) !== version) {
-    throw new Error(PLUGIN_TAG + " 里的插件版本是 " + declared + "，与标签对不上。");
+    throw new Error(pin.tag + " 里的插件版本是 " + declared + "，与标签对不上。");
   }
 
   const outDir = path.resolve(args.out);
@@ -104,12 +115,12 @@ function main() {
   fs.rmSync(zipPath, { force: true });
   // 在 path 的上一级目录里跑、路径用插件自己的目录名（见文件头：这样包顶层就是插件根，且哈希可复现）。
   // -o 的路径按 git 进程的工作目录算（-C 之后就是那个目录），所以这里给绝对路径。
-  git(path.join(repoDir, where.parent), ["archive", "--format=zip", PLUGIN_TAG, where.name, "-o", zipPath]);
+  git(path.join(repoDir, where.parent), ["archive", "--format=zip", pin.tag, where.name, "-o", zipPath]);
 
   const manifest = {
     name: PLUGIN_NAME,
     version: version,
-    tag: PLUGIN_TAG,
+    tag: pin.tag,
     releasedAt: new Date().toISOString(),
     zip: {
       name: zipName(version),
