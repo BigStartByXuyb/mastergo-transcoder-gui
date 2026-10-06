@@ -105,9 +105,10 @@ function main() {
    */
   const kind = String(argValue("kind", "github"));
   if (!source.KINDS.includes(kind)) throw new Error("不认识的源类型：" + kind + "（可用：" + source.KINDS.join(" / ") + "）");
-  const wantedBase = String(argValue("base", source.DEFAULT_BASE)).trim().replace(/\/+$/, "");
-  const normalized = source.normalizeSource({ kind: kind, base: wantedBase });
-  if (normalized.base !== wantedBase) throw new Error("基址不合法（要 http/https）：" + wantedBase);
+  const wantedBase = String(argValue("base", source.DEFAULT_BASE));
+  // parseSource 不回落：类型认识、基址合法才给结果；否则宁可报错，也不要一份悄悄指到别处的清单。
+  const normalized = source.parseSource({ kind: kind, base: wantedBase });
+  if (!normalized) throw new Error("基址不合法（要 http/https）：" + wantedBase);
   const base = normalized.base;
   const id = String(argValue("id", IDENTIFIER));
   const folder = "mastergo-transcoder-gui-" + version;

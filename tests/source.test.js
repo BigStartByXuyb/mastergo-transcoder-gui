@@ -63,6 +63,15 @@ function caseNormalize() {
   assert.deepStrictEqual(source.normalizeSource({ kind: "gitlab", base: "" }), fallback);
   assert.deepStrictEqual(source.normalizeSource({ kind: "gitlab", base: "file:///D:/x" }), fallback);
   assert.deepStrictEqual(source.normalizeSource(null), fallback);
+
+  // parseSource：能用就给归一化的源，不能用给 null（不回落）—— 发布脚本与清单生成器用它。
+  assert.deepStrictEqual(
+    source.parseSource({ kind: "static", base: "http://10.0.0.9/updates///" }),
+    { kind: "static", base: "http://10.0.0.9/updates" },
+    "末尾斜杠由这一处统一去掉"
+  );
+  assert.strictEqual(source.parseSource({ kind: "svn", base: "https://x/y" }), null, "类型不认识＝不回落");
+  assert.strictEqual(source.parseSource({ kind: "gitlab", base: "svn://x/y" }), null, "基址不合法＝不回落");
 }
 
 function caseHeaders() {
