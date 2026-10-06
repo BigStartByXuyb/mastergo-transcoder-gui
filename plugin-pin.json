@@ -1,0 +1,6 @@
+{
+  "repo": "https://github.com/BigStartByXuyb/test",
+  "tag": "v1.0.371",
+  "path": "plugins/mastergo-wpf-transcoder",
+  "note": "插件源码在那个 marketplace 仓库里（仓库名历史上叫 test），插件本体在 path 目录下。"
+}
