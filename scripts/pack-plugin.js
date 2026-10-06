@@ -21,11 +21,10 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const crypto = require("crypto");
 const { execFileSync } = require("child_process");
 // 判据只有一处实现（lib/plugin-root.js）：这里直接用它的公开函数，不再另建一层转口。
 const { PLUGIN_NAME, PLUGIN_MARKER, isPluginRoot, pluginVersionOf } = require("../lib/plugin-root.js");
-const { sha256File } = require("../lib/app-manifest.js");
+const { listFilesUnder, sha256File } = require("../lib/app-manifest.js");
 const { stageAssets, uploadRelease } = require("./lib/release-assets.js");
 
 // 发布件的名字只属于发布流程（不进运行树，客户端那半接的时候按同一套协议另说）。
@@ -124,29 +123,17 @@ function pack(args, pin) {
   }
 }
 
-// 逐文件算哈希（相对路径用正斜杠，与客户端清单同一种写法）。
-function listFiles(root) {
-  const files = {};
-  const walk = function (dir, prefix) {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const abs = path.join(dir, entry.name);
-      const rel = prefix ? prefix + "/" + entry.name : entry.name;
-      if (entry.isDirectory()) walk(abs, rel);
-      else if (entry.isFile()) files[rel] = sha256File(abs);
-    }
-  };
-  walk(root, "");
-  return files;
-}
-
 function writePackage(args, pin, version, treeDir) {
   const outDir = path.resolve(args.out);
+  const files = {};
+  // 扫树这条规则用 lib/app-manifest.js 那一份（与运行树同一套：/ 分隔、字典序）。
+  for (const rel of listFilesUnder(treeDir)) files[rel] = sha256File(path.join(treeDir, rel));
   const manifest = {
     name: PLUGIN_NAME,
     version: version,
     tag: pin.tag,
     releasedAt: new Date().toISOString(),
-    files: listFiles(treeDir)
+    files: files
   };
   const staged = stageAssets({ root: treeDir, manifest: manifest, outDir: outDir, manifestName: MANIFEST_FILE });
   process.stderr.write(

@@ -142,7 +142,8 @@ jobs:
           done
           git clone --depth 1 --branch "$plugin_tag" "$plugin_repo" "$RUNNER_TEMP/plugin"
           # 暂存与上传都交给打包脚本（名字与顺序只在它一处），流程不拼名字、也不猜顺序。
-          node scripts/pack-plugin.js --repo-dir "$RUNNER_TEMP/plugin" --out dist \
+          # 给插件产物一个独立目录：暂存会清空自己的输出目录，不能跟别的发布步骤共用 dist。
+          node scripts/pack-plugin.js --repo-dir "$RUNNER_TEMP/plugin" --out dist/plugin \
             --upload "$GITHUB_REF_NAME" --notes "插件发布件（跟随客户端 $GITHUB_REF_NAME）"
         env:
           GH_TOKEN: ${{ github.token }}
