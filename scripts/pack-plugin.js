@@ -16,6 +16,9 @@
  *
  * 版本以插件自己的清单（.claude-plugin/plugin.json）为准，
  * 与 tag 对不上就直接失败，不让「发布的版本」和「包里声明的版本」出现两说。
+ *
+ * 依赖：git（取 tag 内容）与系统 tar（把 tag 摊成目录，好让判据直接用客户端那一套）——
+ * Windows 10+ 自带 tar，CI 的 ubuntu 也有；本机缺了就该报错，不猜。
  */
 
 const fs = require("fs");
