@@ -1,19 +1,12 @@
 import type { ReactNode } from "react"
-import { FolderSearch, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { IdentifierText } from "@/app/identifier-text"
+import { ChosenActions, chosenPathNote } from "@/app/plugin-chosen-row"
 import { ChooseSourceButton } from "@/app/update-source-actions"
 import { PluginInstallBadge, SourceAlsoFrom, SourceCopyCount, SourceStatusBadge, SourceVersion } from "@/app/plugin-source-facts"
-import {
-  CHOSEN_SLOT_ID,
-  isInstallRow,
-  canChooseThis,
-  chooseKeyOf,
-  PLUGIN_BUSY,
-  type PluginSourceRow
-} from "@/lib/plugin-sources"
+import { isInstallRow, canChooseThis, chooseKeyOf, type PluginSourceRow } from "@/lib/plugin-sources"
 import type { PluginUpdateStatus } from "@/lib/api"
 
 /*
@@ -88,9 +81,8 @@ function PluginSourceLine(props: {
   onAuto: () => void
 }) {
   const row = props.row
-  // 这一行是不是承载「我指定的那一份」那一档：指定的那份与别的档合成一行时（同一份插件），
-  // 动作跟着这一行走 —— 它就是那一份插件的行。
-  const ownsChosen = row.members.includes(CHOSEN_SLOT_ID)
+  // 「我指定的那一份」那一档没设时，路径格本来是空的：那句话由它自己那一处给（别的行回空串）。
+  const note = chosenPathNote(row, props.chosen)
 
   return (
     <TableRow className="cursor-pointer" onClick={props.onOpen}>
@@ -108,9 +100,8 @@ function PluginSourceLine(props: {
         {props.installState && <span className="block pt-1">{props.installState}</span>}
       </TableCell>
       <TableCell className="align-top whitespace-normal">
-        {ownsChosen && !props.chosen ? (
-          // 没指定时这一格本来是空的：把「为什么没指定也照常转码」说在这里，不另占一块。
-          <span className="text-muted-foreground text-xs">没指定：按这个顺序往下找，现在用的是标「正在用」的那一条。</span>
+        {note ? (
+          <span className="text-muted-foreground text-xs">{note}</span>
         ) : (
           <>
             <IdentifierText className="text-muted-foreground text-xs" text={row.path} />
@@ -121,35 +112,15 @@ function PluginSourceLine(props: {
       <TableCell className="align-top text-right whitespace-normal">
         {/* 挤不下就换行：这一格在窄窗口里要放三颗按钮（换目录 / 交给客户端找 / 详情）。 */}
         <div className="flex flex-wrap justify-end gap-2" onClick={(event) => event.stopPropagation()}>
-          {/* 「我指定的那一份」这一档：指定/换一个目录、交给客户端找（清掉）。 */}
-          {ownsChosen && (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={props.frozen}
-              aria-busy={props.busy === PLUGIN_BUSY.pick}
-              onClick={props.onPick}
-            >
-              {props.busy === PLUGIN_BUSY.pick ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <FolderSearch className="size-4" />
-              )}
-              {props.chosen ? "换个目录…" : "指定一个目录…"}
-            </Button>
-          )}
-          {ownsChosen && (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={props.frozen || !props.chosen}
-              aria-busy={props.busy === PLUGIN_BUSY.auto}
-              onClick={props.onAuto}
-            >
-              {props.busy === PLUGIN_BUSY.auto && <Loader2 className="size-4 animate-spin" />}
-              交给客户端找
-            </Button>
-          )}
+          {/* 「我指定的那一份」那一档的两个动作：它自己读 ownsChosenSlot 与 PLUGIN_BUSY，行组件不掺和。 */}
+          <ChosenActions
+            row={row}
+            chosen={props.chosen}
+            busy={props.busy}
+            frozen={props.frozen}
+            onPick={props.onPick}
+            onAuto={props.onAuto}
+          />
           {canChooseThis(row) && (
             <ChooseSourceButton busy={props.busy === chooseKeyOf(row)} disabled={props.frozen} onClick={props.onChoose} />
           )}

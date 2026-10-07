@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { Loader2, RefreshCw } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -12,19 +13,17 @@ import { Button } from "@/components/ui/button"
  * 「忙不忙」与「能不能点」由调用方按各自那条线的判据算好（busy / disabled 两个布尔），这里只负责长什么样。
  */
 
-export function ChooseSourceButton(props: { busy: boolean; disabled: boolean; onClick: () => void }) {
-  return (
-    <Button size="sm" variant="outline" disabled={props.disabled} aria-busy={props.busy} onClick={props.onClick}>
-      {props.busy && <Loader2 className="size-4 animate-spin" />}
-      用这份
-    </Button>
-  )
-}
-
-export function CheckUpdateButton(props: {
+/**
+ * 忙碌态动作按钮的壳：文字、图标、转圈、禁用与 aria-busy 只有这一套写法。
+ * 图标由调用方给（忙时换成转圈）；「哪一颗能不能点」仍由调用方按自己那条线的判据算。
+ */
+export function BusyActionButton(props: {
+  label: string
+  /** 不忙时显示的图标；不给就只显示文字。 */
+  icon?: ReactNode
   busy: boolean
   disabled: boolean
-  /** 默认小号（插件页那几处）；程序更新卡片上是默认号。 */
+  /** 默认小号（表里那几处）；程序更新卡片上是默认号。 */
   size?: "sm" | "default"
   onClick: () => void
 }) {
@@ -36,8 +35,31 @@ export function CheckUpdateButton(props: {
       aria-busy={props.busy}
       onClick={props.onClick}
     >
-      {props.busy ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-      检查更新
+      {props.busy ? <Loader2 className="size-4 animate-spin" /> : props.icon}
+      {props.label}
     </Button>
+  )
+}
+
+export function ChooseSourceButton(props: { busy: boolean; disabled: boolean; onClick: () => void }) {
+  return <BusyActionButton label="用这份" busy={props.busy} disabled={props.disabled} onClick={props.onClick} />
+}
+
+export function CheckUpdateButton(props: {
+  busy: boolean
+  disabled: boolean
+  /** 默认小号（插件页那几处）；程序更新卡片上是默认号。 */
+  size?: "sm" | "default"
+  onClick: () => void
+}) {
+  return (
+    <BusyActionButton
+      label="检查更新"
+      icon={<RefreshCw className="size-4" />}
+      busy={props.busy}
+      disabled={props.disabled}
+      size={props.size}
+      onClick={props.onClick}
+    />
   )
 }

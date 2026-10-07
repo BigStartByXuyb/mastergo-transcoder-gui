@@ -28,8 +28,16 @@ export type PluginSourceRow = PluginSource & {
  */
 export const INSTALL_SLOT_ID: PluginSource["id"] = "install"
 
-/** 「我指定的那一份」那一档的 id（后端给的就是它）：顶栏那块按它取这一档的处境。 */
+/** 「我指定的那一份」那一档的 id（后端给的就是它）。 */
 export const CHOSEN_SLOT_ID: PluginSource["id"] = "chosen"
+
+/**
+ * 这一行是不是承载「我指定的那一份」那一档（那一档的指针动作与没设时那句话挂在它这一行上）。
+ * 没设时这一档也有自己一行（路径空、标「没有」）：行组件不自己判 id，读这一处。
+ */
+export function ownsChosenSlot(row: Pick<PluginSourceRow, "members">): boolean {
+  return row.members.includes(CHOSEN_SLOT_ID)
+}
 
 export type PluginSourceSlot = PluginSource & {
   order: number
