@@ -174,6 +174,7 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | 打开目录 / 打开网址 | `lib/system-open.js` |
 | 复制文本 | `ui/src/app/copy-text.ts` |
 | 下载 → 校验 → 落盘 | `lib/update-task.js` + `ui/src/lib/download-run.ts`（前端只按 kind 落地） |
+| 动作骨架（置忙碌 / 清旧错 / 套状态 / 收尾） | `ui/src/app/use-action-runner.ts`（`useActionRunner` 与 `useValueRunner`）：卡片、hook、改发布源弹窗都读它 |
 
 ### 自动化门禁
 

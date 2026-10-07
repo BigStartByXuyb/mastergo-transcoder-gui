@@ -10,9 +10,9 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
+import { useValueRunner } from "@/app/use-action-runner"
 import { SourceBadges } from "@/app/update-source-row"
 import { api, type UpdateSource } from "@/lib/api"
-import { describeFailure } from "@/lib/describe-failure"
 import { sourceKindLabel } from "@/lib/source-kind"
 
 /*
@@ -45,6 +45,9 @@ export function SourceDialog(props: {
   const [probe, setProbe] = useState("")
   const [current, setCurrent] = useState(props.view)
 
+  // 三个按钮共用同一份动作骨架（app/use-action-runner 的 useValueRunner）：清旧提示、跑、失败写原因、松开忙碌位。
+  const act = useValueRunner({ setWorking: setBusy, setFailure: setFailure })
+
   // 最新状态落到两处：弹窗自己，以及外层那张卡片的来源行。
   function adopt(view: { source: UpdateSource; hasToken: boolean }) {
     setCurrent(view)
@@ -69,25 +72,15 @@ export function SourceDialog(props: {
     else setProbe(outcome.note)
   }
 
-  // 三个按钮共用这一处收尾：清旧错、按结果落提示、松开忙碌位。
+  // 三个按钮共用这一处收尾：存下来（要不要顺手验一次由按钮给），成功后说一句。
   async function run(key: string, extra: Record<string, unknown>, thenCheck: boolean) {
-    setBusy(key)
-    setFailure("")
-    setProbe("")
-    try {
+    const done = await act(key, async function () {
+      setProbe("")
       await persist(extra)
-      if (!thenCheck) {
-        toast.success("已保存发布源")
-        return
-      }
-      await verify()
-    }
-    catch (error) {
-      setFailure(describeFailure(error))
-    }
-    finally {
-      setBusy("")
-    }
+      if (thenCheck) await verify()
+      return true
+    })
+    if (done && !thenCheck) toast.success("已保存发布源")
   }
 
   return (
