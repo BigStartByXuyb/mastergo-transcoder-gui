@@ -141,6 +141,11 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - 第三十二轮复核两条：行内面板页脚里漏了 `{}` 的块注释（JSX 里会被当文本渲染）修掉，并补一条断言
   「面板文字里不出现 `/*`」；「轮询那一跳拿不到就照实报错」与「弹窗要的现状」两段适配收进
   `lib/source-check.ts` 的 `requireStatus` / `sourceViewOf`（两半都读它，不再一处写在 hook、一处写在卡片）。
+- 第三十三轮按「族」一次收完（不再一条一推）：
+  · 夹具与现状适配一族：程序更新的状态夹具收进 `settings-fixtures` 的 `updateStatusFixture`（两份用例不再各造一份），
+    弹窗要的「现状」一律走 `sourceViewOf` / `sourceViewFixture`（卡片、面板、用例都在用）。
+  · `pluginLookup` 一族：一趟扫完 —— 每一档当场决定留下还是并进前面那一档，只剩「插件根 → 留下的那一行」这一张表，
+    原先的三趟遍历与四个 Map 一起去掉。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。

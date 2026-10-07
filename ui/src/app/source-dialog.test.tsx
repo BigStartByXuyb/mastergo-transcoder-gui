@@ -2,58 +2,29 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { SourceDialog } from "@/app/source-dialog"
-import { api, type UpdateStatus, type UpdateSource } from "@/lib/api"
+import { api, type UpdateStatus } from "@/lib/api"
 import { sourceCheckOutcome } from "@/lib/source-check"
-import { sourceFixture } from "@/lib/settings-fixtures"
+import { sourceFixture, sourceViewFixture, updateStatusFixture } from "@/lib/settings-fixtures"
 import { describeUpdate } from "@/lib/update-state"
 
 /*
  * 走真的 api 层（只把 fetch 换掉）：要验的是「预填什么、点保存并检查发哪两个请求、结果怎么显示」。
  */
 
-// 夹具里的默认发布源只有一处（settings-fixtures 的 sourceFixture）：这里不再各写一份地址与类型名单。
+// 两份夹具（程序更新状态、弹窗要的现状）都在 settings-fixtures 一处：这里不再各写一份。
 const BASE = sourceFixture().base
-
-function status(patch: Partial<UpdateStatus> = {}): UpdateStatus {
-  return {
-    state: "up_to_date",
-    current: "0.6.31",
-    currentNotes: [],
-    history: [],
-    root: "",
-    pointer: null,
-    busy: "",
-    staged: [],
-    ready: "",
-    rollback: "",
-    available: null,
-    error: null,
-    task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
-    source: sourceFixture(),
-    hasToken: false,
-    ...patch
-  }
-}
+const status = updateStatusFixture
 
 function ok(body: unknown) {
   return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))
 }
 
-/*
- * 弹窗只认「现状 + 取回现状 + 按这一件事的清单验一次」这三样；
- * 调用方（「程序更新」那张卡）就是这么接的：现状取 updateStatus，检查取 updateCheck，
- * 说法用 describeUpdate —— 用例也照这条接法接，验的才是真行为。
- */
-function sourceViewOf(value: UpdateStatus): { source: UpdateSource; hasToken: boolean } {
-  return { source: value.source, hasToken: value.hasToken }
-}
-
 function dialogProps(value: UpdateStatus) {
   return {
     subject: "程序更新",
-    view: sourceViewOf(value),
+    view: sourceViewFixture(value),
     onClose: () => undefined,
-    reload: async () => sourceViewOf((await api.updateStatus()).status),
+    reload: async () => sourceViewFixture((await api.updateStatus()).status),
     check: async () => {
       const checked = (await api.updateCheck()).status
       return sourceCheckOutcome(describeUpdate(checked), checked.state === "error")

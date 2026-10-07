@@ -1,4 +1,5 @@
-import type { Health, PluginAvailable, PluginUpdateStatus, UpdateSource } from "@/lib/api"
+import type { Health, PluginAvailable, PluginUpdateStatus, UpdateSource, UpdateStatus } from "@/lib/api"
+import { sourceViewOf } from "@/lib/source-check"
 
 /*
  * 设置页用例共用的那几件夹具：路径拼法、客户端健康快照、假响应。
@@ -16,6 +17,33 @@ export const ENGINE = drive("D", "app", "lib", "node-controls.js")
 /** 客户端自带那一处：装好之后是 <安装根>/plugins/<插件名>/<版本>/。 */
 export const INSTALL_PARENT = drive("D", "app", "plugins")
 export const INSTALLED_ROOT = drive("D", "app", "plugins", "mastergo-wpf-transcoder", "1.0.369")
+
+/** 程序更新的状态：没传覆盖项就是「本机一份都没下、还没查过远端」。版本号这类由用例自己覆盖。 */
+export function updateStatusFixture(over: Partial<UpdateStatus> = {}): UpdateStatus {
+  return {
+    state: "up_to_date",
+    current: "0.6.31",
+    currentNotes: [],
+    history: [],
+    root: "",
+    pointer: null,
+    busy: "",
+    staged: [],
+    ready: "",
+    rollback: "",
+    available: null,
+    error: null,
+    task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
+    source: sourceFixture(),
+    hasToken: false,
+    ...over
+  }
+}
+
+/** 弹窗要的「现状」：从这条线自己的状态里取发布源那两格（`lib/source-check` 的 `sourceViewOf` 一处给形状）。 */
+export function sourceViewFixture(value: UpdateStatus) {
+  return sourceViewOf(value.source, value.hasToken)
+}
 
 /** 界面侧夹具用的默认发布源：与后端 lib/source.js 的内置默认一致（两份不能互相引，各自一处、口径一致）。 */
 export const SOURCE_BASE = "https://github.com/BigStartByXuyb/mastergo-transcoder-gui"

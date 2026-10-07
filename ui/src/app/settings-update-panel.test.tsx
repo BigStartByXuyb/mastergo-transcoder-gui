@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { SettingsUpdatePanel } from "@/app/settings-update-panel"
-import type { PluginSources, UpdateStatus } from "@/lib/api"
+import type { PluginSources } from "@/lib/api"
 import {
   ENGINE,
   PLUGIN_ROOT,
@@ -10,7 +10,7 @@ import {
   healthFixture,
   okResponse,
   pluginUpdateFixture,
-  sourceFixture
+  updateStatusFixture
 } from "@/lib/settings-fixtures"
 
 /*
@@ -54,25 +54,8 @@ function sources(): PluginSources {
   }
 }
 
-function status(): UpdateStatus {
-  return {
-    state: "up_to_date",
-    current: "0.6.34",
-    currentNotes: [],
-    history: [],
-    root: "",
-    pointer: null,
-    busy: "",
-    staged: [],
-    ready: "",
-    rollback: "",
-    available: null,
-    error: null,
-    task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
-    source: sourceFixture(),
-    hasToken: false
-  }
-}
+// 程序更新的状态夹具只有一处（settings-fixtures）：这里只说本机是 0.6.34。
+const status = () => updateStatusFixture({ current: "0.6.34" })
 
 function stub() {
   vi.stubGlobal(

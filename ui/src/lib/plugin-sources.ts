@@ -41,79 +41,45 @@ export type PluginSourceSlot = PluginSource & {
 
 export type PluginLookup = { slots: PluginSourceSlot[]; rows: PluginSourceRow[] }
 
+/*
+ * 一趟扫完：每一档当场决定「留下」还是「并进前面那一档」，两样结果都当场写出来。
+ *
+ *   同一份插件（同一个插件根）只留一行 —— 最先命中的那一档留下（序号最小），它就是「查找停在这里」的
+ *   那一档，表里的行号与顺序条上的序号因此对得上；后面命中的并进去，名字挂 alsoFrom、id 进 members。
+ *
+ * 「正在用」不用另算：后端只在真正生效的那一档上标 active，而那一档必定是它那个插件根的最先命中者
+ * （＝留下的那一行），所以并进去的那几档本来就不带 active —— 它们的处境按留下那一行说。
+ */
 export function pluginLookup(sources: PluginSource[]): PluginLookup {
-  // 「这一档解析出了哪一份插件」只算一次：下面三趟都读它，判据不会各写各的。
-  const resolved = sources.map((item, index) => ({
-    item: item,
-    order: index + 1,
-    root: item.exists && item.pluginRoot ? item.pluginRoot : ""
-  }))
-
-  // 同一个插件根只留一行：**最先命中的那一档**留下（序号最小），后面的并进它。
-  // 它就是「查找停在这里」的那一档，表里的行号与顺序条上的序号因此对得上。
-  const keeperOf = new Map<string, string>()
-  for (const entry of resolved) {
-    if (!entry.root) continue
-    if (!keeperOf.has(entry.root)) keeperOf.set(entry.root, entry.item.id)
-  }
-
-  /*
-   * 留一行、其余的并进去：这一趟同时收三样 —— 谁并进了谁（mergedInto）、留下那一行的「同时来自」
-   * （extrasOf，用名字给界面看）、以及这一行代表哪几档（memberIdsOf，用 id 判断「这一行有没有自带那一档」）。
-   * 「正在用」不用另并一次：后端只在真正生效的那一档上标 active，而那一档必定就是它那个插件根的
-   * 最先命中者（＝留下的那一行），所以被并掉的那几档本来就不会带 active。
-   */
-  const mergedInto = new Map<string, string>()
-  const extrasOf = new Map<string, string[]>()
-  const memberIdsOf = new Map<string, string[]>()
-  for (const entry of resolved) {
-    const keeper = entry.root ? keeperOf.get(entry.root) : undefined
-    if (!keeper) continue
-    // 每一档都算这一行的成员（含它自己）；被并掉的另外记一笔，名字挂给留下那一行。
-    memberIdsOf.set(keeper, (memberIdsOf.get(keeper) ?? []).concat(entry.item.id))
-    if (keeper === entry.item.id) continue
-    mergedInto.set(entry.item.id, keeper)
-    extrasOf.set(keeper, (extrasOf.get(keeper) ?? []).concat(entry.item.label))
-  }
-
   const rows: PluginSourceRow[] = []
-  for (const entry of resolved) {
-    if (mergedInto.has(entry.item.id)) continue
-    rows.push({
-      ...entry.item,
-      order: entry.order,
-      alsoFrom: extrasOf.get(entry.item.id) ?? [],
-      members: memberIdsOf.get(entry.item.id) ?? [entry.item.id]
-    })
-  }
+  const slots: PluginSourceSlot[] = []
+  // 插件根 → 留下的那一行：只有这一张表要维护。
+  const keeperOf = new Map<string, PluginSourceRow>()
 
-  /*
-   * 顺序条与表说的是同一份事实：并进某一档的那几条，状态按留下那一档说
-   * （否则会出现「表里标正在用、顺序条上那一档标有」）。
-   */
-  const rowById = new Map<string, PluginSourceRow>(rows.map((row) => [row.id, row]))
-  const slots: PluginSourceSlot[] = resolved.map((entry) => {
-    const keeper = mergedInto.get(entry.item.id)
-    // 并进某一档的：状态取那一行（keeper 的序号更小，行一定已经建好）。
+  sources.forEach(function (item, index) {
+    const order = index + 1
+    const root = item.exists && item.pluginRoot ? item.pluginRoot : ""
+    const keeper = root ? keeperOf.get(root) : undefined
     if (keeper) {
-      const kept = rowById.get(keeper) as PluginSourceRow
-      return {
-        ...entry.item,
-        order: entry.order,
-        active: kept.active,
-        exists: kept.exists,
-        mergedInto: keeper,
-        mergedIntoOrder: kept.order
-      }
+      keeper.alsoFrom.push(item.label)
+      keeper.members.push(item.id)
+      // 并进去的：处境按留下那一行说，顺序条与表不会各说一套。
+      slots.push({
+        ...item,
+        order: order,
+        active: keeper.active,
+        exists: keeper.exists,
+        mergedInto: keeper.id,
+        mergedIntoOrder: keeper.order
+      })
+      return
     }
-    // 自己就是那一行：用自己那份（不查表，也就没有「查不到怎么办」这种到不了的分支）。
-    return {
-      ...entry.item,
-      order: entry.order,
-      mergedInto: "",
-      mergedIntoOrder: 0
-    }
+    const row: PluginSourceRow = { ...item, order: order, alsoFrom: [], members: [item.id] }
+    if (root) keeperOf.set(root, row)
+    rows.push(row)
+    slots.push({ ...item, order: order, mergedInto: "", mergedIntoOrder: 0 })
   })
+
   return { slots: slots, rows: rows }
 }
 

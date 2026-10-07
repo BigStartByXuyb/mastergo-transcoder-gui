@@ -248,7 +248,7 @@ export function UpdateCard() {
       {editingSource && status && (
         <SourceDialog
           subject="程序更新"
-          view={{ source: status.source, hasToken: status.hasToken }}
+          view={sourceViewOf(status.source, status.hasToken)}
           onClose={() => setEditingSource(false)}
           reload={async () => {
             const payload = requireStatus(await reload(), "更新状态")
