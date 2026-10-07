@@ -361,7 +361,8 @@ async function main() {
     // 「系统上那份」在 PATH 上找：摆一个真目录当 PATH，放上两个平台各自认的名字。
     const pathDir = makeHome();
     for (const name of ["pwsh", "pwsh.exe"]) fs.writeFileSync(path.join(pathDir, name), "");
-    const sysPath = path.join(pathDir, "pwsh.exe");
+    // 找的是哪个名字按平台定：Windows 认 pwsh.exe，其他平台认 pwsh（与产品里那一处同一口径）。
+    const sysPath = path.join(pathDir, process.platform === "win32" ? "pwsh.exe" : "pwsh");
     const sysPwsh = createRuntime({
       home: makeHome(),
       spawnSyncImpl: fakeSpawn([{ match: "pwsh", result: { status: 0, stdout: "7.6.6", stderr: "" } }]),
