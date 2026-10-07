@@ -21,16 +21,16 @@ export function sourceStatusText(active: boolean, exists: boolean): string {
   return exists ? "可用" : "没有"
 }
 
-export function SourceStatusBadge(props: { row: PluginSourceRow }) {
-  if (props.row.active) {
+export function SourceStatusBadge(props: { active: boolean; exists: boolean }) {
+  if (props.active) {
     return (
       <Badge variant="secondary">
         <Check className="size-3" />
-        {sourceStatusText(true, props.row.exists)}
+        {sourceStatusText(true, props.exists)}
       </Badge>
     )
   }
-  return <Badge variant="outline">{sourceStatusText(false, props.row.exists)}</Badge>
+  return <Badge variant="outline">{sourceStatusText(false, props.exists)}</Badge>
 }
 
 export function SourceVersion(props: { row: PluginSourceRow }) {
