@@ -286,6 +286,8 @@ describe("PluginCard", () => {
     const dialog = await screen.findByRole("dialog")
     expect(within(dialog).getByText("这一档")).toBeTruthy()
     expect(within(dialog).getByText("这一处有 4 份，用最高版本")).toBeTruthy()
+    // 面板里不该出现「当文本渲染出来的注释」（JSX 里漏了 {} 的块注释就会这样）。
+    expect(dialog.textContent ?? "").not.toContain("/*")
 
     fireEvent.click(within(dialog).getByRole("button", { name: "用这份" }))
     await waitFor(() => expect(chosen.length).toBe(1))

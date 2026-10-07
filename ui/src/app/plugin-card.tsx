@@ -12,6 +12,7 @@ import { PluginSourceTable } from "@/app/plugin-source-table"
 import { SourceDialog } from "@/app/source-dialog"
 import { usePluginSources } from "@/app/use-plugin-sources"
 import { usePluginUpdate } from "@/app/use-plugin-update"
+import { sourceViewOf } from "@/lib/source-check"
 import { busyNow } from "@/lib/update-state"
 import {
   CHOSEN_SLOT_ID,
@@ -138,7 +139,7 @@ export function PluginCard() {
             onClose={() => setEditingSource(false)}
             reload={async () => {
               const latest = await update.refresh()
-              return { source: latest.source, hasToken: latest.hasToken }
+              return sourceViewOf(latest.source, latest.hasToken)
             }}
             check={update.check}
           />

@@ -124,10 +124,10 @@ export function PluginSourceDialog(props: {
 
         <DialogFooter className="flex-wrap gap-2 sm:justify-between">
           <div className="flex flex-wrap gap-2">
-            /*
-             * 有插件才给「打开目录」：「这一档解析到插件」就是「那个目录真的在」（定位只认这个），
-             * 而没设 / 那里没有插件的那几档，点了只会报「这个目录不在了」。
-             */
+            {/*
+              有插件才给「打开目录」：「这一档解析到插件」就是「那个目录真的在」（定位只认这个），
+              而没设 / 那里没有插件的那几档，点了只会报「这个目录不在了」。
+            */}
             {row.path && row.exists && (
               <Button size="sm" variant="outline" onClick={() => void openFolder()}>
                 <FolderOpen className="size-4" />
@@ -141,14 +141,10 @@ export function PluginSourceDialog(props: {
               </Button>
             )}
             {canChooseThis(row) && (
-              /*
-               * 记哪个目录由 choosePathOf 说（库那一处）：记这一档所在的目录，不是此刻那一个版本目录。
-               */
               <ChooseSourceButton
                 busy={props.busy.source === chooseKeyOf(row)}
                 disabled={props.frozen}
-                /*
-                 */
+                /* 记哪个目录由 choosePathOf 说（库那一处）：记这一档所在的目录，不是此刻那一个版本目录。 */
                 onClick={() => props.onChoose(choosePathOf(row), chooseKeyOf(row))}
               />
             )}

@@ -12,7 +12,8 @@ import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
 import { useValueRunner } from "@/app/use-action-runner"
 import { SourceBadges } from "@/app/update-source-row"
-import { api, type UpdateSource } from "@/lib/api"
+import { api } from "@/lib/api"
+import type { SourceView } from "@/lib/source-check"
 import { sourceKindLabel } from "@/lib/source-kind"
 
 /*
@@ -27,10 +28,10 @@ export function SourceDialog(props: {
   /** 说的是哪一件事的发布源（标题与说明里照实写）。 */
   subject: string
   /** 打开时的现状：用它预填类型与地址；token 只显示「有没有」，不回显值。 */
-  view: { source: UpdateSource; hasToken: boolean }
+  view: SourceView
   onClose: () => void
   /** 存完取回最新的一份现状（客户端拿 updateStatus，插件那一半拿 pluginUpdateStatus）。 */
-  reload: () => Promise<{ source: UpdateSource; hasToken: boolean }>
+  reload: () => Promise<SourceView>
   /**
    * 「保存并检查」按这一件事自己的清单验一次。失败给原因、成功给一句结论 ——
    * 两半各自读自己那份状态的说法（describeUpdate / describePluginInstall），这里只负责显示。
@@ -49,7 +50,7 @@ export function SourceDialog(props: {
   const act = useValueRunner({ setWorking: setBusy, setFailure: setFailure })
 
   // 最新状态落到两处：弹窗自己，以及外层那张卡片的来源行。
-  function adopt(view: { source: UpdateSource; hasToken: boolean }) {
+  function adopt(view: SourceView) {
     setCurrent(view)
     setKind(view.source.kind)
     setBase(view.source.base)

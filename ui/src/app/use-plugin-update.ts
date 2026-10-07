@@ -9,7 +9,7 @@ import { api, type PluginUpdateStatus } from "@/lib/api"
 import { startDownload } from "@/lib/download-run"
 import { describePluginInstall } from "@/lib/plugin-install"
 import { PLUGIN_BUSY } from "@/lib/plugin-sources"
-import { sourceCheckOutcomeOf } from "@/lib/source-check"
+import { requireStatus, sourceCheckOutcomeOf } from "@/lib/source-check"
 import { busyNow, isDownloading, isTaskDone } from "@/lib/update-state"
 
 /*
@@ -70,9 +70,8 @@ export function usePluginUpdate(onInstalled: () => void) {
    * 走轮询那一跳（useStatusPoll 的 reload），不另拼一条取数 —— 两边的落地与守卫因此只有一处。
    */
   const refresh = useCallback(async function () {
-    const payload = await reload()
-    if (!payload) throw new Error("读不到插件状态")
-    return payload.status
+    // 「拿不到就照实报错」这一句在 lib/source-check（两半共用）。
+    return requireStatus(await reload(), "插件状态").status
   }, [reload])
 
   /*

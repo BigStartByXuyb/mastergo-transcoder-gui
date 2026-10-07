@@ -23,7 +23,7 @@ import { useStatusPoll } from "@/app/use-status-poll"
 import { startUpdateDownload } from "@/lib/update-download"
 import { runSwitch } from "@/lib/update-switch"
 import { missingFeatures } from "@/lib/version-features"
-import { sourceCheckOutcomeOf } from "@/lib/source-check"
+import { requireStatus, sourceCheckOutcomeOf, sourceViewOf } from "@/lib/source-check"
 import {
   blockedNote,
   busyNow,
@@ -251,9 +251,8 @@ export function UpdateCard() {
           view={{ source: status.source, hasToken: status.hasToken }}
           onClose={() => setEditingSource(false)}
           reload={async () => {
-            const payload = await reload()
-            if (!payload) throw new Error("读不到更新状态")
-            return { source: payload.status.source, hasToken: payload.status.hasToken }
+            const payload = requireStatus(await reload(), "更新状态")
+            return sourceViewOf(payload.status.source, payload.status.hasToken)
           }}
           check={runCheck}
         />
