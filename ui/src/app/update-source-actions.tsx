@@ -23,6 +23,8 @@ export function BusyActionButton(props: {
   icon?: ReactNode
   busy: boolean
   disabled: boolean
+  /** 描边（表里那几处）或实心（主要的那个动作，如「下载并安装」）。 */
+  variant?: "outline" | "default"
   /** 默认小号（表里那几处）；程序更新卡片上是默认号。 */
   size?: "sm" | "default"
   onClick: () => void
@@ -30,7 +32,7 @@ export function BusyActionButton(props: {
   return (
     <Button
       size={props.size ?? "sm"}
-      variant="outline"
+      variant={props.variant ?? "outline"}
       disabled={props.disabled}
       aria-busy={props.busy}
       onClick={props.onClick}

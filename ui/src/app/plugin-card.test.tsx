@@ -349,6 +349,35 @@ describe("PluginCard", () => {
     expect(within(row).getByText(/没指定：按这个顺序往下找/)).toBeTruthy()
   })
 
+  it("指定的那一份没在生效时：只留换目录 / 交给客户端找，不再给那颗空操作的「用这份」", async () => {
+    const base = view({ activeId: "codex-cache" })
+    stub({
+      ...base,
+      chosen: CLAUDE_ROOT,
+      sources: [
+        // 顺序上这一档在前（与生产一致：--plugin → 我指定的 → …），它指到 Claude 缓存那一份。
+        source("chosen", {
+          label: "我指定的那一份",
+          kind: "chosen",
+          path: CLAUDE_ROOT,
+          exists: true,
+          pluginRoot: CLAUDE_ROOT,
+          version: "1.0.245",
+          found: [CLAUDE_ROOT]
+        }),
+        ...base.sources
+      ]
+    })
+    render(<PluginCard />)
+    await waitFor(() => expect(within(screen.getByRole("table")).getByText("我指定的那一份")).toBeTruthy())
+
+    const row = within(screen.getByRole("table")).getByText("我指定的那一份").closest("tr") as HTMLElement
+    // 生效的是 Codex 缓存（第 4 档），而「用这份」记的就是这一行自己：那颗是空操作，不给。
+    expect(within(row).queryByRole("button", { name: "用这份" })).toBeNull()
+    expect(within(row).getByRole("button", { name: "换个目录…" })).toBeTruthy()
+    expect(within(row).getByRole("button", { name: "交给客户端找" })).toBeTruthy()
+  })
+
   it("一处都没找到时把后端列出来的已查找路径原样显示", async () => {
     stub(view({ activeId: "", failure: "找不到 mastergo-wpf-transcoder 插件。\n已查找：" + INSTALL_DIR + "（没有）" }))
     render(<PluginCard />)

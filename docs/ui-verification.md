@@ -37,9 +37,12 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - 表头宽度按新的操作列重排（来源 22 / 版本 12 / 状态 14 / 操作 24，路径吃余量）；动作挤不下就换行
   （1280 窗口里第 2 行三颗按钮各占一行，1920 窗口一行放得下）。
 - 复核收口（两条）：忙碌态动作按钮的壳收成一处（`update-source-actions` 的 `BusyActionButton`，
-  「用这份」「检查更新」与新搬来的两颗都走它）；「我指定的那一份」这一档的专属渲染从通用行里搬出去
+  「用这份」「检查更新」、「下载并安装」与新搬来的两颗都走它）；「我指定的那一份」这一档的专属渲染从通用行里搬出去
   （`ui/src/app/plugin-chosen-row.tsx`：没设时路径格那句话 + 两个指针动作），
   「这一行是不是承载这一档」由 `ownsChosenSlot`（lib/plugin-sources）一处判，行组件不再碰它的语义。
+- 再一轮复核收口：**承载「我指定的那一份」的那一行不再给「用这份」** —— 它记的就是这一行自己，点了是空操作还会弹
+  「已换用这一份」（`canChooseThis` 里排掉这一档，判据仍在 lib/plugin-sources 一处）；`CHOSEN_SLOT_ID` 随之收回
+  模块内（外部只走 `ownsChosenSlot`）。用例补一条「指定的那份没在生效时：只有换目录 / 交给客户端找」。
 - 文档同步：`docs/install.md` 的「二之一、插件装在哪儿」改成两块版面，`README.md` 第 2 档那句改成「在插件页表里
   那一行的操作列上换」；面板里 `chosen` 那一档的说明不再指「页面上面那条」。
 
@@ -62,8 +65,8 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | 门禁 | 结果 |
 | --- | --- |
 | `cd ui; npx tsc -b` | 通过 |
-| `cd ui; npx vitest run` | 60 文件 354 用例通过（本次 +4：第 2 档两个动作那一行、没指定那条、说法与画法三条） |
-| `cd ui; npm run test:coverage` | all files 95.95 / 91.79 / 94.85 / 95.95 |
+| `cd ui; npx vitest run` | 60 文件 355 用例通过（本次 +5：第 2 档两个动作那一行、没指定那条、被前面压过那条、说法与画法三条） |
+| `cd ui; npm run test:coverage` | all files 95.95 / 91.69 / 94.85 / 95.95 |
 | `cd ui; npm run lint` | 通过（只有既有 warning） |
 | 结构确定性检查 | PASS |
 | `npm run build:ui` | 通过，`public/` 已重建 |
