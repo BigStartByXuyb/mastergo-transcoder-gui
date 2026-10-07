@@ -102,23 +102,11 @@ function stageDeployment(stage, files) {
   }
 }
 
-async function main() {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gui-winget-source-"));
-  const zip = path.join(tmp, ZIP);
-  fs.writeFileSync(zip, "fake-zip-bytes", "utf8");
-  // 部署目录照文档摆；数据与包放进服务读的那个目录（与文档里 data/ 的位置一致）。
-  const stage = path.join(tmp, "deploy");
-  const listed = listedInDoc();
-  assert.ok(listed.length >= 3, "文档那份清单要列出启动服务用到的 JS 文件");
-  stageDeployment(stage, listed);
-  const out = path.join(stage, "data");
-  const sha = crypto.createHash("sha256").update(fs.readFileSync(zip)).digest("hex").toUpperCase();
-  const facts = { id: ID, version: pkg.version, url: BASE + "/files/" + ZIP, sha256: sha, folder: FOLDER };
-
-  /*
-   * 纯函数直接调：清单的两种形状、两个标识、内网源的目录约定。
-   * 这些名字是外面的契约（winget 认标识、部署按目录名找数据文件），钉在这里改一处就知道。
-   */
+/*
+ * 清单的两种形状、两个标识、内网源的目录约定 —— 都是外面的契约
+ * （winget 认标识、部署按目录名找数据文件），钉在这里改一处就知道。
+ */
+function checkRenderers(facts, sha, tmp) {
   assert.deepStrictEqual(
     winget.yamlFiles(facts).map((file) => file.name),
     [ID + ".yaml", ID + ".locale.zh-CN.yaml", ID + ".installer.yaml"],
@@ -134,7 +122,7 @@ async function main() {
   assert.strictEqual(sourceApi.manifestBody([winget.restPackage(facts)], ID, pkg.version).Data.Versions.length, 1);
 
   // 事实的装配只有一处：版本号取 package.json、zip 不在就当场报错（两个入口都从这里过）。
-  const made = versionFacts({ id: ID, zip: zip, urlOf: (info) => BASE + "/files/" + info.folder + ".zip" });
+  const made = versionFacts({ id: ID, zip: path.join(tmp, ZIP), urlOf: (info) => BASE + "/files/" + info.folder + ".zip" });
   assert.strictEqual(made.version, pkg.version, "版本号取 package.json");
   assert.strictEqual(made.folder, FOLDER, "包内目录按版本拼");
   assert.strictEqual(made.sha256, sha, "哈希现算");
@@ -156,29 +144,33 @@ async function main() {
     ["Tag", "PackageFamilyName", "ProductCode", "UpgradeCode", "NormalizedPackageNameAndPublisher", "Market", "HasInstallerType"],
     "信息接口声明的就是搜索那边报的同一份"
   );
+}
 
-  /*
-   * 搜索语义：(Query || Inclusions...) && Filters...
-   * winget 装包前会把同一个关键词同时放进好几个字段的 Inclusions —— 那是「或」，命中任一字段就算包括进来；
-   * 按「且」算就一个都匹配不上，客户端据此判定「这个源不支持这次搜索」并中止安装。
-   */
-  const packages = [winget.restPackage(facts)];
+/*
+ * 搜索语义：(Query || Inclusions...) && Filters...
+ * winget 装包前会把同一个关键词同时放进好几个字段的 Inclusions —— 那是「或」，命中任一字段就算包括进来；
+ * 按「且」算就一个都匹配不上，客户端据此判定「这个源不支持这次搜索」并中止安装。
+ */
+function checkSearch(packages) {
   const match = (field, keyword, matchType) => ({ PackageMatchField: field, RequestMatch: { KeyWord: keyword, MatchType: matchType } });
-  assert.strictEqual(sourceApi.searchBody(packages, { Inclusions: [match("PackageFamilyName", ID, "Exact"), match("PackageIdentifier", ID, "CaseInsensitive")] }).Data.length, 1, "Inclusions 之间是或");
-  assert.strictEqual(sourceApi.searchBody(packages, { Inclusions: [match("PackageName", ID, "CaseInsensitive")] }).Data.length, 0, "名字对不上就是没命中");
-  assert.strictEqual(sourceApi.searchBody(packages, { Filters: [match("PackageIdentifier", ID, "CaseInsensitive")] }).Data.length, 1, "Filters 命中");
-  assert.strictEqual(sourceApi.searchBody(packages, { Filters: [match("PackageName", ID, "CaseInsensitive")] }).Data.length, 0, "Filters 是且，点名字就必须名字命中");
-  assert.strictEqual(sourceApi.searchBody(packages, { Query: { KeyWord: "mastergo", MatchType: "Substring" } }).Data.length, 1, "关键词搜");
-  assert.strictEqual(sourceApi.searchBody(packages, { Query: { KeyWord: "别的包", MatchType: "Substring" } }).Data.length, 0, "搜不到就是空列表");
-  assert.strictEqual(sourceApi.searchBody(packages, { FetchAllManifests: true, MaximumResults: 1 }).Data.length, 1, "Query 与 Inclusions 都为空＝整个库都是候选");
-  assert.strictEqual(sourceApi.searchBody(packages, { Query: { KeyWord: "mastergo", MatchType: "Substring" }, MaximumResults: 0 }).Data.length, 1, "不限制条数");
+  const hit = (body) => sourceApi.searchBody(packages, body);
+  assert.strictEqual(hit({ Inclusions: [match("PackageFamilyName", ID, "Exact"), match("PackageIdentifier", ID, "CaseInsensitive")] }).Data.length, 1, "Inclusions 之间是或");
+  assert.strictEqual(hit({ Inclusions: [match("PackageName", ID, "CaseInsensitive")] }).Data.length, 0, "名字对不上就是没命中");
+  assert.strictEqual(hit({ Filters: [match("PackageIdentifier", ID, "CaseInsensitive")] }).Data.length, 1, "Filters 命中");
+  assert.strictEqual(hit({ Filters: [match("PackageName", ID, "CaseInsensitive")] }).Data.length, 0, "Filters 是且，点名字就必须名字命中");
+  assert.strictEqual(hit({ Query: { KeyWord: "mastergo", MatchType: "Substring" } }).Data.length, 1, "关键词搜");
+  assert.strictEqual(hit({ Query: { KeyWord: "别的包", MatchType: "Substring" } }).Data.length, 0, "搜不到就是空列表");
+  assert.strictEqual(hit({ FetchAllManifests: true, MaximumResults: 1 }).Data.length, 1, "Query 与 Inclusions 都为空＝整个库都是候选");
+  assert.strictEqual(hit({ Query: { KeyWord: "mastergo", MatchType: "Substring" }, MaximumResults: 0 }).Data.length, 1, "不限制条数");
   assert.deepStrictEqual(
-    sourceApi.searchBody(packages, { Inclusions: [match("ProductCode", ID, "Exact")] }).UnsupportedPackageMatchFields,
+    hit({ Inclusions: [match("ProductCode", ID, "Exact")] }).UnsupportedPackageMatchFields,
     ["ProductCode"],
     "没有的字段照实报出去，不猜"
   );
+}
 
-  // 生成器：数据文件与 zip 一起落盘，包地址指向这台源服务自己。
+/* 生成器：数据文件与 zip 一起落盘，包地址指向这台源服务自己。 */
+function checkGenerator(zip, out, sha) {
   const generated = spawnSync(process.execPath, [GENERATOR, "--zip", zip, "--out", out, "--base", BASE], { encoding: "utf8" });
   assert.strictEqual(generated.status, 0, "生成器要跑通：" + String(generated.stderr || ""));
 
@@ -200,7 +192,10 @@ async function main() {
   const badBase = spawnSync(process.execPath, [GENERATOR, "--zip", zip, "--out", out, "--base", "svn://10.0.0.9/x"], { encoding: "utf8" });
   assert.notStrictEqual(badBase.status, 0);
   assert.match(String(badBase.stderr || ""), /基址不合法/);
+}
 
+/* 真起一次服务，把 winget 会打的那几条路走一遍。 */
+async function runServerChecks(stage, out, zip, sha) {
   const port = await freePort();
   const server = await startServer(path.join(stage, "scripts", "winget-source-server.js"), out, port);
   const origin = "http://127.0.0.1:" + port;
@@ -282,35 +277,61 @@ async function main() {
   finally {
     server.kill();
   }
+}
 
-  /*
-   * 发布就是「换掉数据目录里的文件」，所以运行中读不到/读坏数据文件是正常的运维时刻：
-   * 那是我们自己的故障（与 GET 路由一样回 500），请求体不是 JSON 才是调用方的事（400）。
-   * 两种失败混成一个状态码，运维会把「文件坏了」当成「有人在乱发请求」。
-   */
+/*
+ * 发布就是「换掉数据目录里的文件」，所以运行中读不到/读坏数据文件是正常的运维时刻：
+ * 那是我们自己的故障（与 GET 路由一样回 500），请求体不是 JSON 才是调用方的事（400）。
+ * 两种失败混成一个状态码，运维会把「文件坏了」当成「有人在乱发请求」。
+ */
+async function runFlakyChecks(stage, out, tmp) {
   const flaky = path.join(tmp, "flaky");
   fs.mkdirSync(flaky, { recursive: true });
-  fs.copyFileSync(path.join(out, "winget-source.json"), path.join(flaky, "winget-source.json"));
-  const flakyPort = await freePort();
-  const flakyServer = await startServer(path.join(stage, "scripts", "winget-source-server.js"), flaky, flakyPort);
+  const file = path.join(flaky, "winget-source.json");
+  fs.copyFileSync(path.join(out, "winget-source.json"), file);
+  const port = await freePort();
+  const server = await startServer(path.join(stage, "scripts", "winget-source-server.js"), flaky, port);
+  const base = "http://127.0.0.1:" + port;
+  const post = (payload) =>
+    fetch(base + "/api/manifestSearch", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: payload
+    });
   try {
-    const base = "http://127.0.0.1:" + flakyPort;
-    const post = (payload) =>
-      fetch(base + "/api/manifestSearch", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: payload
-      });
     assert.strictEqual((await post("{}")).status, 200, "文件好的时候照样能搜");
-    // 运行中把数据文件写坏（就像换文件换到一半）
-    fs.writeFileSync(path.join(flaky, "winget-source.json"), "{ 这不是 JSON", "utf8");
+    // 运行中把数据文件写坏（就像换文件换到一半）：不是 JSON、以及 JSON 但不是那个形状，都算我们的故障。
+    fs.writeFileSync(file, "{ 这不是 JSON", "utf8");
     assert.strictEqual((await post("{}")).status, 500, "读数据文件失败是我们的故障");
     assert.strictEqual((await fetch(base + "/")).status, 500, "同一故障在 GET 路由上也是 500");
+    fs.writeFileSync(file, '{"Packages": null}', "utf8");
+    assert.strictEqual((await post("{}")).status, 500, "形状不对也是文件坏了，不该静默当成空源");
     assert.strictEqual((await post("{ 这不是 JSON")).status, 400, "请求体不是 JSON 才是调用方的事");
   }
   finally {
-    flakyServer.kill();
+    server.kill();
   }
+}
+
+async function main() {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gui-winget-source-"));
+  const zip = path.join(tmp, ZIP);
+  fs.writeFileSync(zip, "fake-zip-bytes", "utf8");
+  const sha = crypto.createHash("sha256").update(fs.readFileSync(zip)).digest("hex").toUpperCase();
+  const facts = { id: ID, version: pkg.version, url: BASE + "/files/" + ZIP, sha256: sha, folder: FOLDER };
+
+  // 部署目录照文档摆；数据与包放进服务读的那个目录（与文档里 data/ 的位置一致）。
+  const stage = path.join(tmp, "deploy");
+  const listed = listedInDoc();
+  assert.ok(listed.length >= 3, "文档那份清单要列出启动服务用到的 JS 文件");
+  stageDeployment(stage, listed);
+  const out = path.join(stage, "data");
+
+  checkRenderers(facts, sha, tmp);
+  checkSearch([winget.restPackage(facts)]);
+  checkGenerator(zip, out, sha);
+  await runServerChecks(stage, out, zip, sha);
+  await runFlakyChecks(stage, out, tmp);
 
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log("winget-source.test.js 全部通过");

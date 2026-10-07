@@ -40,7 +40,10 @@ function readPackages(root) {
   const file = path.join(root, winget.SOURCE_FILE);
   try {
     const raw = JSON.parse(fs.readFileSync(file, "utf8"));
-    return Array.isArray(raw.Packages) ? raw.Packages : [];
+    // 形状不对也按同一个口径失败：静默当成「空源」会让 winget 报「找不到这个包」，
+    // 而真正的原因是数据文件坏了 —— 发布方式恰恰是运行中换这个文件。
+    if (!Array.isArray(raw.Packages)) throw new Error("Packages 不是数组（形状不对）");
+    return raw.Packages;
   }
   catch (error) {
     // 报出是哪个文件读不了：这条消息既进 server.log（启动时）也进 500 的响应体（运行中）。
