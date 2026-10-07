@@ -98,10 +98,11 @@ Release 上有两种东西：
 
 ## 三之一、用 winget 装（推荐给批量发放）
 
-> **先看这一条**：`winget install BigStart.MasterGoTranscoder` 现在**还装不上** ——
-> winget 只从它配置的源里找包，而我们的清单目前只是 Release 上的附件，没进任何源。
-> 想让它一条命令就用，要么把清单提交到公网 `winget-pkgs`（要过审核），要么由 IT 在内网建一个 winget 源。
-> **今天就要装**请用下面「一条命令装」那一节（不需要管理员、不需要 winget 源）。
+> **先看这一条**：winget 只从它配置的源里找包，所以两个标识要分开看 ——
+> 公网的 `BigStart.MasterGoTranscoder` **还装不上**（清单在等 `winget-pkgs` 的人工复核）；
+> 内网的 `BigStart.MasterGoTranscoder.Internal` **已经能装**（内网源已建好并实测过，
+> 管理员配置一次源，见 `docs/winget-internal-source.md`）。
+> **今天就要装、又不想动 winget** 请用下面「一条命令装」那一节（不需要管理员、不需要源）。
 > 两条路各自怎么落地（谁做什么、用什么命令）见 `docs/winget-publish.md`。
 
 winget 装的是 portable 包：**下载 zip → 解压到它自己的包目录 → 把 `mastergo-transcoder.exe` 链进 PATH**，
@@ -116,8 +117,8 @@ winget install BigStart.MasterGoTranscoder
 - 公网 / GitHub（现在默认）：`winget install BigStart.MasterGoTranscoder`
 - 内网 / 公司 GitLab：`winget install BigStart.MasterGoTranscoder.Internal`
 
-包地址与清单怎么落地（公网提 PR / 内网建源，谁做什么、用什么命令）**全在 `docs/winget-publish.md`**，
-这里不重复；生成内网那份清单的那条命令也在那篇里。
+包地址与清单怎么落地：公网那条（提 PR、谁提交、要谁配合）在 `docs/winget-publish.md`，
+内网那条（服务怎么起、怎么发版、客户机怎么配）在 `docs/winget-internal-source.md`，这里都不重复。
 
 ## 三之二、一条命令装（不需要管理员、不需要 winget 源）
 

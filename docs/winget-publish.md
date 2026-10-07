@@ -46,32 +46,28 @@
    后续每发一版，用 `wingetcreate update BigStart.MasterGoTranscoder --version <新版本> -u <zip 地址> -s <sha256>`
    提一个新 PR 即可（我们的 `scripts/winget-manifest.js` 生成的三个文件就是同样内容）。
 
-## 路二：内网源（保密机唯一可用的那条）
+## 路二：内网源（保密机用的那条 —— 已经建好）
 
-winget 认两种内网源：**REST 源**（一个实现 winget REST 接口的服务）与「预索引源」（要打成源包）。
-可落地的是 REST 源 —— 微软有官方样例仓库 `microsoft/winget-cli-restsource`，可以自托管到内网。
+这条路已经落地并实测过：内网一台机器上跑 `scripts/winget-source-server.js`（照 winget 的 REST 源协议
+回答服务信息 / 搜索 / 取清单，同时发 zip 与证书），客户机管理员配一次源就能
+`winget install BigStart.MasterGoTranscoder.Internal`。
+地址、服务端从零起一份、发一版新的、客户机命令、实测记录**全在 `docs/winget-internal-source.md`**，
+这里不重复。
 
-1. 由 IT 在内网起这个 REST 源（容器或函数都行），放进我们的清单与 zip：
-   - 清单：`scripts/winget-manifest.js --base <内网 zip 地址基址> --kind gitlab --id BigStart.MasterGoTranscoder.Internal` 生成；
-   - 包：把 `mastergo-transcoder-gui-<版本>.zip` 放到内网（GitLab 通用包 / nginx 目录都行）。
-   ```powershell
-   winget source add -n 公司 -a https://winget.内网/api -t Microsoft.Rest
-   winget install BigStart.MasterGoTranscoder.Internal
-   ```
+（winget 认两种内网源：**REST 源**与「预索引源」（要打成源包）。我们用 REST 源 ——
+微软的官方样例仓库 `microsoft/winget-cli-restsource` 是同一套协议。）
 
-2. 若 IT 不愿建源，还有一条「不开源、只开策略」的替代：
-   管理员在客户机上启用本地清单安装（一次即可）：
+若 IT 不愿动源，还有一条「不开源、只开策略」的替代：管理员在客户机上启用本地清单安装（一次即可）：
 
-   ```powershell
-   winget settings --enable LocalManifestFiles     # 需要管理员
-   ```
+```powershell
+winget settings --enable LocalManifestFiles     # 需要管理员
+```
 
-   之后客户机把三个 YAML 放到任一目录，`winget install --manifest <目录>` 就能装。
-   （这正是本机最初报"需要管理员启用"的那一步；本机当前用户不是管理员，所以走不通。）
+之后客户机把三个 YAML 放到任一目录，`winget install --manifest <目录>` 就能装。
+（这正是本机最初报“需要管理员启用”的那一步；本机当前用户不是管理员，所以走不通。）
 
-## 这两条都到位之前，客户机怎么装
+## 不想动 winget 的机器怎么装
 
 不需要源、不需要管理员的那条路（取脚本 → 下载 zip → 按 `checksums.json` 校验 → 解压到用户目录 → 建快捷方式）
 写在 `docs/install.md` 的「一条命令装」，包含连不上 github.com 时的内网变体，这里不重复。
-
-等内网源建好之后，再让客户机改用 winget 装（两者用的都是同一份 zip）。
+这条路与 winget 那两条用的是同一份 zip，装出来的东西一样，只是分发方式不同。
