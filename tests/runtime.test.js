@@ -354,6 +354,26 @@ async function main() {
     assert.match(sysPwshRow.note, /下载后改用客户端自带的那份/);
   });
 
+  /*
+   * PATH 上没有（`where` 找不到）但官方安装位置里有：也要认出来。
+   * 客户机上「装好了却没进进程 PATH」是常见情况（装完没重开客户端、Store 版别名目录不在 PATH 里）。
+   */
+  const systemRoot = makeHome();
+  fs.mkdirSync(path.join(systemRoot, "nodejs"), { recursive: true });
+  fs.writeFileSync(path.join(systemRoot, "nodejs", "node.exe"), "");
+  const byLocation = createRuntime({
+    home: makeHome(),
+    spawnSyncImpl: fakeSpawn([
+      { match: "where node.exe", result: { status: 1, stdout: "", stderr: "INFO: 找不到" } },
+      { match: "node.exe", result: { status: 0, stdout: "v24.14.0", stderr: "" } }
+    ]),
+    env: { ProgramFiles: systemRoot }
+  });
+  const byLocationRow = byLocation.status().tools[0];
+  assert.strictEqual(byLocationRow.system.ok, true, "PATH 上没有时按官方安装位置找");
+  assert.strictEqual(byLocationRow.system.version, "24.14.0");
+  assert.strictEqual(byLocationRow.system.path, path.join(systemRoot, "nodejs", "node.exe"));
+
   // 自带那份在，但自检出来的版本不对：不许当它是好的，且提示重下。
   const badBundledHome = makeHome();
   fs.mkdirSync(path.join(badBundledHome, "runtime", "node"), { recursive: true });
