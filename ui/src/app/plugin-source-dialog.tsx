@@ -60,8 +60,10 @@ export function PluginSourceDialog(props: {
   frozen: boolean
   /** 正在传（下载 / 落盘）：出进度条、按钮转圈。 */
   transferring: boolean
-  /** 「检查更新」能不能点：与卡片上那颗同一个判据（use-plugin-update 算好）。 */
+  /** 「检查更新」能不能点：use-plugin-update 算好的那一个判据（只读动作；装那一颗更严，见下方注释）。 */
   canCheck: boolean
+  /** 改发布源：这一档（自带那一份）的「更新来源」在它自己的块里。 */
+  onEditSource: () => void
   onClose: () => void
   /** 换一份：把这一档解析到的插件根交给客户端（用这份）。 */
   onChoose: (path: string, key: string) => void
@@ -116,8 +118,15 @@ export function PluginSourceDialog(props: {
             <SourceAlsoFrom row={row} />
           </div>
 
-          {/* 客户端自带那一份的状态与进度（那一块的实现在 plugin-install-block）。 */}
-          {install && <PluginInstallBlock status={props.update} transferring={transferring} />}
+          {/* 客户端自带那一份：更新来源、状态与进度（那一块的实现在 plugin-install-block）。 */}
+          {install && (
+            <PluginInstallBlock
+              status={props.update}
+              transferring={transferring}
+              frozen={props.frozen}
+              onEditSource={props.onEditSource}
+            />
+          )}
         </div>
 
         {failure && <span className="text-destructive text-xs">{failure}</span>}

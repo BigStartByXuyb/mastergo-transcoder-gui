@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ClampText } from "@/app/clamp-text"
 import { PixelLoader } from "@/app/pixel-loader"
 import { ChosenSlot } from "@/app/plugin-chosen-slot"
-import { PluginInstallSource } from "@/app/plugin-install-source"
 import { LookupOrder } from "@/app/plugin-order-bar"
 import { PluginSourceDialog } from "@/app/plugin-source-dialog"
 import { PluginSourceTable } from "@/app/plugin-source-table"
@@ -29,9 +28,8 @@ import {
 //   找一个目录   —— 「我指定的那一份」（清掉＝回到按顺序自动）
 //   按什么顺序找 —— 上面那条顺序，每一档都列出来（后端给的顺序，界面不重排）
 //   每一档是什么 —— 一张表：来源 / 版本 / 状态 / 路径 / 操作；点开某一行是那一档的详情，
-//                  点开「客户端自带」那一行是它的管理（检查更新 / 下载并安装 / 进度）。
-// 另外一块：客户端自带那一份从哪儿取（更新来源：GitHub / GitLab / 静态目录）——
-// 与「程序更新」是同一处设置、同一个弹窗，改完两边都按新的走。
+//                  点开「客户端自带」那一行是它的管理：更新来源（GitHub / GitLab / 静态目录，
+//                  与「程序更新」同一处设置、同一个弹窗）+ 检查更新 / 下载并安装 / 进度。
 //
 // 取数分两半，各有各的 hook：来源清单与指针动作（use-plugin-sources）、
 // 自带那一份的更新与轮询（use-plugin-update）；本组件只编排与渲染。
@@ -100,18 +98,6 @@ export function PluginCard() {
               onAuto={() => void sources.choose("", PLUGIN_BUSY.auto)}
             />
 
-            {/* 自带那一份从哪儿取：与程序更新同一处设置（那一块自己一份实现，见 plugin-install-source）。 */}
-            {update.update && (
-              <PluginInstallSource
-                status={update.update}
-                frozen={frozen}
-                busy={update.busy}
-                canCheck={update.canCheck}
-                onEdit={() => setEditingSource(true)}
-                onCheck={() => void update.check()}
-              />
-            )}
-
             {/* 查找顺序：每一档一句话，谁在生效、谁没有、哪两档是同一份，一眼看完。 */}
             <LookupOrder slots={lookup.slots} onOpen={(id) => setOpened(id)} />
 
@@ -153,6 +139,8 @@ export function PluginCard() {
             frozen={frozen}
             transferring={update.transferring}
             canCheck={update.canCheck}
+            // 自带那一份的「更新来源」摆在它的管理面板里（那一块只对它有意义）。
+            onEditSource={() => setEditingSource(true)}
             onClose={() => setOpened("")}
             onChoose={(path, key) => void sources.choose(path, key)}
             onCheck={() => void update.check()}
