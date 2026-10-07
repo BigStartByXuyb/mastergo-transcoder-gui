@@ -16,6 +16,8 @@ const {
   describeCaptureFailure,
   discoverFrames
 } = require("../lib/resolve-target.js");
+// 档位只有一份（lib/ansi.js）：用例按档位断言，不写死数字。
+const { DETAIL_LIMITS } = require("../lib/ansi.js");
 
 function write(file, text) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -72,8 +74,11 @@ function caseDescribeCaptureFailure() {
   assert.strictEqual(other.code, "CAPTURE_FAILED");
   assert.strictEqual(other.hint, "boom");
   assert.strictEqual(describeCaptureFailure(null, "1:1").code, "CAPTURE_FAILED");
-  // 长度不在这里管：调用方读子进程输出时已经掐过（lib/resolve.js 一处），这里原样带出去。
-  assert.strictEqual(describeCaptureFailure("x".repeat(2000), "1:1").hint.length, 2000);
+  // 判据看全文，给人看的 hint 才掐长度（档位在 lib/ansi.js）：标记在最前面也认得出。
+  assert.ok(describeCaptureFailure("dsl.nodes[] is empty" + "\n" + "过程".repeat(2000), "1:1").code === "EMPTY_DSL",
+    "标记在很前面也要认出来");
+  // 档位调整时这条不该误红：断言的是「按档位掐」，不是某个具体数字。
+  assert.strictEqual(describeCaptureFailure("x".repeat(2000), "1:1").hint.length, DETAIL_LIMITS.hint, "hint 按档位掐长度");
 }
 
 function caseDiscoverFrames() {
