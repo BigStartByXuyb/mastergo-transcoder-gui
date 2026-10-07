@@ -175,7 +175,9 @@ export function SourceDialog(props: {
               保存并检查
             </Button>
             {current.hasToken && (
-              <Button variant="ghost" disabled={Boolean(busy)} onClick={() => void run("save", { clearToken: true }, false)}>
+              // 与「保存」各用各的忙碌位：共用一个 key 的话，点清除会让「保存」那颗也转圈。
+              <Button variant="ghost" disabled={Boolean(busy)} onClick={() => void run("clear", { clearToken: true }, false)}>
+                {busy === "clear" && <Loader2 className="size-4 animate-spin" />}
                 清除 token
               </Button>
             )}

@@ -100,7 +100,13 @@ function PluginSourceLine(props: {
       <TableCell className="align-top text-right whitespace-normal">
         <div className="flex justify-end gap-2" onClick={(event) => event.stopPropagation()}>
           {canChooseThis(row) && (
-            <Button size="sm" variant="outline" disabled={props.frozen} onClick={props.onChoose}>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={props.frozen}
+              aria-busy={props.busy === chooseKeyOf(row)}
+              onClick={props.onChoose}
+            >
               {props.busy === chooseKeyOf(row) && <Loader2 className="size-4 animate-spin" />}
               用这份
             </Button>

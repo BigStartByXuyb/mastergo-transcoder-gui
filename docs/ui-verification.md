@@ -110,6 +110,8 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   `plugin-source-table`（那张表与它每一行），卡片本身只剩取数、编排与弹窗。
 - 第二十一轮复核一条：两条更新线的下载失败也走同一处失败记忆（`failureMemory.remember` 交给
   `finishDownload`），不再一条记、一条不记。
+- 第二十二轮复核两条：改发布源弹窗里「保存」与「清除 token」各用各的忙碌位（不再共用一个 key，
+  点清除不会让「保存」那颗也转圈）；表里那行的「用这份」与面板里那颗一样带上 `aria-busy`。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。
