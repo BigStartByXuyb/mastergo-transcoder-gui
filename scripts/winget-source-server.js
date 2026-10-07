@@ -6,8 +6,7 @@
  * 数据只有一份文件（scripts/lib/winget-manifest.js 的 SOURCE_FILE）加一个静态资产目录；
  * 每次请求现读那份文件，所以换一版就是把文件换掉，不用重启。
  *
- * 跑法（服务机上要四样：这个脚本、scripts/lib/winget-manifest.js、lib/versions.js、数据目录 ——
- * 清单的字段与版本比大小都在 lib 那两处，服务不另写一份；见 docs/winget-internal-source.md）：
+ * 跑法（服务机上要哪些文件由 docs/winget-internal-source.md 一处列全，用例盯着那份清单与依赖图一致）：
  *   node scripts/winget-source-server.js --root /srv/mastergo-winget --port 18443
  *   node scripts/winget-source-server.js --root … --port 18443 --cert server.crt --key server.key
  *

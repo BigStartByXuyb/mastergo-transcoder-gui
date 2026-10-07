@@ -252,7 +252,7 @@ function fieldHit(pkg, one) {
  */
 function matchesCriteria(pkg, criteria) {
   const keywordHit = criteria.query
-    ? MATCH_FIELDS.some((field) => fieldValues(pkg, field).some((value) => matches(value, criteria.query.keyword, criteria.query.matchType)))
+    ? MATCH_FIELDS.some((field) => fieldHit(pkg, { field: field, keyword: criteria.query.keyword, matchType: criteria.query.matchType }))
     : false;
   if ((criteria.query || criteria.inclusions.length) && !keywordHit && !criteria.inclusions.some((one) => fieldHit(pkg, one))) {
     return false;

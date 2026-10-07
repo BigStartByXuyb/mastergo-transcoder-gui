@@ -12,4 +12,4 @@ function folderOf(version) {
   return PREFIX + version;
 }
 
-module.exports = { PREFIX: PREFIX, folderOf: folderOf };
+module.exports = { folderOf: folderOf };

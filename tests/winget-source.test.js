@@ -71,7 +71,37 @@ function startServer(root, port) {
   });
 }
 
+/* 一个脚本真正会 require 到的本地文件（跟着 require 走一遍）。 */
+function deployedFilesOf(entry) {
+  const seen = new Set();
+  const walk = function (file) {
+    const abs = path.resolve(file);
+    if (seen.has(abs)) return;
+    seen.add(abs);
+    const text = fs.readFileSync(abs, "utf8");
+    for (const match of text.matchAll(/require\("(\.[^"]+)"\)/g)) {
+      let target = path.resolve(path.dirname(abs), match[1]);
+      if (!path.extname(target)) target += ".js";
+      walk(target);
+    }
+  };
+  walk(entry);
+  return [...seen].map((file) => path.relative(ROOT, file).split(path.sep).join("/"));
+}
+
 async function main() {
+  /*
+   * 服务机上的文件清单写在文档一处，这里的依赖图必须都在那份清单里 ——
+   * 之前给服务加了一个 require 却忘了写文档，照文档从零部署会直接起不来。
+   */
+  const doc = fs.readFileSync(path.join(ROOT, "docs", "winget-internal-source.md"), "utf8");
+  const deploySection = doc.slice(doc.indexOf("## 服务端：从零起一份"), doc.indexOf("## 发一版新的"));
+  // 清单看的是那一节里第一个代码块（目录树）——拷文件的命令另有一块，但先得在清单里列出来。
+  const deployBlock = (deploySection.match(/```\r?\n([\s\S]*?)```/) || [])[1] || "";
+  for (const file of deployedFilesOf(SERVER)) {
+    assert.ok(deployBlock.includes(file), "部署清单里要有 " + file);
+  }
+
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gui-winget-source-"));
   const zip = path.join(tmp, ZIP);
   fs.writeFileSync(zip, "fake-zip-bytes", "utf8");

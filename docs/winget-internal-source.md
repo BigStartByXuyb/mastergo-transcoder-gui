@@ -34,22 +34,25 @@
 
 ## 服务端：从零起一份
 
-服务机上要四样东西（其余都不用装：这个脚本只用 Node 自带的东西）：
+服务机上要这些东西（其余都不用装：这些脚本只用 Node 自带的东西）：
 
 ```
 mastergo-winget/
   scripts/winget-source-server.js     ← 仓库 scripts/winget-source-server.js
+  scripts/lib/args.js                 ← 仓库 scripts/lib/args.js
   scripts/lib/winget-manifest.js      ← 仓库 scripts/lib/winget-manifest.js
   lib/versions.js                     ← 仓库 lib/versions.js
   data/winget-source.json             ← scripts/winget-source.js 生成
   data/files/<这一版的 zip>            ← 同一个生成器一起放进去的
 ```
 
+上面这几个 JS 文件就是服务启动时 `require` 到的那几个（用例盯着这条：依赖图里的文件必须都在这里）。
+
 拷上去用 `scp`。**那台机器没开 sftp，必须带 `-O`**（不带会报 `subsystem request failed on channel 0`）：
 
 ```powershell
 scp -O scripts/winget-source-server.js ctyun@10.101.0.62:/home/ctyun/mastergo-winget/scripts/
-scp -O scripts/lib/winget-manifest.js ctyun@10.101.0.62:/home/ctyun/mastergo-winget/scripts/lib/
+scp -O scripts/lib/args.js scripts/lib/winget-manifest.js ctyun@10.101.0.62:/home/ctyun/mastergo-winget/scripts/lib/
 scp -O lib/versions.js ctyun@10.101.0.62:/home/ctyun/mastergo-winget/lib/
 ```
 
