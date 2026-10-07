@@ -94,15 +94,24 @@ export function pluginLookup(sources: PluginSource[]): PluginLookup {
   const rowById = new Map<string, PluginSourceRow>(rows.map((row) => [row.id, row]))
   const slots: PluginSourceSlot[] = resolved.map((entry) => {
     const keeper = mergedInto.get(entry.item.id)
-    // 自己就是那一行、或并进了某一档：都取那一行的状态，顺序条与表不会各说一套。
-    const kept = rowById.get(keeper ?? entry.item.id)
+    // 并进某一档的：状态取那一行（keeper 的序号更小，行一定已经建好）。
+    if (keeper) {
+      const kept = rowById.get(keeper) as PluginSourceRow
+      return {
+        ...entry.item,
+        order: entry.order,
+        active: kept.active,
+        exists: kept.exists,
+        mergedInto: keeper,
+        mergedIntoOrder: kept.order
+      }
+    }
+    // 自己就是那一行：用自己那份（不查表，也就没有「查不到怎么办」这种到不了的分支）。
     return {
       ...entry.item,
       order: entry.order,
-      active: kept ? kept.active : entry.item.active,
-      exists: kept ? kept.exists : entry.item.exists,
-      mergedInto: keeper ?? "",
-      mergedIntoOrder: kept && keeper ? kept.order : 0
+      mergedInto: "",
+      mergedIntoOrder: 0
     }
   })
   return { slots: slots, rows: rows }

@@ -135,6 +135,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - 第三十轮复核两条：`useFailureMemory` 交出去的那一份对象做成稳定的（`useMemo` + 稳定的 `remember`），
   调用方把它列进依赖时不会再每渲染换一套动作函数；README 里「插件版本在 AI Agent 那页看」改成
   「设置 → 更新 → 插件（流水线）」。
+- 第三十一轮复核两条：「装完 → 重读来源清单」这条门在用例里真的有路径了（`use-plugin-update.test.tsx`
+  的安装响应喂一份 `task.phase = "done"` 的状态，并断言回调被喊到）；`pluginLookup` 顺序条那两个
+  「查不到那一行怎么办」的兜底分支删掉（非合并档直接用自己那份，合并档那一行一定先建好）。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。
