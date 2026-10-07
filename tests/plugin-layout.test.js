@@ -36,11 +36,20 @@ const FAKE_SCRIPT = [
 
 const FAILING_SCRIPT = [
   "\"use strict\";",
-  "process.stderr.write(\"第一行\\n门禁没通过：缺少 LangName\\n\");",
+  // 尾行带终端色码：进到界面的失败原因里之前必须剥掉。
+  "process.stderr.write(\"第一行\\n门禁没通过：缺少 LangName\\n\\u001b[31;1m拒绝写入：硬编码路径\\u001b[0m\\n\");",
   "process.exit(3);",
   ""
 ].join("\n");
 
+// 输出很长、报错写在末尾：这一处读的是尾巴，从头截会把真正那句整段丢掉。
+const LONG_FAILING_SCRIPT = [
+  "\"use strict\";",
+  "process.stderr.write(\"填表过程\\n\".repeat(2000));",
+  "process.stderr.write(\"门禁没通过：末尾这句才是原因\\n\");",
+  "process.exit(4);",
+  ""
+].join("\n");
 function write(file, text) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, text, "utf8");
@@ -144,6 +153,25 @@ function caseRegisterReportsPluginFailure() {
         function (error) {
           assert.ok(/Layout 重新注册失败/.test(error.message), "要报出这是重新注册失败：" + error.message);
           assert.ok(/门禁没通过/.test(error.message), "要带上脚本的错误尾巴：" + error.message);
+          assert.ok(error.message.indexOf("\u001b") < 0, "不许把色码带进失败原因：" + error.message);
+          return true;
+        }
+      );
+    }
+  });
+}
+
+function caseLongFailureKeepsTail() {
+  withFixture({
+    plugin: { script: LONG_FAILING_SCRIPT },
+    body: function (fx) {
+      writeBundleAudit(fx.project, "Detail");
+      const layout = createLayoutRegistrar({ pluginRoot: fx.pluginRoot });
+      const manifest = resolveManifest({ workDir: fx.project, target: "Detail" });
+      assert.throws(
+        function () { layout.register({ projectRoot: fx.project, manifest: manifest, mode: "mtslg-iocontrol" }); },
+        function (error) {
+          assert.ok(/末尾这句才是原因/.test(error.message), "长输出要留尾巴，不能从头截：" + error.message.slice(-80));
           return true;
         }
       );
@@ -223,6 +251,7 @@ async function main() {
     ["注册按插件脚本重跑（工作目录 / --overwrite / 写法表 / 清单）", caseRegisterRunsPluginScript],
     ["缺省路线不带 --map 也能注册", caseRegisterDefaultsModeAndSkipsMapWithoutTemplateMap],
     ["插件脚本失败要连错误尾巴一起报", caseRegisterReportsPluginFailure],
+    ["长输出的失败要留末尾那句", caseLongFailureKeepsTail],
     ["描述符没登记 Layout 脚本要停下", caseDescriptorMustRegisterLayoutScript],
     ["描述符登记了但脚本不在要停下", caseLayoutScriptMustExist],
     ["没有清单不许重新注册", caseRegisterNeedsManifest],

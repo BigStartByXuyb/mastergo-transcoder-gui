@@ -9,7 +9,9 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { createTokenSource, readConfigToken } = require("../lib/mcp-token.js");
+const {
+  createTokenSource, readConfigToken, tokenTrouble, tokenTroubleText
+} = require("../lib/mcp-token.js");
 
 const ENV_KEY = "MASTERGO_MCP_TOKEN";
 const ORIGINAL = process.env[ENV_KEY];
@@ -73,8 +75,41 @@ function caseConfig() {
   fs.rmSync(bare, { recursive: true, force: true });
 }
 
+/*
+ * 插件自己的话没有机器可读的错误码：认「token 出什么事」的判据与说法都只有这一处，
+ * 流水线失败与控件查询都来这儿问（缺一份 / 被拒 / 与 token 无关）。
+ */
+function caseTokenWording() {
+  const pluginWords = "缺少 MasterGo token：设置环境变量 MASTERGO_MCP_TOKEN，或用 -ConfigPath / CODEX_CONFIG 指向含 mastergo 配置的 config.toml（当前尝试: <config.toml 路径>；token 不会写入任何产物）";
+  const missing = tokenTrouble(pluginWords);
+  assert.strictEqual(missing.code, "NEED_TOKEN");
+  assert.match(missing.message, /缺少 MasterGo token/);
+  assert.match(missing.hint, /设置 → MasterGo token/, "要说清去哪填");
+
+  // 中文被控制台编码弄乱也不影响判据：认的是 ASCII 标记。
+  assert.strictEqual(tokenTrouble("??MasterGo token??MASTERGO_MCP_TOKEN??").code, "NEED_TOKEN");
+
+  // 只提到配置文件、不关 token 的报错不许被认成这件事；两个标记都要。
+  assert.strictEqual(tokenTrouble("config.toml 读不了：-ConfigPath 指向的文件不存在"), null);
+  // 引擎自己那句「这份不行」不是这件事：不认它，原样给人看（别把人引到错的方向）。
+  assert.strictEqual(tokenTrouble("invalid token mg_xxx：MasterGo 说这份不认"), null);
+  assert.strictEqual(tokenTrouble("缺少区域前缀：命令行、登记表、Target 都取不到"), null, "别的话不动");
+  assert.strictEqual(tokenTrouble(""), null);
+  assert.strictEqual(tokenTrouble(null), null);
+
+  // 只有一个字符串字段的地方（流水线失败）用整句形态：拼法也在这份文件里。
+  assert.strictEqual(tokenTroubleText("缺少区域前缀"), "", "不是 token 的事不给整句");
+  assert.strictEqual(tokenTroubleText("invalid token mg_xxx"), "", "引擎自己的报错原样给人看");
+  assert.strictEqual(tokenTroubleText(pluginWords), missing.message + "：" + missing.hint);
+}
+
 try {
-  for (const [name, run] of [["取值顺序", caseOrder], ["来源标记", caseSources], ["config.toml", caseConfig]]) {
+  for (const [name, run] of [
+    ["取值顺序", caseOrder],
+    ["来源标记", caseSources],
+    ["config.toml", caseConfig],
+    ["token 的说法", caseTokenWording]
+  ]) {
     run();
     console.log("  ok  " + name);
   }

@@ -2842,3 +2842,46 @@ F4 累积到 8 条历史记录后看着像待办，需要区分「要你动手�
 | `npm --prefix ui run test:coverage` | 通过，21 文件 86 用例，stmts 99 / branch 88.47 / funcs 100 |
 | `npm run build:ui` | 通过 |
 | `node <cicd>/check-app-structure.mjs --root .` | PASS（硬编码路径 / 孤儿导出 / 分层 / CI 钉死 均 0 条） |
+
+## 2026-10-07 客户机报错的两件事：终端色码、缺 token 的说法
+
+### 改了什么
+
+- `lib/ansi.js`：子进程输出里的终端色码只在这里剥。`stripText()` 一次剥干净；
+  `createStripper()` 流式剥，控制序列正好被切在两个 chunk 之间时先把那半截攥住，
+  不许留下 `[31;1m` 这种半截参数当文字；`childOutputDetail()` 统一「stderr → stdout → error」的读法。
+- `lib/run.js`：日志与失败原因改走 `createStripper()`；失败原因只有一个出口（`setFailure()`），
+  `detail` 也一并剥。
+- `lib/mcp-token.js`：「缺 token」的说法只有一份。插件那句「缺少 MasterGo token：…-ConfigPath / config.toml…」
+  是命令行说法，命中就换成客户端自己的说法（去哪填）。
+- 同类入口一起收口：`lib/pwsh.js`、`lib/design-page-name.js`、`lib/node-controls.js`、`lib/resolve.js`、
+  `lib/plugin-layout.js`、`lib/settings.js`、`lib/runtime.js`、`lib/codex.js`（对话框里引擎的输出）。
+
+### 点过的东西
+
+验证环境：本工作树起服务（`node server.js --port 8799 --no-open`，`v0.6.53`，插件 v1.0.371），
+用 `MASTERGO_HOME` / `CODEX_HOME` / `USERPROFILE` 指到临时目录并摘掉环境变量里的 token，
+装成客户机那台「哪里都没配 token」的机器；浏览器用 playwright。
+
+| 页面 | 操作 | 观察到 | 结论 |
+| --- | --- | --- | --- |
+| 流水线 | 打开 `#pipeline` | 顶部 `v0.6.53`、引擎就绪、插件 v1.0.371；填完必填项后「将使用 UI=F3（按 Target 前缀推导）」 | 通过 |
+| 流水线 | 填链接 + 工程目录 + Target `F3Align`，点「加入看板并开始」 | 任务进看板并开始跑；第 1、2 步完成（`ok 3.7s`、`节点 225`）—— 这一次带 token 的机器上链路照旧通 | 通过 |
+| 流水线 | 同上但机器上没有任何 token（摘掉环境变量、`USERPROFILE` 指到空目录） | 失败原因：「缺少 MasterGo token，取不到设计稿：到「设置 → MasterGo token」里填一次，或设环境变量 MASTERGO_MCP_TOKEN，或用 --token 启动本工具。」 | 通过 |
+| 流水线 | 看同一次的「运行日志」 | 原文（含插件那句 `-ConfigPath / config.toml`）留在日志里；**没有任何 `[31;1m` 之类的色码残渣** | 通过 |
+| 看板 | 打开 `#board` 看这条失败任务 | 说明列同样是上面那句新说法，超长按既有规则截断并悬停看全文；页面无乱码 | 通过 |
+| 流水线 | 看第 6/12 步那条（语义判断点）失败的任务 | 报的是「自动化层级不是 auto」，与 token 无关 —— 说明这条线没被这次改动带偏 | 通过 |
+
+### 没点的
+
+- 客户机上「色码在控制台里」那一半：客户是在控制台/终端里看到的着色报错，客户端这一侧只保证
+  自己收上来的输出不带色码；终端里怎么显示由那台机器的 PowerShell 决定。
+
+### 自动化门禁
+
+| 命令 | 结果 |
+| --- | --- |
+| `node --test "tests/*.test.js"` | 通过，50 个文件全过 |
+| `npm run test:coverage` | 通过（门禁 90/75/90） |
+| `node <cicd>/check-app-structure.mjs --root .` | PASS（硬编码路径 / 孤儿导出 / 分层 / CI 钉死 均 0 条） |
+| `node -r fake-linux.js --test tests/codex.test.js` | 通过（伪 Linux 预检） |
