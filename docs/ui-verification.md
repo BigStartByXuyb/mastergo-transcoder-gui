@@ -2885,3 +2885,43 @@ F4 累积到 8 条历史记录后看着像待办，需要区分「要你动手�
 | `npm run test:coverage` | 通过（门禁 90/75/90） |
 | `node <cicd>/check-app-structure.mjs --root .` | PASS（硬编码路径 / 孤儿导出 / 分层 / CI 钉死 均 0 条） |
 | `node -r fake-linux.js --test tests/codex.test.js` | 通过（伪 Linux 预检） |
+
+## 2026-10-07 失败片段的读法：先丢装饰行，再留末尾（0.6.56）
+
+### 改了什么
+
+- `lib/ansi.js`：`childOutputDetail()` 超长时先把「装饰行」丢掉再留末尾 —— pwsh 错误框的
+  `Line |` / ` 3 |` / `~~~` / `+ CategoryInfo` 框线，Node 未捕获异常后面那串 `at …` 栈帧与
+  `Node.js v…`；同一条用例里两种格式都钉住。
+- 「哪些行是装饰行」只有一处（`lib/ansi.js` 的 `isDecorationLine`）：流水线取因
+  （`lib/run.js` 的 `errorBoxMessage` / `failureMessageFromTail`，原来自己有一份 `PS_ERROR_FRAME`）
+  与这里的掐长度读同一份判据；分隔线由同一处的 `isUnderlineLine` 判（两种形态都认）。
+- 判据按用途分两档（同一文件、同一处）：框线（`Line |` / 行号 / `| ~~~~` / `+ CategoryInfo` /
+  `at …` / `Node.js v…`）摘录时就丢；头行（`Exception:` / `At line:`）只有取因要丢 ——
+  管道里「Exception: 缺少 MasterGo token…MASTERGO_MCP_TOKEN…」整行就是原因，摘录丢了就认不出 token 问题。
+- 长度只掐一次：取数失败在 `lib/resolve.js` 读子进程输出时掐到 800，`lib/resolve-target.js`
+  不再第二次掐尾（原来 1200 与 800 两个阈值并存），并在 `describeCaptureFailure` 的注释里写明
+  「入参必须是 childOutputDetail 的输出」这条约定。
+- 长度档位收成一份（`DETAIL_LIMITS`）：`hint`（界面提示）/ `step`（引擎内部写 stderr 的那段）/
+  `layout`（还要按行取末尾 4 行），各处按用途挑档，不再各写数字。
+
+### 为什么这么改（先量后改，不是照抄建议）
+
+真起两种子进程、各写约 3.6KB 过程日志再报错，三种读法对比：
+
+| 子进程 | 截头 400 | 截尾 400 | 先丢装饰行再留末尾 |
+| --- | --- | --- | --- |
+| Node 未捕获异常 | 只有过程日志 | 只有 `at …` 栈帧与 `Node.js v24` | 留住 `Error: 这条路才是真正的原因…` |
+| pwsh 错误框（3.6KB 时） | —— | 留住原因 | 留住原因 |
+
+### 点过的东西
+
+本次是「失败文案怎么取」的改动，界面表现与上一次（0.6.55）一致，未再起浏览器；
+上一节那份真机点击记录仍然有效。
+
+### 加厚的门禁
+
+| 用例 | 钉住什么 |
+| --- | --- |
+| `tests/ansi.test.js`「两条正则覆盖同一套序列」 | 8 条控制序列（CSI 带参数/中间字节、OSC 两种收尾、`ESC(B`、`ESCc`）按**任意位置切开**都不得漏残渣 —— 只改 `ANSI_PATTERN` 忘改 `TAIL_PATTERN` 时这条会红（改坏实测过） |
+| `tests/ansi.test.js`「超长输出留住原因」 | Node / pwsh 两种长输出都要留住真正那句；整段都是装饰行时回退原文 |
