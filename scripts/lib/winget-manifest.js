@@ -190,8 +190,13 @@ function wildcardPattern(keyword) {
 }
 
 /*
- * 一条比对。Fuzzy / FuzzySubstring 与 Substring 走同一判断 —— 这份源里只有我们自己的包，
- * 模糊匹配在这里没有别的信息可用；不做一套看着像模糊、实际看运气的东西。
+ * 一条比对，两边都先折成小写。
+ *
+ * Exact 与 CaseInsensitive 因此同路：winget 自己在客户端就把要比的值归一化
+ * （RequestMatch.Value 的类型就是它的 NormalizedString），到我们这儿已经没有大小写信息了，
+ * 这里再分出一套「区分大小写的精确」只会让 `winget install -e` 换个大小写就搜不到。
+ * Fuzzy / FuzzySubstring 同理与 Substring 同路 —— 这份源里只有我们自己的包，
+ * 模糊匹配没有别的信息可用；不做一套看着像模糊、实际看运气的东西。
  */
 function matches(value, keyword, matchType) {
   const haystack = String(value === undefined || value === null ? "" : value).toLowerCase();

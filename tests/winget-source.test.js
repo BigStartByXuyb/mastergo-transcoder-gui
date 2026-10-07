@@ -13,6 +13,7 @@ const path = require("path");
 const { spawn, spawnSync } = require("child_process");
 
 const winget = require("../scripts/lib/winget-manifest.js");
+const { FILES } = require("../scripts/lib/winget-source-deploy.js");
 const { versionFacts } = require("../scripts/lib/winget-facts.js");
 
 const ROOT = path.join(__dirname, "..");
@@ -70,30 +71,40 @@ function startServer(script, root, port) {
   });
 }
 
-/*
- * 照文档「服务端：从零起一份」那份目录树，把要拷的 JS 文件摆进一个空目录 —— 这就是从零部署的样子。
- * 清单漏了文件、路径摆错，后面起服务那一步就会当场失败（这条比「清单里提没提到这个路径」实在）。
- */
-function stageDeployment(stage) {
+/* 文档里那份部署清单（标记之间）——标记是给机器认的，正文怎么排版都行。 */
+function listedInDoc() {
   const doc = fs.readFileSync(path.join(ROOT, "docs", "winget-internal-source.md"), "utf8");
-  const section = doc.slice(doc.indexOf("## 服务端：从零起一份"), doc.indexOf("## 发一版新的"));
-  const block = (section.match(/```\r?\n([\s\S]*?)```/) || [])[1] || "";
-  const listed = block
+  const start = doc.indexOf("<!-- winget-source-deploy:start -->");
+  const end = doc.indexOf("<!-- winget-source-deploy:end -->");
+  assert.ok(start >= 0 && end > start, "文档要留着部署清单的那对标记");
+  return doc
+    .slice(start, end)
     .split(/\r?\n/)
     .map((line) => line.trim().split(/\s+/)[0])
     .filter((name) => name && name.endsWith(".js"));
-  assert.ok(listed.length >= 3, "文档那份清单要列出启动服务用到的 JS 文件");
-  for (const name of listed) {
+}
+
+/*
+ * 照那份清单把文件摆进一个空目录 —— 这就是从零部署的样子。
+ * 清单漏了文件、路径摆错，后面起服务那一步就会当场失败（比「文档里提没提到这个路径」实在）。
+ */
+function stageDeployment(stage) {
+  for (const name of FILES) {
     const from = path.join(ROOT, name);
     assert.ok(fs.existsSync(from), "清单里的文件要真在仓库里：" + name);
     const to = path.join(stage, name);
     fs.mkdirSync(path.dirname(to), { recursive: true });
     fs.copyFileSync(from, to);
   }
-  return listed;
 }
 
 async function main() {
+  assert.deepStrictEqual(
+    listedInDoc().slice().sort(),
+    FILES.slice().sort(),
+    "文档那份清单要与 scripts/lib/winget-source-deploy.js 一致"
+  );
+
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gui-winget-source-"));
   const zip = path.join(tmp, ZIP);
   fs.writeFileSync(zip, "fake-zip-bytes", "utf8");
