@@ -86,7 +86,11 @@ function sendFile(response, root, name, writesBody) {
     "content-length": fs.statSync(file).size
   });
   if (writesBody === false) return response.end();
-  fs.createReadStream(file).pipe(response);
+  const stream = fs.createReadStream(file);
+  // 发布方式就是「换掉数据目录里的文件」：读到一半文件被换走/删掉时，别让一个未处理的
+  // 'error' 事件带走整个服务 —— 这一条响应断掉就行。
+  stream.on("error", () => response.destroy());
+  stream.pipe(response);
 }
 
 function createHandler(options) {
@@ -117,8 +121,19 @@ function createHandler(options) {
         return sendFile(response, options.root, route.slice(FILES_PREFIX.length), writesBody);
       }
       if (request.method === "POST" && route === "/api/manifestSearch") {
+        /*
+         * 两种失败分开说：请求体不是 JSON 是客户端的事（400），
+         * 读数据文件 / 渲染响应出问题是我们自己的事（500）—— 同一故障在 GET 路由那边也是 500。
+         */
         return readBody(request)
-          .then((body) => sendJson(response, 200, winget.searchBody(readPackages(options.root), body)))
+          .then((body) => {
+            try {
+              return sendJson(response, 200, winget.searchBody(readPackages(options.root), body));
+            }
+            catch (error) {
+              return sendError(response, 500, error.message);
+            }
+          })
           .catch((error) => sendError(response, 400, error.message));
       }
       return sendError(response, 404, "没有这个地址：" + route, writesBody);

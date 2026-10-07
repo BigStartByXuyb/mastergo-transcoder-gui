@@ -103,7 +103,6 @@ Release 上有两种东西：
 > 内网的 `BigStart.MasterGoTranscoder.Internal` **已经能装**（内网源已建好并实测过，
 > 管理员配置一次源，见 `docs/winget-internal-source.md`）。
 > **今天就要装、又不想动 winget** 请用下面「一条命令装」那一节（不需要管理员、不需要源）。
-> 两条路各自怎么落地（谁做什么、用什么命令）见 `docs/winget-publish.md`。
 
 winget 装的是 portable 包：**下载 zip → 解压到它自己的包目录 → 把 `mastergo-transcoder.exe` 链进 PATH**，
 不跑任何安装程序 —— 保密环境里也一样。装完在任意目录敲 `mastergo-transcoder` 就能起。

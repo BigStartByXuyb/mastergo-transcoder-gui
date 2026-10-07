@@ -281,6 +281,35 @@ async function main() {
     server.kill();
   }
 
+  /*
+   * 发布就是「换掉数据目录里的文件」，所以运行中读不到/读坏数据文件是正常的运维时刻：
+   * 那是我们自己的故障（与 GET 路由一样回 500），请求体不是 JSON 才是调用方的事（400）。
+   * 两种失败混成一个状态码，运维会把「文件坏了」当成「有人在乱发请求」。
+   */
+  const flaky = path.join(tmp, "flaky");
+  fs.mkdirSync(flaky, { recursive: true });
+  fs.copyFileSync(path.join(out, "winget-source.json"), path.join(flaky, "winget-source.json"));
+  const flakyPort = await freePort();
+  const flakyServer = await startServer(path.join(stage, "scripts", "winget-source-server.js"), flaky, flakyPort);
+  try {
+    const base = "http://127.0.0.1:" + flakyPort;
+    const post = (payload) =>
+      fetch(base + "/api/manifestSearch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: payload
+      });
+    assert.strictEqual((await post("{}")).status, 200, "文件好的时候照样能搜");
+    // 运行中把数据文件写坏（就像换文件换到一半）
+    fs.writeFileSync(path.join(flaky, "winget-source.json"), "{ 这不是 JSON", "utf8");
+    assert.strictEqual((await post("{}")).status, 500, "读数据文件失败是我们的故障");
+    assert.strictEqual((await fetch(base + "/")).status, 500, "同一故障在 GET 路由上也是 500");
+    assert.strictEqual((await post("{ 这不是 JSON")).status, 400, "请求体不是 JSON 才是调用方的事");
+  }
+  finally {
+    flakyServer.kill();
+  }
+
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log("winget-source.test.js 全部通过");
 }
