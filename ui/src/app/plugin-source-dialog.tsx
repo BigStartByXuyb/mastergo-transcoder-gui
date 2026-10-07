@@ -1,12 +1,12 @@
 import { useState } from "react"
 import { Copy, FolderOpen, Loader2, RefreshCw } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
 import { IdentifierText } from "@/app/identifier-text"
 import {
+  PluginInstallBadge,
   SourceAlsoFrom,
   SourceCopyCount,
   SourceResolvedRoot,
@@ -126,7 +126,8 @@ export function PluginSourceDialog(props: {
           {install && (
             <div className="flex flex-col gap-2 rounded-md border p-3">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={summary.tone}>{summary.label}</Badge>
+                {/* 状态徽章与来源表里自带那一行读同一个组件（文字与色调同一处）。 */}
+                <PluginInstallBadge status={props.update} />
                 {props.update && props.update.busy && (
                   <span className="text-muted-foreground text-xs">
                     {"有任务在跑（" + props.update.busy + "），先等它跑完再装。"}

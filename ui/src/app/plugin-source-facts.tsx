@@ -2,6 +2,8 @@ import { Check } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { IdentifierText } from "@/app/identifier-text"
+import type { PluginUpdateStatus } from "@/lib/api"
+import { describePluginInstall } from "@/lib/plugin-install"
 import type { PluginSourceRow } from "@/lib/plugin-sources"
 
 /*
@@ -54,4 +56,13 @@ export function SourceAlsoFrom(props: { row: PluginSourceRow }) {
 export function SourceResolvedRoot(props: { row: PluginSourceRow }) {
   if (props.row.found.length === 0) return null
   return <IdentifierText className="text-muted-foreground text-xs" text={"解析到：" + props.row.pluginRoot} />
+}
+
+/**
+ * 「客户端自带那一份」的更新状态徽章（文字与色调都按 describePluginInstall 一处给）：
+ * 来源表里自带那一行与点开后的管理面板读的是同一个组件，不会一处写「有新版」、另一处忘了带上色调。
+ */
+export function PluginInstallBadge(props: { status: PluginUpdateStatus | null }) {
+  const summary = describePluginInstall(props.status)
+  return <Badge variant={summary.tone}>{summary.label}</Badge>
 }

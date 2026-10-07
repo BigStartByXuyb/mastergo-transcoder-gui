@@ -1,11 +1,10 @@
+import type { ReactNode } from "react"
 import { Loader2 } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { IdentifierText } from "@/app/identifier-text"
-import { SourceAlsoFrom, SourceCopyCount, SourceStatusBadge, SourceVersion } from "@/app/plugin-source-facts"
-import { describePluginInstall } from "@/lib/plugin-install"
+import { PluginInstallBadge, SourceAlsoFrom, SourceCopyCount, SourceStatusBadge, SourceVersion } from "@/app/plugin-source-facts"
 import {
   isInstallRow,
   canChooseThis,
@@ -21,7 +20,7 @@ import type { PluginUpdateStatus } from "@/lib/api"
 
 export function PluginSourceTable(props: {
   rows: PluginSourceRow[]
-  /** 自带那一份的状态（这一行里没有自带的也能传，只是不加那句更新状态）。 */
+  /** 自带那一份的状态（这一行里没有自带的也能传，只是不加那个更新状态徽章）。 */
   update: PluginUpdateStatus | null
   /** 来源清单那一半的忙碌位：只有拿它比行 id 才是「这一行自己的动作在跑」。 */
   busy: string
@@ -48,9 +47,7 @@ export function PluginSourceTable(props: {
             <PluginSourceLine
               key={row.id}
               row={row}
-              installState={
-                isInstallRow(row) && props.update ? describePluginInstall(props.update).label : ""
-              }
+              installState={isInstallRow(row) ? <PluginInstallBadge status={props.update} /> : null}
               busy={props.busy}
               frozen={props.frozen}
               onOpen={() => props.onOpen(row.id)}
@@ -66,7 +63,8 @@ export function PluginSourceTable(props: {
 // 表里的一行。自带那一行带一句它自己的更新状态，动作给的是「管理…」（那一行里同时也挂着自带那一档）。
 function PluginSourceLine(props: {
   row: PluginSourceRow
-  installState: string
+  /** 自带那一行那一格的状态徽章（别的行给 null）。 */
+  installState: ReactNode
   busy: string
   frozen: boolean
   onOpen: () => void
@@ -87,11 +85,7 @@ function PluginSourceLine(props: {
       </TableCell>
       <TableCell className="align-top whitespace-normal">
         <SourceStatusBadge row={row} />
-        {props.installState && (
-          <span className="block pt-1">
-            <Badge variant="secondary">{props.installState}</Badge>
-          </span>
-        )}
+        {props.installState && <span className="block pt-1">{props.installState}</span>}
       </TableCell>
       <TableCell className="align-top whitespace-normal">
         <IdentifierText className="text-muted-foreground text-xs" text={row.path} />
