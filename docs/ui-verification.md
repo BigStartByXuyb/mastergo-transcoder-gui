@@ -153,6 +153,28 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 第 2 档那一行「管理…」面板里版本 / 路径 / 「解析到」/ 检查更新 / 已是最新版都在，第 3 档「详情…」面板
 说的是第 3 档自己的处境（标题里的变量名仍来自后端给的 label）。
 
+### 这一页（连它对偶的程序更新那一半）的判据各自只有一处
+
+改到哪一条，先照这张表看它归谁，别在别处再写一遍：
+
+| 判据 / 编排 | 只有一处的地方 |
+| --- | --- |
+| 查找顺序、八个档位、哪一档正在用 | `lib/plugin-root.js`（后端算好），`ui/src/lib/plugin-sources.ts` 只做合并投影 |
+| 一档的处境怎么说（正在用 / 可用 / 没有） | `ui/src/app/plugin-source-facts.tsx` 的 `sourceStatusText` |
+| 档位 id（自带 / 我指定的） | `ui/src/lib/plugin-sources.ts` 的 `INSTALL_SLOT_ID` / `CHOSEN_SLOT_ID` |
+| 这一档给不给换、换了记哪个目录、忙碌位 key | `ui/src/lib/plugin-sources.ts` 的 `canChooseThis` / `choosePathOf` / `chooseKeyOf` |
+| 忙碌位 key（两页各一张表） | `ui/src/lib/plugin-sources.ts` 的 `PLUGIN_BUSY`、`ui/src/lib/update-state.ts` 的 `UPDATE_BUSY` |
+| 能不能点 / 冻不冻 | `ui/src/lib/update-state.ts` 的 `busyNow`（两张卡读同一个值） |
+| 「检查更新」这个动作 | 程序更新：`update-card` 的 `runCheck`；插件：`use-plugin-update` 的 `check`（卡片与弹窗同一条） |
+| 检查结果怎么说 | `describeUpdate` / `describePluginInstall` + `ui/src/lib/source-check.ts` 的 `sourceCheckOutcomeOf` |
+| 最近一次失败的原话 | `ui/src/app/use-failure-memory.ts`（两半共用） |
+| 轮询取数、立刻重读、卸载守卫 | `ui/src/app/use-status-poll.ts` + `ui/src/app/use-alive.ts` |
+| 发布源：显示名 / 徽标 / 表单 / 校验 | `ui/src/lib/source-kind.ts`、`update-source-row.tsx`、`source-dialog.tsx`（校验由调用方给） |
+| 有没有 token | `lib/manifest-fetch.js` 的 `hasToken`（装配处注入廉价判断） |
+| 打开目录 / 打开网址 | `lib/system-open.js` |
+| 复制文本 | `ui/src/app/copy-text.ts` |
+| 下载 → 校验 → 落盘 | `lib/update-task.js` + `ui/src/lib/download-run.ts`（前端只按 kind 落地） |
+
 ### 自动化门禁
 
 | 命令 | 结果 |
