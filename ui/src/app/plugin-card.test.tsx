@@ -313,17 +313,24 @@ describe("PluginCard", () => {
     expect(screen.getByText(new RegExp("已查找：" + INSTALL_DIR.replace(/\\/g, "\\\\") + "（没有）"))).toBeTruthy()
   })
 
-  it("更新来源那一行显示现在的发布源，点「修改发布源」开的是插件这一半的弹窗", async () => {
+  it("「更新来源」在自带那一行的管理面板里（页面顶层不再占一块），点「修改发布源」开的是插件这一半的弹窗", async () => {
     const asked: string[] = []
     stub(view(), { onCheck: () => asked.push("check"), onRequest: (url) => asked.push("req:" + url) })
     render(<PluginCard />)
-    // 卡片上就能看见「从哪儿取」：类型 + 地址（不是只有「程序更新」那一半看得见）。
-    await waitFor(() => expect(screen.getByText("更新来源")).toBeTruthy())
-    expect(screen.getByText(pluginUpdateFixture().source.base)).toBeTruthy()
+    // 顶层的那些动作（更新来源 / 检查更新）都收进了自带那一行的管理面板：页面上先找不到它们。
+    await waitFor(() => expect(within(screen.getByRole("table")).getByText("客户端自带")).toBeTruthy())
+    expect(screen.queryByText("更新来源")).toBeNull()
 
-    fireEvent.click(screen.getByRole("button", { name: "修改发布源" }))
-    const dialog = await screen.findByRole("dialog")
-    expect(within(dialog).getByText("修改发布源 · 插件（流水线）")).toBeTruthy()
+    fireEvent.click(screen.getByRole("button", { name: "管理…" }))
+    const panel = await screen.findByRole("dialog")
+    // 面板里才看得见「从哪儿取」：类型 + 地址（与「程序更新」那一侧是同一处设置）。
+    expect(within(panel).getByText("更新来源")).toBeTruthy()
+    expect(within(panel).getByText(pluginUpdateFixture().source.base)).toBeTruthy()
+
+    fireEvent.click(within(panel).getByRole("button", { name: "修改发布源" }))
+    // 这时页面上有两个弹窗（管理面板 + 改发布源），按标题取那一个。
+    const title = await screen.findByText("修改发布源 · 插件（流水线）")
+    const dialog = title.closest('[role="dialog"]') as HTMLElement
     expect((within(dialog).getByLabelText("地址") as HTMLInputElement).value).toBe(pluginUpdateFixture().source.base)
 
     // 保存并检查：先存这一处设置，再按插件那份清单验一次（不是程序更新那条）。
@@ -332,13 +339,15 @@ describe("PluginCard", () => {
     expect(asked.some((item) => item.includes("/api/settings"))).toBe(true)
   })
 
-  it("卡片上的「检查更新」与「管理…」面板里那颗打到同一个接口", async () => {
+  it("「检查更新」在自带那一行的管理面板里，打到插件那条接口", async () => {
     let checks = 0
     stub(view(), { onCheck: () => (checks += 1) })
     render(<PluginCard />)
-    await waitFor(() => expect(screen.getByRole("button", { name: "检查更新" })).toBeTruthy())
+    await waitFor(() => expect(within(screen.getByRole("table")).getByText("客户端自带")).toBeTruthy())
+    fireEvent.click(screen.getByRole("button", { name: "管理…" }))
+    const panel = await screen.findByRole("dialog")
 
-    fireEvent.click(screen.getByRole("button", { name: "检查更新" }))
+    fireEvent.click(within(panel).getByRole("button", { name: "检查更新" }))
     await waitFor(() => expect(checks).toBe(1))
   })
 
@@ -414,7 +423,7 @@ describe("PluginCard", () => {
     release(new Response(JSON.stringify({ ok: true, started: true, version: "1.0.372", note: "", status: pluginUpdateFixture() }), { status: 200 }))
   })
 
-  it("「检查更新」在两处同一个判据：正在传时两边都不给点", async () => {
+  it("正在传时，自带那一行的管理面板里「检查更新」与「下载并安装」都不给点", async () => {
     stub(
       view(),
       {
@@ -434,12 +443,14 @@ describe("PluginCard", () => {
       }
     )
     render(<PluginCard />)
-    const card = await screen.findByRole("button", { name: "检查更新" })
-    expect((card as HTMLButtonElement).disabled).toBe(true)
-
+    // 顶层没有这颗按钮了（它只在管理面板里）。
+    await waitFor(() => expect(within(screen.getByRole("table")).getByText("客户端自带")).toBeTruthy())
+    expect(screen.queryByRole("button", { name: "检查更新" })).toBeNull()
     fireEvent.click(screen.getByRole("button", { name: "管理…" }))
     const dialog = await screen.findByRole("dialog")
-    const panel = within(dialog).getByRole("button", { name: "检查更新" })
-    expect((panel as HTMLButtonElement).disabled).toBe(true)
+    const check = within(dialog).getByRole("button", { name: "检查更新" })
+    expect((check as HTMLButtonElement).disabled).toBe(true)
+    const install = within(dialog).getByRole("button", { name: /下载并安装|更新到 v|按远端重装/ })
+    expect((install as HTMLButtonElement).disabled).toBe(true)
   })
 })

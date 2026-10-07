@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ClampText } from "@/app/clamp-text"
 import { PixelLoader } from "@/app/pixel-loader"
 import { ChosenSlot } from "@/app/plugin-chosen-slot"
-import { PluginInstallSource } from "@/app/plugin-install-source"
 import { LookupOrder } from "@/app/plugin-order-bar"
 import { PluginSourceDialog } from "@/app/plugin-source-dialog"
 import { PluginSourceTable } from "@/app/plugin-source-table"
@@ -100,18 +99,6 @@ export function PluginCard() {
               onAuto={() => void sources.choose("", PLUGIN_BUSY.auto)}
             />
 
-            {/* 自带那一份从哪儿取：与程序更新同一处设置（那一块自己一份实现，见 plugin-install-source）。 */}
-            {update.update && (
-              <PluginInstallSource
-                status={update.update}
-                frozen={frozen}
-                busy={update.busy}
-                canCheck={update.canCheck}
-                onEdit={() => setEditingSource(true)}
-                onCheck={() => void update.check()}
-              />
-            )}
-
             {/* 查找顺序：每一档一句话，谁在生效、谁没有、哪两档是同一份，一眼看完。 */}
             <LookupOrder slots={lookup.slots} onOpen={(id) => setOpened(id)} />
 
@@ -153,6 +140,8 @@ export function PluginCard() {
             frozen={frozen}
             transferring={update.transferring}
             canCheck={update.canCheck}
+            // 自带那一份的「更新来源」摆在它的管理面板里（那一块只对它有意义）。
+            onEditSource={() => setEditingSource(true)}
             onClose={() => setOpened("")}
             onChoose={(path, key) => void sources.choose(path, key)}
             onCheck={() => void update.check()}

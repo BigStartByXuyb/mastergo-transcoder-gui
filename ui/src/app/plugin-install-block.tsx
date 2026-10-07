@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { CheckUpdateButton } from "@/app/update-source-actions"
 import { PluginInstallBadge } from "@/app/plugin-source-facts"
+import { UpdateSourceRow } from "@/app/update-source-row"
 import type { PluginUpdateStatus } from "@/lib/api"
 import { describePluginInstall } from "@/lib/plugin-install"
 import { PLUGIN_BUSY } from "@/lib/plugin-sources"
@@ -19,11 +20,27 @@ export function PluginInstallBlock(props: {
   status: PluginUpdateStatus | null
   /** 正在传（下载 / 落盘）：出进度条。 */
   transferring: boolean
+  /** 这一刻能不能改发布源（任一半在跑就不给改）。 */
+  frozen: boolean
+  /** 改发布源：开那个弹窗（与程序更新同一处设置、同一个弹窗）。 */
+  onEditSource: () => void
 }) {
   const summary = describePluginInstall(props.status)
   const taskFailure = props.status ? taskFailureNote(props.status.task) : ""
   return (
     <div className="flex flex-col gap-2 rounded-md border p-3">
+      {/*
+       * 这一份从哪儿取：与程序更新同一处设置（后端 lib/source.js 一处拼地址），
+       * 而「从哪儿取」只对自带这一份有意义，所以它就摆在这一块里，不占页面顶层。
+       */}
+      {props.status && (
+        <UpdateSourceRow
+          source={props.status.source}
+          hasToken={props.status.hasToken}
+          disabled={props.frozen}
+          onEdit={props.onEditSource}
+        />
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <PluginInstallBadge status={props.status} />
         {props.status && props.status.busy && (
