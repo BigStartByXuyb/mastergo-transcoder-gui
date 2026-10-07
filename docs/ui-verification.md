@@ -132,6 +132,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - 第二十九轮复核两条：共用按钮模块改名 `update-source-actions.tsx`（两页都用，名字不按某一页取）；
   行内面板里「自带那一份」那一块拆成 `plugin-install-block.tsx` 的 `PluginInstallBlock`（状态与进度）
   与 `PluginInstallActions`（两个动作），面板本身只剩编排与那一档的事实。
+- 第三十轮复核两条：`useFailureMemory` 交出去的那一份对象做成稳定的（`useMemo` + 稳定的 `remember`），
+  调用方把它列进依赖时不会再每渲染换一套动作函数；README 里「插件版本在 AI Agent 那页看」改成
+  「设置 → 更新 → 插件（流水线）」。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。

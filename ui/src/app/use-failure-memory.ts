@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react"
+import { useCallback, useMemo, useRef } from "react"
 
 /*
  * 记住「最近一次失败的原话」，同时把它写回界面。
@@ -8,12 +8,21 @@ import { useCallback, useRef } from "react"
  */
 export function useFailureMemory(setFailure: (message: string) => void) {
   const ref = useRef("")
-  const remember = useCallback(
-    function (message: string) {
-      ref.current = message
-      setFailure(message)
+  // setter 放 ref 里：remember 因此是稳定的（不清进依赖里，也不跟着重渲染换）。
+  const latest = useRef(setFailure)
+  latest.current = setFailure
+  const remember = useCallback(function (message: string) {
+    ref.current = message
+    latest.current(message)
+  }, [])
+  /*
+   * 交出去的这一份对象也稳定：调用方把它列进 useCallback 的依赖（「动作函数是稳定的」靠这条），
+   * 每次渲染都新建对象会让那边每渲染一次就换一套动作函数。
+   */
+  return useMemo(
+    function () {
+      return { remember: remember, last: function () { return ref.current } }
     },
-    [setFailure]
+    [remember]
   )
-  return { remember: remember, last: function () { return ref.current } }
 }
