@@ -70,7 +70,8 @@ export function UpdateCard() {
       .catch(() => setSupervised(false))
   }, [])
 
-  useStatusPoll({
+  // 取数只有这一跳（轮询与「改完发布源立刻重读」都走它）：落地与清提示都在 onData 一处做。
+  const { reload } = useStatusPoll({
     load: () => api.updateStatus(),
     working: transferring,
     onData: (payload) => {
@@ -224,9 +225,9 @@ export function UpdateCard() {
           view={{ source: status.source, hasToken: status.hasToken }}
           onClose={() => setEditingSource(false)}
           reload={async () => {
-            const latest = (await api.updateStatus()).status
-            setStatus(latest)
-            return { source: latest.source, hasToken: latest.hasToken }
+            const payload = await reload()
+            if (!payload) throw new Error("读不到更新状态")
+            return { source: payload.status.source, hasToken: payload.status.hasToken }
           }}
           check={async () => {
             const checked = (await api.updateCheck()).status

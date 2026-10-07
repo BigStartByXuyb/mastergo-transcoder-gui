@@ -237,6 +237,8 @@ export function PluginCard() {
             update={selected.members.includes("install") ? update.update : null}
             busy={sources.busy}
             updateBusy={update.busy}
+            frozen={frozen}
+            transferring={update.transferring}
             canCheck={update.canCheck}
             onClose={() => setOpened("")}
             onChoose={(path, key) => void sources.choose(path, key)}

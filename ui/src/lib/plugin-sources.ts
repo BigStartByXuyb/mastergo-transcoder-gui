@@ -49,28 +49,22 @@ export function pluginLookup(sources: PluginSource[]): PluginLookup {
   }
 
   /*
-   * 被合并的来源名挂到留下那一行上。
+   * 留一行、其余的并进去：这一趟同时收三样 —— 谁并进了谁（mergedInto）、留下那一行的「同时来自」
+   * （extrasOf，用名字给界面看）、以及这一行代表哪几档（memberIdsOf，用 id 判断「这一行有没有自带那一档」）。
    * 「正在用」不用另并一次：后端只在真正生效的那一档上标 active，而那一档必定就是它那个插件根的
    * 最先命中者（＝留下的那一行），所以被并掉的那几档本来就不会带 active。
    */
-  const extrasOf = new Map<string, string[]>()
   const mergedInto = new Map<string, string>()
-  for (const entry of resolved) {
-    const keeper = entry.root ? keeperOf.get(entry.root) : undefined
-    if (!keeper || keeper === entry.item.id) continue
-    mergedInto.set(entry.item.id, keeper)
-    const list = extrasOf.get(keeper)
-    if (list) list.push(entry.item.label)
-    else extrasOf.set(keeper, [entry.item.label])
-  }
-
+  const extrasOf = new Map<string, string[]>()
   const memberIdsOf = new Map<string, string[]>()
   for (const entry of resolved) {
     const keeper = entry.root ? keeperOf.get(entry.root) : undefined
     if (!keeper) continue
-    const list = memberIdsOf.get(keeper)
-    if (list) list.push(entry.item.id)
-    else memberIdsOf.set(keeper, [entry.item.id])
+    // 每一档都算这一行的成员（含它自己）；被并掉的另外记一笔，名字挂给留下那一行。
+    memberIdsOf.set(keeper, (memberIdsOf.get(keeper) ?? []).concat(entry.item.id))
+    if (keeper === entry.item.id) continue
+    mergedInto.set(entry.item.id, keeper)
+    extrasOf.set(keeper, (extrasOf.get(keeper) ?? []).concat(entry.item.label))
   }
 
   const rows: PluginSourceRow[] = []

@@ -260,12 +260,6 @@ server.on("error", function (error) {
   throw error;
 });
 
-// 打不开浏览器不影响服务本身：openUrl 把各种失败都归一成返回值（不 reject），这里直接不等结果。
-// 「哪个平台用哪条命令」与插件页的「打开目录」是同一处（lib/system-open.js），不在这里再写一份。
-function openBrowser(url) {
-  void openUrl(url);
-}
-
 server.listen(options.port, options.host, function () {
   const actualPort = server.address().port;
   const url = "http://" + options.host + ":" + actualPort + "/";
@@ -296,5 +290,7 @@ server.listen(options.port, options.host, function () {
   // 插件那一半只在启动时静默查一次：插件页打开就能看到「有没有新版」，不必每次都去问远端。
   void pluginUpdate.check({ silent: true });
   void codex.check({ silent: true });
-  if (options.open) openBrowser(url);
+  // 打不开浏览器不影响服务本身：openUrl 把各种失败都归一成返回值（不 reject），这里不等结果。
+  // 「哪个平台用哪条命令」与插件页的「打开目录」是同一处（lib/system-open.js），不在这里再写一份。
+  if (options.open) void openUrl(url);
 });

@@ -18,7 +18,7 @@ import { copyText } from "@/lib/copy-text"
 import { describeFailure } from "@/lib/describe-failure"
 import { describePluginInstall } from "@/lib/plugin-install"
 import { canChooseThis, choosePathOf, type PluginSourceRow } from "@/lib/plugin-sources"
-import { describeTask, isDownloading, taskFailureNote, taskPercent } from "@/lib/update-state"
+import { describeTask, taskFailureNote, taskPercent } from "@/lib/update-state"
 import { PLUGIN_UPDATE_KEYS } from "@/app/use-plugin-update"
 
 /*
@@ -47,6 +47,13 @@ export function PluginSourceDialog(props: {
   busy: string
   /** 自带那一半的忙碌位（检查 / 安装）：两半各报各的，不合成一个字符串。 */
   updateBusy: string
+  /**
+   * 这一刻能不能动「换一份 / 改发布源 / 装一份」：卡片算一次传进来（那边也是三个来源合一），
+   * 面板不自己再算一遍 —— 否则规则一改就会出现「卡片上能点、面板里不能点」。
+   */
+  frozen: boolean
+  /** 正在传（下载 / 落盘）：出进度条、按钮转圈。 */
+  transferring: boolean
   /** 「检查更新」能不能点：与卡片上那颗同一个判据（use-plugin-update 算好）。 */
   canCheck: boolean
   onClose: () => void
@@ -63,11 +70,9 @@ export function PluginSourceDialog(props: {
   const ownInstall = row.kind === "install"
 
   const summary = describePluginInstall(props.update)
-  const transferring = props.update ? isDownloading(props.update.task) : false
+  const transferring = props.transferring
   const taskFailure = props.update ? taskFailureNote(props.update.task) : ""
-  // 有任务在跑、正在传、或这一页有动作在跑时都不动：换一份 / 装一份都会顶掉正在跑的那一份。
-  const frozen = Boolean(props.busy) || Boolean(props.updateBusy) || transferring
-  const canInstall = install && summary.canInstall && !frozen
+  const canInstall = install && summary.canInstall && !props.frozen
 
   async function openFolder() {
     setFailure("")
@@ -150,7 +155,7 @@ export function PluginSourceDialog(props: {
               <Button
                 size="sm"
                 variant="outline"
-                disabled={frozen}
+                disabled={props.frozen}
                 aria-busy={props.busy === row.id}
                 /*
                  * 记哪个目录由 choosePathOf 说（库那一处）：记这一档所在的目录，不是此刻那一个版本目录。
