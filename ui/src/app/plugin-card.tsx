@@ -1,33 +1,25 @@
 import { useState } from "react"
-import { Loader2, RefreshCw } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ClampText } from "@/app/clamp-text"
-import { IdentifierText } from "@/app/identifier-text"
 import { PixelLoader } from "@/app/pixel-loader"
 import { ChosenSlot } from "@/app/plugin-chosen-slot"
+import { PluginInstallSource } from "@/app/plugin-install-source"
 import { LookupOrder } from "@/app/plugin-order-bar"
 import { PluginSourceDialog } from "@/app/plugin-source-dialog"
-import { SourceAlsoFrom, SourceCopyCount, SourceStatusBadge, SourceVersion } from "@/app/plugin-source-facts"
+import { PluginSourceTable } from "@/app/plugin-source-table"
 import { SourceDialog } from "@/app/source-dialog"
-import { UpdateSourceRow } from "@/app/update-source-row"
 import { usePluginSources } from "@/app/use-plugin-sources"
 import { usePluginUpdate } from "@/app/use-plugin-update"
-import { describePluginInstall } from "@/lib/plugin-install"
 import { busyNow } from "@/lib/update-state"
 import {
   CHOSEN_SLOT_ID,
   INSTALL_SLOT_ID,
   PLUGIN_BUSY,
-  canChooseThis,
   chooseKeyOf,
   choosePathOf,
-  pluginLookup,
-  type PluginSourceRow
+  pluginLookup
 } from "@/lib/plugin-sources"
 
 // 插件：转码引擎来自 mastergo-wpf-transcoder 插件，客户端不自带引擎。
@@ -107,72 +99,31 @@ export function PluginCard() {
               onAuto={() => void sources.choose("", PLUGIN_BUSY.auto)}
             />
 
-            {/*
-              自带那一份从哪儿取：与程序更新同一处设置（后端 lib/source.js 一处拼地址），
-              这里也显示、也能改 —— 「GitHub / GitLab 在哪儿配」不能只有程序更新那一半看得见。
-              「检查更新」与「管理…」面板里那颗是同一个动作（同一个函数、同一套禁用条件）。
-            */}
+            {/* 自带那一份从哪儿取：与程序更新同一处设置（那一块自己一份实现，见 plugin-install-source）。 */}
             {update.update && (
-              <div className="flex flex-col gap-2">
-                <UpdateSourceRow
-                  source={update.update.source}
-                  hasToken={update.update.hasToken}
-                  disabled={frozen}
-                  onEdit={() => setEditingSource(true)}
-                />
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!update.canCheck}
-                    aria-busy={update.busy === PLUGIN_BUSY.check}
-                    onClick={() => void update.check()}
-                  >
-                    {update.busy === PLUGIN_BUSY.check ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="size-4" />
-                    )}
-                    检查更新
-                  </Button>
-                  <span className="text-muted-foreground text-xs">
-                    要装哪一版，点表里「客户端自带」那一行的「管理…」
-                  </span>
-                </div>
-              </div>
+              <PluginInstallSource
+                status={update.update}
+                frozen={frozen}
+                busy={update.busy}
+                canCheck={update.canCheck}
+                onEdit={() => setEditingSource(true)}
+                onCheck={() => void update.check()}
+              />
             )}
 
             {/* 查找顺序：每一档一句话，谁在生效、谁没有、哪两档是同一份，一眼看完。 */}
             <LookupOrder slots={lookup.slots} onOpen={(id) => setOpened(id)} />
 
             {/* 表：与顺序一一对应（同一份插件只列一行），点开某一行是那一档的详情 / 管理。 */}
-            <div className="overflow-hidden rounded-md border">
-              <Table className="table-fixed">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[24%]">来源</TableHead>
-                    <TableHead className="w-[14%]">版本</TableHead>
-                    <TableHead className="w-[15%]">状态</TableHead>
-                    <TableHead>路径</TableHead>
-                    <TableHead className="w-[22%] text-right">操作</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lookup.rows.map((row) => (
-                    <PluginSourceLine
-                      key={row.id}
-                      row={row}
-                      installState={row.members.includes(INSTALL_SLOT_ID) && update.update ? describePluginInstall(update.update).label : ""}
-                      busy={sources.busy}
-                      frozen={frozen}
-                      onOpen={() => setOpened(row.id)}
-                      // 行内「用这份」与面板里那颗同一口径（判据与记哪个目录都在 lib/plugin-sources）。
-                      onChoose={() => void sources.choose(choosePathOf(row), chooseKeyOf(row))}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <PluginSourceTable
+              rows={lookup.rows}
+              update={update.update}
+              busy={sources.busy}
+              frozen={frozen}
+              onOpen={(id) => setOpened(id)}
+              // 行内「用这份」与面板里那颗同一口径（判据与记哪个目录都在 lib/plugin-sources）。
+              onChoose={(row) => void sources.choose(choosePathOf(row), chooseKeyOf(row))}
+            />
 
             {/* 两半各自的失败：来源清单那一半与自带那份那一半，谁出事谁说话。 */}
             {update.failure && <span className="text-destructive text-xs">{update.failure}</span>}
@@ -210,59 +161,5 @@ export function PluginCard() {
         )}
       </CardContent>
     </Card>
-  )
-}
-
-// 表里的一行：来源 / 版本 / 状态 / 路径 / 操作。
-// 自带那一行还带一句它自己的更新状态（有新版 / 是最新 / 未检查 / 检查失败），表里就能看见要不要去管。
-function PluginSourceLine(props: {
-  row: PluginSourceRow
-  installState: string
-  /** 来源清单那一半的忙碌位：只有拿它比行 id 才是「这一行自己的动作在跑」。 */
-  busy: string
-  /** 哪一半在跑都算忙：忙的时候不给换一份（会顶掉正在跑的那一份）。 */
-  frozen: boolean
-  onOpen: () => void
-  onChoose: () => void
-}) {
-  const row = props.row
-
-  return (
-    <TableRow className="cursor-pointer" onClick={props.onOpen}>
-      <TableCell className="align-top text-sm whitespace-normal">
-        <span className="block">
-          <span className="text-muted-foreground">{row.order}.</span> <span>{row.label}</span>
-        </span>
-        <SourceAlsoFrom row={row} />
-      </TableCell>
-      <TableCell className="align-top text-xs whitespace-normal">
-        <SourceVersion row={row} />
-      </TableCell>
-      <TableCell className="align-top whitespace-normal">
-        <SourceStatusBadge row={row} />
-        {props.installState && (
-          <span className="block pt-1">
-            <Badge variant="secondary">{props.installState}</Badge>
-          </span>
-        )}
-      </TableCell>
-      <TableCell className="align-top whitespace-normal">
-        <IdentifierText className="text-muted-foreground text-xs" text={row.path} />
-        <SourceCopyCount row={row} />
-      </TableCell>
-      <TableCell className="align-top text-right whitespace-normal">
-        <div className="flex justify-end gap-2" onClick={(event) => event.stopPropagation()}>
-          {canChooseThis(row) && (
-            <Button size="sm" variant="outline" disabled={props.frozen} onClick={props.onChoose}>
-              {props.busy === chooseKeyOf(row) && <Loader2 className="size-4 animate-spin" />}
-              用这份
-            </Button>
-          )}
-          <Button size="sm" variant="outline" onClick={props.onOpen}>
-            {row.members.includes(INSTALL_SLOT_ID) ? "管理…" : "详情…"}
-          </Button>
-        </div>
-      </TableCell>
-    </TableRow>
   )
 }

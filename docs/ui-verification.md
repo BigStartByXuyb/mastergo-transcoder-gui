@@ -105,6 +105,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - 第十九轮复核三条：复制工具按仓库分层约定从 `lib` 挪到 `app`（默认提示要用 toast，lib 不认识展示框架）；
   `check` / `runCheck` 上并排的两段注释合成一段；「我指定的那一份」那一档的 id 也收成
   `CHOSEN_SLOT_ID`（与 `INSTALL_SLOT_ID` 同一处）。
+- 第二十轮复核两条：自带那一半的忙碌位 key 带 `update:` 前缀（与「这一行的 id 就是忙碌位」那条规则
+  取值不重叠）；`plugin-card` 再拆出 `plugin-install-source`（更新来源 + 检查更新）与
+  `plugin-source-table`（那张表与它每一行），卡片本身只剩取数、编排与弹窗。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。

@@ -140,8 +140,10 @@ export const PLUGIN_BUSY = {
   load: "load",
   pick: "pick",
   auto: "auto",
-  check: "check",
-  install: "install"
+  // 自带那一半的两把带 update: 前缀：与「这一行的 id 就是忙碌位」那条规则的取值不重叠
+  // （客户端自带那一行的 id 也叫 install），将来把两半的 busy 摆错地方也不会误命中。
+  check: "update:check",
+  install: "update:install"
 } as const
 
 /** 「用这份」的忙碌位 key：就是那一行的 id（写与比对都读这一处）。 */
