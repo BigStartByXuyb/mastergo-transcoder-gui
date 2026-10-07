@@ -6,9 +6,9 @@
  * 数据只有一份文件（scripts/lib/winget-manifest.js 的 SOURCE_FILE）加一个静态资产目录；
  * 每次请求现读那份文件，所以换一版就是把文件换掉，不用重启。
  *
- * 跑法（服务机上要哪些文件由 docs/winget-internal-source.md 一处列全，用例盯着那份清单与依赖图一致）：
- *   node scripts/winget-source-server.js --root /srv/mastergo-winget --port 18443
- *   node scripts/winget-source-server.js --root … --port 18443 --cert server.crt --key server.key
+ * 跑法（服务机上要哪些文件、地址与端口用哪个，都由 docs/winget-internal-source.md 一处给）：
+ *   node scripts/winget-source-server.js --root <数据目录> --port <端口>
+ *   node scripts/winget-source-server.js --root … --port … --cert server.crt --key server.key
  *
  * 路由：
  *   GET  /api/information                winget 先问服务认哪些 REST 版本
@@ -28,8 +28,6 @@ const path = require("path");
 const { argValue } = require("./lib/args.js");
 const winget = require("./lib/winget-manifest.js");
 
-// 不给 --port 时的端口：与部署那台一致（见 docs/winget-internal-source.md）。
-const DEFAULT_PORT = 18443;
 // winget source list 里显示的名字。
 const DEFAULT_IDENTIFIER = "BigStart";
 const MANIFESTS_PREFIX = "/api/packageManifests/";
@@ -132,7 +130,11 @@ function createHandler(options) {
 
 function main() {
   const root = path.resolve(argValue("root", path.join(__dirname, "..", "dist", "winget-source")));
-  const port = Number(argValue("port", DEFAULT_PORT));
+  // 端口由部署那台定（见 docs/winget-internal-source.md）：服务不猜，也就不留一份会过期的默认值。
+  const port = Number(argValue("port", ""));
+  if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+    throw new Error("--port 要给一个 1-65535 的端口");
+  }
   const identifier = String(argValue("identifier", DEFAULT_IDENTIFIER));
   const cert = String(argValue("cert", ""));
   const key = String(argValue("key", ""));

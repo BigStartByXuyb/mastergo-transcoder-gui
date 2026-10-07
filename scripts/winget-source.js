@@ -7,7 +7,7 @@
  *   files/<zip>          客户机装的时候从这里下 zip
  *
  * 用法：
- *   node scripts/winget-source.js --base https://10.101.0.62:18443
+ *   node scripts/winget-source.js --base https://<这台源服务的地址>
  *   node scripts/winget-source.js --base … --id BigStart.MasterGoTranscoder.Internal
  *   node scripts/winget-source.js --base … --zip dist/xxx.zip --out dist/winget-source
  *

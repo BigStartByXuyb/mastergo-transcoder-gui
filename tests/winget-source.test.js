@@ -17,7 +17,6 @@ const { versionFacts } = require("../scripts/lib/winget-facts.js");
 
 const ROOT = path.join(__dirname, "..");
 const GENERATOR = path.join(ROOT, "scripts", "winget-source.js");
-const SERVER = path.join(ROOT, "scripts", "winget-source-server.js");
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
 const FOLDER = "mastergo-transcoder-gui-" + pkg.version;
 const ZIP = FOLDER + ".zip";
@@ -39,8 +38,8 @@ function freePort() {
 }
 
 // 起来没有看端口答不答应，不看 stdout。
-function startServer(root, port) {
-  const child = spawn(process.execPath, [SERVER, "--root", root, "--port", String(port), "--identifier", "BigStart"]);
+function startServer(script, root, port) {
+  const child = spawn(process.execPath, [script, "--root", root, "--port", String(port), "--identifier", "BigStart"]);
   let output = "";
   child.stdout.setEncoding("utf8");
   child.stdout.on("data", function (chunk) {
@@ -71,41 +70,37 @@ function startServer(root, port) {
   });
 }
 
-/* 一个脚本真正会 require 到的本地文件（跟着 require 走一遍）。 */
-function deployedFilesOf(entry) {
-  const seen = new Set();
-  const walk = function (file) {
-    const abs = path.resolve(file);
-    if (seen.has(abs)) return;
-    seen.add(abs);
-    const text = fs.readFileSync(abs, "utf8");
-    for (const match of text.matchAll(/require\("(\.[^"]+)"\)/g)) {
-      let target = path.resolve(path.dirname(abs), match[1]);
-      if (!path.extname(target)) target += ".js";
-      walk(target);
-    }
-  };
-  walk(entry);
-  return [...seen].map((file) => path.relative(ROOT, file).split(path.sep).join("/"));
+/*
+ * 照文档「服务端：从零起一份」那份目录树，把要拷的 JS 文件摆进一个空目录 —— 这就是从零部署的样子。
+ * 清单漏了文件、路径摆错，后面起服务那一步就会当场失败（这条比「清单里提没提到这个路径」实在）。
+ */
+function stageDeployment(stage) {
+  const doc = fs.readFileSync(path.join(ROOT, "docs", "winget-internal-source.md"), "utf8");
+  const section = doc.slice(doc.indexOf("## 服务端：从零起一份"), doc.indexOf("## 发一版新的"));
+  const block = (section.match(/```\r?\n([\s\S]*?)```/) || [])[1] || "";
+  const listed = block
+    .split(/\r?\n/)
+    .map((line) => line.trim().split(/\s+/)[0])
+    .filter((name) => name && name.endsWith(".js"));
+  assert.ok(listed.length >= 3, "文档那份清单要列出启动服务用到的 JS 文件");
+  for (const name of listed) {
+    const from = path.join(ROOT, name);
+    assert.ok(fs.existsSync(from), "清单里的文件要真在仓库里：" + name);
+    const to = path.join(stage, name);
+    fs.mkdirSync(path.dirname(to), { recursive: true });
+    fs.copyFileSync(from, to);
+  }
+  return listed;
 }
 
 async function main() {
-  /*
-   * 服务机上的文件清单写在文档一处，这里的依赖图必须都在那份清单里 ——
-   * 之前给服务加了一个 require 却忘了写文档，照文档从零部署会直接起不来。
-   */
-  const doc = fs.readFileSync(path.join(ROOT, "docs", "winget-internal-source.md"), "utf8");
-  const deploySection = doc.slice(doc.indexOf("## 服务端：从零起一份"), doc.indexOf("## 发一版新的"));
-  // 清单看的是那一节里第一个代码块（目录树）——拷文件的命令另有一块，但先得在清单里列出来。
-  const deployBlock = (deploySection.match(/```\r?\n([\s\S]*?)```/) || [])[1] || "";
-  for (const file of deployedFilesOf(SERVER)) {
-    assert.ok(deployBlock.includes(file), "部署清单里要有 " + file);
-  }
-
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gui-winget-source-"));
   const zip = path.join(tmp, ZIP);
   fs.writeFileSync(zip, "fake-zip-bytes", "utf8");
-  const out = path.join(tmp, "winget-source");
+  // 部署目录照文档摆；数据与包放进服务读的那个目录（与文档里 data/ 的位置一致）。
+  const stage = path.join(tmp, "deploy");
+  stageDeployment(stage);
+  const out = path.join(stage, "data");
   const sha = crypto.createHash("sha256").update(fs.readFileSync(zip)).digest("hex").toUpperCase();
   const facts = { id: ID, version: pkg.version, url: BASE + "/files/" + ZIP, sha256: sha, folder: FOLDER };
 
@@ -196,7 +191,7 @@ async function main() {
   assert.match(String(badBase.stderr || ""), /基址不合法/);
 
   const port = await freePort();
-  const server = await startServer(out, port);
+  const server = await startServer(path.join(stage, "scripts", "winget-source-server.js"), out, port);
   const origin = "http://127.0.0.1:" + port;
   const api = origin + "/api";
   try {
