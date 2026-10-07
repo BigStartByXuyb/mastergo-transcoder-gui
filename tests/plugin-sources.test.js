@@ -15,6 +15,11 @@ const { createPluginRuntime } = require("../lib/plugin.js");
 
 const MARKER = path.join("skills", "mastergo-to-wpf", "SKILL.md");
 
+/* 路径直接塞进正则：反斜杠与别的元字符都要转义（Windows 路径里这两种都常见）。 */
+function escapeRegExp(value) {
+  return String(value).replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
+}
+
 // 造一份能被认出来的插件：认根只看 SKILL.md，版本读插件自己的清单。
 function makePlugin(dir, version) {
   fs.mkdirSync(path.dirname(path.join(dir, MARKER)), { recursive: true });
@@ -176,9 +181,19 @@ function caseMissing() {
   assert.strictEqual(runtime.current().root, "", "一处都没有时不是抛栈，是留空由界面说清楚");
   assert.match(runtime.failure(), /找不到 mastergo-wpf-transcoder 插件/);
   assert.match(runtime.failure(), /已查找：/);
-  for (const source of runtime.sources()) {
-    assert.match(runtime.failure(), new RegExp(source.path.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&")), "已查找里要逐条列出路径");
+  /*
+   * 「已查找」只列真的查过的位置：没设的那三档（--plugin / 我指定的 / 环境变量）path 是空串，
+   * 列出来只是几个空档，所以断言分两半 —— 有 path 的逐条列出，空档一个都不出现。
+   */
+  const searched = runtime.sources().filter(function (item) { return item.path; });
+  for (const source of searched) {
+    assert.match(runtime.failure(), new RegExp(escapeRegExp(source.path)), "已查找里要逐条列出查过的路径");
   }
+  assert.strictEqual(
+    (runtime.failure().match(/（没有）/g) || []).length,
+    searched.filter(function (item) { return !item.exists; }).length,
+    "「（没有）」的条数＝真的查过且没有的那几档，空档不占位"
+  );
   assert.strictEqual(runtime.sources().some((item) => item.active), false, "都没找到就没有生效的那条");
 
   fs.rmSync(box.tmp, { recursive: true, force: true });
