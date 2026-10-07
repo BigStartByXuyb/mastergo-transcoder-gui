@@ -13,7 +13,6 @@ const path = require("path");
 const { spawn, spawnSync } = require("child_process");
 
 const winget = require("../scripts/lib/winget-manifest.js");
-const { FILES } = require("../scripts/lib/winget-source-deploy.js");
 const { versionFacts } = require("../scripts/lib/winget-facts.js");
 
 const ROOT = path.join(__dirname, "..");
@@ -71,7 +70,10 @@ function startServer(script, root, port) {
   });
 }
 
-/* 文档里那份部署清单（标记之间）——标记是给机器认的，正文怎么排版都行。 */
+/*
+ * 服务机要拷哪几个文件：这份清单就是部署文档里标了记的那一块 ——
+ * 标记是给机器认的（正文怎么排版都行），部署的真相也只在文档这一处。
+ */
 function listedInDoc() {
   const doc = fs.readFileSync(path.join(ROOT, "docs", "winget-internal-source.md"), "utf8");
   const start = doc.indexOf("<!-- winget-source-deploy:start -->");
@@ -88,8 +90,8 @@ function listedInDoc() {
  * 照那份清单把文件摆进一个空目录 —— 这就是从零部署的样子。
  * 清单漏了文件、路径摆错，后面起服务那一步就会当场失败（比「文档里提没提到这个路径」实在）。
  */
-function stageDeployment(stage) {
-  for (const name of FILES) {
+function stageDeployment(stage, files) {
+  for (const name of files) {
     const from = path.join(ROOT, name);
     assert.ok(fs.existsSync(from), "清单里的文件要真在仓库里：" + name);
     const to = path.join(stage, name);
@@ -99,18 +101,14 @@ function stageDeployment(stage) {
 }
 
 async function main() {
-  assert.deepStrictEqual(
-    listedInDoc().slice().sort(),
-    FILES.slice().sort(),
-    "文档那份清单要与 scripts/lib/winget-source-deploy.js 一致"
-  );
-
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gui-winget-source-"));
   const zip = path.join(tmp, ZIP);
   fs.writeFileSync(zip, "fake-zip-bytes", "utf8");
   // 部署目录照文档摆；数据与包放进服务读的那个目录（与文档里 data/ 的位置一致）。
   const stage = path.join(tmp, "deploy");
-  stageDeployment(stage);
+  const listed = listedInDoc();
+  assert.ok(listed.length >= 3, "文档那份清单要列出启动服务用到的 JS 文件");
+  stageDeployment(stage, listed);
   const out = path.join(stage, "data");
   const sha = crypto.createHash("sha256").update(fs.readFileSync(zip)).digest("hex").toUpperCase();
   const facts = { id: ID, version: pkg.version, url: BASE + "/files/" + ZIP, sha256: sha, folder: FOLDER };
@@ -273,6 +271,11 @@ async function main() {
     // 不许爬出资产目录。
     const escape = await fetch(origin + "/files/..%2Fwinget-source.json");
     assert.strictEqual(escape.status, 404);
+
+    // 畸形百分号编码只该是一次 500，不该把服务带走（解码也在 try 里）。
+    const malformed = await fetch(origin + "/%");
+    assert.strictEqual(malformed.status, 500);
+    assert.strictEqual((await fetch(api + "/information")).status, 200, "畸形请求之后服务还在");
   }
   finally {
     server.kill();

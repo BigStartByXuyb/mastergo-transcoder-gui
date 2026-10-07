@@ -91,13 +91,14 @@ function sendFile(response, root, name, writesBody) {
 
 function createHandler(options) {
   return function (request, response) {
-    const at = request.url.indexOf("?");
-    const route = decodeURIComponent(at < 0 ? request.url : request.url.slice(0, at));
-    const query = new URLSearchParams(at < 0 ? "" : request.url.slice(at + 1));
     // HEAD 与 GET 同一条路由：只看一眼「在不在、多大」不该 404，但不写体。
     const writesBody = request.method !== "HEAD";
     const method = writesBody ? request.method : "GET";
     try {
+      // 解码也在 try 里：畸形百分号编码（`GET /%`）会抛，落到外面就是整个进程退出。
+      const at = request.url.indexOf("?");
+      const route = decodeURIComponent(at < 0 ? request.url : request.url.slice(0, at));
+      const query = new URLSearchParams(at < 0 ? "" : request.url.slice(at + 1));
       // 给人看的一眼确认：服务活着、手上有几个包。
       if (method === "GET" && route === "/") {
         return sendJson(response, 200, { Ok: true, Packages: readPackages(options.root).length }, writesBody);

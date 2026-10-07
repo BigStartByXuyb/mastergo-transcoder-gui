@@ -8,6 +8,7 @@
  *
  * urlOf 由调用方给：公网那份按 release 地址拼，内网那份指向源服务自己的静态资产目录。
  * 边界：只在构建机上跑（要读仓库、要算文件哈希）；服务机上跑的是 scripts/lib/winget-manifest.js，那份不做 IO。
+ * 边界：版本号只认 package.json —— 打包脚本的 --version 只改包名，不参与清单（那种包只用于临时验证）。
  */
 
 const fs = require("fs");
