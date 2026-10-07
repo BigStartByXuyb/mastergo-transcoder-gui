@@ -25,6 +25,7 @@ const PACKAGE_NAME = "MasterGo 转码客户端";
 const SHORT_DESCRIPTION = "MasterGo 设计稿转码客户端：看板跑流水线、待确认、更新与回退";
 // 内部工具：清单里必须有一项 License。这里按「公司内部使用」写，改发布策略时改这一处。
 const LICENSE = "Proprietary";
+// 搜索用的别名；与下面那个命令名当前同值，但含义不同（winget 拿它搜包，那个是装完链进 PATH 的命令）。
 const MONIKER = "mastergo-transcoder";
 // 装完链进 PATH 的命令名。
 const COMMAND_ALIAS = "mastergo-transcoder";

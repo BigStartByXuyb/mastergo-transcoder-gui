@@ -273,9 +273,9 @@ async function runServerChecks(stage, out, zip, sha) {
     const escape = await fetch(origin + "/files/..%2Fwinget-source.json");
     assert.strictEqual(escape.status, 404);
 
-    // 畸形百分号编码只该是一次 500，不该把服务带走（解码也在 try 里）。
+    // 地址里的百分号编码坏掉是调用方的事（400），也不该把服务带走。
     const malformed = await fetch(origin + "/%");
-    assert.strictEqual(malformed.status, 500);
+    assert.strictEqual(malformed.status, 400);
     assert.strictEqual((await fetch(api + "/information")).status, 200, "畸形请求之后服务还在");
   }
   finally {

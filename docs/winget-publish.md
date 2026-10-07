@@ -64,6 +64,8 @@ winget settings --enable LocalManifestFiles     # 需要管理员
 ```
 
 之后客户机把三个 YAML 放到任一目录，`winget install --manifest <目录>` 就能装。
+那三个 YAML 用 `node scripts/winget-manifest.js` 生成（默认就是公网那份标识；要内网那份加
+`--id BigStart.MasterGoTranscoder.Internal`）。
 （这正是本机最初报“需要管理员启用”的那一步；本机当前用户不是管理员，所以走不通。）
 
 ## 不想动 winget 的机器怎么装
