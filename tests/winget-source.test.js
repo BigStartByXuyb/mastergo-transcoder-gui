@@ -13,12 +13,14 @@ const path = require("path");
 const { spawn, spawnSync } = require("child_process");
 
 const winget = require("../scripts/lib/winget-manifest.js");
+const sourceApi = require("../scripts/lib/winget-source-api.js");
 const { versionFacts } = require("../scripts/lib/winget-facts.js");
+const { folderOf } = require("../scripts/lib/bundle-name.js");
 
 const ROOT = path.join(__dirname, "..");
 const GENERATOR = path.join(ROOT, "scripts", "winget-source.js");
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
-const FOLDER = "mastergo-transcoder-gui-" + pkg.version;
+const FOLDER = folderOf(pkg.version);
 const ZIP = FOLDER + ".zip";
 const ID = "BigStart.MasterGoTranscoder.Internal";
 const BASE = "https://internal.example.com";
@@ -128,8 +130,8 @@ async function main() {
   assert.strictEqual(winget.SOURCE_FILES_DIR, "files", "静态资产目录名");
   assert.strictEqual(winget.DEFAULT_ID, "BigStart.MasterGoTranscoder", "公网那一份的标识");
   assert.strictEqual(winget.INTERNAL_ID, "BigStart.MasterGoTranscoder.Internal", "内网那一份的标识");
-  assert.deepStrictEqual(winget.manifestBody([winget.restPackage(facts)], ID, "9.9.9"), null, "没有这一版就是 null");
-  assert.strictEqual(winget.manifestBody([winget.restPackage(facts)], ID, pkg.version).Data.Versions.length, 1);
+  assert.deepStrictEqual(sourceApi.manifestBody([winget.restPackage(facts)], ID, "9.9.9"), null, "没有这一版就是 null");
+  assert.strictEqual(sourceApi.manifestBody([winget.restPackage(facts)], ID, pkg.version).Data.Versions.length, 1);
 
   // 事实的装配只有一处：版本号取 package.json、zip 不在就当场报错（两个入口都从这里过）。
   const made = versionFacts({ id: ID, zip: zip, urlOf: (info) => BASE + "/files/" + info.folder + ".zip" });
@@ -146,7 +148,7 @@ async function main() {
    * 服务信息：源名、认的 REST 版本，以及「我们不认哪几个字段」——
    * 这一份与搜索里报的必须是同一份事实（信息接口照实声明，客户端能在发请求前就避开）。
    */
-  const information = winget.informationBody("BigStart").Data;
+  const information = sourceApi.informationBody("BigStart").Data;
   assert.strictEqual(information.SourceIdentifier, "BigStart", "服务信息里的源名");
   assert.ok(information.ServerSupportedVersions.includes("1.6.0"), "要认 winget 会挑的那个 REST 版本");
   assert.deepStrictEqual(
@@ -162,16 +164,16 @@ async function main() {
    */
   const packages = [winget.restPackage(facts)];
   const match = (field, keyword, matchType) => ({ PackageMatchField: field, RequestMatch: { KeyWord: keyword, MatchType: matchType } });
-  assert.strictEqual(winget.searchBody(packages, { Inclusions: [match("PackageFamilyName", ID, "Exact"), match("PackageIdentifier", ID, "CaseInsensitive")] }).Data.length, 1, "Inclusions 之间是或");
-  assert.strictEqual(winget.searchBody(packages, { Inclusions: [match("PackageName", ID, "CaseInsensitive")] }).Data.length, 0, "名字对不上就是没命中");
-  assert.strictEqual(winget.searchBody(packages, { Filters: [match("PackageIdentifier", ID, "CaseInsensitive")] }).Data.length, 1, "Filters 命中");
-  assert.strictEqual(winget.searchBody(packages, { Filters: [match("PackageName", ID, "CaseInsensitive")] }).Data.length, 0, "Filters 是且，点名字就必须名字命中");
-  assert.strictEqual(winget.searchBody(packages, { Query: { KeyWord: "mastergo", MatchType: "Substring" } }).Data.length, 1, "关键词搜");
-  assert.strictEqual(winget.searchBody(packages, { Query: { KeyWord: "别的包", MatchType: "Substring" } }).Data.length, 0, "搜不到就是空列表");
-  assert.strictEqual(winget.searchBody(packages, { FetchAllManifests: true, MaximumResults: 1 }).Data.length, 1, "Query 与 Inclusions 都为空＝整个库都是候选");
-  assert.strictEqual(winget.searchBody(packages, { Query: { KeyWord: "mastergo", MatchType: "Substring" }, MaximumResults: 0 }).Data.length, 1, "不限制条数");
+  assert.strictEqual(sourceApi.searchBody(packages, { Inclusions: [match("PackageFamilyName", ID, "Exact"), match("PackageIdentifier", ID, "CaseInsensitive")] }).Data.length, 1, "Inclusions 之间是或");
+  assert.strictEqual(sourceApi.searchBody(packages, { Inclusions: [match("PackageName", ID, "CaseInsensitive")] }).Data.length, 0, "名字对不上就是没命中");
+  assert.strictEqual(sourceApi.searchBody(packages, { Filters: [match("PackageIdentifier", ID, "CaseInsensitive")] }).Data.length, 1, "Filters 命中");
+  assert.strictEqual(sourceApi.searchBody(packages, { Filters: [match("PackageName", ID, "CaseInsensitive")] }).Data.length, 0, "Filters 是且，点名字就必须名字命中");
+  assert.strictEqual(sourceApi.searchBody(packages, { Query: { KeyWord: "mastergo", MatchType: "Substring" } }).Data.length, 1, "关键词搜");
+  assert.strictEqual(sourceApi.searchBody(packages, { Query: { KeyWord: "别的包", MatchType: "Substring" } }).Data.length, 0, "搜不到就是空列表");
+  assert.strictEqual(sourceApi.searchBody(packages, { FetchAllManifests: true, MaximumResults: 1 }).Data.length, 1, "Query 与 Inclusions 都为空＝整个库都是候选");
+  assert.strictEqual(sourceApi.searchBody(packages, { Query: { KeyWord: "mastergo", MatchType: "Substring" }, MaximumResults: 0 }).Data.length, 1, "不限制条数");
   assert.deepStrictEqual(
-    winget.searchBody(packages, { Inclusions: [match("ProductCode", ID, "Exact")] }).UnsupportedPackageMatchFields,
+    sourceApi.searchBody(packages, { Inclusions: [match("ProductCode", ID, "Exact")] }).UnsupportedPackageMatchFields,
     ["ProductCode"],
     "没有的字段照实报出去，不猜"
   );
@@ -189,7 +191,7 @@ async function main() {
   assert.strictEqual(version.Installers[0].InstallerSha256, sha, "哈希现算，与包一致");
   assert.strictEqual(
     version.Installers[0].NestedInstallerFiles[0].RelativeFilePath,
-    FOLDER + "/mastergo-transcoder.exe",
+    FOLDER + "/" + winget.ENTRY_EXE,
     "入口指向包里的启动器"
   );
   assert.ok(fs.existsSync(path.join(out, "files", ZIP)), "zip 随数据目录一起落盘");

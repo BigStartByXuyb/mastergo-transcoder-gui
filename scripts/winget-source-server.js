@@ -27,6 +27,7 @@ const path = require("path");
 
 const { argValue } = require("./lib/args.js");
 const winget = require("./lib/winget-manifest.js");
+const sourceApi = require("./lib/winget-source-api.js");
 
 // winget source list 里显示的名字。
 const DEFAULT_IDENTIFIER = "BigStart";
@@ -36,8 +37,15 @@ const FILES_PREFIX = "/" + winget.SOURCE_FILES_DIR + "/";
 
 // 数据文件每次请求现读：换一版就是把文件换掉，不用重启服务。
 function readPackages(root) {
-  const raw = JSON.parse(fs.readFileSync(path.join(root, winget.SOURCE_FILE), "utf8"));
-  return Array.isArray(raw.Packages) ? raw.Packages : [];
+  const file = path.join(root, winget.SOURCE_FILE);
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, "utf8"));
+    return Array.isArray(raw.Packages) ? raw.Packages : [];
+  }
+  catch (error) {
+    // 报出是哪个文件读不了：这条消息既进 server.log（启动时）也进 500 的响应体（运行中）。
+    throw new Error("读不了数据文件 " + file + "：" + error.message);
+  }
 }
 
 function sendJson(response, status, body, writesBody) {
@@ -108,12 +116,12 @@ function createHandler(options) {
         return sendJson(response, 200, { Ok: true, Packages: readPackages(options.root).length }, writesBody);
       }
       if (method === "GET" && route === "/api/information") {
-        return sendJson(response, 200, winget.informationBody(options.identifier), writesBody);
+        return sendJson(response, 200, sourceApi.informationBody(options.identifier), writesBody);
       }
       if (method === "GET" && route.startsWith(MANIFESTS_PREFIX)) {
         const identifier = route.slice(MANIFESTS_PREFIX.length);
         const version = query.get("Version");
-        const body = winget.manifestBody(readPackages(options.root), identifier, version);
+        const body = sourceApi.manifestBody(readPackages(options.root), identifier, version);
         if (!body) return sendError(response, 404, "没有这个包：" + identifier + (version ? " @" + version : ""), writesBody);
         return sendJson(response, 200, body, writesBody);
       }
@@ -128,7 +136,7 @@ function createHandler(options) {
         return readBody(request)
           .then((body) => {
             try {
-              return sendJson(response, 200, winget.searchBody(readPackages(options.root), body));
+              return sendJson(response, 200, sourceApi.searchBody(readPackages(options.root), body));
             }
             catch (error) {
               return sendError(response, 500, error.message);
@@ -157,6 +165,9 @@ function main() {
   if (Boolean(cert) !== Boolean(key)) throw new Error("--cert 与 --key 要一起给");
 
   const handle = createHandler({ root: root, identifier: identifier });
+  // 先读一次：数据文件读不到或不是 JSON，就在启动这一步按 main 的口径报错退出，
+  // 而不是打印完「已就绪」再在 listen 回调里抛一个没人接的异常（那是运行中读盘失败才该有的 500）。
+  const packages = readPackages(root);
   const server = cert
     ? https.createServer({ cert: fs.readFileSync(cert), key: fs.readFileSync(key) }, handle)
     : http.createServer(handle);
@@ -165,7 +176,7 @@ function main() {
   server.listen(port, "0.0.0.0", function () {
     const at = server.address().port;
     process.stdout.write("内网 winget 源已就绪\n");
-    process.stdout.write("  数据：" + root + "（" + readPackages(root).length + " 个包）\n");
+    process.stdout.write("  数据：" + root + "（" + packages.length + " 个包）\n");
     process.stdout.write("  端口：" + at + "（" + scheme.toUpperCase() + "）\n");
     process.stdout.write("  客户机：winget source add -n " + identifier + " -a " + scheme + "://<这台机器的地址>:" + at + "/api -t Microsoft.Rest\n");
   });
