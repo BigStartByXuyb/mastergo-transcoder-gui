@@ -383,19 +383,17 @@ async function main() {
   const shadowHome = makeHome();
   const oursDir = path.join(shadowHome, "runtime", "node", TOOLS.node.version);
   fs.mkdirSync(oursDir, { recursive: true });
-  fs.writeFileSync(path.join(oursDir, "node.exe"), "");
+  for (const name of ["node", "node.exe"]) fs.writeFileSync(path.join(oursDir, name), "");
   const sysDir = makeHome();
-  fs.writeFileSync(path.join(sysDir, "node.exe"), "");
+  for (const name of ["node", "node.exe"]) fs.writeFileSync(path.join(sysDir, name), "");
   const shadowed = createRuntime({
     home: shadowHome,
     spawnSyncImpl: fakeSpawn([{ match: "node", result: { status: 0, stdout: "v24.14.0", stderr: "" } }]),
     env: { PATH: [oursDir, sysDir].join(path.delimiter) }
   });
-  assert.strictEqual(
-    shadowed.status().tools[0].system.path,
-    path.join(sysDir, "node.exe"),
-    "跳过我们自己那份，继续往后找系统的"
-  );
+  const shadowFound = shadowed.status().tools[0].system;
+  assert.strictEqual(path.dirname(shadowFound.path), sysDir, "跳过我们自己那份，继续往后找系统的");
+  assert.match(path.basename(shadowFound.path), /^node(\.exe)?$/i, "找到的是 PATH 上那一个 node");
 
   /*
    * PATH 上没有（`where` 找不到）但官方安装位置里有：也要认出来。
