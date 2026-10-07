@@ -7,7 +7,7 @@ import { IdentifierText } from "@/app/identifier-text"
 import { SourceAlsoFrom, SourceCopyCount, SourceStatusBadge, SourceVersion } from "@/app/plugin-source-facts"
 import { describePluginInstall } from "@/lib/plugin-install"
 import {
-  INSTALL_SLOT_ID,
+  isInstallRow,
   canChooseThis,
   chooseKeyOf,
   type PluginSourceRow
@@ -49,7 +49,7 @@ export function PluginSourceTable(props: {
               key={row.id}
               row={row}
               installState={
-                row.members.includes(INSTALL_SLOT_ID) && props.update ? describePluginInstall(props.update).label : ""
+                isInstallRow(row) && props.update ? describePluginInstall(props.update).label : ""
               }
               busy={props.busy}
               frozen={props.frozen}
@@ -112,7 +112,7 @@ function PluginSourceLine(props: {
             </Button>
           )}
           <Button size="sm" variant="outline" onClick={props.onOpen}>
-            {row.members.includes(INSTALL_SLOT_ID) ? "管理…" : "详情…"}
+            {isInstallRow(row) ? "管理…" : "详情…"}
           </Button>
         </div>
       </TableCell>

@@ -180,3 +180,13 @@ export function canSwitch(status: UpdateStatus | null, version = ""): boolean {
 export function busyNow(parts: { busy: string; transferring?: boolean }[]): boolean {
   return parts.some((part) => Boolean(part.busy) || Boolean(part.transferring))
 }
+
+/*
+ * 程序更新这一半的忙碌位 key（与插件页那张 PLUGIN_BUSY 同一约定：写与读都从这里取，
+ * 改名不会被漏）。「下某一版」「切到某一版」的 key 带版本号，所以做成两个函数。
+ */
+export const UPDATE_BUSY = {
+  check: "check",
+  stage: (version: string) => "stage:" + version,
+  switch: (version: string) => "switch:" + version
+} as const

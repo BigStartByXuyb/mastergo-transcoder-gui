@@ -26,6 +26,7 @@ import { sourceCheckOutcomeOf } from "@/lib/source-check"
 import {
   blockedNote,
   busyNow,
+  UPDATE_BUSY,
   canSwitch,
   describeTask,
   describeUpdate,
@@ -98,7 +99,7 @@ export function UpdateCard() {
    */
   const runCheck = useCallback(
     async function () {
-      const payload = await act("check", () => api.updateCheck())
+      const payload = await act(UPDATE_BUSY.check, () => api.updateCheck())
       return sourceCheckOutcomeOf(payload, failureMemory.last(), describeUpdate, (next) => next.state === "error")
     },
     [act, failureMemory]
@@ -113,7 +114,7 @@ export function UpdateCard() {
    */
   async function stage(version: string) {
     await act(
-      "stage:" + version,
+      UPDATE_BUSY.stage(version),
       // 与顶栏红点共用同一处「发起下载」。
       () => startUpdateDownload(version),
       (payload) =>
@@ -134,7 +135,7 @@ export function UpdateCard() {
   async function switchTo(version: string) {
     setFailure("")
     if (!supervised) {
-      await act("switch:" + version, () => api.updateApply(version), "已切到 v" + version + "，下次启动生效")
+      await act(UPDATE_BUSY.switch(version), () => api.updateApply(version), "已切到 v" + version + "，下次启动生效")
       return
     }
     setSwitching(version)
@@ -218,10 +219,10 @@ export function UpdateCard() {
           <Button
             variant="outline"
             disabled={!canCheck}
-            aria-busy={working === "check"}
+            aria-busy={working === UPDATE_BUSY.check}
             onClick={() => void runCheck()}
           >
-            {working === "check" ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+            {working === UPDATE_BUSY.check ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
             检查更新
           </Button>
           {/* 下载只有一个入口：版本表里那一行的「下载」——有新版时就是最上面那一行。 */}

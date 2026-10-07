@@ -19,6 +19,7 @@ import { describeFailure } from "@/lib/describe-failure"
 import { describePluginInstall } from "@/lib/plugin-install"
 import {
   INSTALL_SLOT_ID,
+  isInstallRow,
   PLUGIN_BUSY,
   canChooseThis,
   chooseKeyOf,
@@ -73,13 +74,14 @@ export function PluginSourceDialog(props: {
   const row = props.row
   /* 这一行里有没有「客户端自带」那一档：有就带更新块（检查更新 / 下载并安装 / 进度）。
      自带的副本正好被指针指着时（两者合成一行），管理的入口也在这一行上。 */
-  const install = row.members.includes(INSTALL_SLOT_ID)
+  const install = isInstallRow(row)
   const ownInstall = row.kind === INSTALL_SLOT_ID
 
   const summary = describePluginInstall(props.update)
   const transferring = props.transferring
   const taskFailure = props.update ? taskFailureNote(props.update.task) : ""
-  const canInstall = install && summary.canInstall && !props.frozen
+  // 这一块本来就在「这一行里有自带那一档」时才渲染，所以不用再与一次 install。
+  const canInstall = summary.canInstall && !props.frozen
 
   async function openFolder() {
     setFailure("")

@@ -105,8 +105,8 @@ export function usePluginUpdate(onInstalled: () => void) {
    * 「检查更新」能不能点：这一条线自己有没有动作在跑、正在传、后端有没有别的任务在跑。
    * 卡片上那颗与「管理…」面板里那颗是同一个动作，所以读同一个判据，不各写一份禁用条件。
    */
-  const busy = busyNow([{ busy: working, transferring }, { busy: update ? update.busy : "" }])
-  const canCheck = Boolean(update) && !busy
+  const workingNow = busyNow([{ busy: working, transferring }, { busy: update ? update.busy : "" }])
+  const canCheck = Boolean(update) && !workingNow
 
   return {
     update: update,

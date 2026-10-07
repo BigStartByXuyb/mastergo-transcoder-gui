@@ -150,3 +150,8 @@ export const PLUGIN_BUSY = {
 export function chooseKeyOf(row: Pick<PluginSource, "id">): string {
   return row.id
 }
+
+/** 这一行里有没有「客户端自带」那一档（它的管理入口与更新状态都挂在这一行上）。 */
+export function isInstallRow(row: Pick<PluginSourceRow, "members">): boolean {
+  return row.members.includes(INSTALL_SLOT_ID)
+}

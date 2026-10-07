@@ -112,6 +112,10 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   `finishDownload`），不再一条记、一条不记。
 - 第二十二轮复核两条：改发布源弹窗里「保存」与「清除 token」各用各的忙碌位（不再共用一个 key，
   点清除不会让「保存」那颗也转圈）；表里那行的「用这份」与面板里那颗一样带上 `aria-busy`。
+- 第二十三轮复核四条：`use-plugin-update` 里那个「这一刻忙不忙」的局部变量改名 `workingNow`
+  （与返回出去的忙碌位不再同名双义）；程序更新那一半的忙碌位 key 收进 `lib/update-state` 的 `UPDATE_BUSY`
+  （check / stage / switch，与插件页那张 `PLUGIN_BUSY` 同一约定）；「这一行里有没有自带那一档」收成
+  `isInstallRow()` 一处；面板里 `canInstall` 去掉那个本来就成立的前置判断。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。

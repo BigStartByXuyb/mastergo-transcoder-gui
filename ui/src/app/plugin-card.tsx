@@ -15,7 +15,7 @@ import { usePluginUpdate } from "@/app/use-plugin-update"
 import { busyNow } from "@/lib/update-state"
 import {
   CHOSEN_SLOT_ID,
-  INSTALL_SLOT_ID,
+  isInstallRow,
   PLUGIN_BUSY,
   chooseKeyOf,
   choosePathOf,
@@ -147,7 +147,7 @@ export function PluginCard() {
         {selected && (
           <PluginSourceDialog
             row={selected}
-            update={selected.members.includes(INSTALL_SLOT_ID) ? update.update : null}
+            update={isInstallRow(selected) ? update.update : null}
             busy={sources.busy}
             updateBusy={update.busy}
             frozen={frozen}
