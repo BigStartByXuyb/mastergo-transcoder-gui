@@ -292,6 +292,8 @@ async function main() {
     home: cmdHome,
     settings: fakeSettings(),
     env: { LOCALAPPDATA: path.join(cmdHome, "nope"), PATH: cmdDir },
+    // 夹具是 codex.cmd、「走 cmd /c 探测」也是 Windows 的事：钉成 win32，别跟着宿主平台变。
+    platform: "win32",
     fetchImpl: remote.fetchImpl,
     spawnSyncImpl: function (cmd, args) {
       if (Array.isArray(args) && args[0] === "/c") sawCmd = true;
