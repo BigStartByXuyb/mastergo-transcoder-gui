@@ -41,17 +41,18 @@ function readRoute(): Route {
 }
 
 function StatusBadges(props: { onOpenUpdatePage: () => void }) {
-  const { health, offline } = useHealth()
+  const { health, offline, gone } = useHealth()
 
   /*
    * 连不上时这块要自己把「为什么、怎么办」说完：顶栏标注那半（UpdateBadge）在后端没了时不再渲染，
    * 它手里那句失败提示会跟着没 —— 用户只剩一个「服务未就绪」，又回到说不清的状态。
+   * 「服务没在跑」只对确认断连（gone）说；答了话却没答对时只是读不到状态，别把还活着的说成死了。
    */
   if (offline) {
     return (
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="destructive">服务未就绪</Badge>
-        <span className="text-destructive text-xs">{SERVICE_GONE_NOTE}</span>
+        {gone && <span className="text-destructive text-xs">{SERVICE_GONE_NOTE}</span>}
       </div>
     )
   }

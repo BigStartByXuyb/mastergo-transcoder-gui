@@ -25,6 +25,18 @@ describe("useHealth", () => {
     const { result } = renderHook(() => useHealth(60_000))
     await waitFor(() => expect(result.current.offline).toBe(true))
     expect(result.current.health).toBeNull()
+    // 断在半路＝确认断连：只有这一种才敢说「服务没在跑」。
+    expect(result.current.gone).toBe(true)
+  })
+
+  it("答了话却没答对（500）＝不能按「服务没在跑」说", async () => {
+    vi.stubGlobal(
+      "fetch",
+      () => Promise.resolve(new Response(JSON.stringify({ code: "INTERNAL", message: "炸了", hint: "" }), { status: 500 }))
+    )
+    const { result } = renderHook(() => useHealth(60_000))
+    await waitFor(() => expect(result.current.offline).toBe(true))
+    expect(result.current.gone).toBe(false)
   })
 
   it("后端版本变了就刷新页面让前端跟上", async () => {

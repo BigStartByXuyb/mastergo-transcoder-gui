@@ -49,6 +49,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   不说技术原文（连不上本地服务 / Failed to fetch 都不指向下一步），只说去哪儿看、怎么恢复。
   `ui/src/App.tsx` 的顶栏在 offline 时自己也渲染它：原来 offline 只留一个「服务未就绪」，会把整块
   `UpdateBadge`（连同它手里的失败提示）卸载，那句提示最多活 5 秒 —— 又变成说不清。
+  另外「服务没在跑」只对**确认断连**说：`use-health` 的失败也按 `serviceUpOn` 分成 `gone`（请求断在半路）
+  与其它（答了话却没答对，例如 `/api/health` 回 500）—— 只有前者用那一句，后者仍是中性的「服务未就绪」／
+  「读不到服务状态。」，不把还活着的说成死了。
 - `ui/src/lib/update-switch.ts` + `ui/src/app/update-badge.tsx`：两条「后端已经没了」的路（写指针断在半路、
   切过去没起来）**说同一句**；红点只在 `serviceUp` 时才把人带去更新页，被拒时保留后端自己的原话。
 - 口径统一到「客户端那个窗口」＝`start.cmd` 或 `mastergo-transcoder.exe`（README 的「跑起来」、
@@ -76,8 +79,8 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | `npm test`（后端） | 48 通过 |
 | `npm run test:coverage`（后端） | all files 94.70 / 82.73 / 96.01（门禁 90/75/90） |
 | `cd ui; npx tsc -b` | 通过 |
-| `cd ui; npx vitest run` | 59 文件 348 用例通过（本次 +6：serviceUpOn、「等不到」的两种、写指针两种失败与文案、红点那两处消费判据） |
-| `cd ui; npm run test:coverage` | all files 95.94 / 91.64 / 94.82 / 95.94 |
+| `cd ui; npx vitest run` | 59 文件 349 用例通过（本次 +7：serviceUpOn、「等不到」的两种、写指针两种失败与文案、`use-health` 的两种失败、红点那两处消费判据） |
+| `cd ui; npm run test:coverage` | all files 95.94 / 91.76 / 94.82 / 95.94 |
 | `cd ui; npm run lint` | 通过（只有既有 warning） |
 | `npm run build:ui` | 通过，`public/` 已重建并入库 |
 
