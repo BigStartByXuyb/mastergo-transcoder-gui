@@ -1,7 +1,6 @@
-import { Loader2 } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { BusyActionButton } from "@/app/busy-action-button"
 import { CheckUpdateButton } from "@/app/update-source-actions"
 import { PluginInstallBadge } from "@/app/plugin-source-facts"
 import { UpdateSourceRow } from "@/app/update-source-row"
@@ -87,10 +86,13 @@ export function PluginInstallActions(props: {
         disabled={!props.canCheck}
         onClick={props.onCheck}
       />
-      <Button size="sm" disabled={!summary.canInstall || props.frozen} aria-busy={installing} onClick={props.onInstall}>
-        {installing && <Loader2 className="size-4 animate-spin" />}
-        {summary.action}
-      </Button>
+      <BusyActionButton
+        label={summary.action}
+        variant="default"
+        busy={installing}
+        disabled={!summary.canInstall || props.frozen}
+        onClick={props.onInstall}
+      />
     </>
   )
 }

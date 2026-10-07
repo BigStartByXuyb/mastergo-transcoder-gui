@@ -28,8 +28,16 @@ export type PluginSourceRow = PluginSource & {
  */
 export const INSTALL_SLOT_ID: PluginSource["id"] = "install"
 
-/** 「我指定的那一份」那一档的 id（后端给的就是它）：顶栏那块按它取这一档的处境。 */
-export const CHOSEN_SLOT_ID: PluginSource["id"] = "chosen"
+/** 「我指定的那一份」那一档的 id（后端给的就是它）：只在本模块里用，认它请走 ownsChosenSlot。 */
+const CHOSEN_SLOT_ID: PluginSource["id"] = "chosen"
+
+/**
+ * 这一行是不是承载「我指定的那一份」那一档（那一档的指针动作与没设时那句话挂在它这一行上）。
+ * 没设时这一档也有自己一行（路径空、标「没有」）：行组件不自己判 id，读这一处。
+ */
+export function ownsChosenSlot(row: Pick<PluginSourceRow, "members">): boolean {
+  return row.members.includes(CHOSEN_SLOT_ID)
+}
 
 export type PluginSourceSlot = PluginSource & {
   order: number
@@ -97,9 +105,12 @@ export function slotState(slot: PluginSourceSlot): PluginSlotState {
  * 换了记哪个目录。记的是这一档**所在的目录**（不是此刻解析到的那一个版本目录）——
  * 定位认「指到插件根、或指到装着它的目录」两种，记目录才会在装了新版本后跟着取最高版本；
  * 记死版本目录的话，客户端自带那份装完新版反而不生效。
+ *
+ * 承载「我指定的那一份」的那一行不给「用这份」：那一行的指针本来就是这一份（再记一次是空操作，
+ * 还会弹一句「已换用这一份」），要换只能换目录 —— 那一行给的是「换个目录…／交给客户端找」。
  */
-export function canChooseThis(row: Pick<PluginSource, "exists" | "active">): boolean {
-  return Boolean(row.exists && !row.active)
+export function canChooseThis(row: Pick<PluginSourceRow, "exists" | "active" | "members">): boolean {
+  return Boolean(row.exists && !row.active && !ownsChosenSlot(row))
 }
 
 export function choosePathOf(row: Pick<PluginSource, "path" | "pluginRoot">): string {

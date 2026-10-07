@@ -295,15 +295,87 @@ describe("PluginCard", () => {
     expect(chosen[0]).toMatchObject({ path: CLAUDE_CACHE })
   })
 
-  it("指定的那一份与「交给客户端找」都在上面那一条里", async () => {
+  it("「我指定的那一份」的两个动作就在表里那一行上：已指定＝换个目录… + 交给客户端找", async () => {
     const chosen: unknown[] = []
-    stub({ ...view(), chosen: MINE_ROOT }, { onChoose: (body) => chosen.push(body) })
+    const base = view()
+    stub(
+      {
+        ...base,
+        chosen: MINE_ROOT,
+        sources: [
+          source("chosen", {
+            label: "我指定的那一份",
+            kind: "chosen",
+            path: MINE_ROOT,
+            exists: true,
+            pluginRoot: MINE_ROOT,
+            version: "2.0.0",
+            found: [MINE_ROOT]
+          }),
+          ...base.sources
+        ]
+      },
+      { onChoose: (body) => chosen.push(body) }
+    )
     render(<PluginCard />)
-    await waitFor(() => expect(screen.getByText(MINE_ROOT)).toBeTruthy())
+    await waitFor(() => expect(within(screen.getByRole("table")).getByText("我指定的那一份")).toBeTruthy())
 
-    fireEvent.click(screen.getByRole("button", { name: "交给客户端找" }))
+    // 页面顶层不再另占一块：两个动作就在承载这一档的那一行上。
+    const row = within(screen.getByRole("table")).getByText("我指定的那一份").closest("tr") as HTMLElement
+    expect(within(row).getByRole("button", { name: "换个目录…" })).toBeTruthy()
+    fireEvent.click(within(row).getByRole("button", { name: "交给客户端找" }))
     await waitFor(() => expect(chosen.length).toBe(1))
     expect(chosen[0]).toMatchObject({ path: "" })
+  })
+
+  it("没指定时那一行给的是「指定一个目录…」，并说清按顺序往下找", async () => {
+    const base = view()
+    stub({
+      ...base,
+      chosen: "",
+      sources: [
+        // 后端的八档里，没设的那几档也列出来（路径为空、标「没有」）。
+        source("chosen", { label: "我指定的那一份", kind: "chosen", path: "", exists: false }),
+        ...base.sources
+      ]
+    })
+    render(<PluginCard />)
+    await waitFor(() => expect(within(screen.getByRole("table")).getByText("我指定的那一份")).toBeTruthy())
+
+    const row = within(screen.getByRole("table")).getByText("我指定的那一份").closest("tr") as HTMLElement
+    expect(within(row).getByRole("button", { name: "指定一个目录…" })).toBeTruthy()
+    // 没指定时「交给客户端找」没有对象可清。
+    expect((within(row).getByRole("button", { name: "交给客户端找" }) as HTMLButtonElement).disabled).toBe(true)
+    expect(within(row).getByText(/没指定：按这个顺序往下找/)).toBeTruthy()
+  })
+
+  it("指定的那一份没在生效时：只留换目录 / 交给客户端找，不再给那颗空操作的「用这份」", async () => {
+    const base = view({ activeId: "codex-cache" })
+    stub({
+      ...base,
+      chosen: CLAUDE_ROOT,
+      sources: [
+        // 顺序上这一档在前（与生产一致：--plugin → 我指定的 → …），它指到 Claude 缓存那一份。
+        source("chosen", {
+          label: "我指定的那一份",
+          kind: "chosen",
+          path: CLAUDE_ROOT,
+          exists: true,
+          pluginRoot: CLAUDE_ROOT,
+          version: "1.0.245",
+          found: [CLAUDE_ROOT]
+        }),
+        ...base.sources
+      ]
+    })
+    render(<PluginCard />)
+    await waitFor(() => expect(within(screen.getByRole("table")).getByText("我指定的那一份")).toBeTruthy())
+
+    const row = within(screen.getByRole("table")).getByText("我指定的那一份").closest("tr") as HTMLElement
+    // 生效的是 Codex 缓存（第 4 档），而「用这份」记的就是这一行自己：那颗是空操作，不给。
+    expect(within(row).queryByRole("button", { name: "用这份" })).toBeNull()
+    expect(within(row).getByRole("button", { name: "换个目录…" })).toBeTruthy()
+    expect(within(row).getByRole("button", { name: "交给客户端找" })).toBeTruthy()
   })
 
   it("一处都没找到时把后端列出来的已查找路径原样显示", async () => {
