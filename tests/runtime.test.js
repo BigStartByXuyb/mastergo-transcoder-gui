@@ -318,7 +318,7 @@ async function main() {
   assert.strictEqual(explicitPath[0], path.dirname(givenNode), "显式给的那份排最前");
   assert.strictEqual(explicitPath[1], path.dirname(givenPwsh), "第二份紧随其后");
 
-  // 裸命令名（允许用系统那份时就是这个形状）：绝不能用 dirname 得到 "." 塞进 PATH。
+  // 裸命令名（环境变量 MASTERGO_PWSH 可以这么写）：绝不能用 dirname 得到 "." 塞进 PATH。
   const barePathEnv = childEnv(null, makeHome(), { node: "node", pwsh: "pwsh" });
   assert.strictEqual(pathOf(barePathEnv), process.env.PATH, "裸命令名不往 PATH 里加任何东西");
   assert.ok(childPath.length > 1, "系统 PATH 原样接在自带的两份后面");
