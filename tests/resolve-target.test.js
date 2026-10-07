@@ -72,7 +72,8 @@ function caseDescribeCaptureFailure() {
   assert.strictEqual(other.code, "CAPTURE_FAILED");
   assert.strictEqual(other.hint, "boom");
   assert.strictEqual(describeCaptureFailure(null, "1:1").code, "CAPTURE_FAILED");
-  assert.ok(describeCaptureFailure("x".repeat(2000), "1:1").hint.length <= 800, "提示要做长度截断");
+  // 长度不在这里管：调用方读子进程输出时已经掐过（lib/resolve.js 一处），这里原样带出去。
+  assert.strictEqual(describeCaptureFailure("x".repeat(2000), "1:1").hint.length, 2000);
 }
 
 function caseDiscoverFrames() {
