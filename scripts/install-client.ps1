@@ -70,6 +70,7 @@ else {
     }
     if (-not $Version) { Fail "没拿到版本号" }
 
+    # 名字与 scripts/lib/bundle-name.js 同一口径（那边是 JS，引不到这里）
     $zipName = "mastergo-transcoder-gui-$Version.zip"
     $zipUrl = "$Base/releases/download/v$Version/$zipName"
 

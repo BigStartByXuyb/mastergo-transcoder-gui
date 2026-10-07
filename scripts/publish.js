@@ -26,16 +26,10 @@ const path = require("path");
 const { buildManifest } = require("../lib/app-manifest.js");
 const { notesOf, notesText } = require("../lib/changelog.js");
 const { MANIFEST_NAME } = require("../lib/source.js");
+const { argValue } = require("./lib/args.js");
 const { stageAssets, uploadRelease } = require("./lib/release-assets.js");
 
 const ROOT = path.join(__dirname, "..");
-
-function argValue(name, fallback) {
-  const index = process.argv.indexOf("--" + name);
-  if (index < 0) return fallback;
-  const value = process.argv[index + 1];
-  return value === undefined || value.startsWith("--") ? fallback : value;
-}
 
 function main() {
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
