@@ -54,7 +54,17 @@ export type RestartWaitOptions = {
   restart?: () => Promise<unknown>
 }
 
-export type RestartWaitOutcome = { ok: true; note: "" } | { ok: false; note: string; serviceUp: boolean }
+// 两半都带 serviceUp：起来的那一份在答话，后端当然还在。
+export type RestartWaitOutcome = { ok: true; note: ""; serviceUp: true } | { ok: false; note: string; serviceUp: boolean }
+
+/*
+ * 「这个异常说明后端还在吗」只有这一处：请求断在半路（api 层一律折成 OFFLINE）＝已经不在；
+ * 后端答了话（哪怕是拒绝，像有任务在跑、本地那份和清单对不上）＝还在。
+ * 谁要据此决定「还要不要把人带到某一页」，都读这一条。
+ */
+export function serviceUpOn(error: unknown): boolean {
+  return !(error instanceof ApiFailure && error.code === "OFFLINE")
+}
 
 export async function restartAndWait(options: RestartWaitOptions): Promise<RestartWaitOutcome> {
   const restart = options.restart ?? function () { return api.clientRestart() }
@@ -64,13 +74,13 @@ export async function restartAndWait(options: RestartWaitOptions): Promise<Resta
   catch (error) {
     /*
      * 只有「这一份被它自己关掉」才算预期：请求断在半路。
-     * 被拒（有任务在跑、没有监督进程、监督进程已经不在）要如实说，不能吞掉再等 40 秒
+     * 被拒（有任务在跑、没有监督进程）要如实说，不能吞掉再等 40 秒
      * —— 能走到这里说明后端答了话，它还在，更新页还开得出来。
      */
-    if (!(error instanceof ApiFailure) || error.code !== "OFFLINE") {
+    if (serviceUpOn(error)) {
       return { ok: false, note: describeFailure(error), serviceUp: true }
     }
   }
   const up = await waitFor(Object.assign({ probe: options.probe }, options.wait || {}))
-  return up ? { ok: true, note: "" } : { ok: false, note: options.failedNote, serviceUp: false }
+  return up ? { ok: true, note: "", serviceUp: true } : { ok: false, note: options.failedNote, serviceUp: false }
 }

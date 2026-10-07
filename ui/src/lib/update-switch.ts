@@ -1,6 +1,6 @@
 import { api } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
-import { restartAndWait, type RestartWaitOutcome } from "@/lib/restart-watch"
+import { restartAndWait, serviceUpOn, type RestartWaitOutcome } from "@/lib/restart-watch"
 
 /*
  * 换版本并等新的一份起来：写指针 → 让这一份退出 → 等监督进程按指针重拉 → 探测到目标版本算成功。
@@ -22,8 +22,11 @@ export async function runSwitch(version: string): Promise<RestartWaitOutcome> {
   try {
     await api.updateApply(version)
   } catch (error) {
-    // 写指针就被拒（有任务在跑、本地那份和清单对不上）：后端还在，原因它自己说得清。
-    return { ok: false, note: describeFailure(error), serviceUp: true }
+    /*
+     * 写指针这一步也有两种失败：被后端拒了（有任务在跑、本地那份和清单对不上）＝它还在，
+     * 原因它自己说得清；请求断在半路＝它已经没了，别再说还在（「后端还在吗」只有 serviceUpOn 一处判）。
+     */
+    return { ok: false, note: describeFailure(error), serviceUp: serviceUpOn(error) }
   }
   return restartAndWait({
     probe: async function () {

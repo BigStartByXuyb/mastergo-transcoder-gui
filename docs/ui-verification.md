@@ -31,16 +31,18 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   8787 立刻拒连 —— 这正是「服务退了」的样子。客户端不是后台服务，它就是那个窗口。
 - 界面上原先有一处自相矛盾：切完没起来时提示「打开设置 → 更新看原因」，可那时候后端已经没了、这一页根本载不出来；
   顶栏那个红点还会**主动把人带过去**。
+- 「监督进程没了、后端还在」这个中间状态在本机发布形态下**造不出来**：用 WMI 起监督进程（完全脱离我这条命令的
+  进程树），再只杀它，`server.js` 照样跟着没（8788 当场拒连）。所以 `/api/client/restart` 不再加第二道
+  「起这一份的窗口还在不在」的护栏 —— 加了就是一道永远为真的门禁；这一步能做的只有把话说在客户端窗口与提示文案里。
 
 ### 改了什么
 
-- `lib/routes.js`：`/api/client/restart` 加一道护栏 —— 起这一份的窗口已经不在了时如实拒绝
-  （`SUPERVISOR_GONE`）、**不让进程退出**；判据是 `lib/launch.js` 的 `supervisorAlive()`
-  （`process.kill(ppid, 0)` 探活，只有这一处）。
-- `ui/src/lib/restart-watch.ts`：结论里多一个 `serviceUp` —— 「被拒（后端还在）」与「等不到（后端已经没了）」
-  是两件事，界面要分开对待。
+- `ui/src/lib/restart-watch.ts`：`serviceUpOn(error)` 判「这个异常说明后端还在吗」（只有这一处：请求断在半路＝
+  已经不在，后端答了话（哪怕是拒绝）＝还在）；结论里多一个 `serviceUp` —— 「被拒（后端还在）」与
+  「等不到（后端已经没了）」是两件事，界面要分开对待。
 - `ui/src/lib/update-switch.ts` + `ui/src/app/update-badge.tsx`：失败那句话统一指向**客户端那个窗口**
-  （原因写在它里面）；红点只在 `serviceUp` 时才把人带去更新页。
+  （原因写在它里面）；红点只在 `serviceUp` 时才把人带去更新页。写指针那一步的失败也走同一条 `serviceUpOn`
+  —— 两处各判一份、规则还不一样的话，断在半路会被当成「后端还在」，又把人带到一页载不出来的更新页。
 - 口径统一到「客户端那个窗口」＝`start.cmd` 或 `mastergo-transcoder.exe`（README 的「跑起来」、
   `docs/install.md` 的「服务未就绪」那一行、`lib/routes.js` 与界面注释）。
 
@@ -55,8 +57,6 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 
 ### 没点的
 
-- 「监督进程没了、后端还在」这个状态在本机真机上造不出来（杀 `launch.js` 时 `server.js` 跟着没，见上），
-  所以 `SUPERVISOR_GONE` 那道护栏与它的文案只按用例收口（`tests/launch.test.js` 的 `supervisorAlive` 三条）。
 - 顶栏红点那条入口的「后端已经没了 → 不跳更新页」只在用例里验（`ui/src/app/update-badge.test.tsx`），
   真机上没造出那个状态。
 
@@ -65,10 +65,10 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | 门禁 | 结果 |
 | --- | --- |
 | `npm test`（后端） | 48 通过 |
-| `npm run test:coverage`（后端） | all files 94.71 / 82.67 / 96.01（门禁 90/75/90） |
+| `npm run test:coverage`（后端） | all files 94.70 / 82.73 / 96.01（门禁 90/75/90） |
 | `cd ui; npx tsc -b` | 通过 |
-| `cd ui; npx vitest run` | 58 文件 344 用例通过（本次 +2：红点那两处消费判据） |
-| `cd ui; npm run test:coverage` | all files 95.66 / 91.75 / 94.67 / 95.66 |
+| `cd ui; npx vitest run` | 59 文件 347 用例通过（本次 +5：serviceUpOn、写指针两种失败、红点那两处消费判据） |
+| `cd ui; npm run test:coverage` | all files 95.96 / 91.7 / 94.73 / 95.96 |
 | `cd ui; npm run lint` | 通过（只有既有 warning） |
 | `npm run build:ui` | 通过，`public/` 已重建并入库 |
 
