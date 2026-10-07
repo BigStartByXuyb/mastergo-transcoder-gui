@@ -96,7 +96,18 @@ export function UpdateCard() {
    * （与插件那一半同形）。能不能点也只有一处判据：这条线自己有没有动作在跑、正在传、
    * 后端有没有别的任务在跑。
    */
-  const runCheck = useCallback(() => act("check", () => api.updateCheck()), [act])
+  /*
+   * 「检查更新」只有这一个入口：卡片上那颗按钮与「修改发布源」里的「保存并检查」都调它。
+   * 它走这张卡的动作骨架（忙碌位与别处一致），返回弹窗要的那两句话（卡片那颗不看返回值）；
+   * 「怎么说」归 describeUpdate 一处，没拿到结果时用刚才记住的那句原话。
+   */
+  const runCheck = useCallback(
+    async function () {
+      const payload = await act("check", () => api.updateCheck())
+      return sourceCheckOutcomeOf(payload, failureMemory.last(), describeUpdate, (next) => next.state === "error")
+    },
+    [act, failureMemory]
+  )
   // 三路忙位摆给同一处判据（lib/update-state 的 busyNow），与插件那一半同一套。
   const workingNow = busyNow([{ busy: working, transferring }, { busy: status ? status.busy : "" }])
   const canCheck = Boolean(status) && !workingNow
@@ -248,11 +259,7 @@ export function UpdateCard() {
             if (!payload) throw new Error("读不到更新状态")
             return { source: payload.status.source, hasToken: payload.status.hasToken }
           }}
-          check={async () => {
-            // 与卡片上那颗「检查更新」同一个入口（runCheck）；说的那句话同一处口径（describeUpdate）。
-            const payload = await runCheck()
-            return sourceCheckOutcomeOf(payload, failureMemory.last(), describeUpdate, (next) => next.state === "error")
-          }}
+          check={runCheck}
         />
       )}
 

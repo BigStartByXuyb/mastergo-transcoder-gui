@@ -20,6 +20,7 @@ import { usePluginUpdate } from "@/app/use-plugin-update"
 import { describePluginInstall } from "@/lib/plugin-install"
 import { busyNow } from "@/lib/update-state"
 import {
+  INSTALL_SLOT_ID,
   PLUGIN_BUSY,
   canChooseThis,
   chooseKeyOf,
@@ -160,7 +161,7 @@ export function PluginCard() {
                     <PluginSourceLine
                       key={row.id}
                       row={row}
-                      installState={row.members.includes("install") && update.update ? describePluginInstall(update.update).label : ""}
+                      installState={row.members.includes(INSTALL_SLOT_ID) && update.update ? describePluginInstall(update.update).label : ""}
                       busy={sources.busy}
                       frozen={frozen}
                       onOpen={() => setOpened(row.id)}
@@ -187,14 +188,14 @@ export function PluginCard() {
               const latest = await update.refresh()
               return { source: latest.source, hasToken: latest.hasToken }
             }}
-            check={update.checkOutcome}
+            check={update.check}
           />
         )}
 
         {selected && (
           <PluginSourceDialog
             row={selected}
-            update={selected.members.includes("install") ? update.update : null}
+            update={selected.members.includes(INSTALL_SLOT_ID) ? update.update : null}
             busy={sources.busy}
             updateBusy={update.busy}
             frozen={frozen}
@@ -257,7 +258,7 @@ function PluginSourceLine(props: {
             </Button>
           )}
           <Button size="sm" variant="outline" onClick={props.onOpen}>
-            {row.members.includes("install") ? "管理…" : "详情…"}
+            {row.members.includes(INSTALL_SLOT_ID) ? "管理…" : "详情…"}
           </Button>
         </div>
       </TableCell>

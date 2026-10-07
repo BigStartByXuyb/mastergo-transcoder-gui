@@ -79,22 +79,15 @@ export function usePluginUpdate(onInstalled: () => void) {
    * 跑一次检查（act 骨架）：与「程序更新」那张卡同形，顺手清掉轮询留下的提示。
    * 卡片上那颗与「保存并检查」那一下都走这一条 —— 两条路只有「结果怎么说」不同。
    */
-  const runCheck = useCallback(
-    () => act(PLUGIN_BUSY.check, () => api.pluginUpdateCheck()),
-    [act]
-  )
-
-  /** 卡片上那颗「检查更新」。 */
-  const check = runCheck
-
   /*
-   * 「保存并检查」用的那一次：走同一个接口、同一套说法（describePluginInstall），
-   * 只是要把结果说成弹窗要的两句话，所以这里不返回状态而返回那两句话。
+   * 「检查更新」只有这一个入口：卡片上那颗按钮与「管理…」里的「保存并检查」都调它。
+   * 它走这一条线的动作骨架（忙碌位与别处一致），返回弹窗要的那两句话（卡片那颗不看返回值）；
+   * 「怎么说」归 describePluginInstall 一处，没拿到结果时用刚才记住的那句原话。
    */
-  const checkOutcome = useCallback(async function () {
-    const payload = await runCheck()
+  const check = useCallback(async function () {
+    const payload = await act(PLUGIN_BUSY.check, () => api.pluginUpdateCheck())
     return sourceCheckOutcomeOf(payload, failureMemory.last(), describePluginInstall, (next) => next.state === "error")
-  }, [runCheck, failureMemory])
+  }, [act, failureMemory])
 
   // 装最新那一版：与另外三条下载线同形（startDownload 归一结果 → finishDownload 按 kind 落地）。
   const install = useCallback(
@@ -128,7 +121,6 @@ export function usePluginUpdate(onInstalled: () => void) {
     busy: working,
     canCheck: canCheck,
     check: check,
-    checkOutcome: checkOutcome,
     refresh: refresh,
     install: install
   }

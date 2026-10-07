@@ -17,7 +17,14 @@ import { api, type PluginUpdateStatus } from "@/lib/api"
 import { copyText } from "@/lib/copy-text"
 import { describeFailure } from "@/lib/describe-failure"
 import { describePluginInstall } from "@/lib/plugin-install"
-import { PLUGIN_BUSY, canChooseThis, chooseKeyOf, choosePathOf, type PluginSourceRow } from "@/lib/plugin-sources"
+import {
+  INSTALL_SLOT_ID,
+  PLUGIN_BUSY,
+  canChooseThis,
+  chooseKeyOf,
+  choosePathOf,
+  type PluginSourceRow
+} from "@/lib/plugin-sources"
 import { describeTask, taskFailureNote, taskPercent } from "@/lib/update-state"
 
 
@@ -66,8 +73,8 @@ export function PluginSourceDialog(props: {
   const row = props.row
   /* 这一行里有没有「客户端自带」那一档：有就带更新块（检查更新 / 下载并安装 / 进度）。
      自带的副本正好被指针指着时（两者合成一行），管理的入口也在这一行上。 */
-  const install = row.members.includes("install")
-  const ownInstall = row.kind === "install"
+  const install = row.members.includes(INSTALL_SLOT_ID)
+  const ownInstall = row.kind === INSTALL_SLOT_ID
 
   const summary = describePluginInstall(props.update)
   const transferring = props.transferring

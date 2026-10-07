@@ -22,6 +22,12 @@ export type PluginSourceRow = PluginSource & {
   members: string[]
 }
 
+/**
+ * 「客户端自带」那一档的 id（后端 lib/plugin-root.js 给的 id 就是它）。
+ * 这一档在这一页有几处判断（这一行里有没有它、它自己是哪一档），都读这一处，不再各写一个 "install"。
+ */
+export const INSTALL_SLOT_ID: PluginSource["id"] = "install"
+
 export type PluginSourceSlot = PluginSource & {
   order: number
   /** 这一档并进了哪一行（那一行的 id）；它自己就是那一行时是空串。 */
