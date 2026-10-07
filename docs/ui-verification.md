@@ -31,7 +31,7 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   八档序号因此固定，与文档里的顺序对得上；只有「给了 `--plugin` 却解析不到插件」才硬失败。
 - `lib/system-open.js`（新）+ `POST /api/system/open-folder`：面板里的「打开目录」与起完服务打开界面
   共用一处「平台 → 命令」映射（原先 server.js 另有一份）；
-  `ui/src/lib/copy-text.ts`（新）：「复制路径」，与控件查询页共用同一处复制实现。
+  `ui/src/app/copy-text.ts`（新，放 app 层：默认提示要用 toast）：「复制路径」，与控件查询页共用同一处复制实现。
 - `ui/src/app/plugin-source-facts.tsx`（新）：状态徽章 / 版本 / 这一处有几份 / 同时来自 / 「解析到」
   —— 表里那一行与点开后的面板渲染同一份，不各写一遍；`ui/src/app/use-plugin-sources.ts`、
   `use-plugin-update.ts`（新）：来源清单与指针动作、自带那一份的更新与轮询，各自一个 hook，
@@ -102,6 +102,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - 第十八轮复核两条：「检查更新」在两半各只剩一个入口（`runCheck` / `check` 直接返回弹窗要的两句话，
   卡片那颗不看返回值）—— 不再同一动作挂两个名字；「客户端自带」这一档的 id 收成
   `lib/plugin-sources` 的 `INSTALL_SLOT_ID`（那一行有没有它、它自己是哪一档都读这一处）。
+- 第十九轮复核三条：复制工具按仓库分层约定从 `lib` 挪到 `app`（默认提示要用 toast，lib 不认识展示框架）；
+  `check` / `runCheck` 上并排的两段注释合成一段；「我指定的那一份」那一档的 id 也收成
+  `CHOSEN_SLOT_ID`（与 `INSTALL_SLOT_ID` 同一处）。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。
@@ -132,7 +135,7 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 
 - 「打开目录」：会真的弹出资源管理器窗口，留给实际使用时点；这条链路由 `tests/system-open.test.js` 覆盖
   （平台命令、带空格路径、不是目录/不存在时回 `{ok:false, reason}`、网址只认 http(s)）。
-- 「复制路径」：走浏览器剪贴板，`ui/src/lib/copy-text.test.ts` 覆盖（Clipboard API、退路、空值）。
+- 「复制路径」：走浏览器剪贴板，`ui/src/app/copy-text.test.ts` 覆盖（Clipboard API、退路、空值）。
 - 有任务在跑时点「下载并安装」：会跑真流水线，留给下一次实跑（拒绝逻辑由 `tests/plugin-update.test.js` 覆盖）。
 
 收口改完又照上面这份夹具重跑了一遍（`output/playwright/plugin-page-final2.png`）：顺序条八档照旧、

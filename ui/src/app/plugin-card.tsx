@@ -20,6 +20,7 @@ import { usePluginUpdate } from "@/app/use-plugin-update"
 import { describePluginInstall } from "@/lib/plugin-install"
 import { busyNow } from "@/lib/update-state"
 import {
+  CHOSEN_SLOT_ID,
   INSTALL_SLOT_ID,
   PLUGIN_BUSY,
   canChooseThis,
@@ -53,7 +54,7 @@ export function PluginCard() {
    * 「我指定的那一份」那一刻的处境：读后端那条结论（slots 里这一档的 active / exists），与表、顺序条同一份。
    * 不能只看「设置里有没有值」——那份插件可能已经不在那个目录了，这时候生效的是后面某一档。
    */
-  const chosenSlot = lookup.slots.find((slot) => slot.id === "chosen") ?? null
+  const chosenSlot = lookup.slots.find((slot) => slot.id === CHOSEN_SLOT_ID) ?? null
   /*
    * 有任一半在跑、后端有任务、或正在传，就冻住「换一份 / 改发布源」这类动作：判据是 lib/update-state
    * 的 busyNow（与「程序更新」那张卡同一处）。这里只把这一页的三路忙位摆出来 ——

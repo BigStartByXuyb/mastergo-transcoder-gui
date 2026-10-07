@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ApiFailure, api, type ResolveResult, type ResolvedNode } from "@/lib/api"
 import { mappedAncestorOf, type ControlNode } from "@/lib/control-ancestry"
-import { copyText } from "@/lib/copy-text"
+import { copyText } from "@/app/copy-text"
 import { cn } from "@/lib/utils"
 
 const STORAGE_KEY = "mastergo-transcoder-gui.query"

@@ -92,11 +92,6 @@ export function UpdateCard() {
   const act = useActionRunner<UpdateStatus>({ setWorking, setFailure: failureMemory.remember, setStatus })
 
   /*
-   * 「检查更新」只有这一处实现：卡片上那颗按钮与「修改发布源」里的「保存并检查」都调它
-   * （与插件那一半同形）。能不能点也只有一处判据：这条线自己有没有动作在跑、正在传、
-   * 后端有没有别的任务在跑。
-   */
-  /*
    * 「检查更新」只有这一个入口：卡片上那颗按钮与「修改发布源」里的「保存并检查」都调它。
    * 它走这张卡的动作骨架（忙碌位与别处一致），返回弹窗要的那两句话（卡片那颗不看返回值）；
    * 「怎么说」归 describeUpdate 一处，没拿到结果时用刚才记住的那句原话。
@@ -108,7 +103,7 @@ export function UpdateCard() {
     },
     [act, failureMemory]
   )
-  // 三路忙位摆给同一处判据（lib/update-state 的 busyNow），与插件那一半同一套。
+  // 能不能点：三路忙位（这条线的动作 / 正在传 / 后端任务）摆给同一处判据 busyNow，与插件那一半同一套。
   const workingNow = busyNow([{ busy: working, transferring }, { busy: status ? status.busy : "" }])
   const canCheck = Boolean(status) && !workingNow
 

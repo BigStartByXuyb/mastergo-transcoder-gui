@@ -4,6 +4,8 @@ import { toast } from "sonner"
  * 复制一段文本：优先 Clipboard API，不行退回 textarea + execCommand（老浏览器 / 受限环境）。
  * 复制完统一提示一句 —— 界面各处（控件查询、插件页）都调这一处，不各写一遍。
  * 两条路都失败就说没复制成功：说「已复制」而剪贴板里没有，是比复制不了更糟的事。
+ *
+ * 放 app 层而不是 lib：默认提示要用 toast（与 download-actions 同一条边界），lib 那层不认识展示框架。
  */
 
 export async function copyText(value: string, label = "") {

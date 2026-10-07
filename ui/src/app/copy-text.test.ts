@@ -1,7 +1,7 @@
 import { toast } from "sonner"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { copyText } from "@/lib/copy-text"
+import { copyText } from "@/app/copy-text"
 import { drive } from "@/lib/settings-fixtures"
 
 // 复制文本：能走 Clipboard API 就走；它不可用或抛错时退回 textarea + execCommand，

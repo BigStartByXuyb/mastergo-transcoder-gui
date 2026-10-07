@@ -28,6 +28,9 @@ export type PluginSourceRow = PluginSource & {
  */
 export const INSTALL_SLOT_ID: PluginSource["id"] = "install"
 
+/** 「我指定的那一份」那一档的 id（后端给的就是它）：顶栏那块按它取这一档的处境。 */
+export const CHOSEN_SLOT_ID: PluginSource["id"] = "chosen"
+
 export type PluginSourceSlot = PluginSource & {
   order: number
   /** 这一档并进了哪一行（那一行的 id）；它自己就是那一行时是空串。 */

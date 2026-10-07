@@ -14,7 +14,7 @@ import {
   SourceVersion
 } from "@/app/plugin-source-facts"
 import { api, type PluginUpdateStatus } from "@/lib/api"
-import { copyText } from "@/lib/copy-text"
+import { copyText } from "@/app/copy-text"
 import { describeFailure } from "@/lib/describe-failure"
 import { describePluginInstall } from "@/lib/plugin-install"
 import {
