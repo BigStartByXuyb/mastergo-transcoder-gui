@@ -37,22 +37,13 @@ export type PluginSources = {
 /**
  * 客户端自带的那一份插件：本地是哪一版、远端有没有新的。
  * 「装了哪几版、此刻用哪一份」由 /api/plugin/sources 那份来源表说（插件定位的判据在那边）。
+ *
+ * 四种处境做成联合类型：后端 readState() 就是这么算的 —— 有新版与已是最新都一定带着远端清单，
+ * 没查过是 null。于是「有新版就拿得到清单」这条判据只有类型这一处，读的地方不再各自判空。
  */
 export type PluginUpdateStatus = {
-  /** unchecked＝还没成功问过远端（首次启动、离线）；它不再借「已是最新」来表示。 */
-  state: "unchecked" | "up_to_date" | "update_available" | "error"
   /** 客户端自带的那一份（装在哪、哪一版）；一份都没有时都是空串。 */
   local: { version: string; dir: string }
-  /** 上一次检查到的远端版本与差异；没检查过就是 null。 */
-  available: {
-    version: string
-    tag: string
-    releasedAt: string
-    changed: number
-    removed: number
-    total: number
-    checkedAt: string
-  } | null
   error: UpdateFailure | null
   task: UpdateTask
   /** 有任务在跑时不能装（装完就可能换掉生效的那一份）；空串＝空闲，界面据此提示并禁用。 */
@@ -64,6 +55,38 @@ export type PluginUpdateStatus = {
   source: UpdateSource
   /** 私有源存没存 token（值本身不出后端）。 */
   hasToken: boolean
+} & (
+  | {
+      /** 还没成功问过远端（首次启动、离线）：不借「已是最新」来表示，也没有清单。 */
+      state: "unchecked"
+      available: null
+    }
+  | {
+      /** 远端有新的那一版：清单一定在（state 就是按它算的）。 */
+      state: "update_available"
+      available: PluginAvailable
+    }
+  | {
+      /** 远端不比本地新：清单一定在。 */
+      state: "up_to_date"
+      available: PluginAvailable
+    }
+  | {
+      /** 上次检查失败；有缓存时清单还在（界面照旧说得出「有新版」）。 */
+      state: "error"
+      available: PluginAvailable | null
+    }
+)
+
+/** 远端清单里插件这一半用得上的一项：版本号、发布时间、差几个文件、上次检查时间。 */
+export type PluginAvailable = {
+  version: string
+  tag: string
+  releasedAt: string
+  changed: number
+  removed: number
+  total: number
+  checkedAt: string
 }
 
 /**

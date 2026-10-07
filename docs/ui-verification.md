@@ -116,6 +116,14 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   （与返回出去的忙碌位不再同名双义）；程序更新那一半的忙碌位 key 收进 `lib/update-state` 的 `UPDATE_BUSY`
   （check / stage / switch，与插件页那张 `PLUGIN_BUSY` 同一约定）；「这一行里有没有自带那一档」收成
   `isInstallRow()` 一处；面板里 `canInstall` 去掉那个本来就成立的前置判断。
+- 第二十四 / 二十五轮复核（doc 与测试夹具）：默认发布源与源类型名单只留一处（后端用例从 `lib/source.js`
+  取 `DEFAULT_BASE` / `KINDS`，界面夹具只留 `settings-fixtures` 的 `SOURCE_BASE` / `sourceFixture`）；
+  指路文案统一成实际导航「设置 → 更新 → 插件（流水线）」（README / install.md / 后端提示 / 过期注释）；
+  测试夹具与断言也一起收口（`plugin-sources.test.js` 的「已查找」断言分两半，不靠恒真条件撑住）。
+- 第二十六轮复核两条：「有新版就一定有远端清单」写进类型（`PluginUpdateStatus` 做成联合类型，
+  `PluginAvailable` 单独一个类型），`describePluginInstall` 里那半句恒真的判空随之删掉，夹具按同一套对齐
+  （`pluginUpdateFixture` 一处管「处境 ↔ 清单」）；`update-card` 里 `const frozen = workingNow` 那个无变换的
+  重复绑定去掉，`frozen` 就是 `busyNow(...)` 的结果。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。

@@ -104,9 +104,12 @@ export function UpdateCard() {
     },
     [act, failureMemory]
   )
-  // 能不能点：三路忙位（这条线的动作 / 正在传 / 后端任务）摆给同一处判据 busyNow，与插件那一半同一套。
-  const workingNow = busyNow([{ busy: working, transferring }, { busy: status ? status.busy : "" }])
-  const canCheck = Boolean(status) && !workingNow
+  /*
+   * 忙不忙：三路忙位（这条线的动作 / 正在传 / 后端任务）摆给同一处判据 busyNow，与插件那一半同一套。
+   * 这一颗值同时管三件事：能不能点「检查更新」、版本表的切换/下载、发布源能不能改。
+   */
+  const frozen = busyNow([{ busy: working, transferring }, { busy: status ? status.busy : "" }])
+  const canCheck = Boolean(status) && !frozen
 
   /*
    * 下某一版（含历史版本）：清单按那一版的 tag 取，之后同一条下载流程。
@@ -155,8 +158,6 @@ export function UpdateCard() {
   const busy = Boolean(status && status.busy)
   const rows = status ? versionList(status) : []
   const shown = pageSlice(rows, page, PAGE_SIZE)
-  // 下载/拼装进行中也不许再点别的版本：同一时刻只跑一条下载（判据与「检查更新」那颗同一处）。
-  const frozen = workingNow
 
   return (
     <>

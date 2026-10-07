@@ -2,24 +2,16 @@ import { describe, expect, it } from "vitest"
 
 import type { PluginUpdateStatus } from "@/lib/api"
 import { describePluginInstall } from "@/lib/plugin-install"
-import { drive, sourceFixture } from "@/lib/settings-fixtures"
+import { drive, pluginUpdateFixture, type PluginUpdateOverrides } from "@/lib/settings-fixtures"
 
 const LOCAL_DIR = drive("D", "app", "plugins", "mastergo-wpf-transcoder", "1.0.371")
 
-function status(over: Partial<PluginUpdateStatus> = {}): PluginUpdateStatus {
-  // 状态与「有没有远端信息」保持一致：没查过就是 unchecked，别拿「已是最新」去表示没查过。
-  const available = over.available === undefined ? null : over.available
-  return {
-    state: available ? over.state ?? "up_to_date" : over.state ?? "unchecked",
+/* 用例只说自己测的那一格；处境与清单的对齐在夹具那一处（与后端 readState 同一套）。 */
+function status(over: PluginUpdateOverrides = {}): PluginUpdateStatus {
+  return pluginUpdateFixture({
     local: { version: "1.0.371", dir: LOCAL_DIR },
-    available: available,
-    error: null,
-    task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
-    busy: "",
-    source: sourceFixture(),
-    hasToken: false,
     ...over
-  }
+  })
 }
 
 const avail = {

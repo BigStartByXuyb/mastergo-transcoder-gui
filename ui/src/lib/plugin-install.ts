@@ -1,4 +1,4 @@
-import type { PluginUpdateStatus } from "@/lib/api"
+import type { PluginAvailable, PluginUpdateStatus } from "@/lib/api"
 import { failureText } from "@/lib/describe-failure"
 
 /*
@@ -38,13 +38,13 @@ export function describePluginInstall(status: PluginUpdateStatus | null): Plugin
       canInstall: false
     }
   }
-  // state 已经是 update_available 就一定有 available；这半句只是给类型收窄。
-  if (status.state === "update_available" && status.available) {
+  // 有新版这一格一定带着远端清单（类型就这么写的），所以这里只看处境、不再判一次有没有清单。
+  if (status.state === "update_available") {
     const installed = Boolean(status.local.dir)
     return {
       label: "有新版 v" + status.available.version,
       tone: "secondary",
-      note: changeNote(status),
+      note: changeNote(status, status.available),
       // 「装了没有」只认目录（定位认它是一份插件就算装了）；版本号读不出时就照实说重装。
       action: installed ? (status.local.version ? "更新到 v" + status.available.version : "按远端重装") : "下载并安装",
       canInstall: true
@@ -63,10 +63,11 @@ export function describePluginInstall(status: PluginUpdateStatus | null): Plugin
       canInstall: false
     }
   }
-  // 走到这里：远端清单在，且不比本地新 —— 本地读得出版本才说得上「是最新」。
+  // 走到这里只剩「是最新」（error / unchecked / 有新版都在上面返回了）：清单一定在，本地读得出版本才说得上「是最新」。
   return {
     label: status.local.version ? "是最新 v" + status.local.version : "已装",
     tone: "outline",
+    // 已是最新就不再说「差几个文件」（那是 0，说了是噪音）。
     note: "",
     action: "已是最新版",
     canInstall: false
@@ -74,9 +75,7 @@ export function describePluginInstall(status: PluginUpdateStatus | null): Plugin
 }
 
 /* 差了几个文件：本地一份都没有就按全部文件说，本地有一版就按改动说。 */
-function changeNote(status: PluginUpdateStatus): string {
-  const available = status.available
-  if (!available) return ""
+function changeNote(status: PluginUpdateStatus, available: PluginAvailable): string {
   if (!status.local.dir) return "远端 v" + available.version + "，共 " + available.total + " 个文件"
   if (!status.local.version) return "远端 v" + available.version + "：本地这一份读不出版本，按它重装一遍"
   return "远端 v" + available.version + "，差 " + available.changed + " 个文件"
