@@ -90,6 +90,10 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - 第十五轮复核两条：「保存并检查」两半同一条路 —— 程序更新那一半也走那张卡的 `act`（忙碌位与卡片上那颗
   「检查更新」一致），没拿到结果时用 `sourceCheckDropped` 把刚才那句原因交给弹窗（两半同形）；
   `lib/pwsh.js` 去掉没人再传的 `maxBuffer` 覆盖项（结果走文件，stdout 上限固定够用）。
+- 第十六轮复核三条：`update-card` 的「检查更新」也只剩一个入口（`runCheck`），能不能点/冻不冻与插件那一半
+  读同一处 `lib/update-state` 的 `busyNow`；卸载守卫收进 `app/use-alive`（轮询与读清单不再各写一份 ref+effect）；
+  `plugin-card` 拆出 `plugin-chosen-slot`（我指定的那一份）与 `plugin-order-bar`（查找顺序），
+  卡片本身只剩取数、编排与那张表。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。

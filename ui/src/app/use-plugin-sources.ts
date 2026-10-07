@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 
+import { useAlive } from "@/app/use-alive"
 import { useValueRunner } from "@/app/use-action-runner"
 import { api, type PluginSources } from "@/lib/api"
 
@@ -17,8 +18,8 @@ export function usePluginSources() {
   // 动作骨架与四张卡同一处（use-action-runner 的 useValueRunner）：置 busy → 清旧错 → 跑 → 收尾。
   const act = useValueRunner({ setWorking: setBusy, setFailure: setFailure })
 
-  // 卸载之后迟到的响应不再落状态（首次读取与装完刷新走的是同一个 load）。
-  const alive = useRef(true)
+  // 卸载之后迟到的响应不再落状态（首次读取与装完刷新走的是同一个 load）；守卫本身在 app/use-alive。
+  const alive = useAlive()
 
   const load = useCallback(async () => {
     // 首次读取与装完刷新都走这一条：读失败的说法与别处同一处口径（describeFailure）。
@@ -30,12 +31,7 @@ export function usePluginSources() {
   }, [act])
 
   useEffect(() => {
-    // StrictMode 下会「挂载 → 卸下 → 再挂载」：这里要重新放行，否则首次读取永远被拦掉。
-    alive.current = true
     void load()
-    return () => {
-      alive.current = false
-    }
   }, [load])
 
   /*

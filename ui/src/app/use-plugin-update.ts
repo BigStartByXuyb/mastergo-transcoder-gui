@@ -8,7 +8,7 @@ import { api, type PluginUpdateStatus } from "@/lib/api"
 import { startDownload } from "@/lib/download-run"
 import { describePluginInstall } from "@/lib/plugin-install"
 import { sourceCheckDropped, sourceCheckOutcome } from "@/lib/source-check"
-import { isDownloading, isTaskDone } from "@/lib/update-state"
+import { busyNow, isDownloading, isTaskDone } from "@/lib/update-state"
 
 /*
  * 「客户端自带的那一份」这一半：它的状态要一直跟着（表格里那一行要标「有新版」），
@@ -120,7 +120,8 @@ export function usePluginUpdate(onInstalled: () => void) {
    * 「检查更新」能不能点：这一条线自己有没有动作在跑、正在传、后端有没有别的任务在跑。
    * 卡片上那颗与「管理…」面板里那颗是同一个动作，所以读同一个判据，不各写一份禁用条件。
    */
-  const canCheck = Boolean(update && !update.busy && !transferring && !working)
+  const busy = busyNow([{ busy: working, transferring }, { busy: update ? update.busy : "" }])
+  const canCheck = Boolean(update) && !busy
 
   return {
     update: update,

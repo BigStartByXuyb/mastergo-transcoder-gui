@@ -24,6 +24,7 @@ import { missingFeatures } from "@/lib/version-features"
 import { sourceCheckDropped, sourceCheckOutcome } from "@/lib/source-check"
 import {
   blockedNote,
+  busyNow,
   canSwitch,
   describeTask,
   describeUpdate,
@@ -99,7 +100,9 @@ export function UpdateCard() {
    * 后端有没有别的任务在跑。
    */
   const runCheck = useCallback(() => act("check", () => api.updateCheck()), [act])
-  const canCheck = Boolean(status && !status.busy && !transferring && !working)
+  // 三路忙位摆给同一处判据（lib/update-state 的 busyNow），与插件那一半同一套。
+  const workingNow = busyNow([{ busy: working, transferring }, { busy: status ? status.busy : "" }])
+  const canCheck = Boolean(status) && !workingNow
 
   /*
    * 下某一版（含历史版本）：清单按那一版的 tag 取，之后同一条下载流程。
@@ -147,8 +150,8 @@ export function UpdateCard() {
   const busy = Boolean(status && status.busy)
   const rows = status ? versionList(status) : []
   const shown = pageSlice(rows, page, PAGE_SIZE)
-  // 下载/拼装进行中也不许再点别的版本：同一时刻只跑一条下载。
-  const frozen = Boolean(working) || busy || transferring
+  // 下载/拼装进行中也不许再点别的版本：同一时刻只跑一条下载（判据与「检查更新」那颗同一处）。
+  const frozen = workingNow
 
   return (
     <>

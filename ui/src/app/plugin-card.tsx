@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { FolderSearch, Loader2, RefreshCw } from "lucide-react"
+import { Loader2, RefreshCw } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -9,20 +9,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ClampText } from "@/app/clamp-text"
 import { IdentifierText } from "@/app/identifier-text"
 import { PixelLoader } from "@/app/pixel-loader"
+import { ChosenSlot } from "@/app/plugin-chosen-slot"
+import { LookupOrder } from "@/app/plugin-order-bar"
 import { PluginSourceDialog } from "@/app/plugin-source-dialog"
-import { SourceAlsoFrom, SourceCopyCount, SourceStatusBadge, SourceVersion, sourceStatusText } from "@/app/plugin-source-facts"
+import { SourceAlsoFrom, SourceCopyCount, SourceStatusBadge, SourceVersion } from "@/app/plugin-source-facts"
 import { SourceDialog } from "@/app/source-dialog"
 import { UpdateSourceRow } from "@/app/update-source-row"
 import { usePluginSources } from "@/app/use-plugin-sources"
 import { PLUGIN_UPDATE_KEYS, usePluginUpdate } from "@/app/use-plugin-update"
 import { describePluginInstall } from "@/lib/plugin-install"
+import { busyNow } from "@/lib/update-state"
 import {
   canChooseThis,
   choosePathOf,
   pluginLookup,
-  slotState,
-  type PluginSourceRow,
-  type PluginSourceSlot
+  type PluginSourceRow
 } from "@/lib/plugin-sources"
 
 // 插件：转码引擎来自 mastergo-wpf-transcoder 插件，客户端不自带引擎。
@@ -51,11 +52,15 @@ export function PluginCard() {
    */
   const chosenSlot = lookup.slots.find((slot) => slot.id === "chosen") ?? null
   /*
-   * 有任一半在跑、或正在传，就冻住「换一份 / 改发布源」这类动作。这里只是布尔语义：
-   * 「哪一半的哪个动作在跑」由各自那一半的 busy 字符串回答（不合成成同一个字符串再比对）。
-   * 正在传也要算上 —— 这时候换一份会顶掉正在装的那一份（与面板里那颗同一套条件）。
+   * 有任一半在跑、后端有任务、或正在传，就冻住「换一份 / 改发布源」这类动作：判据是 lib/update-state
+   * 的 busyNow（与「程序更新」那张卡同一处）。这里只把这一页的三路忙位摆出来 ——
+   * 「哪一半的哪个动作在跑」仍由各自那一半的 busy 字符串回答，不合成成同一个字符串再比对。
    */
-  const frozen = Boolean(sources.busy || update.busy || update.transferring)
+  const frozen = busyNow([
+    { busy: sources.busy },
+    { busy: update.busy, transferring: update.transferring },
+    { busy: update.update ? update.update.busy : "" }
+  ])
 
   return (
     <Card>
@@ -89,46 +94,14 @@ export function PluginCard() {
         {sources.view && (
           <>
             {/* 「我指定的那一份」只有这一处入口：换目录、或清掉回到按顺序自动。 */}
-            <div className="flex flex-wrap items-center gap-2 rounded-md border p-3">
-              <span className="text-sm font-medium">我指定的那一份</span>
-              {sources.view.chosen ? (
-                <>
-                  {/*
-                    「正在用」不在这一块另判一次：指定了不等于它在生效（那目录里没有插件、或被 --plugin
-                    压过时，生效的是后面某一档）。这一档的处境与表、顺序条读同一份结论（chosenSlot）；
-                    措辞也走同一处（sourceStatusText）。
-                  */}
-                  <Badge variant={chosenSlot && chosenSlot.active ? "secondary" : "outline"}>
-                    {sourceStatusText(Boolean(chosenSlot && chosenSlot.active), Boolean(chosenSlot && chosenSlot.exists))}
-                  </Badge>
-                  <IdentifierText className="text-muted-foreground min-w-0 flex-1 text-xs" text={sources.view.chosen} />
-                </>
-              ) : (
-                <span className="text-muted-foreground min-w-0 flex-1 text-xs">
-                  没指定：客户端按下面的顺序自己找，现在用的是标「正在用」的那一条。
-                </span>
-              )}
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={frozen}
-                aria-busy={sources.busy === "pick"}
-                onClick={() => void sources.pickFolder()}
-              >
-                {sources.busy === "pick" ? <Loader2 className="size-4 animate-spin" /> : <FolderSearch className="size-4" />}
-                指定一个目录…
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={frozen || !sources.view.chosen}
-                aria-busy={sources.busy === "auto"}
-                onClick={() => void sources.choose("", "auto")}
-              >
-                {sources.busy === "auto" && <Loader2 className="size-4 animate-spin" />}
-                交给客户端找
-              </Button>
-            </div>
+            <ChosenSlot
+              chosen={sources.view.chosen}
+              slot={chosenSlot}
+              busy={sources.busy}
+              frozen={frozen}
+              onPick={() => void sources.pickFolder()}
+              onAuto={() => void sources.choose("", "auto")}
+            />
 
             {/*
               自带那一份从哪儿取：与程序更新同一处设置（后端 lib/source.js 一处拼地址），
@@ -166,22 +139,7 @@ export function PluginCard() {
             )}
 
             {/* 查找顺序：每一档一句话，谁在生效、谁没有、哪两档是同一份，一眼看完。 */}
-            <div className="flex flex-wrap items-center gap-x-1 gap-y-2 text-xs">
-              {lookup.slots.map((slot, index) => (
-                <span key={slot.id} className="flex items-center gap-1">
-                  {index > 0 && <span className="text-muted-foreground">→</span>}
-                  <button
-                    type="button"
-                    className="hover:bg-accent rounded-md border px-2 py-0.5 text-left"
-                    title={slot.path}
-                    onClick={() => setOpened(slot.mergedInto || slot.id)}
-                  >
-                    <span className="text-muted-foreground">{slot.order}.</span> {slot.label}
-                    <SlotMark slot={slot} />
-                  </button>
-                </span>
-              ))}
-            </div>
+            <LookupOrder slots={lookup.slots} onOpen={(id) => setOpened(id)} />
 
             {/* 表：与顺序一一对应（同一份插件只列一行），点开某一行是那一档的详情 / 管理。 */}
             <div className="overflow-hidden rounded-md border">
@@ -249,15 +207,6 @@ export function PluginCard() {
       </CardContent>
     </Card>
   )
-}
-
-// 顺序条上那一档的处境：正在用 / 可用 / 没有 / 与某一档是同一份。
-// 前三样的措辞与表、面板的徽章读同一处（sourceStatusText），不会一处写「有」、另一处写「可用」。
-function SlotMark(props: { slot: PluginSourceSlot }) {
-  const state = slotState(props.slot)
-  if (state === "same") return <span className="text-muted-foreground">{`（与第 ${props.slot.mergedIntoOrder} 档同一份）`}</span>
-  if (state === "active") return <span className="font-medium">{`（${sourceStatusText(true, true)}）`}</span>
-  return <span className="text-muted-foreground">{`（${sourceStatusText(false, state === "available")}）`}</span>
 }
 
 // 表里的一行：来源 / 版本 / 状态 / 路径 / 操作。
