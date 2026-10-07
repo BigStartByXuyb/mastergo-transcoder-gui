@@ -65,8 +65,8 @@ function sendError(response, status, message, writesBody) {
   sendJson(response, status, { ErrorCode: status, ErrorMessage: message }, writesBody);
 }
 
-// 调用方造成的失败（请求体不是 JSON、地址不是合法百分号编码）标一下，
-// 由路由决定回 400；没标的（读盘、渲染、传输）是我们的故障，回 500。
+// 调用方造成的失败（地址不是合法百分号编码、请求体不是 JSON）标一下；
+// 状态码只有一个消费点：createHandler 的 catch 里按这个标记选 400 还是 500。
 function callerFault(message) {
   const error = new Error(message);
   error.callerFault = true;
@@ -157,24 +157,23 @@ function createHandler(options) {
     // HEAD 与 GET 同一条路由：只看一眼「在不在、多大」不该 404，但不写体。
     const writesBody = request.method !== "HEAD";
     const method = writesBody ? request.method : "GET";
-    // 地址里的百分号编码坏掉是调用方的事（400），别和「我们自己读盘/渲染坏了」混成 500。
     const at = request.url.indexOf("?");
-    let route = "";
-    let params = new URLSearchParams();
     try {
-      route = decodeURIComponent(at < 0 ? request.url : request.url.slice(0, at));
-      params = new URLSearchParams(at < 0 ? "" : request.url.slice(at + 1));
-    }
-    catch {
-      return sendError(response, 400, "请求地址不是合法的百分号编码", writesBody);
-    }
-    try {
+      let route = "";
+      try {
+        route = decodeURIComponent(at < 0 ? request.url : request.url.slice(0, at));
+      }
+      catch {
+        throw callerFault("请求地址不是合法的百分号编码");
+      }
+      const params = new URLSearchParams(at < 0 ? "" : request.url.slice(at + 1));
       if (request.method === "POST" && route === "/api/manifestSearch") return handleSearch(request, response, options);
       if (method !== "GET") return sendError(response, 404, "没有这个地址：" + route, writesBody);
       return handleGet(route, params, response, options, writesBody);
     }
     catch (error) {
-      return sendError(response, 500, error.message, writesBody);
+      // 一处选码：调用方造成的（标了 callerFault）回 400，其余（读盘、渲染、传输）回 500。
+      return sendError(response, error.callerFault ? 400 : 500, error.message, writesBody);
     }
   };
 }
