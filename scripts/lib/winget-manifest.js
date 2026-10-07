@@ -41,8 +41,38 @@ function entryOf(pkg) {
   return pkg.folder + "/" + ENTRY_EXE;
 }
 
-/* 三个 YAML。字段名与结构由 winget 的模式定死，这里只填值。 */
+/*
+ * 包这一层的两组字段：locale 与 installer。
+ * 两种形状（三个 YAML、REST 清单）都从这两处取字段，winget 的模式加一个字段时只加一次。
+ * 序列化各写各的：YAML 是行、REST 是对象，嵌套本来就不一样。
+ */
+function localeFields() {
+  return {
+    PackageLocale: LOCALE,
+    Publisher: PUBLISHER,
+    PackageName: PACKAGE_NAME,
+    ShortDescription: SHORT_DESCRIPTION,
+    License: LICENSE,
+    Moniker: MONIKER
+  };
+}
+
+function installerFields(pkg) {
+  return {
+    Architecture: "x64",
+    InstallerType: "zip",
+    NestedInstallerType: "portable",
+    NestedInstallerFiles: [{ RelativeFilePath: entryOf(pkg), PortableCommandAlias: COMMAND_ALIAS }],
+    InstallerUrl: pkg.url,
+    InstallerSha256: pkg.sha256
+  };
+}
+
+/* 三个 YAML。字段名与结构由 winget 的模式定死，这里只把上面那两组字段摊成行。 */
 function yamlFiles(pkg) {
+  const locale = localeFields(pkg);
+  const installer = installerFields(pkg);
+  const installerFile = installer.NestedInstallerFiles[0];
   return [
     {
       name: pkg.id + ".yaml",
@@ -62,12 +92,12 @@ function yamlFiles(pkg) {
         "# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json",
         "PackageIdentifier: " + pkg.id,
         "PackageVersion: " + pkg.version,
-        "PackageLocale: " + LOCALE,
-        "Publisher: " + PUBLISHER,
-        "PackageName: " + PACKAGE_NAME,
-        "ShortDescription: " + SHORT_DESCRIPTION,
-        "License: " + LICENSE,
-        "Moniker: " + MONIKER,
+        "PackageLocale: " + locale.PackageLocale,
+        "Publisher: " + locale.Publisher,
+        "PackageName: " + locale.PackageName,
+        "ShortDescription: " + locale.ShortDescription,
+        "License: " + locale.License,
+        "Moniker: " + locale.Moniker,
         "ManifestType: defaultLocale",
         "ManifestVersion: 1.6.0",
         ""
@@ -79,15 +109,15 @@ function yamlFiles(pkg) {
         "# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json",
         "PackageIdentifier: " + pkg.id,
         "PackageVersion: " + pkg.version,
-        "InstallerType: zip",
-        "NestedInstallerType: portable",
+        "InstallerType: " + installer.InstallerType,
+        "NestedInstallerType: " + installer.NestedInstallerType,
         "NestedInstallerFiles:",
-        "  - RelativeFilePath: " + entryOf(pkg),
-        "    PortableCommandAlias: " + COMMAND_ALIAS,
+        "  - RelativeFilePath: " + installerFile.RelativeFilePath,
+        "    PortableCommandAlias: " + installerFile.PortableCommandAlias,
         "Installers:",
-        "  - Architecture: x64",
-        "    InstallerUrl: " + pkg.url,
-        "    InstallerSha256: " + pkg.sha256,
+        "  - Architecture: " + installer.Architecture,
+        "    InstallerUrl: " + installer.InstallerUrl,
+        "    InstallerSha256: " + installer.InstallerSha256,
         "ManifestType: installer",
         "ManifestVersion: 1.6.0",
         ""
@@ -96,31 +126,15 @@ function yamlFiles(pkg) {
   ];
 }
 
-/* 一个包的 REST 形状：版本、默认区域、安装器。 */
+/* 一个包的 REST 形状：版本、默认区域、安装器（字段与 YAML 那份同源）。 */
 function restPackage(pkg) {
   return {
     PackageIdentifier: pkg.id,
     Versions: [
       {
         PackageVersion: pkg.version,
-        DefaultLocale: {
-          PackageLocale: LOCALE,
-          Publisher: PUBLISHER,
-          PackageName: PACKAGE_NAME,
-          ShortDescription: SHORT_DESCRIPTION,
-          License: LICENSE,
-          Moniker: MONIKER
-        },
-        Installers: [
-          {
-            Architecture: "x64",
-            InstallerType: "zip",
-            NestedInstallerType: "portable",
-            NestedInstallerFiles: [{ RelativeFilePath: entryOf(pkg), PortableCommandAlias: COMMAND_ALIAS }],
-            InstallerUrl: pkg.url,
-            InstallerSha256: pkg.sha256
-          }
-        ]
+        DefaultLocale: localeFields(pkg),
+        Installers: [installerFields(pkg)]
       }
     ]
   };

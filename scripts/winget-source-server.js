@@ -101,6 +101,45 @@ function sendFile(response, root, name, writesBody) {
   stream.pipe(response);
 }
 
+/* 四条 GET 路由。writesBody 只影响写不写体（HEAD 走同一条）。 */
+function handleGet(route, params, response, options, writesBody) {
+  // 给人看的一眼确认：服务活着、手上有几个包。
+  if (route === "/") {
+    return sendJson(response, 200, { Ok: true, Packages: readPackages(options.root).length }, writesBody);
+  }
+  if (route === "/api/information") {
+    return sendJson(response, 200, sourceApi.informationBody(options.identifier), writesBody);
+  }
+  if (route.startsWith(MANIFESTS_PREFIX)) {
+    const identifier = route.slice(MANIFESTS_PREFIX.length);
+    const version = params.get("Version");
+    const body = sourceApi.manifestBody(readPackages(options.root), identifier, version);
+    if (!body) return sendError(response, 404, "没有这个包：" + identifier + (version ? " @" + version : ""), writesBody);
+    return sendJson(response, 200, body, writesBody);
+  }
+  if (route.startsWith(FILES_PREFIX)) {
+    return sendFile(response, options.root, route.slice(FILES_PREFIX.length), writesBody);
+  }
+  return sendError(response, 404, "没有这个地址：" + route, writesBody);
+}
+
+/*
+ * 搜索：两种失败分开说 —— 请求体不是 JSON 是客户端的事（400），
+ * 读数据文件 / 渲染响应出问题是我们自己的事（500，与 GET 路由同一个口径）。
+ */
+function handleSearch(request, response, options) {
+  return readBody(request)
+    .then((body) => {
+      try {
+        return sendJson(response, 200, sourceApi.searchBody(readPackages(options.root), body));
+      }
+      catch (error) {
+        return sendError(response, 500, error.message);
+      }
+    })
+    .catch((error) => sendError(response, 400, error.message));
+}
+
 function createHandler(options) {
   return function (request, response) {
     // HEAD 与 GET 同一条路由：只看一眼「在不在、多大」不该 404，但不写体。
@@ -110,41 +149,10 @@ function createHandler(options) {
       // 解码也在 try 里：畸形百分号编码（`GET /%`）会抛，落到外面就是整个进程退出。
       const at = request.url.indexOf("?");
       const route = decodeURIComponent(at < 0 ? request.url : request.url.slice(0, at));
-      const query = new URLSearchParams(at < 0 ? "" : request.url.slice(at + 1));
-      // 给人看的一眼确认：服务活着、手上有几个包。
-      if (method === "GET" && route === "/") {
-        return sendJson(response, 200, { Ok: true, Packages: readPackages(options.root).length }, writesBody);
-      }
-      if (method === "GET" && route === "/api/information") {
-        return sendJson(response, 200, sourceApi.informationBody(options.identifier), writesBody);
-      }
-      if (method === "GET" && route.startsWith(MANIFESTS_PREFIX)) {
-        const identifier = route.slice(MANIFESTS_PREFIX.length);
-        const version = query.get("Version");
-        const body = sourceApi.manifestBody(readPackages(options.root), identifier, version);
-        if (!body) return sendError(response, 404, "没有这个包：" + identifier + (version ? " @" + version : ""), writesBody);
-        return sendJson(response, 200, body, writesBody);
-      }
-      if (method === "GET" && route.startsWith(FILES_PREFIX)) {
-        return sendFile(response, options.root, route.slice(FILES_PREFIX.length), writesBody);
-      }
-      if (request.method === "POST" && route === "/api/manifestSearch") {
-        /*
-         * 两种失败分开说：请求体不是 JSON 是客户端的事（400），
-         * 读数据文件 / 渲染响应出问题是我们自己的事（500）—— 同一故障在 GET 路由那边也是 500。
-         */
-        return readBody(request)
-          .then((body) => {
-            try {
-              return sendJson(response, 200, sourceApi.searchBody(readPackages(options.root), body));
-            }
-            catch (error) {
-              return sendError(response, 500, error.message);
-            }
-          })
-          .catch((error) => sendError(response, 400, error.message));
-      }
-      return sendError(response, 404, "没有这个地址：" + route, writesBody);
+      const params = new URLSearchParams(at < 0 ? "" : request.url.slice(at + 1));
+      if (request.method === "POST" && route === "/api/manifestSearch") return handleSearch(request, response, options);
+      if (method !== "GET") return sendError(response, 404, "没有这个地址：" + route, writesBody);
+      return handleGet(route, params, response, options, writesBody);
     }
     catch (error) {
       return sendError(response, 500, error.message, writesBody);
