@@ -65,8 +65,8 @@ function sendError(response, status, message, writesBody) {
   sendJson(response, status, { ErrorCode: status, ErrorMessage: message }, writesBody);
 }
 
-// 调用方造成的失败（地址不是合法百分号编码、请求体不是 JSON）标一下；
-// 状态码只有一个消费点：createHandler 的 catch 里按这个标记选 400 还是 500。
+// 调用方造成的失败（地址不是合法百分号编码、请求体不是 JSON）打上这个标记，
+// 状态码怎么选只看 statusFor —— 同步与异步两条 catch 都调它。
 function callerFault(message) {
   const error = new Error(message);
   error.callerFault = true;
