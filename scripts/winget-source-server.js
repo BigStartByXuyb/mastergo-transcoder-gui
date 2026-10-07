@@ -151,7 +151,7 @@ function handleSearch(request, response, options) {
         return sendJson(response, 200, sourceApi.searchBody(readPackages(options.root), body));
       }
       catch (error) {
-        return sendError(response, 500, error.message);
+        return sendError(response, statusFor(error), error.message);
       }
     })
     .catch((error) => sendError(response, statusFor(error), error.message));
