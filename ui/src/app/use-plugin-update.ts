@@ -76,7 +76,7 @@ export function usePluginUpdate(onInstalled: () => void) {
 
   /*
    * 「检查更新」只有这一个入口：自带那一行的「管理…」面板里那颗按钮与「保存并检查」都调它。
-   * 它走这一条线的动作骨架（忙碌位与别处一致），返回弹窗要的那两句话（卡片那颗不看返回值）；
+   * 它走这一条线的动作骨架（忙碌位与别处一致），返回弹窗要的那两句话（面板里那颗按钮不看返回值）；
    * 「怎么说」归 describePluginInstall 一处，没拿到结果时用刚才记住的那句原话。
    */
   const check = useCallback(async function () {
