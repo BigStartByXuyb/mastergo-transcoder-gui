@@ -113,7 +113,7 @@ lib/launch.js       读 current.json，判断那一份能不能跑
 插件根的查找顺序：
 
 1. `--plugin <目录>`
-2. 我指定的那一份（插件页上那条）
+2. 我指定的那一份（设置 → 更新 → 插件（流水线）里那条）
 3. 环境变量 `MASTERGO_PLUGIN_ROOT`
 4. `<CODEX_HOME>/plugins/cache` 下的同名插件（有版本目录时取最高版本）
 5. `<CODEX_HOME>/plugins/marketplaces`
