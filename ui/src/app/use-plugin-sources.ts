@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { useAlive } from "@/app/use-alive"
 import { useValueRunner } from "@/app/use-action-runner"
 import { api, type PluginSources } from "@/lib/api"
+import { PLUGIN_BUSY } from "@/lib/plugin-sources"
 
 /*
  * 插件来源清单这一半：读一次、换一份（用这份）、选一个目录、或交回按顺序自动。
@@ -23,7 +24,7 @@ export function usePluginSources() {
 
   const load = useCallback(async () => {
     // 首次读取与装完刷新都走这一条：读失败的说法与别处同一处口径（describeFailure）。
-    await act("load", async () => {
+    await act(PLUGIN_BUSY.load, async () => {
       const payload = await api.pluginSources()
       if (alive.current) setView(payload)
       return payload
@@ -53,7 +54,7 @@ export function usePluginSources() {
 
   const pickFolder = useCallback(async function () {
     // 一次点击＝一个动作：选目录与换过去在同一层骨架里（不在骨架里再套一层骨架）。
-    await act("pick", async () => {
+    await act(PLUGIN_BUSY.pick, async () => {
       const picked = await api.pickFolder()
       // 取消或没弹出选择框：照它的话说一句，什么都不换。
       if (!picked.path) {

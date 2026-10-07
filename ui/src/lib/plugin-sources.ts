@@ -121,3 +121,21 @@ export function canChooseThis(row: Pick<PluginSource, "exists" | "active">): boo
 export function choosePathOf(row: Pick<PluginSource, "path" | "pluginRoot">): string {
   return row.path || row.pluginRoot
 }
+
+/*
+ * 插件页「哪个动作在跑」的 key 只有这一处：忙碌位是一个字符串，写（hook）与读（组件）都从这里取，
+ * 改名不会漏。来源清单那一半有自己的三把（读清单 / 选目录 / 交回自动），自带那一半有 check / install；
+ * 「用这份」那把就是那一行的 id（chooseKeyOf）。
+ */
+export const PLUGIN_BUSY = {
+  load: "load",
+  pick: "pick",
+  auto: "auto",
+  check: "check",
+  install: "install"
+} as const
+
+/** 「用这份」的忙碌位 key：就是那一行的 id（写与比对都读这一处）。 */
+export function chooseKeyOf(row: Pick<PluginSource, "id">): string {
+  return row.id
+}

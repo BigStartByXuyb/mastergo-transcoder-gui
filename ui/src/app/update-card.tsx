@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { ChevronRight, Download, Loader2, RefreshCw, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 
@@ -17,11 +17,12 @@ import { api, type UpdateStatus } from "@/lib/api"
 import { pageSlice } from "@/lib/paging"
 import { finishDownload } from "@/app/download-actions"
 import { useActionRunner } from "@/app/use-action-runner"
+import { useFailureMemory } from "@/app/use-failure-memory"
 import { useStatusPoll } from "@/app/use-status-poll"
 import { startUpdateDownload } from "@/lib/update-download"
 import { runSwitch } from "@/lib/update-switch"
 import { missingFeatures } from "@/lib/version-features"
-import { sourceCheckDropped, sourceCheckOutcome } from "@/lib/source-check"
+import { sourceCheckOutcomeOf } from "@/lib/source-check"
 import {
   blockedNote,
   busyNow,
@@ -59,8 +60,6 @@ export function UpdateCard() {
   // 等着人确认的那一版：确认弹窗里会先把回退 / 新开运行 / 有任务在跑说清楚。
   const [confirming, setConfirming] = useState("")
   const [supervised, setSupervised] = useState(false)
-  // 最近一次失败的原话：动作骨架只把话写进状态，而「保存并检查」那一下要把同一句交给弹窗。
-  const failureRef = useRef("")
   // 改发布源的弹窗：更新从哪儿取。
   const [editingSource, setEditingSource] = useState(false)
 
@@ -88,11 +87,9 @@ export function UpdateCard() {
    * 页面上的每个动作都走这一条（骨架在 use-action-runner）：「怎么提示」由调用方给 ——
    * 有的要按结果（DownloadOutcome 的 kind/message）才决定说什么。
    */
-  const rememberFailure = useCallback(function (message: string) {
-    failureRef.current = message
-    setFailure(message)
-  }, [])
-  const act = useActionRunner<UpdateStatus>({ setWorking, setFailure: rememberFailure, setStatus })
+  // 失败原话的记忆在 app/use-failure-memory（两半共用），动作骨架照旧写状态。
+  const failureMemory = useFailureMemory(setFailure)
+  const act = useActionRunner<UpdateStatus>({ setWorking, setFailure: failureMemory.remember, setStatus })
 
   /*
    * 「检查更新」只有这一处实现：卡片上那颗按钮与「修改发布源」里的「保存并检查」都调它
@@ -254,8 +251,7 @@ export function UpdateCard() {
           check={async () => {
             // 与卡片上那颗「检查更新」同一个入口（runCheck）；说的那句话同一处口径（describeUpdate）。
             const payload = await runCheck()
-            if (!payload) return sourceCheckDropped(failureRef.current)
-            return sourceCheckOutcome(describeUpdate(payload.status), payload.status.state === "error")
+            return sourceCheckOutcomeOf(payload, failureMemory.last(), describeUpdate, (next) => next.state === "error")
           }}
         />
       )}

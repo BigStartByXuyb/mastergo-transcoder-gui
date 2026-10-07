@@ -2,38 +2,31 @@ import { useCallback, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { useActionRunner } from "@/app/use-action-runner"
+import { useFailureMemory } from "@/app/use-failure-memory"
 import { useStatusPoll } from "@/app/use-status-poll"
 import { finishDownload } from "@/app/download-actions"
 import { api, type PluginUpdateStatus } from "@/lib/api"
 import { startDownload } from "@/lib/download-run"
 import { describePluginInstall } from "@/lib/plugin-install"
-import { sourceCheckDropped, sourceCheckOutcome } from "@/lib/source-check"
+import { PLUGIN_BUSY } from "@/lib/plugin-sources"
+import { sourceCheckOutcomeOf } from "@/lib/source-check"
 import { busyNow, isDownloading, isTaskDone } from "@/lib/update-state"
 
 /*
  * 「客户端自带的那一份」这一半：它的状态要一直跟着（表格里那一行要标「有新版」），
  * 检查只拉清单、装是一条后台下载。装完那一下喊一声 onInstalled（父组件据此重读来源清单）。
  *
- * 忙碌位只报「这一半」的 key（check / install）：来源清单那一半也有自己的忙碌位（那里每一行的 id），
- * 两边各报各的，由卡片分别交给界面 —— 不合成一个字符串，也就没有「自带那一行的 id 也叫 install」
- * 这种撞名问题。
+ * 忙碌位只报「这一半」的 key（PLUGIN_BUSY 的 check / install，表在 lib/plugin-sources 一处）：
+ * 来源清单那一半也有自己的忙碌位，两边各报各的，由卡片分别交给界面，不合成成同一个字符串。
  */
-export const PLUGIN_UPDATE_KEYS = { check: "check", install: "install" } as const
 
 export function usePluginUpdate(onInstalled: () => void) {
   const [update, setUpdate] = useState<PluginUpdateStatus | null>(null)
   const [probe, setProbe] = useState("")
   const [failure, setFailure] = useState("")
   const [working, setWorking] = useState("")
-  /*
-   * 最近一次失败的原话。动作骨架（use-action-runner）只把话写进状态，而「保存并检查」那一下要把
-   * 同一句话原样交给弹窗 —— 所以这里顺手留一份，弹窗与卡片说的因此是同一句。
-   */
-  const failureRef = useRef("")
-  const rememberFailure = useCallback(function (message: string) {
-    failureRef.current = message
-    setFailure(message)
-  }, [])
+  // 失败原话的记忆在 app/use-failure-memory（两半共用），动作骨架照旧写状态。
+  const failureMemory = useFailureMemory(setFailure)
 
   // 「正在传」的判据只有 update-state.isDownloading 一处（面板里那颗进度条读的也是它）。
   const transferring = update ? isDownloading(update.task) : false
@@ -66,7 +59,11 @@ export function usePluginUpdate(onInstalled: () => void) {
    * 动作骨架与另外三张卡同一处（use-action-runner）：置 working → 清旧错 → 跑 → 套状态 → 收尾。
    * 落地交给 adopt：动作与轮询因此走同一条落地路径（「装完了」那一下两条路都会判到）。
    */
-  const act = useActionRunner<PluginUpdateStatus>({ setWorking: setWorking, setFailure: rememberFailure, setStatus: adopt })
+  const act = useActionRunner<PluginUpdateStatus>({
+    setWorking: setWorking,
+    setFailure: failureMemory.remember,
+    setStatus: adopt
+  })
 
   /*
    * 立刻重读一次状态：改完发布源要马上看到这一份说的是新地址。
@@ -83,7 +80,7 @@ export function usePluginUpdate(onInstalled: () => void) {
    * 卡片上那颗与「保存并检查」那一下都走这一条 —— 两条路只有「结果怎么说」不同。
    */
   const runCheck = useCallback(
-    () => act(PLUGIN_UPDATE_KEYS.check, () => api.pluginUpdateCheck()),
+    () => act(PLUGIN_BUSY.check, () => api.pluginUpdateCheck()),
     [act]
   )
 
@@ -96,24 +93,23 @@ export function usePluginUpdate(onInstalled: () => void) {
    */
   const checkOutcome = useCallback(async function () {
     const payload = await runCheck()
-    if (!payload) return sourceCheckDropped(failureRef.current)
-    return sourceCheckOutcome(describePluginInstall(payload.status), payload.status.state === "error")
-  }, [runCheck])
+    return sourceCheckOutcomeOf(payload, failureMemory.last(), describePluginInstall, (next) => next.state === "error")
+  }, [runCheck, failureMemory])
 
   // 装最新那一版：与另外三条下载线同形（startDownload 归一结果 → finishDownload 按 kind 落地）。
   const install = useCallback(
     () =>
       act(
-        PLUGIN_UPDATE_KEYS.install,
+        PLUGIN_BUSY.install,
         () => startDownload(() => api.pluginUpdateInstall()),
         (payload) =>
           finishDownload(payload, {
-            setFailure: rememberFailure,
+            setFailure: failureMemory.remember,
             onStarted: () =>
               toast.info("开始装插件 v" + (payload.status && payload.status.available ? payload.status.available.version : ""))
           })
       ),
-    [act, rememberFailure]
+    [act, failureMemory]
   )
 
   /*

@@ -16,3 +16,17 @@ export function sourceCheckOutcome(summary: { label: string; note: string }, fai
 export function sourceCheckDropped(failure: string): SourceCheckOutcome {
   return { failure: failure, note: "" }
 }
+
+/**
+ * 「保存并检查」那一下的收尾：拿到结果就按这一条线的口径说，没拿到（骨架抛了）就用刚才记住的那句原因。
+ * 两半的差别只有 summaryOf 与 failed 两个入参 —— 记忆与成型都走这一处，时机不会各写各的。
+ */
+export function sourceCheckOutcomeOf<T>(
+  payload: { status: T } | null,
+  failure: string,
+  summaryOf: (status: T) => { label: string; note: string },
+  failed: (status: T) => boolean
+): SourceCheckOutcome {
+  if (!payload) return sourceCheckDropped(failure)
+  return sourceCheckOutcome(summaryOf(payload.status), failed(payload.status))
+}

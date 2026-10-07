@@ -94,6 +94,11 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   读同一处 `lib/update-state` 的 `busyNow`；卸载守卫收进 `app/use-alive`（轮询与读清单不再各写一份 ref+effect）；
   `plugin-card` 拆出 `plugin-chosen-slot`（我指定的那一份）与 `plugin-order-bar`（查找顺序），
   卡片本身只剩取数、编排与那张表。
+- 第十七轮复核两条：「最近一次失败的原话」与「保存并检查」的收尾两半同形 —— 记忆收进
+  `app/use-failure-memory`、成型收进 `lib/source-check` 的 `sourceCheckOutcomeOf`（两半只提供各自的 `describe*`
+  与失败判据）；插件页的忙碌位 key 收进 `lib/plugin-sources` 的 `PLUGIN_BUSY`（含「用这份＝那一行 id」
+  的 `chooseKeyOf`），hook 写、组件读都从这里取，不再各自比字面量。顺手把运行环境弹窗里写死的示例地址
+  换成中性占位（`http://内网地址/runtime`）。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。

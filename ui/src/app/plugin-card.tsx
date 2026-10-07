@@ -16,11 +16,13 @@ import { SourceAlsoFrom, SourceCopyCount, SourceStatusBadge, SourceVersion } fro
 import { SourceDialog } from "@/app/source-dialog"
 import { UpdateSourceRow } from "@/app/update-source-row"
 import { usePluginSources } from "@/app/use-plugin-sources"
-import { PLUGIN_UPDATE_KEYS, usePluginUpdate } from "@/app/use-plugin-update"
+import { usePluginUpdate } from "@/app/use-plugin-update"
 import { describePluginInstall } from "@/lib/plugin-install"
 import { busyNow } from "@/lib/update-state"
 import {
+  PLUGIN_BUSY,
   canChooseThis,
+  chooseKeyOf,
   choosePathOf,
   pluginLookup,
   type PluginSourceRow
@@ -100,7 +102,7 @@ export function PluginCard() {
               busy={sources.busy}
               frozen={frozen}
               onPick={() => void sources.pickFolder()}
-              onAuto={() => void sources.choose("", "auto")}
+              onAuto={() => void sources.choose("", PLUGIN_BUSY.auto)}
             />
 
             {/*
@@ -121,10 +123,10 @@ export function PluginCard() {
                     size="sm"
                     variant="outline"
                     disabled={!update.canCheck}
-                    aria-busy={update.busy === PLUGIN_UPDATE_KEYS.check}
+                    aria-busy={update.busy === PLUGIN_BUSY.check}
                     onClick={() => void update.check()}
                   >
-                    {update.busy === PLUGIN_UPDATE_KEYS.check ? (
+                    {update.busy === PLUGIN_BUSY.check ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : (
                       <RefreshCw className="size-4" />
@@ -163,7 +165,7 @@ export function PluginCard() {
                       frozen={frozen}
                       onOpen={() => setOpened(row.id)}
                       // 行内「用这份」与面板里那颗同一口径（判据与记哪个目录都在 lib/plugin-sources）。
-                      onChoose={() => void sources.choose(choosePathOf(row), row.id)}
+                      onChoose={() => void sources.choose(choosePathOf(row), chooseKeyOf(row))}
                     />
                   ))}
                 </TableBody>
@@ -250,7 +252,7 @@ function PluginSourceLine(props: {
         <div className="flex justify-end gap-2" onClick={(event) => event.stopPropagation()}>
           {canChooseThis(row) && (
             <Button size="sm" variant="outline" disabled={props.frozen} onClick={props.onChoose}>
-              {props.busy === row.id && <Loader2 className="size-4 animate-spin" />}
+              {props.busy === chooseKeyOf(row) && <Loader2 className="size-4 animate-spin" />}
               用这份
             </Button>
           )}

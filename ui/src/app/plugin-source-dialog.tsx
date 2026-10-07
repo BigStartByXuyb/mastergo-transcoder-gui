@@ -17,9 +17,9 @@ import { api, type PluginUpdateStatus } from "@/lib/api"
 import { copyText } from "@/lib/copy-text"
 import { describeFailure } from "@/lib/describe-failure"
 import { describePluginInstall } from "@/lib/plugin-install"
-import { canChooseThis, choosePathOf, type PluginSourceRow } from "@/lib/plugin-sources"
+import { PLUGIN_BUSY, canChooseThis, chooseKeyOf, choosePathOf, type PluginSourceRow } from "@/lib/plugin-sources"
 import { describeTask, taskFailureNote, taskPercent } from "@/lib/update-state"
-import { PLUGIN_UPDATE_KEYS } from "@/app/use-plugin-update"
+
 
 /*
  * 插件页某一行点开后的面板 —— 按这一档是「谁在管」分三种：
@@ -156,13 +156,13 @@ export function PluginSourceDialog(props: {
                 size="sm"
                 variant="outline"
                 disabled={props.frozen}
-                aria-busy={props.busy === row.id}
+                aria-busy={props.busy === chooseKeyOf(row)}
                 /*
                  * 记哪个目录由 choosePathOf 说（库那一处）：记这一档所在的目录，不是此刻那一个版本目录。
                  */
-                onClick={() => props.onChoose(choosePathOf(row), row.id)}
+                onClick={() => props.onChoose(choosePathOf(row), chooseKeyOf(row))}
               >
-                {props.busy === row.id && <Loader2 className="size-4 animate-spin" />}
+                {props.busy === chooseKeyOf(row) && <Loader2 className="size-4 animate-spin" />}
                 用这份
               </Button>
             )}
@@ -175,10 +175,10 @@ export function PluginSourceDialog(props: {
                   size="sm"
                   variant="outline"
                   disabled={!props.canCheck}
-                  aria-busy={props.updateBusy === PLUGIN_UPDATE_KEYS.check}
+                  aria-busy={props.updateBusy === PLUGIN_BUSY.check}
                   onClick={() => props.onCheck()}
                 >
-                  {props.updateBusy === PLUGIN_UPDATE_KEYS.check ? (
+                  {props.updateBusy === PLUGIN_BUSY.check ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
                     <RefreshCw className="size-4" />
@@ -188,10 +188,10 @@ export function PluginSourceDialog(props: {
                 <Button
                   size="sm"
                   disabled={!canInstall}
-                  aria-busy={props.updateBusy === PLUGIN_UPDATE_KEYS.install || transferring}
+                  aria-busy={props.updateBusy === PLUGIN_BUSY.install || transferring}
                   onClick={() => props.onInstall()}
                 >
-                  {(props.updateBusy === PLUGIN_UPDATE_KEYS.install || transferring) && (
+                  {(props.updateBusy === PLUGIN_BUSY.install || transferring) && (
                     <Loader2 className="size-4 animate-spin" />
                   )}
                   {summary.action}

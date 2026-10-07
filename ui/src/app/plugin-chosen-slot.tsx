@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { IdentifierText } from "@/app/identifier-text"
 import { sourceStatusText } from "@/app/plugin-source-facts"
-import type { PluginSourceSlot } from "@/lib/plugin-sources"
+import { PLUGIN_BUSY, type PluginSourceSlot } from "@/lib/plugin-sources"
 
 /*
  * 顶部那条「我指定的那一份」：显示这一档的处境与路径，两个动作 —— 指定一个目录… / 交给客户端找。
@@ -17,7 +17,7 @@ export function ChosenSlot(props: {
   chosen: string
   /** 查找顺序里这一档（没设时也有：path 为空串、exists 为假）。 */
   slot: PluginSourceSlot | null
-  /** 来源清单那一半的忙碌位：只有拿它比 "pick" / "auto" 才是这两个按钮自己的动作在跑。 */
+  /** 来源清单那一半的忙碌位：只有拿它比 PLUGIN_BUSY 的 pick / auto 才是这两个按钮自己的动作在跑。 */
   busy: string
   /** 任一半在跑：忙的时候不给换一份。 */
   frozen: boolean
@@ -39,18 +39,18 @@ export function ChosenSlot(props: {
           没指定：客户端按下面的顺序自己找，现在用的是标「正在用」的那一条。
         </span>
       )}
-      <Button size="sm" variant="outline" disabled={props.frozen} aria-busy={props.busy === "pick"} onClick={props.onPick}>
-        {props.busy === "pick" ? <Loader2 className="size-4 animate-spin" /> : <FolderSearch className="size-4" />}
+      <Button size="sm" variant="outline" disabled={props.frozen} aria-busy={props.busy === PLUGIN_BUSY.pick} onClick={props.onPick}>
+        {props.busy === PLUGIN_BUSY.pick ? <Loader2 className="size-4 animate-spin" /> : <FolderSearch className="size-4" />}
         指定一个目录…
       </Button>
       <Button
         size="sm"
         variant="outline"
         disabled={props.frozen || !props.chosen}
-        aria-busy={props.busy === "auto"}
+        aria-busy={props.busy === PLUGIN_BUSY.auto}
         onClick={props.onAuto}
       >
-        {props.busy === "auto" && <Loader2 className="size-4 animate-spin" />}
+        {props.busy === PLUGIN_BUSY.auto && <Loader2 className="size-4 animate-spin" />}
         交给客户端找
       </Button>
     </div>
