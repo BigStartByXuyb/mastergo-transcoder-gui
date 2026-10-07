@@ -37,12 +37,16 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 
 ### 改了什么
 
-- `ui/src/lib/restart-watch.ts`：`serviceUpOn(error)` 判「这个异常说明后端还在吗」（只有这一处：请求断在半路＝
+- `ui/src/lib/restart-watch.ts`：`serviceUpOn(error)` 判「这一次请求说明后端还在吗」（只有这一处：请求断在半路＝
   已经不在，后端答了话（哪怕是拒绝）＝还在）；结论里多一个 `serviceUp` —— 「被拒（后端还在）」与
-  「等不到（后端已经没了）」是两件事，界面要分开对待。
-- `ui/src/lib/update-switch.ts` + `ui/src/app/update-badge.tsx`：失败那句话统一指向**客户端那个窗口**
-  （原因写在它里面）；红点只在 `serviceUp` 时才把人带去更新页。写指针那一步的失败也走同一条 `serviceUpOn`
-  —— 两处各判一份、规则还不一样的话，断在半路会被当成「后端还在」，又把人带到一页载不出来的更新页。
+  「等不到（后端已经没了）」是两件事，界面要分开对待。页面「现在连不连得上」仍由 `use-health` 的轮询自己判
+  （顶栏据此说「服务未就绪」）：那是持续可用性，与单次请求两回事，注释里写明各判各的。
+- `ui/src/lib/describe-failure.ts`：「后端已经答不上话」给用户的那一句收成 `SERVICE_GONE_NOTE` 一处 ——
+  不说技术原文（连不上本地服务 / Failed to fetch 都不指向下一步），只说去哪儿看、怎么恢复。
+  `ui/src/App.tsx` 的顶栏在 offline 时自己也渲染它：原来 offline 只留一个「服务未就绪」，会把整块
+  `UpdateBadge`（连同它手里的失败提示）卸载，那句提示最多活 5 秒 —— 又变成说不清。
+- `ui/src/lib/update-switch.ts` + `ui/src/app/update-badge.tsx`：两条「后端已经没了」的路（写指针断在半路、
+  切过去没起来）**说同一句**；红点只在 `serviceUp` 时才把人带去更新页，被拒时保留后端自己的原话。
 - 口径统一到「客户端那个窗口」＝`start.cmd` 或 `mastergo-transcoder.exe`（README 的「跑起来」、
   `docs/install.md` 的「服务未就绪」那一行、`lib/routes.js` 与界面注释）。
 
@@ -53,7 +57,8 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | 1 | 真机 API：`POST /api/update/apply {0.3.1}` → `POST /api/client/restart` | 监督进程按新指针重拉 | 通过（health 变 0.3.1，`listening 8787`） |
 | 2 | 真机界面：设置 → 更新 → v0.6.49「切换」→ 确认 | 遮罩 → 自己刷新到 v0.6.49 | 通过 |
 | 3 | 真机界面：顶栏「可切到 v0.6.51」→ 确认 | 同上切回 | 通过（本机工作区领先 0.6.51 发布件，这一步按「和清单对不上」如实拒绝） |
-| 4 | 真机复现「切完服务没了」：看门狗盯着 `current.json`，指针一翻就杀掉那份服务，再在界面点「切换 v0.6.49」 | 界面留在原地，如实说清去哪儿看原因 | 通过：顶栏「服务未就绪」+「换版本没起来：看一下客户端那个窗口里打印的原因；把它关掉再打开一次，就会进新版本。」（`output/playwright/switch-service-gone.png`） |
+| 4 | 真机复现「切完服务没了」：看门狗盯着 `current.json`，指针一翻就杀掉那份服务，再在**设置 → 更新**那一行点「切换 v0.6.49」 | 界面留在原地，如实说清去哪儿看原因 | 通过：卡片里那句「服务没在跑：看一下客户端那个窗口里打印的原因；把它关掉再打开一次。」（`output/playwright/switch-service-gone.png`） |
+| 5 | 真机：直接关掉客户端，页面等一次轮询（≤5 秒） | 顶栏自己把话说完，不靠别的组件 | 通过：「服务未就绪」+「服务没在跑：看一下客户端那个窗口里打印的原因；把它关掉再打开一次。」（`output/playwright/service-gone-topbar.png`） |
 
 ### 没点的
 
@@ -67,8 +72,8 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | `npm test`（后端） | 48 通过 |
 | `npm run test:coverage`（后端） | all files 94.70 / 82.73 / 96.01（门禁 90/75/90） |
 | `cd ui; npx tsc -b` | 通过 |
-| `cd ui; npx vitest run` | 59 文件 347 用例通过（本次 +5：serviceUpOn、写指针两种失败、红点那两处消费判据） |
-| `cd ui; npm run test:coverage` | all files 95.96 / 91.7 / 94.73 / 95.96 |
+| `cd ui; npx vitest run` | 59 文件 347 用例通过（本次 +5：serviceUpOn、写指针两种失败与文案、红点那两处消费判据） |
+| `cd ui; npm run test:coverage` | all files 95.96 / 91.71 / 94.73 / 95.96 |
 | `cd ui; npm run lint` | 通过（只有既有 warning） |
 | `npm run build:ui` | 通过，`public/` 已重建并入库 |
 

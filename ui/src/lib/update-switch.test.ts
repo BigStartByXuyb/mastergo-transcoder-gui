@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { ApiFailure, api } from "@/lib/api"
+import { SERVICE_GONE_NOTE } from "@/lib/describe-failure"
 import { runSwitch } from "@/lib/update-switch"
 
 /*
@@ -25,6 +26,8 @@ describe("runSwitch", () => {
     const outcome = await runSwitch("0.6.12")
     expect(outcome.ok).toBe(false)
     expect(outcome.ok === false ? outcome.serviceUp : null).toBe(false)
+    // 与「切过去没起来」说同一句：对用户是同一件事，技术原文不入界面。
+    expect(outcome.ok === false ? outcome.note : "").toBe(SERVICE_GONE_NOTE)
   })
 
   it("写指针被后端拒了：它还在，原话如实说", async () => {

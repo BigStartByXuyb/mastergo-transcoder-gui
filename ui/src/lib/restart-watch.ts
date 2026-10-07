@@ -58,9 +58,13 @@ export type RestartWaitOptions = {
 export type RestartWaitOutcome = { ok: true; note: ""; serviceUp: true } | { ok: false; note: string; serviceUp: boolean }
 
 /*
- * 「这个异常说明后端还在吗」只有这一处：请求断在半路（api 层一律折成 OFFLINE）＝已经不在；
+ * 「这一次请求说明后端还在吗」只有这一处：请求断在半路（api 层一律折成 OFFLINE）＝已经不在；
  * 后端答了话（哪怕是拒绝，像有任务在跑、本地那份和清单对不上）＝还在。
  * 谁要据此决定「还要不要把人带到某一页」，都读这一条。
+ *
+ * 与另一件事分清楚：页面「现在连不连得上」由 use-health 每 5 秒轮询自己判（offline，顶栏据此说
+ * 「服务未就绪」）—— 那是持续可用性，这是单次请求的结果，两问不同、各判各的。
+ * 但「后端已经没了」给用户的那句话只有一处（describe-failure 的 SERVICE_GONE_NOTE）。
  */
 export function serviceUpOn(error: unknown): boolean {
   return !(error instanceof ApiFailure && error.code === "OFFLINE")

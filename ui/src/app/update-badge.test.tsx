@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { UpdateBadge } from "@/app/update-badge"
 import type { UpdateHint } from "@/lib/api"
+import { SERVICE_GONE_NOTE } from "@/lib/describe-failure"
 // 切版本那条编排有自己的用例（lib/restart-watch.test.ts）；这里只验这条入口怎么消费它的结论，
 // 所以把编排换成假的 —— 真等待是 40 秒起的轮询，挂在界面用例里只会拖垮跑测的时间。
 import { runSwitch } from "@/lib/update-switch"
@@ -42,8 +43,8 @@ function stub() {
 
 afterEach(() => {
   vi.unstubAllGlobals()
-  vi.clearAllMocks()
   vi.restoreAllMocks()
+  switchMock.mockReset()
 })
 
 describe("UpdateBadge", () => {
@@ -108,11 +109,7 @@ describe("UpdateBadge", () => {
   it("切过去没起来（后端也没了）：原地说去哪儿看原因，不把人往更新页带", async () => {
     stub()
     const onOpenUpdatePage = vi.fn()
-    switchMock.mockResolvedValue({
-      ok: false,
-      note: "换版本没起来：看一下客户端那个窗口里打印的原因；把它关掉再打开一次，就会进新版本。",
-      serviceUp: false
-    })
+    switchMock.mockResolvedValue({ ok: false, note: SERVICE_GONE_NOTE, serviceUp: false })
     render(
       <UpdateBadge
         update={hint({ state: "download_ready", ready: "0.6.12" })}
@@ -122,7 +119,7 @@ describe("UpdateBadge", () => {
     )
     fireEvent.click(screen.getByRole("button"))
     fireEvent.click(await screen.findByRole("button", { name: "切过去" }))
-    await waitFor(() => expect(screen.getByText(/客户端那个窗口/)).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(SERVICE_GONE_NOTE)).toBeTruthy())
     expect(onOpenUpdatePage).not.toHaveBeenCalled()
   })
 
