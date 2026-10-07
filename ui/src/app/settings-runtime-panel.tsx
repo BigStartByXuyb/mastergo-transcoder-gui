@@ -4,6 +4,7 @@ import { RuntimePanel } from "@/app/runtime-panel"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useHealth } from "@/lib/use-health"
+import { SERVICE_GONE_NOTE } from "@/lib/describe-failure"
 
 /*
  * 「运行环境」这一页：现在用的是什么，以及跑流水线要的两份运行时（补齐与开关都在这儿）。
@@ -13,7 +14,7 @@ import { useHealth } from "@/lib/use-health"
  * 挤在一张卡里会出现「一张卡两种脾气」。
  */
 export function SettingsRuntimePanel() {
-  const { health, offline } = useHealth(10000)
+  const { health, offline, gone } = useHealth(10000)
 
   return (
     <Card>
@@ -22,7 +23,9 @@ export function SettingsRuntimePanel() {
         <CardDescription>转码需要的组件，以及此刻生效的是哪一份。</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {offline && <p className="text-destructive text-sm">连不上本地服务。</p>}
+        {offline && (
+          <p className="text-destructive text-sm">{gone ? SERVICE_GONE_NOTE : "读不到服务状态。"}</p>
+        )}
         {!offline && !health && <PixelLoader text="请稍等，正在读取运行环境" cell={3} className="py-4" />}
         {health && (
           <dl className="grid gap-4">

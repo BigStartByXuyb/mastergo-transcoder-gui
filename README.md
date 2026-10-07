@@ -8,11 +8,12 @@ MasterGo 设计稿转 MTSLG IOContorl / MW WPF 的本地客户端。
 
 ```
 npm install        # 首次：后端依赖
-双击 start.cmd
+双击 mastergo-transcoder.exe（推荐：没装 Node 的机器也能起）或 start.cmd
 ```
 
 `start.cmd` 调 `launch.js`：先读安装根的 `current.json`，指向 `versions/<版本>/` 就跑那一份，没有指针就跑安装根这一份。
 `launch.js` 同时是监督进程 —— 界面里点「切换版本」时，跑着的那一份按约定退出，它按新指针再拉起来。
+那个窗口就是服务本身：关掉它服务就停，页面跟着打不开。
 
 生产形态：前端已构建成 `public/` 下的静态产物，`server.js` 直接提供。默认监听 `127.0.0.1:8787` 并打开浏览器。
 

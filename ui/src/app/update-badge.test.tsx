@@ -3,6 +3,14 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { UpdateBadge } from "@/app/update-badge"
 import type { UpdateHint } from "@/lib/api"
+import { SERVICE_GONE_NOTE } from "@/lib/describe-failure"
+// 切版本那条编排有自己的用例（lib/restart-watch.test.ts）；这里只验这条入口怎么消费它的结论，
+// 所以把编排换成假的 —— 真等待是 40 秒起的轮询，挂在界面用例里只会拖垮跑测的时间。
+import { runSwitch } from "@/lib/update-switch"
+
+vi.mock("@/lib/update-switch", () => ({ runSwitch: vi.fn() }))
+
+const switchMock = vi.mocked(runSwitch)
 
 /*
  * 走真的 api 层（只把 fetch 换掉）：要验的是「什么状态挂出来、点一下发哪个请求」。
@@ -36,6 +44,7 @@ function stub() {
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
+  switchMock.mockReset()
 })
 
 describe("UpdateBadge", () => {
@@ -95,5 +104,43 @@ describe("UpdateBadge", () => {
     fireEvent.click(screen.getByRole("button"))
     await waitFor(() => expect(screen.getByText(/现在有任务在跑/)).toBeTruthy())
     expect((screen.getByRole("button", { name: "切过去" }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it("切过去没起来（后端也没了）：原地说去哪儿看原因，不把人往更新页带", async () => {
+    stub()
+    const onOpenUpdatePage = vi.fn()
+    switchMock.mockResolvedValue({ ok: false, note: SERVICE_GONE_NOTE, serviceUp: false })
+    render(
+      <UpdateBadge
+        update={hint({ state: "download_ready", ready: "0.6.12" })}
+        supervised
+        onOpenUpdatePage={onOpenUpdatePage}
+      />
+    )
+    fireEvent.click(screen.getByRole("button"))
+    fireEvent.click(await screen.findByRole("button", { name: "切过去" }))
+    await waitFor(() => expect(screen.getByText(SERVICE_GONE_NOTE)).toBeTruthy())
+    expect(onOpenUpdatePage).not.toHaveBeenCalled()
+  })
+
+  it("切过去被后端拒了：如实说，并把人带到更新页看原因", async () => {
+    stub()
+    const onOpenUpdatePage = vi.fn()
+    switchMock.mockResolvedValue({
+      ok: false,
+      note: "1 次流水线正在跑，现在不能重启客户端：等它跑完再重启。",
+      serviceUp: true
+    })
+    render(
+      <UpdateBadge
+        update={hint({ state: "download_ready", ready: "0.6.12" })}
+        supervised
+        onOpenUpdatePage={onOpenUpdatePage}
+      />
+    )
+    fireEvent.click(screen.getByRole("button"))
+    fireEvent.click(await screen.findByRole("button", { name: "切过去" }))
+    await waitFor(() => expect(onOpenUpdatePage).toHaveBeenCalled())
+    expect(screen.getByText(/正在跑/)).toBeTruthy()
   })
 })
