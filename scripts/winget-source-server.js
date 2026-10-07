@@ -65,6 +65,19 @@ function sendError(response, status, message, writesBody) {
   sendJson(response, status, { ErrorCode: status, ErrorMessage: message }, writesBody);
 }
 
+// 调用方造成的失败（地址不是合法百分号编码、请求体不是 JSON）打上这个标记，
+// 状态码怎么选只看 statusFor —— 同步与异步两条 catch 都调它。
+function callerFault(message) {
+  const error = new Error(message);
+  error.callerFault = true;
+  return error;
+}
+
+/* 状态码只在这一处定：调用方造成的失败回 400，其余（读盘、渲染、传输）回 500。 */
+function statusFor(error) {
+  return error && error.callerFault ? 400 : 500;
+}
+
 function readBody(request) {
   return new Promise(function (resolve, reject) {
     const chunks = [];
@@ -76,9 +89,10 @@ function readBody(request) {
         resolve(JSON.parse(text));
       }
       catch (error) {
-        reject(new Error("请求体不是合法 JSON：" + error.message));
+        reject(callerFault("请求体不是合法 JSON：" + error.message));
       }
     });
+    // 连接断了是我们的故障，不标 callerFault。
     request.on("error", reject);
   });
 }
@@ -137,10 +151,10 @@ function handleSearch(request, response, options) {
         return sendJson(response, 200, sourceApi.searchBody(readPackages(options.root), body));
       }
       catch (error) {
-        return sendError(response, 500, error.message);
+        return sendError(response, statusFor(error), error.message);
       }
     })
-    .catch((error) => sendError(response, 400, error.message));
+    .catch((error) => sendError(response, statusFor(error), error.message));
 }
 
 function createHandler(options) {
@@ -148,17 +162,22 @@ function createHandler(options) {
     // HEAD 与 GET 同一条路由：只看一眼「在不在、多大」不该 404，但不写体。
     const writesBody = request.method !== "HEAD";
     const method = writesBody ? request.method : "GET";
+    const at = request.url.indexOf("?");
     try {
-      // 解码也在 try 里：畸形百分号编码（`GET /%`）会抛，落到外面就是整个进程退出。
-      const at = request.url.indexOf("?");
-      const route = decodeURIComponent(at < 0 ? request.url : request.url.slice(0, at));
+      let route = "";
+      try {
+        route = decodeURIComponent(at < 0 ? request.url : request.url.slice(0, at));
+      }
+      catch {
+        throw callerFault("请求地址不是合法的百分号编码");
+      }
       const params = new URLSearchParams(at < 0 ? "" : request.url.slice(at + 1));
       if (request.method === "POST" && route === "/api/manifestSearch") return handleSearch(request, response, options);
       if (method !== "GET") return sendError(response, 404, "没有这个地址：" + route, writesBody);
       return handleGet(route, params, response, options, writesBody);
     }
     catch (error) {
-      return sendError(response, 500, error.message, writesBody);
+      return sendError(response, statusFor(error), error.message, writesBody);
     }
   };
 }
