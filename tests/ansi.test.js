@@ -6,7 +6,7 @@
 const assert = require("assert");
 
 const {
-  stripText, createStripper, childOutputDetail, isDecorationLine, isUnderlineLine, DETAIL_LIMITS
+  stripText, createStripper, childOutputText, childOutputDetail, isDecorationLine, isUnderlineLine, DETAIL_LIMITS
 } = require("../lib/ansi.js");
 
 /*
@@ -85,6 +85,12 @@ function caseStripperOscAcrossChunks() {
 }
 
 function caseChildOutputDetail() {
+  // 纯文本读法（判据用全文）：剥色码、去空白，不掐长度。
+  assert.strictEqual(childOutputText({ stderr: "\u001b[31m 炸了 \u001b[0m" }), "炸了");
+  assert.strictEqual(childOutputText({ stderr: "\n", stdout: "真话" }), "真话");
+  assert.strictEqual(childOutputText({ error: new Error("ENOENT") }), "Error: ENOENT");
+  assert.strictEqual(childOutputText(null), "");
+  assert.ok(childOutputText({ stdout: "x".repeat(5000) }).length === 5000, "全文不掐长度");
   assert.strictEqual(childOutputDetail({ stderr: "\u001b[31m炸了\u001b[0m\n" }, 100), "炸了");
   // stderr 只剩色码时落到 stdout，别把空串当原因。
   assert.strictEqual(childOutputDetail({ stderr: "\u001b[0m", stdout: " 出参 " }, 100), "出参");

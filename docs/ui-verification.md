@@ -2925,3 +2925,18 @@ F4 累积到 8 条历史记录后看着像待办，需要区分「要你动手�
 | --- | --- |
 | `tests/ansi.test.js`「两条正则覆盖同一套序列」 | 8 条控制序列（CSI 带参数/中间字节、OSC 两种收尾、`ESC(B`、`ESCc`）按**任意位置切开**都不得漏残渣 —— 只改 `ANSI_PATTERN` 忘改 `TAIL_PATTERN` 时这条会红（改坏实测过） |
 | `tests/ansi.test.js`「超长输出留住原因」 | Node / pwsh 两种长输出都要留住真正那句；整段都是装饰行时回退原文 |
+
+## 2026-10-07 判据看全文、展示才掐长度（0.6.57）
+
+### 改了什么
+
+- `lib/ansi.js`：把「读出来」与「给人看」拆开 —— `childOutputText()` 只做 stderr → stdout → error、
+  剥色码、去空白（不掐长度，判据用这份全文）；`childOutputDetail()` = 它 + 丢框线 + 按档位留末尾。
+- `lib/resolve.js` / `lib/resolve-target.js`：取数失败的判据（认 `dsl.nodes[]`、认 `MASTERGO_MCP_TOKEN`）
+  看全文，`hint` 才按 `DETAIL_LIMITS.hint` 掐长度。
+
+### 为什么
+
+复核指出：分类用的那段文本也跟着「界面提示」档位截过，标记若出现在很前面（例如先报
+`dsl.nodes[] is empty`、后面还有一长段输出）就会认不出，界面上退化成泛泛的「取设计稿失败」。
+用例 `tests/resolve-target.test.js` 把这个形态钉住（标记在前、后面 8KB 输出，仍判定 `EMPTY_DSL`）。
