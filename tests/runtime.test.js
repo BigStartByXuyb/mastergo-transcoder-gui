@@ -361,8 +361,6 @@ async function main() {
     // 「系统上那份」在 PATH 上找：摆一个真目录当 PATH，放上两个平台各自认的名字。
     const pathDir = makeHome();
     for (const name of ["pwsh", "pwsh.exe"]) fs.writeFileSync(path.join(pathDir, name), "");
-    // 找的是哪个名字按平台定：Windows 认 pwsh.exe，其他平台认 pwsh（与产品里那一处同一口径）。
-    const sysPath = path.join(pathDir, process.platform === "win32" ? "pwsh.exe" : "pwsh");
     const sysPwsh = createRuntime({
       home: makeHome(),
       spawnSyncImpl: fakeSpawn([{ match: "pwsh", result: { status: 0, stdout: "7.6.6", stderr: "" } }]),
@@ -372,7 +370,9 @@ async function main() {
     assert.strictEqual(sysPwshRow.source, "system");
     assert.strictEqual(sysPwshRow.version, "7.6.6");
     assert.strictEqual(sysPwshRow.ready, true);
-    assert.strictEqual(sysPwshRow.system.path, sysPath, "系统那份要报出它到底是哪一个");
+    // 报出来的必须是 PATH 上那一个（目录对、名字是 pwsh）：不在断言里另抄一份平台命名规则。
+    assert.strictEqual(path.dirname(sysPwshRow.system.path), pathDir, "系统那份要报出它到底是哪一个");
+    assert.match(path.basename(sysPwshRow.system.path), /^pwsh(\.exe)?$/i, "就是 PATH 上那个 pwsh");
     assert.match(sysPwshRow.note, /下载后改用客户端自带的那份/);
   });
 

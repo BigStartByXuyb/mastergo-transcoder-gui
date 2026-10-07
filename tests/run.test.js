@@ -288,31 +288,40 @@ async function caseStop() {
  * 2) PowerShell 的错误框会带终端色码（ESC[31;1m 之类）—— 日志与失败原因里不该出现它们。
  */
 async function caseTokenAndAnsi() {
-  const fx = manager({ token: "mg_用例_token" });
-  const job = fx.manager.start({ projectRoot: "D:/proj", mode: "B", target: "T1", ui: "F1" });
-  assert.strictEqual(fx.calls[0].spawnOptions.env.MASTERGO_MCP_TOKEN, "mg_用例_token", "token 要交给子进程");
+  // 宿主机上可能就设着这个变量：先摘掉，这条用例才只验「我们交给子进程的是什么」。
+  const savedToken = process.env.MASTERGO_MCP_TOKEN;
+  delete process.env.MASTERGO_MCP_TOKEN;
+  try {
+    const fx = manager({ token: "mg_用例_token" });
+    const job = fx.manager.start({ projectRoot: "D:/proj", mode: "B", target: "T1", ui: "F1" });
+    assert.strictEqual(fx.calls[0].spawnOptions.env.MASTERGO_MCP_TOKEN, "mg_用例_token", "token 要交给子进程");
 
-  const child = fx.children[0];
-  child.emitLine("\u001b[31;1m     | \u001b[31;1m缺少 MasterGo token：中文测试\u001b[0m");
-  child.close(1);
-  await flush();
+    const child = fx.children[0];
+    child.emitLine("\u001b[31;1m     | \u001b[31;1m缺少 MasterGo token：中文测试\u001b[0m");
+    child.close(1);
+    await flush();
 
-  const log = fx.manager.log(job.id, 0).text;
-  assert.ok(log.indexOf("\u001b") < 0, "日志里不许留色码");
-  assert.ok(log.includes("缺少 MasterGo token：中文测试"), "文案本身要留下");
-  assert.strictEqual(
-    fx.manager.status(job.id).runs[0].failure.message,
-    "缺少 MasterGo token：中文测试",
-    "失败原因里的色码也剥掉"
-  );
+    const log = fx.manager.log(job.id, 0).text;
+    assert.ok(log.indexOf("\u001b") < 0, "日志里不许留色码");
+    assert.ok(log.includes("缺少 MasterGo token：中文测试"), "文案本身要留下");
+    assert.strictEqual(
+      fx.manager.status(job.id).runs[0].failure.message,
+      "缺少 MasterGo token：中文测试",
+      "失败原因里的色码也剥掉"
+    );
 
-  // 没有 token 时不塞空值：让插件按它自己的 config.toml 兜底去。
-  const plain = manager();
-  plain.manager.start({ projectRoot: "D:/proj2", mode: "B", target: "T2", ui: "F1" });
-  assert.strictEqual("MASTERGO_MCP_TOKEN" in plain.calls[0].spawnOptions.env, false, "没解析出 token 就不设这个变量");
+    // 没有 token 时不塞空值：让插件按它自己的 config.toml 兜底去。
+    const plain = manager();
+    plain.manager.start({ projectRoot: "D:/proj2", mode: "B", target: "T2", ui: "F1" });
+    assert.strictEqual(plain.calls[0].spawnOptions.env.MASTERGO_MCP_TOKEN, undefined, "没解析出 token 就不设这个变量");
+  }
+  finally {
+    if (savedToken === undefined) delete process.env.MASTERGO_MCP_TOKEN;
+    else process.env.MASTERGO_MCP_TOKEN = savedToken;
+  }
 }
 
-  async function caseSpawnError() {
+async function caseSpawnError() {
   const fx = manager();
   const job = fx.manager.start({ projectRoot: "D:/p", mode: "B" });
   fx.children[0].emit("error", new Error("ENOENT"));
