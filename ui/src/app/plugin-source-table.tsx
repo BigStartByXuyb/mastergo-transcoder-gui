@@ -84,7 +84,7 @@ function PluginSourceLine(props: {
         <SourceVersion row={row} />
       </TableCell>
       <TableCell className="align-top whitespace-normal">
-        <SourceStatusBadge row={row} />
+        <SourceStatusBadge active={row.active} exists={row.exists} />
         {props.installState && <span className="block pt-1">{props.installState}</span>}
       </TableCell>
       <TableCell className="align-top whitespace-normal">

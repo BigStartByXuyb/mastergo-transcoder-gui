@@ -1,14 +1,13 @@
 import { FolderSearch, Loader2 } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { IdentifierText } from "@/app/identifier-text"
-import { sourceStatusText } from "@/app/plugin-source-facts"
+import { SourceStatusBadge } from "@/app/plugin-source-facts"
 import { PLUGIN_BUSY, type PluginSourceSlot } from "@/lib/plugin-sources"
 
 /*
  * 顶部那条「我指定的那一份」：显示这一档的处境与路径，两个动作 —— 指定一个目录… / 交给客户端找。
- * 处境不在这里另判：读 pluginLookup 给的结论（slot），措辞走 sourceStatusText，
+ * 处境不在这里另判：读 pluginLookup 给的结论（slot），徽章与表、面板读同一个组件（SourceStatusBadge），
  * 与表里那一行、顺序条上那一档说的是同一句话。
  */
 
@@ -31,7 +30,7 @@ export function ChosenSlot(props: {
       <span className="text-sm font-medium">我指定的那一份</span>
       {props.chosen ? (
         <>
-          <Badge variant={active ? "secondary" : "outline"}>{sourceStatusText(active, exists)}</Badge>
+          <SourceStatusBadge active={active} exists={exists} />
           <IdentifierText className="text-muted-foreground min-w-0 flex-1 text-xs" text={props.chosen} />
         </>
       ) : (

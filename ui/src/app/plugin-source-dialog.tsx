@@ -95,7 +95,7 @@ export function PluginSourceDialog(props: {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {row.label}
-            <SourceStatusBadge row={row} />
+            <SourceStatusBadge active={row.active} exists={row.exists} />
           </DialogTitle>
           <DialogDescription>
             查找顺序里的第 {row.order} 档。{KIND_NOTE[row.kind] || ""}

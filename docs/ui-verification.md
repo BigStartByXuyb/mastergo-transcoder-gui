@@ -146,6 +146,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
     弹窗要的「现状」一律走 `sourceViewOf` / `sourceViewFixture`（卡片、面板、用例都在用）。
   · `pluginLookup` 一族：一趟扫完 —— 每一档当场决定留下还是并进前面那一档，只剩「插件根 → 留下的那一行」这一张表，
     原先的三趟遍历与四个 Map 一起去掉。
+- 第三十四轮又按族收了合并前最后两条：处境徽章只剩 `SourceStatusBadge` 一处（顶栏「我指定的那一份」也读它，
+  不再内联一个不带图标的 Badge）；`lib/routes.js` 的两句提示改回用 `PLUGIN_NAME` 拼（插件名仍只有
+  `lib/plugin-root.js` 一个真值源）。并 main（内网 winget 源 #18/#19）时 `ci.yml` 的 cicd pin 取 main 上那一版。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。
