@@ -73,6 +73,11 @@ function callerFault(message) {
   return error;
 }
 
+/* 状态码只在这一处定：调用方造成的失败回 400，其余（读盘、渲染、传输）回 500。 */
+function statusFor(error) {
+  return error && error.callerFault ? 400 : 500;
+}
+
 function readBody(request) {
   return new Promise(function (resolve, reject) {
     const chunks = [];
@@ -149,7 +154,7 @@ function handleSearch(request, response, options) {
         return sendError(response, 500, error.message);
       }
     })
-    .catch((error) => sendError(response, error.callerFault ? 400 : 500, error.message));
+    .catch((error) => sendError(response, statusFor(error), error.message));
 }
 
 function createHandler(options) {
@@ -172,8 +177,7 @@ function createHandler(options) {
       return handleGet(route, params, response, options, writesBody);
     }
     catch (error) {
-      // 一处选码：调用方造成的（标了 callerFault）回 400，其余（读盘、渲染、传输）回 500。
-      return sendError(response, error.callerFault ? 400 : 500, error.message, writesBody);
+      return sendError(response, statusFor(error), error.message, writesBody);
     }
   };
 }
