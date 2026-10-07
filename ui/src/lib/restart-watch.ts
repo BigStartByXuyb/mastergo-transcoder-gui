@@ -10,6 +10,10 @@ import { describeFailure } from "@/lib/describe-failure"
  *
  * 探测、等待、时钟都从外面注入，所以这里能单独测；界面只拿结论。
  * 老进程刚退出、新的还没监听的那一小段连不上是预期的，不算失败，继续等。
+ *
+ * 「失败」有两种，界面要分开对待，所以结论里带上 serviceUp：
+ *   被拒（serviceUp=true）—— 后端还在，是它自己说明了原因，更新页也还打得开；
+ *   等不到（serviceUp=false）—— 后端已经不在了，界面上任何一页都载不出来，原因只剩客户端那个窗口里那几行。
  */
 export type ServiceWaitOptions = {
   /** 探一下新的一份能不能答话；起不来时抛错即可。 */
@@ -50,7 +54,7 @@ export type RestartWaitOptions = {
   restart?: () => Promise<unknown>
 }
 
-export type RestartWaitOutcome = { ok: true; note: "" } | { ok: false; note: string }
+export type RestartWaitOutcome = { ok: true; note: "" } | { ok: false; note: string; serviceUp: boolean }
 
 export async function restartAndWait(options: RestartWaitOptions): Promise<RestartWaitOutcome> {
   const restart = options.restart ?? function () { return api.clientRestart() }
@@ -60,12 +64,13 @@ export async function restartAndWait(options: RestartWaitOptions): Promise<Resta
   catch (error) {
     /*
      * 只有「这一份被它自己关掉」才算预期：请求断在半路。
-     * 被拒（有任务在跑、这份不是 start.cmd 拉起来的）要如实说，不能吞掉再等 40 秒。
+     * 被拒（有任务在跑、没有监督进程、监督进程已经不在）要如实说，不能吞掉再等 40 秒
+     * —— 能走到这里说明后端答了话，它还在，更新页还开得出来。
      */
     if (!(error instanceof ApiFailure) || error.code !== "OFFLINE") {
-      return { ok: false, note: describeFailure(error) }
+      return { ok: false, note: describeFailure(error), serviceUp: true }
     }
   }
   const up = await waitFor(Object.assign({ probe: options.probe }, options.wait || {}))
-  return up ? { ok: true, note: "" } : { ok: false, note: options.failedNote }
+  return up ? { ok: true, note: "" } : { ok: false, note: options.failedNote, serviceUp: false }
 }

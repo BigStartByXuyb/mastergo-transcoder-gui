@@ -9,7 +9,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { resolveLaunch, RESTART_CODE } = require("../lib/launch.js");
+const { resolveLaunch, supervisorAlive, RESTART_CODE } = require("../lib/launch.js");
 
 function makeHome() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-launch-"));
@@ -54,5 +54,17 @@ fs.rmSync(home, { recursive: true, force: true });
 
 // 子进程的退出码就是监督进程的协议：换一份重跑用 75，其余码一律当作结束（两端同读这一份）。
 assert.strictEqual(RESTART_CODE, 75, "重启码是 75，改动它要两端一起改");
+
+/*
+ * 监督进程探活：子进程按 75 退出去等它拉起自己，所以得先知道它还在不在 ——
+ * 它没了（启动窗口被关掉）还照退，就会变成「切完版本服务没人拉起来、页面打不开」。
+ */
+assert.strictEqual(supervisorAlive({ ppid: 1234, kill: function () {} }), true, "探得到就是在");
+assert.strictEqual(
+  supervisorAlive({ ppid: 1234, kill: function () { throw new Error("ESRCH"); } }),
+  false,
+  "探不到（进程没了）＝不在"
+);
+assert.strictEqual(supervisorAlive({ ppid: 0, kill: function () {} }), false, "读不到 ppid 就当不在");
 
 process.stdout.write("launch ok\n");

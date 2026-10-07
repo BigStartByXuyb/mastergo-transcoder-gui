@@ -107,7 +107,7 @@ export type FrameEntry = {
 export type Health = {
   ok: true
   version: string
-  /** 这一份是 start.cmd 拉起来的（有监督进程）：换版本能自己重跑，不用人重启。 */
+  /** 这一份是从客户端窗口起的（有监督进程）：换版本能自己重跑，不用人重启。 */
   supervised: boolean
   plugin: PluginSummary
   frames: FrameEntry[]

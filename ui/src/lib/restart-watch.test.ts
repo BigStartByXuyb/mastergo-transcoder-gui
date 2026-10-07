@@ -79,6 +79,8 @@ describe("restartAndWait", () => {
     })
     expect(outcome.ok).toBe(false)
     expect(outcome.ok === false ? outcome.note : "").toContain("正在跑")
+    // 后端答了话说明它还在：界面还能带人去看原因。
+    expect(outcome.ok === false ? outcome.serviceUp : null).toBe(true)
     expect(probed).toBe(0)
   })
 
@@ -92,7 +94,8 @@ describe("restartAndWait", () => {
       restart: async () => undefined,
       wait: { timeoutMs: 0, ...c }
     })
-    expect(outcome).toEqual({ ok: false, note: "没起来" })
+    // 等不到 = 新的一份没起来，后端也不在了：调用方不能再把人往更新页带。
+    expect(outcome).toEqual({ ok: false, note: "没起来", serviceUp: false })
   })
 
 })

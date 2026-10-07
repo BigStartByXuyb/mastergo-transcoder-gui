@@ -60,8 +60,8 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
     }
     setBusy("")
     setFailure(outcome.note)
-    // 没起来就带人去更新页看原因（这条入口的展示差异，编排与设置页那一处相同）。
-    props.onOpenUpdatePage()
+    // 后端还在（被拒）才带人去更新页看原因；它已经没了的时候，带过去只是一页载不出来。
+    if (outcome.serviceUp) props.onOpenUpdatePage()
   }
 
   return (

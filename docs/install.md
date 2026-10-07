@@ -172,6 +172,6 @@ powershell -ExecutionPolicy Bypass -File install-client.ps1 -ZipUrl <zip 的完�
 
 | 现象 | 先看 |
 | --- | --- |
-| 顶部「服务未就绪」 | `start.cmd` 那个窗口还在不在；关了窗口服务就没了 |
+| 顶部「服务未就绪」 | 客户端那个窗口（`start.cmd` 或 `mastergo-transcoder.exe`）还在不在；关了窗口服务就没了 |
 | 「引擎缺失」 | 插件装了没、装在哪（设置 → 更新 → 插件（流水线）列出全部位置与实际在用的那一份） |
 | 更新相关 | 设置 → 更新：状态、上次检查时间、失败原因都在这；离线时断网只影响更新与下载 |
