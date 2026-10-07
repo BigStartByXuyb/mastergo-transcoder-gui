@@ -118,20 +118,24 @@ const PLUGIN = pluginRuntime.current();
 const workRoot = path.join(os.tmpdir(), "mtslg-transcoder-gui");
 fs.mkdirSync(workRoot, { recursive: true });
 
+// token 取值链只建一次，谁要都拿这一个闭包（设置里改完不重启也按新的走）。
+const tokenOf = function () { return tokenSource.value(); };
+
 const resolver = createResolver({
   engine: PLUGIN.engine,
   // 插件根每次现取：设置里换一份之后立刻生效，不用重启客户端。
   pluginRoot: function () { return PLUGIN.root; },
   // pwsh 也现取：换了运行时、或改了「允许用系统那份」之后，下一次查询就按新的走。
   pwsh: function () { return resolvePwshExe(); },
-  token: function () { return tokenSource.value(); },
+  token: tokenOf,
   project: options.project,
   snapshot: options.snapshot,
   workRoot: workRoot
 });
 resolver.refreshProjectFrames();
 
-const runs = createRunManager({ plugin: PLUGIN });
+// token 交给运行管理器：插件脚本只认环境变量里的那一份（只在设置里填过的机器，否则第一步就报缺少 token）。
+const runs = createRunManager({ plugin: PLUGIN, token: tokenOf });
 const pending = createPending({ plugin: PLUGIN });
 const ai = createAi({ settings: settings });
 const artifacts = createArtifacts();
@@ -213,7 +217,7 @@ const routes = createRoutes({
   pluginRuntime: pluginRuntime,
   chats: chats,
   uploads: uploads,
-  token: function () { return tokenSource.value(); },
+  token: tokenOf,
   tokenSource: tokenSource,
   supervised: process.env.MASTERGO_SUPERVISED === "1",
   isBusy: busyReason,

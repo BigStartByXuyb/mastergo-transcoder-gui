@@ -246,8 +246,29 @@ async function main() {
 
   // 设置里显式允许之后，才轮到系统上那一份。
   withSystem(true, function () {
-    assert.strictEqual(resolveNodeExe(home), process.execPath, "允许了才用当前进程这一份");
-    assert.strictEqual(resolvePwshExe(home), "pwsh", "允许了才落到系统 PATH 里的 pwsh");
+    /*
+     * 用的是「系统上那份」的具体路径（不是裸命令名，也不是当前进程那一份）：
+     * 与界面那一行报出来的是同一个查找函数的结果，两处不会分叉。
+     * 注入假的 where 与安装位置 —— 用例因此不依赖宿主机上真装没装（CI 上两样都没有）。
+     */
+    const locatedRoot = makeHome();
+    fs.mkdirSync(path.join(locatedRoot, "nodejs"), { recursive: true });
+    fs.writeFileSync(path.join(locatedRoot, "nodejs", "node.exe"), "");
+    fs.mkdirSync(path.join(locatedRoot, "PowerShell", "7"), { recursive: true });
+    fs.writeFileSync(path.join(locatedRoot, "PowerShell", "7", "pwsh.exe"), "");
+    const injected = {
+      env: { ProgramFiles: locatedRoot }
+    };
+    assert.strictEqual(
+      resolveNodeExe(home, injected),
+      path.join(locatedRoot, "nodejs", "node.exe"),
+      "允许后用系统那份 node 的绝对路径"
+    );
+    assert.strictEqual(
+      resolvePwshExe(home, injected),
+      path.join(locatedRoot, "PowerShell", "7", "pwsh.exe"),
+      "允许后用系统那份 pwsh 的绝对路径"
+    );
   });
 
   // 装好自带那份：无论开关怎么设，都优先用我们自己的。
@@ -297,7 +318,7 @@ async function main() {
   assert.strictEqual(explicitPath[0], path.dirname(givenNode), "显式给的那份排最前");
   assert.strictEqual(explicitPath[1], path.dirname(givenPwsh), "第二份紧随其后");
 
-  // 裸命令名（允许用系统那份时就是这个形状）：绝不能用 dirname 得到 "." 塞进 PATH。
+  // 裸命令名（环境变量 MASTERGO_PWSH 可以这么写）：绝不能用 dirname 得到 "." 塞进 PATH。
   const barePathEnv = childEnv(null, makeHome(), { node: "node", pwsh: "pwsh" });
   assert.strictEqual(pathOf(barePathEnv), process.env.PATH, "裸命令名不往 PATH 里加任何东西");
   assert.ok(childPath.length > 1, "系统 PATH 原样接在自带的两份后面");
@@ -337,22 +358,59 @@ async function main() {
 
   // 允许用系统那份之后：系统上的 pwsh 被认下来，但仍提示「下载后改用客户端自带的那份」。
   withSystem(true, function () {
+    // 「系统上那份」在 PATH 上找：摆一个真目录当 PATH，放上两个平台各自认的名字。
+    const pathDir = makeHome();
+    for (const name of ["pwsh", "pwsh.exe"]) fs.writeFileSync(path.join(pathDir, name), "");
     const sysPwsh = createRuntime({
       home: makeHome(),
-      // 「系统上那份」现在是去 PATH 上找的：先让 where 报一个路径，再让那一份自检回版本号。
-      spawnSyncImpl: fakeSpawn([
-        { match: "where pwsh.exe", result: { status: 0, stdout: "C:\\sys\\pwsh.exe\n", stderr: "" } },
-        { match: "pwsh", result: { status: 0, stdout: "7.6.6", stderr: "" } }
-      ]),
-      env: {}
+      spawnSyncImpl: fakeSpawn([{ match: "pwsh", result: { status: 0, stdout: "7.6.6", stderr: "" } }]),
+      env: { PATH: pathDir }
     });
     const sysPwshRow = sysPwsh.status().tools[1];
     assert.strictEqual(sysPwshRow.source, "system");
     assert.strictEqual(sysPwshRow.version, "7.6.6");
     assert.strictEqual(sysPwshRow.ready, true);
-    assert.strictEqual(sysPwshRow.system.path, "C:\\sys\\pwsh.exe", "系统那份要报出它到底是哪一个");
+    // 报出来的必须是 PATH 上那一个（目录对、名字是 pwsh）：不在断言里另抄一份平台命名规则。
+    assert.strictEqual(path.dirname(sysPwshRow.system.path), pathDir, "系统那份要报出它到底是哪一个");
+    assert.match(path.basename(sysPwshRow.system.path), /^pwsh(\.exe)?$/i, "就是 PATH 上那个 pwsh");
     assert.match(sysPwshRow.note, /下载后改用客户端自带的那份/);
   });
+
+  /*
+   * PATH 上第一个命中恰好在我们安装根里（我们自己那份）时不能就此停手：后面那个才是系统的。
+   * 只看首个命中会把系统那份漏掉，界面就显示「没检测到」。
+   */
+  const shadowHome = makeHome();
+  const oursDir = path.join(shadowHome, "runtime", "node", TOOLS.node.version);
+  fs.mkdirSync(oursDir, { recursive: true });
+  for (const name of ["node", "node.exe"]) fs.writeFileSync(path.join(oursDir, name), "");
+  const sysDir = makeHome();
+  for (const name of ["node", "node.exe"]) fs.writeFileSync(path.join(sysDir, name), "");
+  const shadowed = createRuntime({
+    home: shadowHome,
+    spawnSyncImpl: fakeSpawn([{ match: "node", result: { status: 0, stdout: "v24.14.0", stderr: "" } }]),
+    env: { PATH: [oursDir, sysDir].join(path.delimiter) }
+  });
+  const shadowFound = shadowed.status().tools[0].system;
+  assert.strictEqual(path.dirname(shadowFound.path), sysDir, "跳过我们自己那份，继续往后找系统的");
+  assert.match(path.basename(shadowFound.path), /^node(\.exe)?$/i, "找到的是 PATH 上那一个 node");
+
+  /*
+   * PATH 上没有（`where` 找不到）但官方安装位置里有：也要认出来。
+   * 客户机上「装好了却没进进程 PATH」是常见情况（装完没重开客户端、Store 版别名目录不在 PATH 里）。
+   */
+  const systemRoot = makeHome();
+  fs.mkdirSync(path.join(systemRoot, "nodejs"), { recursive: true });
+  fs.writeFileSync(path.join(systemRoot, "nodejs", "node.exe"), "");
+  const byLocation = createRuntime({
+    home: makeHome(),
+    spawnSyncImpl: fakeSpawn([{ match: "node", result: { status: 0, stdout: "v24.14.0", stderr: "" } }]),
+    env: { ProgramFiles: systemRoot }
+  });
+  const byLocationRow = byLocation.status().tools[0];
+  assert.strictEqual(byLocationRow.system.ok, true, "PATH 上没有时按官方安装位置找");
+  assert.strictEqual(byLocationRow.system.version, "24.14.0");
+  assert.strictEqual(byLocationRow.system.path, path.join(systemRoot, "nodejs", "node.exe"));
 
   // 自带那份在，但自检出来的版本不对：不许当它是好的，且提示重下。
   const badBundledHome = makeHome();
@@ -373,14 +431,14 @@ async function main() {
   const goodBundledHome = makeHome();
   fs.mkdirSync(path.join(goodBundledHome, "runtime", "node"), { recursive: true });
   fs.writeFileSync(path.join(goodBundledHome, "runtime", "node", "node.exe"), "");
+  // 系统那份摆在一个独立的目录里（放在我们自己安装根里会被正确排除）。
+  const systemPathDir = makeHome();
+  for (const name of ["node", "node.exe"]) fs.writeFileSync(path.join(systemPathDir, name), "");
   const goodBundled = createRuntime({
     home: goodBundledHome,
-    // 系统那份走 where 找：给一个路径，再让那一份自检回版本号。
-    spawnSyncImpl: fakeSpawn([
-      { match: "where node.exe", result: { status: 0, stdout: "C:\\sys\\node.exe\n", stderr: "" } },
-      { match: "node.exe", result: { status: 0, stdout: "v" + TOOLS.node.version, stderr: "" } }
-    ]),
-    env: {}
+    // 系统那份走 PATH 找：给一个摆着 node 的目录，再让那一份自检回版本号。
+    spawnSyncImpl: fakeSpawn([{ match: "node", result: { status: 0, stdout: "v" + TOOLS.node.version, stderr: "" } }]),
+    env: { PATH: systemPathDir }
   });
   const goodRow = goodBundled.status().tools[0];
   assert.strictEqual(goodRow.source, "bundled");
