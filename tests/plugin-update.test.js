@@ -14,9 +14,10 @@ const { hashFiles, listFilesUnder } = require("../lib/app-manifest.js");
 const { BUILDING_PREFIX } = require("../lib/bundle-store.js");
 const { pluginRootsUnder } = require("../lib/plugin-root.js");
 const { createPluginUpdate, STORE_LAYOUT } = require("../lib/plugin-update.js");
-const { PLUGIN_MANIFEST_NAME, MANIFEST_NAME } = require("../lib/source.js");
+const source = require("../lib/source.js");
+const { PLUGIN_MANIFEST_NAME, MANIFEST_NAME } = source;
 
-const BASE = "https://github.com/BigStartByXuyb/mastergo-transcoder-gui";
+const BASE = source.DEFAULT_BASE;
 // 夹具里的相对路径一律用 / 拼（清单里的路径也是 / 分隔），免得平台差异混进用例。
 const MARKER = "skills/mastergo-to-wpf/SKILL.md";
 

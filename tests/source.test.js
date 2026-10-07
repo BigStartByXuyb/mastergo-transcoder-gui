@@ -8,28 +8,29 @@ const assert = require("assert");
 
 const source = require("../lib/source.js");
 
-const GH = { kind: "github", base: "https://github.com/BigStartByXuyb/mastergo-transcoder-gui" };
+// 内置发布源只有 lib/source.js 一处（DEFAULT_BASE）：这里的期望值用它拼，不再各写一份字面量。
+const GH = { kind: "github", base: source.DEFAULT_BASE };
 const GL = { kind: "gitlab", base: "https://git.example.com/team/mastergo-transcoder-gui" };
 const ST = { kind: "static", base: "http://10.0.0.9/updates" };
 
 function caseGithub() {
   assert.strictEqual(
     source.manifestUrl(GH),
-    "https://github.com/BigStartByXuyb/mastergo-transcoder-gui/releases/latest/download/manifest.json"
+    source.DEFAULT_BASE + "/releases/latest/download/manifest.json"
   );
   assert.strictEqual(
     source.manifestUrlOf(GH, "0.6.30"),
-    "https://github.com/BigStartByXuyb/mastergo-transcoder-gui/releases/download/v0.6.30/manifest.json"
+    source.DEFAULT_BASE + "/releases/download/v0.6.30/manifest.json"
   );
   assert.strictEqual(
     source.blobUrl(GH, "0.6.30", "abc123"),
-    "https://github.com/BigStartByXuyb/mastergo-transcoder-gui/releases/download/v0.6.30/abc123"
+    source.DEFAULT_BASE + "/releases/download/v0.6.30/abc123"
   );
   // 插件那一半按同一套协议换清单名：地址只有文件名不同（最新那份，落在同一个 Release 上）。
   assert.strictEqual(source.MANIFEST_NAME, "manifest.json");
   assert.strictEqual(
     source.manifestUrl(GH, source.PLUGIN_MANIFEST_NAME),
-    "https://github.com/BigStartByXuyb/mastergo-transcoder-gui/releases/latest/download/plugin-manifest.json"
+    source.DEFAULT_BASE + "/releases/latest/download/plugin-manifest.json"
   );
 }
 
@@ -91,7 +92,7 @@ function caseDescribe() {
     base: "https://git.example.com/team/mastergo-transcoder-gui",
     manifestUrl: source.manifestUrl(GL),
     // 界面下拉照 kinds 渲染：类型名单只有这一处，前端不另抄一份。
-    kinds: ["github", "gitlab", "static"]
+    kinds: source.KINDS
   });
   // 插件那一半的「去哪儿取清单」也由这一处拼：换清单名就换一整套地址。
   assert.strictEqual(

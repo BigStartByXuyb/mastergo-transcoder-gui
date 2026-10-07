@@ -4,13 +4,15 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { SourceDialog } from "@/app/source-dialog"
 import { api, type UpdateStatus, type UpdateSource } from "@/lib/api"
 import { sourceCheckOutcome } from "@/lib/source-check"
+import { sourceFixture } from "@/lib/settings-fixtures"
 import { describeUpdate } from "@/lib/update-state"
 
 /*
  * 走真的 api 层（只把 fetch 换掉）：要验的是「预填什么、点保存并检查发哪两个请求、结果怎么显示」。
  */
 
-const BASE = "https://github.com/BigStartByXuyb/mastergo-transcoder-gui"
+// 夹具里的默认发布源只有一处（settings-fixtures 的 sourceFixture）：这里不再各写一份地址与类型名单。
+const BASE = sourceFixture().base
 
 function status(patch: Partial<UpdateStatus> = {}): UpdateStatus {
   return {
@@ -27,12 +29,7 @@ function status(patch: Partial<UpdateStatus> = {}): UpdateStatus {
     available: null,
     error: null,
     task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
-    source: {
-      kind: "github",
-      base: BASE,
-      manifestUrl: BASE + "/releases/latest/download/manifest.json",
-      kinds: ["github", "gitlab", "static"]
-    },
+    source: sourceFixture(),
     hasToken: false,
     ...patch
   }

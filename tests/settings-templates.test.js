@@ -10,6 +10,8 @@ const os = require("os");
 const path = require("path");
 
 const { createSettings } = require("../lib/settings.js");
+// 内置发布源只有 lib/source.js 一处（DEFAULT_BASE）：默认值与回落都按它断言，不各写一份字面量。
+const sourceDefaults = require("../lib/source.js");
 
 function tempHome(body) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-templates-"));
@@ -75,7 +77,7 @@ function caseSource() {
   const settings = createSettings(home);
   const initial = settings.read().source;
   assert.strictEqual(initial.kind, "github");
-  assert.strictEqual(initial.base, "https://github.com/BigStartByXuyb/mastergo-transcoder-gui");
+  assert.strictEqual(initial.base, sourceDefaults.DEFAULT_BASE);
   assert.strictEqual(initial.hasToken, false);
 
   const saved = settings.write({
@@ -89,7 +91,7 @@ function caseSource() {
   // 不认识的类型 / 空基址：回落内置默认，不保留半份配置。
   const broken = settings.write({ source: { kind: "svn", base: "https://x/y" } }).source;
   assert.strictEqual(broken.kind, "github");
-  assert.strictEqual(broken.base, "https://github.com/BigStartByXuyb/mastergo-transcoder-gui");
+  assert.strictEqual(broken.base, sourceDefaults.DEFAULT_BASE);
 
   settings.write({ source: { kind: "static", base: "http://10.0.0.9/updates", clearToken: true } }).source;
   assert.strictEqual(settings.read().source.hasToken, false, "清掉 token 后不再算有");

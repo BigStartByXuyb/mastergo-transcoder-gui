@@ -17,8 +17,11 @@ export const ENGINE = drive("D", "app", "lib", "node-controls.js")
 export const INSTALL_PARENT = drive("D", "app", "plugins")
 export const INSTALLED_ROOT = drive("D", "app", "plugins", "mastergo-wpf-transcoder", "1.0.369")
 
+/** 界面侧夹具用的默认发布源：与后端 lib/source.js 的内置默认一致（两份不能互相引，各自一处、口径一致）。 */
+export const SOURCE_BASE = "https://github.com/BigStartByXuyb/mastergo-transcoder-gui"
+
 /** 发布源：程序更新与插件那一半显示的是同一处设置，夹具也只做一份。 */
-export function sourceFixture(base = "https://github.com/BigStartByXuyb/mastergo-transcoder-gui"): UpdateSource {
+export function sourceFixture(base = SOURCE_BASE): UpdateSource {
   return {
     kind: "github",
     base: base,
