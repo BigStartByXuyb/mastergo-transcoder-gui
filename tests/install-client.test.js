@@ -19,6 +19,7 @@ const ROOT = path.join(__dirname, "..");
 const SCRIPT_PATH = path.join(ROOT, "scripts", "install-client.ps1");
 const SCRIPT = fs.readFileSync(SCRIPT_PATH, "utf8");
 const source = require("../lib/source.js");
+const { folderOf } = require("../scripts/lib/bundle-name.js");
 
 function main() {
   assert.ok(
@@ -26,6 +27,14 @@ function main() {
     "脚本里的默认基址要与 lib/source.js 的 DEFAULT_BASE 一致（改默认源时两处一起改）"
   );
   assert.ok(SCRIPT.indexOf("checksums.json") >= 0, "校验值取 checksums.json");
+  /*
+   * 包名这条跨语言副本也要盯：打包脚本与 winget 清单都从 scripts/lib/bundle-name.js 取名字，
+   * PowerShell 引不到那边，只能靠这里断言两边拼出来的是同一个（改前缀时这里会红）。
+   */
+  assert.ok(
+    SCRIPT.indexOf(folderOf("$Version") + ".zip") >= 0,
+    "脚本拼的 zip 名要与 scripts/lib/bundle-name.js 同口径"
+  );
   assert.ok(
     SCRIPT.indexOf("BigStart.MasterGoTranscoder.installer.yaml") < 0,
     "不该再去解析 winget 清单：两个产物各管各的"
