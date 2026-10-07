@@ -59,7 +59,15 @@ function caseDescribeCaptureFailure() {
   assert.match(empty.message, /1872:60904/);
   assert.match(empty.hint, /页面.*链接/);
 
-  assert.strictEqual(describeCaptureFailure("invalid token mg_xxx", "1:1").code, "NEED_TOKEN");
+  // 「插件没拿到 token」那句（会教你 MASTERGO_MCP_TOKEN / -ConfigPath 怎么给）换成客户端说法。
+  const missing = describeCaptureFailure("Exception: 缺少 MasterGo token：设置环境变量 MASTERGO_MCP_TOKEN", "1:1");
+  assert.strictEqual(missing.code, "NEED_TOKEN");
+  assert.match(missing.hint, /设置 → MasterGo token/);
+  assert.ok(missing.hint.indexOf("ConfigPath") < 0, "不复述命令行用法");
+  // 引擎自己那句「这份不行」是另一个问题：原样给人看，不套用上面那句。
+  const rejected = describeCaptureFailure("invalid token mg_xxx：MasterGo 说这份不认", "1:1");
+  assert.strictEqual(rejected.code, "CAPTURE_FAILED");
+  assert.match(rejected.hint, /invalid token/);
   const other = describeCaptureFailure("boom", "1:1");
   assert.strictEqual(other.code, "CAPTURE_FAILED");
   assert.strictEqual(other.hint, "boom");

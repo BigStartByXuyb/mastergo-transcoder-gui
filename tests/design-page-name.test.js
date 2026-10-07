@@ -63,9 +63,22 @@ function caseFailures() {
   const boom = pluginWith("process.exit(9)\n");
   assert.throws(() => resolveDesignPageName({ pluginRoot: boom, fileId: "1", layerId: "1:1", token: "mg_test" }), /exit 9/);
 
+  // 取数脚本的报错可能带终端色码：那句提示是要给人看的，色码在这里剥掉。
+  const colored = pluginWith([
+    "\"use strict\";",
+    "process.stderr.write(\"\\u001b[31;1mException: 缺少 MasterGo token\\u001b[0m\\n\");",
+    "process.exit(2);",
+    ""
+  ].join("\n"));
+  assert.throws(
+    () => resolveDesignPageName({ pluginRoot: colored, fileId: "1", layerId: "1:1", token: "mg_test" }),
+    (error) => error.message.includes("缺少 MasterGo token") && error.message.indexOf("\u001b") < 0
+  );
+
   fs.rmSync(missing, { recursive: true, force: true });
   fs.rmSync(empty, { recursive: true, force: true });
   fs.rmSync(boom, { recursive: true, force: true });
+  fs.rmSync(colored, { recursive: true, force: true });
 }
 
 function main() {

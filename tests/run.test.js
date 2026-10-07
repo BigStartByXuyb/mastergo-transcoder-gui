@@ -297,16 +297,16 @@ async function caseTokenAndAnsi() {
     assert.strictEqual(fx.calls[0].spawnOptions.env.MASTERGO_MCP_TOKEN, "mg_用例_token", "token 要交给子进程");
 
     const child = fx.children[0];
-    child.emitLine("\u001b[31;1m     | \u001b[31;1m缺少 MasterGo token：中文测试\u001b[0m");
+    child.emitLine("\u001b[31;1m     | \u001b[31;1m缺少区域前缀：中文测试\u001b[0m");
     child.close(1);
     await flush();
 
     const log = fx.manager.log(job.id, 0).text;
     assert.ok(log.indexOf("\u001b") < 0, "日志里不许留色码");
-    assert.ok(log.includes("缺少 MasterGo token：中文测试"), "文案本身要留下");
+    assert.ok(log.includes("缺少区域前缀：中文测试"), "文案本身要留下");
     assert.strictEqual(
       fx.manager.status(job.id).runs[0].failure.message,
-      "缺少 MasterGo token：中文测试",
+      "缺少区域前缀：中文测试",
       "失败原因里的色码也剥掉"
     );
 
@@ -319,6 +319,81 @@ async function caseTokenAndAnsi() {
     if (savedToken === undefined) delete process.env.MASTERGO_MCP_TOKEN;
     else process.env.MASTERGO_MCP_TOKEN = savedToken;
   }
+}
+
+/*
+ * 客户机上还遇到两件更细的：
+ * 1) 色码正好被切在两个 chunk 之间（管道按到达分片）—— 只按整块剥会留下 `[31;1m` 这种残渣；
+ * 2) 插件那句「缺少 MasterGo token」是命令行说法（讲 -ConfigPath / config.toml）——
+ *    界面里的人看不出去哪填，失败原因要换成客户端自己的说法。
+ */
+async function caseAnsiChunkSplitAndTokenWording() {
+  const fx = manager();
+  const job = fx.manager.start({ projectRoot: "D:/proj3", mode: "B", target: "T3", ui: "F1" });
+  const child = fx.children[0];
+  child.stdout.emit("data", Buffer.from("     | \u001b", "utf8"));
+  child.stdout.emit("data", Buffer.from(
+    "[31;1m缺少 MasterGo token：设置环境变量 MASTERGO_MCP_TOKEN，或指向 config.toml"
+    + "（当前尝试: <config.toml 路径>；token 不会写入任何产物）\u001b[0m\n",
+    "utf8"
+  ));
+  child.close(1);
+  await flush();
+
+  const log = fx.manager.log(job.id, 0).text;
+  assert.ok(log.indexOf("\u001b") < 0, "跨 chunk 的色码不能留 ESC");
+  assert.ok(log.indexOf("[31;1m") < 0, "被切开的色码不能留下半截参数当文字");
+  assert.ok(log.includes("缺少 MasterGo token"), "原文本身留在日志里，便于对日志");
+
+  const failure = fx.manager.status(job.id).runs[0].failure;
+  assert.ok(failure.message.startsWith("缺少 MasterGo token，取不到设计稿："), "失败原因换成客户端说法");
+  assert.ok(failure.message.includes("设置 → MasterGo token"), "要说清去哪填");
+  assert.ok(failure.detail.indexOf("\u001b") < 0, "展开的详情同样不许带色码");
+
+  // 引擎自己那句「这份 token 不行」不是「插件没拿到 token」：不换，原样留着（真正的原因不能在界面上丢）。
+  const withToken = manager({ token: "mg_交过了" });
+  const job2 = withToken.manager.start({ projectRoot: "D:/proj5", mode: "B", target: "T5", ui: "F1" });
+  withToken.children[0].emitLine("invalid token mg_交过了：MasterGo 说这份不认");
+  withToken.children[0].close(1);
+  await flush();
+  assert.strictEqual(
+    withToken.manager.status(job2.id).runs[0].failure.message,
+    "invalid token mg_交过了：MasterGo 说这份不认",
+    "不是「没拿到 token」就不换"
+  );
+}
+
+/*
+ * 剥离器带状态：stdout 与 stderr 必须各持一个。
+ * 共用一个的话，stdout 结尾的半截转义会拼到 stderr 下一块的开头（`ESC[31` + `abc` → `ESC[31a` 整条被吃掉），
+ * stderr 的可见文字被误删。
+ */
+async function caseStripperPerStream() {
+  const fx = manager();
+  const job = fx.manager.start({ projectRoot: "D:/proj4", mode: "B", target: "T4", ui: "F1" });
+  const child = fx.children[0];
+  child.stdout.emit("data", Buffer.from("甲\u001b[31", "utf8"));
+  child.stderr.emit("data", Buffer.from("abc\n", "utf8"));
+  child.close(1);
+  await flush();
+
+  const log = fx.manager.log(job.id, 0).text;
+  assert.ok(log.includes("abc"), "stderr 的可见文字不能被 stdout 的半截转义吃掉：" + JSON.stringify(log));
+}
+
+// 行缓冲也要按流各一份：stdout 的半截行与 stderr 的整行拼在一起的话，行协议就解析错了。
+async function caseLineBufferPerStream() {
+  const fx = manager();
+  const job = fx.manager.start({ projectRoot: "D:/proj6", mode: "B", target: "T6", ui: "F1" });
+  const child = fx.children[0];
+  child.stdout.emit("data", Buffer.from("[01] 取数", "utf8"));
+  child.stderr.emit("data", Buffer.from("!! 步骤 1(fetch) 失败：两条流不能拼行\n", "utf8"));
+  child.close(1);
+  await flush();
+
+  const failure = fx.manager.status(job.id).runs[0].failure;
+  assert.strictEqual(failure.stepId, 1, "行解析要按流各持一份缓冲");
+  assert.ok(failure.message.includes("两条流不能拼行"), "失败原因按行协议取到：" + failure.message);
 }
 
 async function caseSpawnError() {
@@ -387,6 +462,9 @@ async function main() {
     ["停止", caseStop],
     ["起不来子进程", caseSpawnError],
     ["token 交给子进程 + 色码剥掉", caseTokenAndAnsi],
+    ["跨 chunk 的色码 + 缺 token 的说法", caseAnsiChunkSplitAndTokenWording],
+    ["stdout / stderr 各持一个剥离器", caseStripperPerStream],
+    ["行缓冲按流各一份", caseLineBufferPerStream],
     ["日志偏移与截断", caseLogOffsetAndTruncation],
     ["列表 / 反查 / 当前 job", caseListCurrentAndLookup],
     ["步骤契约", caseContract]
