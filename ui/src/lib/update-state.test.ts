@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 
 import type { UpdateStatus, UpdateTask } from "@/lib/api"
+// 夹具里的默认发布源只有一处（settings-fixtures 的 sourceFixture）。
+import { sourceFixture } from "@/lib/settings-fixtures"
 import {
   blockedNote,
   canSwitch,
@@ -64,12 +66,7 @@ const status = (patch: Partial<UpdateStatus> = {}): UpdateStatus => ({
   available: null,
   error: null,
   task: task(),
-  source: {
-    kind: "github",
-    base: "https://github.com/BigStartByXuyb/mastergo-transcoder-gui",
-    manifestUrl: "https://github.com/BigStartByXuyb/mastergo-transcoder-gui/releases/latest/download/manifest.json",
-    kinds: ["github", "gitlab", "static"]
-  },
+  source: sourceFixture(),
   hasToken: false,
   ...patch
 })

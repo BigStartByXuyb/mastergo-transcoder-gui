@@ -2,14 +2,15 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { SettingsUpdatePanel } from "@/app/settings-update-panel"
-import type { PluginSources, UpdateStatus } from "@/lib/api"
+import type { PluginSources } from "@/lib/api"
 import {
   ENGINE,
   PLUGIN_ROOT,
   drive,
   healthFixture,
   okResponse,
-  pluginUpdateFixture
+  pluginUpdateFixture,
+  updateStatusFixture
 } from "@/lib/settings-fixtures"
 
 /*
@@ -25,7 +26,6 @@ function sources(): PluginSources {
     ok: true,
     plugin: { root: PLUGIN_ROOT, version: "1.0.369", engine: ENGINE, engineExists: true, runAllExists: true, failure: "" },
     chosen: "",
-    env: "",
     sources: [
       {
         id: "codex-cache",
@@ -37,35 +37,25 @@ function sources(): PluginSources {
         version: "1.0.369",
         found: [PLUGIN_ROOT],
         active: true
+      },
+      {
+        // 客户端自带的那一份也在这张表里（0.6.50 起客户端能自己装一份）：它那一行带更新状态。
+        id: "install",
+        label: "客户端自带",
+        path: drive("C", "Users", "me", "app", "plugins"),
+        kind: "install",
+        exists: true,
+        pluginRoot: drive("C", "Users", "me", "app", "plugins", "mastergo-wpf-transcoder", "1.0.369"),
+        version: "1.0.369",
+        found: [drive("C", "Users", "me", "app", "plugins", "mastergo-wpf-transcoder", "1.0.369")],
+        active: false
       }
     ]
   }
 }
 
-function status(): UpdateStatus {
-  return {
-    state: "up_to_date",
-    current: "0.6.34",
-    currentNotes: [],
-    history: [],
-    root: "",
-    pointer: null,
-    busy: "",
-    staged: [],
-    ready: "",
-    rollback: "",
-    available: null,
-    error: null,
-    task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
-    source: {
-      kind: "github",
-      base: "https://github.com/BigStartByXuyb/mastergo-transcoder-gui",
-      manifestUrl: "https://github.com/BigStartByXuyb/mastergo-transcoder-gui/releases/latest/download/manifest.json",
-      kinds: ["github", "gitlab", "static"]
-    },
-    hasToken: false
-  }
-}
+// 程序更新的状态夹具只有一处（settings-fixtures）：这里只说本机是 0.6.34。
+const status = () => updateStatusFixture({ current: "0.6.34" })
 
 function stub() {
   vi.stubGlobal(
@@ -74,13 +64,6 @@ function stub() {
       const url = String(input)
       if (url.includes("/api/health")) return okResponse(health())
       if (url.includes("/api/plugin/sources")) return okResponse(sources())
-      if (url.includes("/api/plugin/env")) {
-        return okResponse({
-          ok: true,
-          name: "MASTERGO_GUI_TEST_ENV",
-          envScopes: { name: "MASTERGO_GUI_TEST_ENV", process: "", user: "", machine: "", written: false, unsupported: false, failure: "" }
-        })
-      }
       if (url.includes("/api/update/status")) return okResponse({ ok: true, status: status() })
       if (url.includes("/api/plugin/update/status")) return okResponse({ ok: true, status: pluginUpdateFixture() })
       return okResponse({ ok: true })
@@ -109,9 +92,10 @@ describe("SettingsUpdatePanel", () => {
 
     render(<SettingsUpdatePanel part="plugin" onPickPart={onPickPart} />)
     expect(screen.getByRole("button", { name: /插件（流水线）/ }).getAttribute("aria-current")).toBe("true")
-    await waitFor(() => expect(screen.getByText("Codex 插件缓存")).toBeTruthy())
+    // 顺序条与表里都会出现来源名：这里只要求那一段渲染出来。
+    await waitFor(() => expect(screen.getAllByText("Codex 插件缓存").length).toBeGreaterThan(0))
     expect(screen.queryByText("已是最新 v0.6.34")).toBeNull()
     // 自带那一份的状态也在这段里（客户端能自己装一份插件）。
-    await waitFor(() => expect(screen.getByText("是最新 v1.0.369")).toBeTruthy())
+    await waitFor(() => expect(screen.getAllByText("是最新 v1.0.369").length).toBeGreaterThan(0))
   })
 })

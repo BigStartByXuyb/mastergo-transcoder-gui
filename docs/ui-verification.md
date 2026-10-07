@@ -16,6 +16,207 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-10-07 插件页重做：一条顺序 + 一张表 + 行内详情/管理
+
+### 改了什么
+
+- `ui/src/app/plugin-card.tsx`：重写。顶部只剩一条「我指定的那一份」（指定一个目录… / 交给客户端找），
+  下面一条**查找顺序**（八档，没设的也列出来标「没有」；同一份插件只算一次，写「与第 N 档同一份」），
+  再下面**一张表**（来源 / 版本 / 状态 / 路径 / 操作）。原来顶部那块安装面板与页脚那块环境变量界面都删了。
+- `ui/src/app/plugin-source-dialog.tsx`（新）：点某一行开的面板。自带那一行是**管理**（检查更新 /
+  下载并安装 / 进度 / 用这份），其余各档是**详情**（版本 / 路径 / 这一处有几份 / 打开目录 / 复制路径 / 用这份）。
+- `ui/src/lib/plugin-sources.ts`：只做两件事 —— `slots`（顺序条：序号 + 处置）与 `rows`（表：同一份只列一行，
+  留下**最先命中的那一档**，后几档进 `alsoFrom`）。顺序与「正在用」都来自后端，前端不重排。
+- `lib/plugin-root.js`：显式指定的三档（`--plugin` / 我选的 / 环境变量）**没设也列出来**（标「没有」），
+  八档序号因此固定，与文档里的顺序对得上；只有「给了 `--plugin` 却解析不到插件」才硬失败。
+- `lib/system-open.js`（新）+ `POST /api/system/open-folder`：面板里的「打开目录」与起完服务打开界面
+  共用一处「平台 → 命令」映射（原先 server.js 另有一份）；
+  `ui/src/app/copy-text.ts`（新，放 app 层：默认提示要用 toast）：「复制路径」，与控件查询页共用同一处复制实现。
+- `ui/src/app/plugin-source-facts.tsx`（新）：状态徽章 / 版本 / 这一处有几份 / 同时来自 / 「解析到」
+  —— 表里那一行与点开后的面板渲染同一份，不各写一遍；`ui/src/app/use-plugin-sources.ts`、
+  `use-plugin-update.ts`（新）：来源清单与指针动作、自带那一份的更新与轮询，各自一个 hook，
+  卡片只编排与渲染。
+- 复核收口：自带那一份「正在用/在别处」的判据由来源清单自己的 `active` 与 `members` 表达，
+  不再另留一份按路径比对的 `localSituation`；`use-plugin-update` 不再返回没人消费的 `transferring`。
+- 按复核意见收口：插件页四个动作（检查 / 安装 / 用这份 / 指定目录）改走 `use-action-runner` 的那一份
+  骨架（新增 `useValueRunner` 给结果不带 `{status}` 的动作用）；「给了 `--plugin` 却没解析到」这条判据
+  收进 `activePluginSource()` 的 `argMissing`，定位只读结论；「打开目录」失败与「选择目录」同形状
+  （`{ok:false, reason}`），目录不存在时不给这个按钮；复制两条路都不成时照实说，不再报「已复制」。
+  第二轮复核的三条同样按「收到一处」改掉：「正在传」只读 `update-state.isDownloading`；轮询与「改完发布源
+  立刻重读」共用同一段 `adopt(status)`（含「装完了」那一下刷新来源清单）；两半各报自己的忙碌位
+  （来源清单报行 id、自带那半报 `check`/`install`），卡片与面板分别收，不再合成一个字符串
+  （自带那一行的 id 也叫 `install`，合起来会让两颗按钮一起转圈）。
+- 第三轮复核接着收口：环境变量那一档的**后端**也一起删了 —— `GET/POST /api/plugin/env`、`lib/env-var.js`
+  （含 `.ps1`）、`lib/launch.js` 的重读判据与 `/api/client/restart` 的 `reloadEnv`、界面那条 `restart-watch`
+  参数：原来界面没了、接口还留着，读/写与「重启让它生效」全都没有调用方。现在这一档只是查找顺序里的一条
+  （值从进程继承来的那份读），文档也照实写。另：「检查更新」能不能点由 `use-plugin-update` 算一处
+  （`canCheck`），卡片与面板读同一个值；`lib/system-open.js` 保证不 reject，`server.js` 那颗近乎恒真的
+  `catch` 随之去掉。
+- 第四轮复核的四条同样是「删掉只剩测试的、把话说准」：`RESTART_SETTLE_MS` 与重置等待参数
+  （`initialDelayMs`）随环境变量那条重启路一起删掉（生产里已无人用，`restart-watch` 的注释只留真实入口）；
+  `lib/system-open.js` 打不开时按类说话（目录说文件管理器、网址说浏览器），命令映射不再导出、平台/进程/
+  看盘三样收进一处解析；「已带 token」徽标收成 `SourceBadges` 一处；`lib/plugin-root.js` 头注释对齐八档；
+  用例改用 `aria-busy` 判「哪颗按钮在忙」（不再依赖 `svg.animate-spin` 这种图标实现细节）。
+- 第五轮复核继续把「号称一处、实际两处」的地方收掉：`hasToken` 两条版本线同口径（装配处给程序更新与插件
+  都注入同一份廉价判断，`manifest-fetch.hasToken` 只作没注入时的回落，轮询路径不解密）；「改完发布源立刻
+  重读」改走 `useStatusPoll` 返回的 `reload`（与轮询同一跳，卸载守卫也一并走这条），不再手写第二遍取数；
+  卡片里那两个忙碌位只合成布尔（`frozen`），「哪一半哪个动作在跑」仍各读各的字符串。
+- 第六轮复核两条：「这一档的处境怎么说」收到一处（`sourceStatusText`：顺序条与表/面板不再是「有」对「可用」）；
+  `/api/client/restart` 补回 `body: true`（界面按这一页的惯例发空 JSON 体，两边契约一致）。
+- 第七轮复核一条：删掉环境变量路由后 `lib/routes.js` 遗留的未使用 `PLUGIN_NAME` 导入；顺手让「正在用」那句也走
+  `sourceStatusText`（徽章两条分支读同一处文案）。
+- 第八轮复核两条：「有没有 token」的回落判断收进 `lib/manifest-fetch.js`（装配处注入的廉价判断优先，
+  两条版本线都只调 `manifestFetch.hasToken()`，不再各写一遍三元）；顶部「我指定的那一份」那颗徽章改读后端结论
+  （`chosenRow`，与表/顺序条同一份），不再「指定了就写正在用」。
+- 第九轮复核两条：「用这份」记的是这一档**所在的目录**（`row.path`），不是此刻解析到的那一个版本目录 ——
+  记死版本目录的话，客户端自带那份装完新版反而不生效；「指定一个目录…」不再在动作骨架里再套一层骨架
+  （选目录与换过去在同一层，「换完落地」那份收尾两处共用一处）。
+- 第十轮复核两条：`manifest-fetch` 不再对外返回没人调的 `token`；`pluginLookup` 去掉 `activeKeepers`
+  那条死分支（后端只在真正生效那一档标 active，而那一档必定是它那个插件根的最先命中者＝留下的那一行）。
+- 第十一轮复核三条：顶部那颗徽章改读 slots 里「我指定的那一份」那一档的结论（没有兜底分支，也不再看设置值）；
+  「用这份」的两条判据（给不给换、换了记哪个目录）收进 `lib/plugin-sources` 的 `canChooseThis` / `choosePathOf`，
+  行内与面板都调它；发布源类型的中文名收进 `lib/source-kind.ts`，徽章与弹窗里的下拉同词（不再一处 `github`、
+  一处「GitHub 仓库」）。
+- 第十二轮复核两条：「检查更新」在 `use-plugin-update` 里只剩一条实现（`runCheck`，卡片那颗与「保存并检查」
+  都走它，收尾也一致）；`runtime-source-dialog` 的 `onSaved` 上叠着两句注释，合并成一句。
+- 第十三轮复核两条：卡片上的 `frozen` 也算上「正在传」（`use-plugin-update` 再把 `transferring` 交出来），
+  与面板里那颗同一套条件 —— 正在装的时候不给换一份；「找不到插件」时那句「已查找」只列真的查过的位置
+  （没设的那三档 path 是空串，不再列出空档）。
+- 第十四轮复核两条：「改完发布源立刻重读」两半同形 —— 程序更新那一半也接 `useStatusPoll` 的 `reload`
+  （落地与清提示都在 `onData` 一处，不再另拼一条 `api.updateStatus()`，也不再绕过卸载守卫）；
+  「现在能不能动」这条冻结判据由卡片算一次传进面板（`frozen` / `transferring`），面板不再自己再算一遍。
+  顺带按观察收了三处小冗余：`pluginLookup` 的两趟遍历并成一趟、`manifest-fetch` 注释不再引用已不返回的 `token()`、
+  `server.js` 的 `openBrowser` 透传壳去掉（直接 `void openUrl(url)`）。
+- 第十五轮复核两条：「保存并检查」两半同一条路 —— 程序更新那一半也走那张卡的 `act`（忙碌位与卡片上那颗
+  「检查更新」一致），没拿到结果时用 `sourceCheckDropped` 把刚才那句原因交给弹窗（两半同形）；
+  `lib/pwsh.js` 去掉没人再传的 `maxBuffer` 覆盖项（结果走文件，stdout 上限固定够用）。
+- 第十六轮复核三条：`update-card` 的「检查更新」也只剩一个入口（`runCheck`），能不能点/冻不冻与插件那一半
+  读同一处 `lib/update-state` 的 `busyNow`；卸载守卫收进 `app/use-alive`（轮询与读清单不再各写一份 ref+effect）；
+  `plugin-card` 拆出 `plugin-chosen-slot`（我指定的那一份）与 `plugin-order-bar`（查找顺序），
+  卡片本身只剩取数、编排与那张表。
+- 第十七轮复核两条：「最近一次失败的原话」与「保存并检查」的收尾两半同形 —— 记忆收进
+  `app/use-failure-memory`、成型收进 `lib/source-check` 的 `sourceCheckOutcomeOf`（两半只提供各自的 `describe*`
+  与失败判据）；插件页的忙碌位 key 收进 `lib/plugin-sources` 的 `PLUGIN_BUSY`（含「用这份＝那一行 id」
+  的 `chooseKeyOf`），hook 写、组件读都从这里取，不再各自比字面量。顺手把运行环境弹窗里写死的示例地址
+  换成中性占位（`http://内网地址/runtime`）。
+- 第十八轮复核两条：「检查更新」在两半各只剩一个入口（`runCheck` / `check` 直接返回弹窗要的两句话，
+  卡片那颗不看返回值）—— 不再同一动作挂两个名字；「客户端自带」这一档的 id 收成
+  `lib/plugin-sources` 的 `INSTALL_SLOT_ID`（那一行有没有它、它自己是哪一档都读这一处）。
+- 第十九轮复核三条：复制工具按仓库分层约定从 `lib` 挪到 `app`（默认提示要用 toast，lib 不认识展示框架）；
+  `check` / `runCheck` 上并排的两段注释合成一段；「我指定的那一份」那一档的 id 也收成
+  `CHOSEN_SLOT_ID`（与 `INSTALL_SLOT_ID` 同一处）。
+- 第二十轮复核两条：自带那一半的忙碌位 key 带 `update:` 前缀（与「这一行的 id 就是忙碌位」那条规则
+  取值不重叠）；`plugin-card` 再拆出 `plugin-install-source`（更新来源 + 检查更新）与
+  `plugin-source-table`（那张表与它每一行），卡片本身只剩取数、编排与弹窗。
+- 第二十一轮复核一条：两条更新线的下载失败也走同一处失败记忆（`failureMemory.remember` 交给
+  `finishDownload`），不再一条记、一条不记。
+- 第二十二轮复核两条：改发布源弹窗里「保存」与「清除 token」各用各的忙碌位（不再共用一个 key，
+  点清除不会让「保存」那颗也转圈）；表里那行的「用这份」与面板里那颗一样带上 `aria-busy`。
+- 第二十三轮复核四条：`use-plugin-update` 里那个「这一刻忙不忙」的局部变量改名 `workingNow`
+  （与返回出去的忙碌位不再同名双义）；程序更新那一半的忙碌位 key 收进 `lib/update-state` 的 `UPDATE_BUSY`
+  （check / stage / switch，与插件页那张 `PLUGIN_BUSY` 同一约定）；「这一行里有没有自带那一档」收成
+  `isInstallRow()` 一处；面板里 `canInstall` 去掉那个本来就成立的前置判断。
+- 第二十四 / 二十五轮复核（doc 与测试夹具）：默认发布源与源类型名单只留一处（后端用例从 `lib/source.js`
+  取 `DEFAULT_BASE` / `KINDS`，界面夹具只留 `settings-fixtures` 的 `SOURCE_BASE` / `sourceFixture`）；
+  指路文案统一成实际导航「设置 → 更新 → 插件（流水线）」（README / install.md / 后端提示 / 过期注释）；
+  测试夹具与断言也一起收口（`plugin-sources.test.js` 的「已查找」断言分两半，不靠恒真条件撑住）。
+- 第二十六轮复核两条：「有新版就一定有远端清单」写进类型（`PluginUpdateStatus` 做成联合类型，
+  `PluginAvailable` 单独一个类型），`describePluginInstall` 里那半句恒真的判空随之删掉，夹具按同一套对齐
+  （`pluginUpdateFixture` 一处管「处境 ↔ 清单」）；`update-card` 里 `const frozen = workingNow` 那个无变换的
+  重复绑定去掉，`frozen` 就是 `busyNow(...)` 的结果。
+- 第二十七轮复核一条：自带那一份的更新状态徽章收成 `PluginInstallBadge` 一处（来源表里那一行与
+  「管理…」面板读同一个组件，文字与色调不会再一处带、一处不带）。
+- 第二十八轮复核两条：「用这份」「检查更新」两颗按钮收成共用组件（`plugin-source-actions.tsx`）——
+  来源表那一行、行内面板、卡片与程序更新那一半都读它；面板的忙碌位改成一个 prop 两格
+  （`{ source, update }`，两半各报各的），不再挂 `busy` / `updateBusy` 两个形参。
+- 第二十九轮复核两条：共用按钮模块改名 `update-source-actions.tsx`（两页都用，名字不按某一页取）；
+  行内面板里「自带那一份」那一块拆成 `plugin-install-block.tsx` 的 `PluginInstallBlock`（状态与进度）
+  与 `PluginInstallActions`（两个动作），面板本身只剩编排与那一档的事实。
+- 第三十轮复核两条：`useFailureMemory` 交出去的那一份对象做成稳定的（`useMemo` + 稳定的 `remember`），
+  调用方把它列进依赖时不会再每渲染换一套动作函数；README 里「插件版本在 AI Agent 那页看」改成
+  「设置 → 更新 → 插件（流水线）」。
+- 第三十一轮复核两条：「装完 → 重读来源清单」这条门在用例里真的有路径了（`use-plugin-update.test.tsx`
+  的安装响应喂一份 `task.phase = "done"` 的状态，并断言回调被喊到）；`pluginLookup` 顺序条那两个
+  「查不到那一行怎么办」的兜底分支删掉（非合并档直接用自己那份，合并档那一行一定先建好）。
+- 第三十二轮复核两条：行内面板页脚里漏了 `{}` 的块注释（JSX 里会被当文本渲染）修掉，并补一条断言
+  「面板文字里不出现 `/*`」；「轮询那一跳拿不到就照实报错」与「弹窗要的现状」两段适配收进
+  `lib/source-check.ts` 的 `requireStatus` / `sourceViewOf`（两半都读它，不再一处写在 hook、一处写在卡片）。
+- 第三十三轮按「族」一次收完（不再一条一推）：
+  · 夹具与现状适配一族：程序更新的状态夹具收进 `settings-fixtures` 的 `updateStatusFixture`（两份用例不再各造一份），
+    弹窗要的「现状」一律走 `sourceViewOf` / `sourceViewFixture`（卡片、面板、用例都在用）。
+  · `pluginLookup` 一族：一趟扫完 —— 每一档当场决定留下还是并进前面那一档，只剩「插件根 → 留下的那一行」这一张表，
+    原先的三趟遍历与四个 Map 一起去掉。
+- 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
+  同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
+  弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。
+- 第 2 档的显示名统一成「我指定的那一份」（与页面上那条、与文档一致，原来写的是「设置里选的」）。
+- `ui/src/lib/api.ts`：删掉环境变量那一对接口封装；后端那两个接口随后也一并删掉（见下面的第三轮收口）——
+  界面没了、接口就没有调用方，不再留一半。
+- `docs/install.md`、`README.md`：这一页的三块结构、八档顺序、行内动作照实写。
+
+### 点过的东西
+
+夹具：临时安装根 + 默认发布源（真实 GitHub 最新 Release），机器上另有 Codex / Claude 缓存，用来验多来源与合并。
+
+| 页面 | 操作 | 观察到 | 结论 |
+| --- | --- | --- | --- |
+| 设置 → 更新 → 插件（流水线） | 打开这一页 | 顶部「我指定的那一份」+ 一条顺序（1 启动参数 → … → 8 客户端自带，各带「正在用/可用/没有」）+ 一张表；同一份插件只列一行 | 通过 |
+| 同上 | 看顺序条与表是否一致 | 顺序条「8. 客户端自带（与第 2 档同一份）」；表里那一组只有一行「2. 我指定的那一份 / 同时来自：客户端自带 / 正在用」 | 通过 |
+| 同上 | 点「客户端自带」行的「管理…」 | 面板：标题「客户端自带 没有」、第 8 档说明、版本 —、「有新版 v1.0.371」、按钮 打开目录 / 复制路径 / 检查更新 / 下载并安装 | 通过 |
+| 同上 | 点「下载并安装」 | 「正在下载 3/251（其中新内容 3 个）」；两个按钮都禁用；进度一路走到 251 | 通过 |
+| 同上 | 等装完 | 面板标题变「客户端自带 可用」、版本 v1.0.371、「是最新 v1.0.371」；表里那一行跟着变成 v1.0.371 / 可用，顺序条那档由「没有」变「有」 | 通过 |
+| 同上 | 点面板里的「用这份」 | 顶部「我指定的那一份」出现路径与「正在用」；顺序条「2. 我指定的那一份（正在用）」「8. 客户端自带（与第 2 档同一份）」；表里合并且标「正在用」 | 通过 |
+| 同上 | 点别的行的「详情…」 | 只读面板：第 N 档说明、版本、路径、解析到、「这一处有 4 份，用最高版本」、打开目录 / 复制路径 / 用这份 | 通过 |
+| 同上 | 点「交给客户端找」 | 清掉指定的那一份，回到按顺序自动（顺序条与表随之重排） | 通过 |
+| 同上 | 一处都没有时 | 顶部照常打开，表里逐条列「没有」与各自的路径 | 通过 |
+| 同上 | 指定的那一份正好是自带那份时 | 合成一行「2. 我指定的那一份 / 同时来自：客户端自带」，状态「正在用 是最新 v1.0.371」，动作是 **管理…**；点开后面板里带检查更新 / 下载并安装，并写明「这一份同时也是「客户端自带」那一份」 | 通过 |
+| 同上 | 指定的那一份被 `--plugin` 压过时（另起一份服务带 `--plugin` 指到 Codex 缓存那一份） | 顶部那颗徽章写「可用」而不是「正在用」；顺序条「1. 启动参数 --plugin（正在用）」「2. 我指定的那一份（可用）」，表里也只有 1 那一行标「正在用」（`output/playwright/plugin-page-chosen-not-active.png`） | 通过 |
+
+### 没点的
+
+- 「打开目录」：会真的弹出资源管理器窗口，留给实际使用时点；这条链路由 `tests/system-open.test.js` 覆盖
+  （平台命令、带空格路径、不是目录/不存在时回 `{ok:false, reason}`、网址只认 http(s)）。
+- 「复制路径」：走浏览器剪贴板，`ui/src/app/copy-text.test.ts` 覆盖（Clipboard API、退路、空值）。
+- 有任务在跑时点「下载并安装」：会跑真流水线，留给下一次实跑（拒绝逻辑由 `tests/plugin-update.test.js` 覆盖）。
+
+收口改完又照上面这份夹具重跑了一遍（`output/playwright/plugin-page-final2.png`）：顺序条八档照旧、
+第 2 档那一行「管理…」面板里版本 / 路径 / 「解析到」/ 检查更新 / 已是最新版都在，第 3 档「详情…」面板
+说的是第 3 档自己的处境（标题里的变量名仍来自后端给的 label）。
+
+### 这一页（连它对偶的程序更新那一半）的判据各自只有一处
+
+改到哪一条，先照这张表看它归谁，别在别处再写一遍：
+
+| 判据 / 编排 | 只有一处的地方 |
+| --- | --- |
+| 查找顺序、八个档位、哪一档正在用 | `lib/plugin-root.js`（后端算好），`ui/src/lib/plugin-sources.ts` 只做合并投影 |
+| 一档的处境怎么说（正在用 / 可用 / 没有） | `ui/src/app/plugin-source-facts.tsx` 的 `sourceStatusText` |
+| 档位 id（自带 / 我指定的） | `ui/src/lib/plugin-sources.ts` 的 `INSTALL_SLOT_ID` / `CHOSEN_SLOT_ID` |
+| 这一档给不给换、换了记哪个目录、忙碌位 key | `ui/src/lib/plugin-sources.ts` 的 `canChooseThis` / `choosePathOf` / `chooseKeyOf` |
+| 忙碌位 key（两页各一张表） | `ui/src/lib/plugin-sources.ts` 的 `PLUGIN_BUSY`、`ui/src/lib/update-state.ts` 的 `UPDATE_BUSY` |
+| 能不能点 / 冻不冻 | `ui/src/lib/update-state.ts` 的 `busyNow`（两张卡读同一个值） |
+| 「检查更新」这个动作 | 程序更新：`update-card` 的 `runCheck`；插件：`use-plugin-update` 的 `check`（卡片与弹窗同一条） |
+| 检查结果怎么说 | `describeUpdate` / `describePluginInstall` + `ui/src/lib/source-check.ts` 的 `sourceCheckOutcomeOf` |
+| 最近一次失败的原话 | `ui/src/app/use-failure-memory.ts`（两半共用） |
+| 轮询取数、立刻重读、卸载守卫 | `ui/src/app/use-status-poll.ts` + `ui/src/app/use-alive.ts` |
+| 发布源：显示名 / 徽标 / 表单 / 校验 | `ui/src/lib/source-kind.ts`、`update-source-row.tsx`、`source-dialog.tsx`（校验由调用方给） |
+| 有没有 token | `lib/manifest-fetch.js` 的 `hasToken`（装配处注入廉价判断） |
+| 打开目录 / 打开网址 | `lib/system-open.js` |
+| 复制文本 | `ui/src/app/copy-text.ts` |
+| 下载 → 校验 → 落盘 | `lib/update-task.js` + `ui/src/lib/download-run.ts`（前端只按 kind 落地） |
+| 动作骨架（置忙碌 / 清旧错 / 套状态 / 收尾） | `ui/src/app/use-action-runner.ts`（`useActionRunner` 与 `useValueRunner`）：卡片、hook、改发布源弹窗都读它 |
+
+### 自动化门禁
+
+| 命令 | 结果 |
+| --- | --- |
+| `npm test` | 通过，47 个文件全过（含新增 `tests/system-open.test.js`；环境变量那一份用例随实现删掉） |
+| `npm run test:coverage` | 通过，lines 94.77 / branch 82.77 / funcs 96（门禁 90/75/90） |
+| `npm --prefix ui run test` | 通过，58 文件 341 用例（含新增两个插件页 hook 与发布源那几处的用例） |
+| `npm --prefix ui run test:coverage` | 通过，stmts 95.32 / branch 91.41 / funcs 96 |
+| `npm run build:ui` | 通过，`public/` 已重建入库 |
+| `node <cicd>/check-app-structure.mjs --root .` | PASS（硬编码路径 / 孤儿导出 / 分层 / CI 钉死 均 0 条） |
+
 ## 2026-10-06 插件：客户端自带那一份的下载与安装
 
 ### 改了什么

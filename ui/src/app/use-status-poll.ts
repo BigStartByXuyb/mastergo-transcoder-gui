@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react"
 
+import { useAlive } from "@/app/use-alive"
 import { describeFailure } from "@/lib/describe-failure"
 
 /*
@@ -24,27 +25,24 @@ export function useStatusPoll<T>(settings: {
   working: boolean
   /** 进行中的节拍；默认 WORKING_POLL_MS。 */
   workingMs?: number
-}): { reload: () => Promise<void> } {
+}): { reload: () => Promise<T | null> } {
   const latest = useRef(settings)
   latest.current = settings
 
-  // 卸载之后不再回写状态；StrictMode 的「挂载 → 卸下 → 再挂载」要能重新放行。
-  const alive = useRef(true)
-  useEffect(() => {
-    alive.current = true
-    return () => {
-      alive.current = false
-    }
-  }, [])
+  // 卸载之后不再回写状态（守卫本身在 app/use-alive，与别处的异步回写同一处）。
+  const alive = useAlive()
 
-  const tick = useCallback(async () => {
+  // 取回来那份原样交回调用方（手动刷新那条路要按它说话）；失败与「已经卸下」都回 null。
+  const tick = useCallback(async function (): Promise<T | null> {
     try {
       const payload = await latest.current.load()
-      if (!alive.current) return
+      if (!alive.current) return null
       latest.current.onData(payload)
+      return payload
     } catch (error) {
-      if (!alive.current) return
+      if (!alive.current) return null
       latest.current.onError(describeFailure(error))
+      return null
     }
   }, [])
 
@@ -55,6 +53,6 @@ export function useStatusPoll<T>(settings: {
     return () => window.clearInterval(timer)
   }, [tick, settings.working, settings.workingMs])
 
-  // 手动立刻刷一次（改完设置不想等下一轮）：与轮询走同一条取数路径。
+  // 手动立刻刷一次（改完设置不想等下一轮）：与轮询走同一条取数路径（卸载守卫也一并走这条）。
   return { reload: tick }
 }

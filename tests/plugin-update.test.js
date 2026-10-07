@@ -14,9 +14,10 @@ const { hashFiles, listFilesUnder } = require("../lib/app-manifest.js");
 const { BUILDING_PREFIX } = require("../lib/bundle-store.js");
 const { pluginRootsUnder } = require("../lib/plugin-root.js");
 const { createPluginUpdate, STORE_LAYOUT } = require("../lib/plugin-update.js");
-const { PLUGIN_MANIFEST_NAME, MANIFEST_NAME } = require("../lib/source.js");
+const source = require("../lib/source.js");
+const { PLUGIN_MANIFEST_NAME, MANIFEST_NAME } = source;
 
-const BASE = "https://github.com/BigStartByXuyb/mastergo-transcoder-gui";
+const BASE = source.DEFAULT_BASE;
 // 夹具里的相对路径一律用 / 拼（清单里的路径也是 / 分隔），免得平台差异混进用例。
 const MARKER = "skills/mastergo-to-wpf/SKILL.md";
 
@@ -309,6 +310,24 @@ async function main() {
     assert.ok(fs.existsSync(path.join(leftover, MARKER)), "残骸确实是一棵像样的插件树");
     assert.deepStrictEqual(pluginRootsUnder(path.join(home, "plugins")), [], "插件定位一份都看不到");
     assert.strictEqual(update.status().local.version, "", "半成品不算本地那一份");
+  }
+
+  /*
+   * 有没有 token：装配处（server.js）注入了那份廉价判断（只看设置里记的标记，不解密），
+   * 状态就该读它 —— 注入的那份被问到、取值链那份不被碰（轮询路径不解密）。
+   */
+  {
+    const home = sandbox();
+    const asked = [];
+    const update = createPluginUpdate({
+      home: home,
+      source: { kind: "github", base: BASE },
+      fetchImpl: async function () { throw new Error("不该联网"); },
+      token: function () { asked.push("token"); return "mg_secret"; },
+      hasToken: function () { asked.push("hasToken"); return true; }
+    });
+    assert.strictEqual(update.status().hasToken, true);
+    assert.deepStrictEqual(asked, ["hasToken"], "读状态只问注入的那份廉价判断");
   }
 
   console.log("plugin-update: 全部通过");

@@ -29,59 +29,72 @@ export type PluginSource = {
 export type PluginSources = {
   ok: true
   plugin: PluginSummary
-  /** 设置里选的那一份；空串＝按内置顺序自动找。 */
+  /** 插件页上「我指定的那一份」；空串＝按内置顺序自动找。 */
   chosen: string
-  /** 进程启动时的环境变量 MASTERGO_PLUGIN_ROOT；空串＝没设。 */
-  env: string
   sources: PluginSource[]
-}
-
-/** 环境变量 MASTERGO_PLUGIN_ROOT 的三个作用域：这次运行读到的、系统里存的用户级、机器级。 */
-export type PluginEnvScopes = {
-  name: string
-  /** 这次运行的进程读到的值：改不了，只有重启客户端才会变。 */
-  process: string
-  /** 系统里存的用户级值：下次启动生效，别的工具与命令行也认。 */
-  user: string
-  /** 机器级：只读（改它要管理员）。 */
-  machine: string
-  written: boolean
-  /** 本机不支持这一项（非 Windows）：不是故障，界面当一句说明显示。 */
-  unsupported: boolean
-  /** 读不出来时的原因（例如本机不是 Windows）。 */
-  failure: string
-}
-
-export type PluginEnvView = {
-  ok: true
-  name: string
-  envScopes: PluginEnvScopes
 }
 
 /**
  * 客户端自带的那一份插件：本地是哪一版、远端有没有新的。
  * 「装了哪几版、此刻用哪一份」由 /api/plugin/sources 那份来源表说（插件定位的判据在那边）。
+ *
+ * 四种处境做成联合类型：后端 readState() 就是这么算的 —— 有新版与已是最新都一定带着远端清单，
+ * 没查过是 null。于是「有新版就拿得到清单」这条判据只有类型这一处，读的地方不再各自判空。
  */
 export type PluginUpdateStatus = {
-  /** unchecked＝还没成功问过远端（首次启动、离线）；它不再借「已是最新」来表示。 */
-  state: "unchecked" | "up_to_date" | "update_available" | "error"
   /** 客户端自带的那一份（装在哪、哪一版）；一份都没有时都是空串。 */
   local: { version: string; dir: string }
-  /** 上一次检查到的远端版本与差异；没检查过就是 null。 */
-  available: {
-    version: string
-    tag: string
-    releasedAt: string
-    changed: number
-    removed: number
-    total: number
-    checkedAt: string
-  } | null
   error: UpdateFailure | null
   task: UpdateTask
   /** 有任务在跑时不能装（装完就可能换掉生效的那一份）；空串＝空闲，界面据此提示并禁用。 */
   busy: string
+  /**
+   * 这一份插件从哪儿取：与程序更新同一处设置、同一份拼法（后端 lib/source.js），只是清单名不同。
+   * 插件页的「更新来源」那一行照实显示它。
+   */
+  source: UpdateSource
+  /** 私有源存没存 token（值本身不出后端）。 */
+  hasToken: boolean
+} & (
+  | {
+      /** 还没成功问过远端（首次启动、离线）：不借「已是最新」来表示，也没有清单。 */
+      state: "unchecked"
+      available: null
+    }
+  | {
+      /** 远端有新的那一版：清单一定在（state 就是按它算的）。 */
+      state: "update_available"
+      available: PluginAvailable
+    }
+  | {
+      /** 远端不比本地新：清单一定在。 */
+      state: "up_to_date"
+      available: PluginAvailable
+    }
+  | {
+      /** 上次检查失败；有缓存时清单还在（界面照旧说得出「有新版」）。 */
+      state: "error"
+      available: PluginAvailable | null
+    }
+)
+
+/** 远端清单里插件这一半用得上的一项：版本号、发布时间、差几个文件、上次检查时间。 */
+export type PluginAvailable = {
+  version: string
+  tag: string
+  releasedAt: string
+  changed: number
+  removed: number
+  total: number
+  checkedAt: string
 }
+
+/**
+ * 现在从哪儿取清单：类型、基址、拼出来的清单地址（界面照实显示，不让用户自己拼），
+ * 以及后端认哪几种源类型 —— 下拉照 kinds 渲染，不在前端另抄一份校验名单。
+ * 程序更新与插件那一半显示的是同一种东西，所以只有这一个类型。
+ */
+export type UpdateSource = { kind: string; base: string; manifestUrl: string; kinds: string[] }
 
 export type FrameEntry = {
   fileId: string
@@ -664,11 +677,8 @@ export type UpdateStatus = {
   available: UpdateAvailable | null
   error: UpdateFailure | null
   task: UpdateTask
-  /**
-   * 现在从哪儿取清单：类型、基址、拼出来的清单地址（界面照实显示，不让用户自己拼），
-   * 以及后端认哪几种源类型 —— 下拉照 kinds 渲染，不在前端另抄一份校验名单。
-   */
-  source: { kind: string; base: string; manifestUrl: string; kinds: string[] }
+  /** 现在从哪儿取清单（与插件那一半是同一个类型、同一个来源）。 */
+  source: UpdateSource
   /** 私有源存没存 token（值本身不出后端）。 */
   hasToken: boolean
 }
@@ -847,10 +857,8 @@ export const api = {
   pluginSources: () => request<PluginSources>("/api/plugin/sources"),
   /** path 为空串＝回到「按顺序自动」。换完立刻生效，不用重启客户端。 */
   pluginChoose: (path: string) => post<PluginSources>("/api/plugin/choose", { path }),
-  pluginEnv: () => request<PluginEnvView>("/api/plugin/env"),
-  /** value 为空串＝清掉这个环境变量；写完由新起的进程读到。 */
-  pluginEnvSave: (value: string) =>
-    post<PluginEnvView & { resolves: boolean }>("/api/plugin/env", { value }),
+  /** 在文件管理器里打开一个目录（插件页各行的「打开目录」）。打不开时 ok=false，reason 是原话。 */
+  openFolder: (path: string) => post<{ ok: boolean; reason: string }>("/api/system/open-folder", { path }),
   pluginUpdateStatus: () => request<{ ok: true; status: PluginUpdateStatus }>("/api/plugin/update/status"),
   /** 拉插件清单：失败也回 200，原因在 status.error 里。 */
   pluginUpdateCheck: () => post<{ ok: true; status: PluginUpdateStatus }>("/api/plugin/update/check", {}),
@@ -984,10 +992,8 @@ export const api = {
     post<{ ok: true; version: string; restartRequired: boolean; status: UpdateStatus }>("/api/update/rollback", {}),
   /*
    * 让当前这一份退出，由监督进程按指针换一份重跑；不监听响应之后的事。
-   * reloadEnv：让监督进程重读一次「插件根」环境变量（设置页改完它之后用）。
    */
-  clientRestart: (reloadEnv = false) =>
-    post<{ ok: true; restarting: boolean; reloadEnv: boolean }>("/api/client/restart", { reloadEnv }),
+  clientRestart: () => post<{ ok: true; restarting: boolean }>("/api/client/restart", {}),
   /** 附件上传：界面把文件读成 base64 传上来，后端落在 chats/uploads/<批次>/ 下。 */
   agentUpload: (files: { name: string; relativePath?: string; base64: string }[]) =>
     post<{ ok: true; files: UploadedFile[] }>("/api/agent/upload", { files }),

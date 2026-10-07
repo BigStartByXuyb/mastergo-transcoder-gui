@@ -141,7 +141,7 @@ describe("SettingsRuntimePanel", () => {
     const again = await screen.findByRole("dialog")
     fireEvent.click(within(again).getByRole("button", { name: /客户端自带/ }))
     fireEvent.click(within(again).getByText(/安装包从内网地址取/))
-    fireEvent.change(within(again).getByPlaceholderText("例如 http://10.0.0.9/runtime"), {
+    fireEvent.change(within(again).getByPlaceholderText("例如 http://内网地址/runtime"), {
       target: { value: "http://10.0.0.9/runtime" }
     })
     fireEvent.click(within(again).getByRole("button", { name: "检查" }))
@@ -151,7 +151,7 @@ describe("SettingsRuntimePanel", () => {
     // 在途的检查也要作废：还没回来就改地址 —— 旧结论不许贴上来
     probe.holdNextProbe()
     fireEvent.click(within(again).getByRole("button", { name: "检查" }))
-    fireEvent.change(within(again).getByPlaceholderText("例如 http://10.0.0.9/runtime"), {
+    fireEvent.change(within(again).getByPlaceholderText("例如 http://内网地址/runtime"), {
       target: { value: "http://10.0.0.9/another" }
     })
     probe.releaseProbe()

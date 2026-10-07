@@ -13,6 +13,8 @@ const path = require("path");
 const { buildManifest } = require("../lib/app-manifest.js");
 const { createUpdate } = require("../lib/update.js");
 const { compareVersions } = require("../lib/versions.js");
+// 源类型名单只有 lib/source.js 一处（KINDS）：状态里给前端的就是它，用例按它断言。
+const sourceDefaults = require("../lib/source.js");
 
 function makeTree(files) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-update-"));
@@ -332,7 +334,7 @@ async function main() {
   });
   const cheapStatus = cheap.status();
   assert.strictEqual(cheapStatus.hasToken, true, "有 token 由廉价的判断回答");
-  assert.deepStrictEqual(cheapStatus.source.kinds, ["github", "gitlab", "static"], "源类型名单由后端给前端");
+  assert.deepStrictEqual(cheapStatus.source.kinds, sourceDefaults.KINDS, "源类型名单由后端给前端");
 
   for (const dir of [home, next, gatedHome, blank, rootNewer]) fs.rmSync(dir, { recursive: true, force: true });
   process.stdout.write("update ok\n");

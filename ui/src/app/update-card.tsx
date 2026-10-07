@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react"
-import { ChevronRight, Download, Loader2, RefreshCw, RotateCcw } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
+import { ChevronRight, Download, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -9,20 +9,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ClampText } from "@/app/clamp-text"
 import { ConfirmSwitchDialog } from "@/app/confirm-switch-dialog"
 import { BusyOverlay } from "@/app/busy-overlay"
-import { IdentifierText } from "@/app/identifier-text"
 import { Pager } from "@/app/pager"
 import { Progress } from "@/components/ui/progress"
 import { SourceDialog } from "@/app/source-dialog"
+import { CheckUpdateButton } from "@/app/update-source-actions"
+import { UpdateSourceRow } from "@/app/update-source-row"
 import { api, type UpdateStatus } from "@/lib/api"
 import { pageSlice } from "@/lib/paging"
 import { finishDownload } from "@/app/download-actions"
 import { useActionRunner } from "@/app/use-action-runner"
+import { useFailureMemory } from "@/app/use-failure-memory"
 import { useStatusPoll } from "@/app/use-status-poll"
 import { startUpdateDownload } from "@/lib/update-download"
 import { runSwitch } from "@/lib/update-switch"
 import { missingFeatures } from "@/lib/version-features"
+import { requireStatus, sourceCheckOutcomeOf, sourceViewOf } from "@/lib/source-check"
 import {
   blockedNote,
+  busyNow,
+  UPDATE_BUSY,
   canSwitch,
   describeTask,
   describeUpdate,
@@ -69,7 +74,8 @@ export function UpdateCard() {
       .catch(() => setSupervised(false))
   }, [])
 
-  useStatusPoll({
+  // 取数只有这一跳（轮询与「改完发布源立刻重读」都走它）：落地与清提示都在 onData 一处做。
+  const { reload } = useStatusPoll({
     load: () => api.updateStatus(),
     working: transferring,
     onData: (payload) => {
@@ -83,7 +89,28 @@ export function UpdateCard() {
    * 页面上的每个动作都走这一条（骨架在 use-action-runner）：「怎么提示」由调用方给 ——
    * 有的要按结果（DownloadOutcome 的 kind/message）才决定说什么。
    */
-  const act = useActionRunner<UpdateStatus>({ setWorking, setFailure, setStatus })
+  // 失败原话的记忆在 app/use-failure-memory（两半共用），动作骨架照旧写状态。
+  const failureMemory = useFailureMemory(setFailure)
+  const act = useActionRunner<UpdateStatus>({ setWorking, setFailure: failureMemory.remember, setStatus })
+
+  /*
+   * 「检查更新」只有这一个入口：卡片上那颗按钮与「修改发布源」里的「保存并检查」都调它。
+   * 它走这张卡的动作骨架（忙碌位与别处一致），返回弹窗要的那两句话（卡片那颗不看返回值）；
+   * 「怎么说」归 describeUpdate 一处，没拿到结果时用刚才记住的那句原话。
+   */
+  const runCheck = useCallback(
+    async function () {
+      const payload = await act(UPDATE_BUSY.check, () => api.updateCheck())
+      return sourceCheckOutcomeOf(payload, failureMemory.last(), describeUpdate, (next) => next.state === "error")
+    },
+    [act, failureMemory]
+  )
+  /*
+   * 忙不忙：三路忙位（这条线的动作 / 正在传 / 后端任务）摆给同一处判据 busyNow，与插件那一半同一套。
+   * 这一颗值同时管三件事：能不能点「检查更新」、版本表的切换/下载、发布源能不能改。
+   */
+  const frozen = busyNow([{ busy: working, transferring }, { busy: status ? status.busy : "" }])
+  const canCheck = Boolean(status) && !frozen
 
   /*
    * 下某一版（含历史版本）：清单按那一版的 tag 取，之后同一条下载流程。
@@ -91,13 +118,14 @@ export function UpdateCard() {
    */
   async function stage(version: string) {
     await act(
-      "stage:" + version,
+      UPDATE_BUSY.stage(version),
       // 与顶栏红点共用同一处「发起下载」。
       () => startUpdateDownload(version),
       (payload) =>
         // act 已经套过状态，这里只按 kind 落地（失败写红字、起步报一句）。
         finishDownload(payload, {
-          setFailure,
+          // 下载失败的原话也走同一处记忆（与插件那一半同形）：弹窗那边要的是同一句。
+          setFailure: failureMemory.remember,
           onStarted: () => toast.success("正在下载 v" + version)
         })
     )
@@ -111,7 +139,7 @@ export function UpdateCard() {
   async function switchTo(version: string) {
     setFailure("")
     if (!supervised) {
-      await act("switch:" + version, () => api.updateApply(version), "已切到 v" + version + "，下次启动生效")
+      await act(UPDATE_BUSY.switch(version), () => api.updateApply(version), "已切到 v" + version + "，下次启动生效")
       return
     }
     setSwitching(version)
@@ -131,8 +159,6 @@ export function UpdateCard() {
   const busy = Boolean(status && status.busy)
   const rows = status ? versionList(status) : []
   const shown = pageSlice(rows, page, PAGE_SIZE)
-  // 下载/拼装进行中也不许再点别的版本：同一时刻只跑一条下载。
-  const frozen = Boolean(working) || busy || transferring
 
   return (
     <>
@@ -182,21 +208,22 @@ export function UpdateCard() {
           </Alert>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border p-2">
-          <span className="text-muted-foreground text-xs">更新来源</span>
-          {status && <Badge variant="secondary">{status.source.kind}</Badge>}
-          {status && status.hasToken && <Badge variant="outline">已带 token</Badge>}
-          {status && <IdentifierText text={status.source.base} className="min-w-0 flex-1 text-xs" />}
-          <Button variant="outline" size="sm" disabled={!status || frozen} onClick={() => setEditingSource(true)}>
-            修改发布源
-          </Button>
-        </div>
+        {status && (
+          <UpdateSourceRow
+            source={status.source}
+            hasToken={status.hasToken}
+            disabled={frozen}
+            onEdit={() => setEditingSource(true)}
+          />
+        )}
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" disabled={Boolean(working)} onClick={() => void act("check", () => api.updateCheck())}>
-            {working === "check" ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-            检查更新
-          </Button>
+          <CheckUpdateButton
+            size="default"
+            busy={working === UPDATE_BUSY.check}
+            disabled={!canCheck}
+            onClick={() => void runCheck()}
+          />
           {/* 下载只有一个入口：版本表里那一行的「下载」——有新版时就是最上面那一行。 */}
           <span className="text-muted-foreground text-xs">要下哪一版，点那一行的「下载」</span>
         </div>
@@ -219,7 +246,16 @@ export function UpdateCard() {
     </Card>
 
       {editingSource && status && (
-        <SourceDialog status={status} onClose={() => setEditingSource(false)} onStatus={setStatus} />
+        <SourceDialog
+          subject="程序更新"
+          view={sourceViewOf(status.source, status.hasToken)}
+          onClose={() => setEditingSource(false)}
+          reload={async () => {
+            const payload = requireStatus(await reload(), "更新状态")
+            return sourceViewOf(payload.status.source, payload.status.hasToken)
+          }}
+          check={runCheck}
+        />
       )}
 
       {confirming && (

@@ -36,8 +36,8 @@ export function RuntimeSourceDialog(props: {
   downloadable: RuntimeId | ""
   onDownload: (tool: RuntimeId) => void
   onClose: () => void
-  /** 存完让外层刷一次运行时状态，表格里那一行跟着变。 */
-  onSaved: () => Promise<void>
+  /** 存完让外层刷一次运行时状态（读一次，值本身不用看），表格里那一行跟着变。 */
+  onSaved: () => Promise<unknown>
 }) {
   const { settings, save } = useSettings()
   const id = props.tool.id
@@ -165,7 +165,7 @@ export function RuntimeSourceDialog(props: {
                   <div className="flex flex-wrap items-center gap-2 pt-2">
                     <Input
                       className="font-mono text-xs sm:max-w-sm"
-                      placeholder="例如 http://10.0.0.9/runtime"
+                      placeholder="例如 http://内网地址/runtime"
                       value={mirror}
                       onChange={(event) => {
                         setMirror(event.target.value)
@@ -193,7 +193,7 @@ export function RuntimeSourceDialog(props: {
                 )}
                 <p className="text-muted-foreground pt-1 text-xs">
                   内网取不到官方地址时：把这两个 zip 按原名放到一个能 HTTP 访问的目录里（例如
-                  {" "}<span className="font-mono">http://10.0.0.9/runtime</span>），填那个目录地址；目录里要有
+                  {" "}<span className="font-mono">http://内网地址/runtime</span>），填那个目录地址；目录里要有
                   {" "}<span className="font-mono">{props.tool.fileName}</span>。取回来的包仍按钉死的 sha256 校验。
                 </p>
               </div>

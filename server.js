@@ -9,6 +9,7 @@
  *   lib/plugin-root.js 插件定位
  *   lib/plugin.js      插件信息与步骤契约
  *   lib/resolve.js     控件查询（链接 → 控件 ID）
+ *   lib/system-open.js 交给系统打开（起完服务打开界面、插件页的「打开目录」）
  *
  * 用法：
  *   node server.js                                  # 起服务并打开浏览器（默认 127.0.0.1:8787）
@@ -25,7 +26,7 @@ const fs = require("fs");
 const http = require("http");
 const os = require("os");
 const path = require("path");
-const { spawnSync } = require("child_process");
+const { openUrl } = require("./lib/system-open.js");
 
 const { createResolver } = require("./lib/resolve.js");
 const { readPipelineSteps, createPluginRuntime } = require("./lib/plugin.js");
@@ -182,7 +183,9 @@ const pluginUpdate = createPluginUpdate({
   isBusy: busyReason,
   // 与程序更新共用同一个发布源与凭据：插件发布件与客户端本体挂在同一个 Release 上。
   source: function () { return settings.read().source; },
-  token: function () { return settings.readSourceToken(); }
+  token: function () { return settings.readSourceToken(); },
+  // 与程序更新同一份廉价判断（也是状态轮询那条路读的那一份）：有没有 token 不解密。
+  hasToken: function () { return settings.read().source.hasToken; }
 });
 // Codex 引擎：只下载进安装根，用户的 ~/.codex 一概不动；对话与写盘由插件脚本负责。
 const codex = createCodex({
@@ -257,17 +260,6 @@ server.on("error", function (error) {
   throw error;
 });
 
-function openBrowser(url) {
-  try {
-    if (process.platform === "win32") spawnSync("cmd", ["/c", "start", "", url], { windowsHide: true });
-    else if (process.platform === "darwin") spawnSync("open", [url]);
-    else spawnSync("xdg-open", [url]);
-  }
-  catch {
-    /* 打不开浏览器不影响服务本身 */
-  }
-}
-
 server.listen(options.port, options.host, function () {
   const actualPort = server.address().port;
   const url = "http://" + options.host + ":" + actualPort + "/";
@@ -298,5 +290,7 @@ server.listen(options.port, options.host, function () {
   // 插件那一半只在启动时静默查一次：插件页打开就能看到「有没有新版」，不必每次都去问远端。
   void pluginUpdate.check({ silent: true });
   void codex.check({ silent: true });
-  if (options.open) openBrowser(url);
+  // 打不开浏览器不影响服务本身：openUrl 把各种失败都归一成返回值（不 reject），这里不等结果。
+  // 「哪个平台用哪条命令」与插件页的「打开目录」是同一处（lib/system-open.js），不在这里再写一份。
+  if (options.open) void openUrl(url);
 });

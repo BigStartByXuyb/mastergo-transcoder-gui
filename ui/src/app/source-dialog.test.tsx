@@ -2,42 +2,34 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { SourceDialog } from "@/app/source-dialog"
-import type { UpdateStatus } from "@/lib/api"
+import { api, type UpdateStatus } from "@/lib/api"
+import { sourceCheckOutcome } from "@/lib/source-check"
+import { sourceFixture, sourceViewFixture, updateStatusFixture } from "@/lib/settings-fixtures"
+import { describeUpdate } from "@/lib/update-state"
 
 /*
  * 走真的 api 层（只把 fetch 换掉）：要验的是「预填什么、点保存并检查发哪两个请求、结果怎么显示」。
  */
 
-const BASE = "https://github.com/BigStartByXuyb/mastergo-transcoder-gui"
-
-function status(patch: Partial<UpdateStatus> = {}): UpdateStatus {
-  return {
-    state: "up_to_date",
-    current: "0.6.31",
-    currentNotes: [],
-    history: [],
-    root: "",
-    pointer: null,
-    busy: "",
-    staged: [],
-    ready: "",
-    rollback: "",
-    available: null,
-    error: null,
-    task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
-    source: {
-      kind: "github",
-      base: BASE,
-      manifestUrl: BASE + "/releases/latest/download/manifest.json",
-      kinds: ["github", "gitlab", "static"]
-    },
-    hasToken: false,
-    ...patch
-  }
-}
+// 两份夹具（程序更新状态、弹窗要的现状）都在 settings-fixtures 一处：这里不再各写一份。
+const BASE = sourceFixture().base
+const status = updateStatusFixture
 
 function ok(body: unknown) {
   return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))
+}
+
+function dialogProps(value: UpdateStatus) {
+  return {
+    subject: "程序更新",
+    view: sourceViewFixture(value),
+    onClose: () => undefined,
+    reload: async () => sourceViewFixture((await api.updateStatus()).status),
+    check: async () => {
+      const checked = (await api.updateCheck()).status
+      return sourceCheckOutcome(describeUpdate(checked), checked.state === "error")
+    }
+  }
 }
 
 function stub() {
@@ -80,8 +72,7 @@ afterEach(() => {
 describe("SourceDialog", () => {
   it("按现状预填，点保存并检查先存后验，并把结果回报给外层", async () => {
     const seen = stub()
-    const onStatus = vi.fn()
-    render(<SourceDialog status={status()} onClose={() => undefined} onStatus={onStatus} />)
+    render(<SourceDialog {...dialogProps(status())} />)
 
     expect(screen.getByLabelText("发布源类型").textContent).toContain("GitHub 仓库")
     expect((screen.getByLabelText("地址") as HTMLInputElement).value).toBe(BASE)
@@ -95,7 +86,8 @@ describe("SourceDialog", () => {
     const saved = seen.find((item) => item.url.includes("/api/settings"))
     expect(saved?.body).toEqual({ source: { kind: "github", base: "https://git.example.com/team/gui", token: "" } })
     expect(seen.some((item) => item.url.includes("/api/update/check"))).toBe(true)
-    expect(onStatus).toHaveBeenCalled()
+    // 存完要按新地址重读一次现状（弹窗里显示的清单地址跟着变成新地址拼出来的那个）。
+    expect(seen.some((item) => item.url.includes("/api/update/status"))).toBe(true)
   })
 
   it("检查失败时把原因与提示原样说出来（与卡片同一句话）", async () => {
@@ -115,7 +107,7 @@ describe("SourceDialog", () => {
     })
     vi.stubGlobal("fetch", mock)
 
-    render(<SourceDialog status={status()} onClose={() => undefined} onStatus={() => undefined} />)
+    render(<SourceDialog {...dialogProps(status())} />)
     fireEvent.click(screen.getByRole("button", { name: "保存并检查" }))
 
     await waitFor(() => expect(screen.getByText("检查更新失败（HTTP 401）：私有源要填 token")).toBeTruthy())

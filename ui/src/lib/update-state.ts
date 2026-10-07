@@ -171,3 +171,22 @@ export function canSwitch(status: UpdateStatus | null, version = ""): boolean {
   const staged = status.staged.find((item) => item.version === target)
   return Boolean(staged && staged.ready)
 }
+
+/*
+ * 这一刻忙不忙：给的这几路里有没有在跑的（这一页自己的动作、后端报的任务、正在传）。
+ * 「检查更新」能不能点、以及「换一份 / 改发布源 / 装一份」要不要冻住，两张卡都读这一条 ——
+ * 规则只有这一处，卡片与「管理…」面板不会一处说能点、另一处说不能点。
+ */
+export function busyNow(parts: { busy: string; transferring?: boolean }[]): boolean {
+  return parts.some((part) => Boolean(part.busy) || Boolean(part.transferring))
+}
+
+/*
+ * 程序更新这一半的忙碌位 key（与插件页那张 PLUGIN_BUSY 同一约定：写与读都从这里取，
+ * 改名不会被漏）。「下某一版」「切到某一版」的 key 带版本号，所以做成两个函数。
+ */
+export const UPDATE_BUSY = {
+  check: "check",
+  stage: (version: string) => "stage:" + version,
+  switch: (version: string) => "switch:" + version
+} as const

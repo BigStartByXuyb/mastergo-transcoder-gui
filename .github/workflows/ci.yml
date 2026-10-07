@@ -18,6 +18,7 @@ permissions:
 
 jobs:
   ci:
+    # 取 main 上那一版：它在 195c1c6a（漏写标题不判 INVALID）之上又修了「证据写成行号区间」（#4）。
     uses: BigStartByXuyb/cicd/.github/workflows/desktop-app.yml@bb03919d0b8e4c24f8c532b4c289758a98bdc4dc
     with:
       ci_ref: bb03919d0b8e4c24f8c532b4c289758a98bdc4dc
