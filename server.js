@@ -131,7 +131,8 @@ const resolver = createResolver({
 });
 resolver.refreshProjectFrames();
 
-const runs = createRunManager({ plugin: PLUGIN });
+// token 交给运行管理器：插件脚本只认环境变量里的那一份（只在设置里填过的机器，否则第一步就报缺少 token）。
+const runs = createRunManager({ plugin: PLUGIN, token: function () { return tokenSource.value(); } });
 const pending = createPending({ plugin: PLUGIN });
 const ai = createAi({ settings: settings });
 const artifacts = createArtifacts();
