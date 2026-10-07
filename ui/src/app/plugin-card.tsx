@@ -148,8 +148,7 @@ export function PluginCard() {
           <PluginSourceDialog
             row={selected}
             update={isInstallRow(selected) ? update.update : null}
-            busy={sources.busy}
-            updateBusy={update.busy}
+            busy={{ source: sources.busy, update: update.busy }}
             frozen={frozen}
             transferring={update.transferring}
             canCheck={update.canCheck}

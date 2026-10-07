@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { ChevronRight, Download, Loader2, RefreshCw, RotateCcw } from "lucide-react"
+import { ChevronRight, Download, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -12,6 +12,7 @@ import { BusyOverlay } from "@/app/busy-overlay"
 import { Pager } from "@/app/pager"
 import { Progress } from "@/components/ui/progress"
 import { SourceDialog } from "@/app/source-dialog"
+import { CheckUpdateButton } from "@/app/plugin-source-actions"
 import { UpdateSourceRow } from "@/app/update-source-row"
 import { api, type UpdateStatus } from "@/lib/api"
 import { pageSlice } from "@/lib/paging"
@@ -217,15 +218,12 @@ export function UpdateCard() {
         )}
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
+          <CheckUpdateButton
+            size="default"
+            busy={working === UPDATE_BUSY.check}
             disabled={!canCheck}
-            aria-busy={working === UPDATE_BUSY.check}
             onClick={() => void runCheck()}
-          >
-            {working === UPDATE_BUSY.check ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-            检查更新
-          </Button>
+          />
           {/* 下载只有一个入口：版本表里那一行的「下载」——有新版时就是最上面那一行。 */}
           <span className="text-muted-foreground text-xs">要下哪一版，点那一行的「下载」</span>
         </div>

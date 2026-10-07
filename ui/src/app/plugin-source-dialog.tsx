@@ -1,7 +1,8 @@
 import { useState } from "react"
-import { Copy, FolderOpen, Loader2, RefreshCw } from "lucide-react"
+import { Copy, FolderOpen, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { CheckUpdateButton, ChooseSourceButton } from "@/app/plugin-source-actions"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
 import { IdentifierText } from "@/app/identifier-text"
@@ -51,10 +52,11 @@ export function PluginSourceDialog(props: {
   row: PluginSourceRow
   /** 自带那一份的状态（插件页在轮询它）；这一行里没有自带的（members 不含 install）时传 null。 */
   update: PluginUpdateStatus | null
-  /** 来源清单那一半的忙碌位（换这份 / 选目录 / 读清单）：只有它是这一行自己的动作。 */
-  busy: string
-  /** 自带那一半的忙碌位（检查 / 安装）：两半各报各的，不合成一个字符串。 */
-  updateBusy: string
+  /**
+   * 这一页两半的忙碌位：来源清单那一半（换这份 / 选目录 / 读清单，键是行 id 或 PLUGIN_BUSY 里那几把）
+   * 与自带那一半（check / install）。两半各报各的，由面板按各自那一半的键去比。
+   */
+  busy: { source: string; update: string }
   /**
    * 这一刻能不能动「换一份 / 改发布源 / 装一份」：卡片算一次传进来（那边也是三个来源合一），
    * 面板不自己再算一遍 —— 否则规则一改就会出现「卡片上能点、面板里不能点」。
@@ -167,46 +169,34 @@ export function PluginSourceDialog(props: {
               </Button>
             )}
             {canChooseThis(row) && (
-              <Button
-                size="sm"
-                variant="outline"
+              /*
+               * 记哪个目录由 choosePathOf 说（库那一处）：记这一档所在的目录，不是此刻那一个版本目录。
+               */
+              <ChooseSourceButton
+                busy={props.busy.source === chooseKeyOf(row)}
                 disabled={props.frozen}
-                aria-busy={props.busy === chooseKeyOf(row)}
                 /*
-                 * 记哪个目录由 choosePathOf 说（库那一处）：记这一档所在的目录，不是此刻那一个版本目录。
                  */
                 onClick={() => props.onChoose(choosePathOf(row), chooseKeyOf(row))}
-              >
-                {props.busy === chooseKeyOf(row) && <Loader2 className="size-4 animate-spin" />}
-                用这份
-              </Button>
+              />
             )}
           </div>
 
           <div className="flex flex-wrap gap-2">
             {install && (
               <>
-                <Button
-                  size="sm"
-                  variant="outline"
+                <CheckUpdateButton
+                  busy={props.busy.update === PLUGIN_BUSY.check}
                   disabled={!props.canCheck}
-                  aria-busy={props.updateBusy === PLUGIN_BUSY.check}
                   onClick={() => props.onCheck()}
-                >
-                  {props.updateBusy === PLUGIN_BUSY.check ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="size-4" />
-                  )}
-                  检查更新
-                </Button>
+                />
                 <Button
                   size="sm"
                   disabled={!canInstall}
-                  aria-busy={props.updateBusy === PLUGIN_BUSY.install || transferring}
+                  aria-busy={props.busy.update === PLUGIN_BUSY.install || transferring}
                   onClick={() => props.onInstall()}
                 >
-                  {(props.updateBusy === PLUGIN_BUSY.install || transferring) && (
+                  {(props.busy.update === PLUGIN_BUSY.install || transferring) && (
                     <Loader2 className="size-4 animate-spin" />
                   )}
                   {summary.action}

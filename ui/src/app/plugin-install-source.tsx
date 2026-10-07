@@ -1,6 +1,4 @@
-import { Loader2, RefreshCw } from "lucide-react"
-
-import { Button } from "@/components/ui/button"
+import { CheckUpdateButton } from "@/app/plugin-source-actions"
 import { UpdateSourceRow } from "@/app/update-source-row"
 import { PLUGIN_BUSY } from "@/lib/plugin-sources"
 import type { PluginUpdateStatus } from "@/lib/api"
@@ -32,16 +30,7 @@ export function PluginInstallSource(props: {
         onEdit={props.onEdit}
       />
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!props.canCheck}
-          aria-busy={props.busy === PLUGIN_BUSY.check}
-          onClick={props.onCheck}
-        >
-          {props.busy === PLUGIN_BUSY.check ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-          检查更新
-        </Button>
+        <CheckUpdateButton busy={props.busy === PLUGIN_BUSY.check} disabled={!props.canCheck} onClick={props.onCheck} />
         <span className="text-muted-foreground text-xs">要装哪一版，点表里「客户端自带」那一行的「管理…」</span>
       </div>
     </div>

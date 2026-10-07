@@ -126,6 +126,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   重复绑定去掉，`frozen` 就是 `busyNow(...)` 的结果。
 - 第二十七轮复核一条：自带那一份的更新状态徽章收成 `PluginInstallBadge` 一处（来源表里那一行与
   「管理…」面板读同一个组件，文字与色调不会再一处带、一处不带）。
+- 第二十八轮复核两条：「用这份」「检查更新」两颗按钮收成共用组件（`plugin-source-actions.tsx`）——
+  来源表那一行、行内面板、卡片与程序更新那一半都读它；面板的忙碌位改成一个 prop 两格
+  （`{ source, update }`，两半各报各的），不再挂 `busy` / `updateBusy` 两个形参。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。

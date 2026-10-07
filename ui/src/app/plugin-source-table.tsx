@@ -1,9 +1,9 @@
 import type { ReactNode } from "react"
-import { Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { IdentifierText } from "@/app/identifier-text"
+import { ChooseSourceButton } from "@/app/plugin-source-actions"
 import { PluginInstallBadge, SourceAlsoFrom, SourceCopyCount, SourceStatusBadge, SourceVersion } from "@/app/plugin-source-facts"
 import {
   isInstallRow,
@@ -94,16 +94,7 @@ function PluginSourceLine(props: {
       <TableCell className="align-top text-right whitespace-normal">
         <div className="flex justify-end gap-2" onClick={(event) => event.stopPropagation()}>
           {canChooseThis(row) && (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={props.frozen}
-              aria-busy={props.busy === chooseKeyOf(row)}
-              onClick={props.onChoose}
-            >
-              {props.busy === chooseKeyOf(row) && <Loader2 className="size-4 animate-spin" />}
-              用这份
-            </Button>
+            <ChooseSourceButton busy={props.busy === chooseKeyOf(row)} disabled={props.frozen} onClick={props.onChoose} />
           )}
           <Button size="sm" variant="outline" onClick={props.onOpen}>
             {isInstallRow(row) ? "管理…" : "详情…"}

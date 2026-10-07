@@ -1,0 +1,41 @@
+import { Loader2, RefreshCw } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+
+/*
+ * 插件页与程序更新那一半共用的两个动作按钮：「用这份」与「检查更新」。
+ *
+ * 为什么单开一处：同一颗按钮在来源表里那一行、行内面板、卡片上各出现一次，文字、图标、转圈与禁用
+ * 必须同形 —— 「忙不忙」与「能不能点」由调用方按各自那条线的判据算好（busy / disabled 两个布尔），
+ * 这里只负责长什么样。
+ */
+
+export function ChooseSourceButton(props: { busy: boolean; disabled: boolean; onClick: () => void }) {
+  return (
+    <Button size="sm" variant="outline" disabled={props.disabled} aria-busy={props.busy} onClick={props.onClick}>
+      {props.busy && <Loader2 className="size-4 animate-spin" />}
+      用这份
+    </Button>
+  )
+}
+
+export function CheckUpdateButton(props: {
+  busy: boolean
+  disabled: boolean
+  /** 默认小号（插件页那几处）；程序更新卡片上是默认号。 */
+  size?: "sm" | "default"
+  onClick: () => void
+}) {
+  return (
+    <Button
+      size={props.size ?? "sm"}
+      variant="outline"
+      disabled={props.disabled}
+      aria-busy={props.busy}
+      onClick={props.onClick}
+    >
+      {props.busy ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+      检查更新
+    </Button>
+  )
+}
