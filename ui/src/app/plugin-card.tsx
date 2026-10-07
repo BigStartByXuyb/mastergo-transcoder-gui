@@ -4,7 +4,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ClampText } from "@/app/clamp-text"
 import { PixelLoader } from "@/app/pixel-loader"
-import { ChosenSlot } from "@/app/plugin-chosen-slot"
 import { LookupOrder } from "@/app/plugin-order-bar"
 import { PluginSourceDialog } from "@/app/plugin-source-dialog"
 import { PluginSourceTable } from "@/app/plugin-source-table"
@@ -14,7 +13,6 @@ import { usePluginUpdate } from "@/app/use-plugin-update"
 import { sourceViewOf } from "@/lib/source-check"
 import { busyNow } from "@/lib/update-state"
 import {
-  CHOSEN_SLOT_ID,
   isInstallRow,
   PLUGIN_BUSY,
   chooseKeyOf,
@@ -24,12 +22,13 @@ import {
 
 // 插件：转码引擎来自 mastergo-wpf-transcoder 插件，客户端不自带引擎。
 //
-// 这一页只说三件事，各占一处，不重复：
-//   找一个目录   —— 「我指定的那一份」（清掉＝回到按顺序自动）
+// 这一页只说两件事，各占一处，不重复：
 //   按什么顺序找 —— 上面那条顺序，每一档都列出来（后端给的顺序，界面不重排）
 //   每一档是什么 —— 一张表：来源 / 版本 / 状态 / 路径 / 操作；点开某一行是那一档的详情，
 //                  点开「客户端自带」那一行是它的管理：更新来源（GitHub / GitLab / 静态目录，
 //                  与「程序更新」同一处设置、同一个弹窗）+ 检查更新 / 下载并安装 / 进度。
+// 「我指定的那一份」不另占一块：它就是查找顺序里的第 2 档，动作（指定/换目录、交给客户端找）
+// 落在表里那一行上。
 //
 // 取数分两半，各有各的 hook：来源清单与指针动作（use-plugin-sources）、
 // 自带那一份的更新与轮询（use-plugin-update）；本组件只编排与渲染。
@@ -41,11 +40,6 @@ export function PluginCard() {
 
   const lookup = sources.view ? pluginLookup(sources.view.sources) : { slots: [], rows: [] }
   const selected = lookup.rows.find((row) => row.id === opened) ?? null
-  /*
-   * 「我指定的那一份」那一刻的处境：读后端那条结论（slots 里这一档的 active / exists），与表、顺序条同一份。
-   * 不能只看「设置里有没有值」——那份插件可能已经不在那个目录了，这时候生效的是后面某一档。
-   */
-  const chosenSlot = lookup.slots.find((slot) => slot.id === CHOSEN_SLOT_ID) ?? null
   /*
    * 有任一半在跑、后端有任务、或正在传，就冻住「换一份 / 改发布源」这类动作：判据是 lib/update-state
    * 的 busyNow（与「程序更新」那张卡同一处）。这里只把这一页的三路忙位摆出来 ——
@@ -62,7 +56,7 @@ export function PluginCard() {
       <CardHeader>
         <CardTitle>插件</CardTitle>
         <CardDescription>
-          转码引擎来自插件；下面这张表就是客户端找插件的顺序，用的是标「正在用」的那一份。
+          转码引擎来自插件：按下面那条顺序找，表格逐档对到它找到的那一份。
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -88,28 +82,22 @@ export function PluginCard() {
 
         {sources.view && (
           <>
-            {/* 「我指定的那一份」只有这一处入口：换目录、或清掉回到按顺序自动。 */}
-            <ChosenSlot
-              chosen={sources.view.chosen}
-              slot={chosenSlot}
-              busy={sources.busy}
-              frozen={frozen}
-              onPick={() => void sources.pickFolder()}
-              onAuto={() => void sources.choose("", PLUGIN_BUSY.auto)}
-            />
-
             {/* 查找顺序：每一档一句话，谁在生效、谁没有、哪两档是同一份，一眼看完。 */}
             <LookupOrder slots={lookup.slots} onOpen={(id) => setOpened(id)} />
 
-            {/* 表：与顺序一一对应（同一份插件只列一行），点开某一行是那一档的详情 / 管理。 */}
+            {/* 表：与顺序一一对应（同一份插件只列一行），点开某一行是那一档的详情 / 管理。
+                「我指定的那一份」的那两个动作也在它自己那一行上（不另占顶层一块）。 */}
             <PluginSourceTable
               rows={lookup.rows}
               update={update.update}
+              chosen={sources.view.chosen}
               busy={sources.busy}
               frozen={frozen}
               onOpen={(id) => setOpened(id)}
               // 行内「用这份」与面板里那颗同一口径（判据与记哪个目录都在 lib/plugin-sources）。
               onChoose={(row) => void sources.choose(choosePathOf(row), chooseKeyOf(row))}
+              onPick={() => void sources.pickFolder()}
+              onAuto={() => void sources.choose("", PLUGIN_BUSY.auto)}
             />
 
             {/* 两半各自的失败：来源清单那一半与自带那份那一半，谁出事谁说话。 */}

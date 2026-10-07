@@ -33,6 +33,16 @@ export function SourceStatusBadge(props: { active: boolean; exists: boolean }) {
   return <Badge variant="outline">{sourceStatusText(false, props.exists)}</Badge>
 }
 
+/**
+ * 顺序条上一档的亮/灰：正在用＝亮（加粗 + 实心底色），有但没用＝中灰，没有＝更淡的灰。
+ * 判据就是 active / exists —— 与徽章、与顺序条上「正在用 / 可用 / 没有」那句是同一对输入，
+ * 不另算一套「处境」（措辞仍由 sourceStatusText 一处给）。
+ */
+export function sourceTone(active: boolean, exists: boolean): string {
+  if (active) return "border-foreground/30 bg-accent font-medium"
+  return exists ? "text-muted-foreground" : "text-muted-foreground/60"
+}
+
 export function SourceVersion(props: { row: PluginSourceRow }) {
   if (!props.row.exists || !props.row.version) return <span className="text-muted-foreground">—</span>
   return <span className="font-mono">v{props.row.version}</span>
