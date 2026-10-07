@@ -119,7 +119,8 @@ export function UpdateCard() {
       (payload) =>
         // act 已经套过状态，这里只按 kind 落地（失败写红字、起步报一句）。
         finishDownload(payload, {
-          setFailure,
+          // 下载失败的原话也走同一处记忆（与插件那一半同形）：弹窗那边要的是同一句。
+          setFailure: failureMemory.remember,
           onStarted: () => toast.success("正在下载 v" + version)
         })
     )
