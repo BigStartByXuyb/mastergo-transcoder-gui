@@ -377,6 +377,27 @@ async function main() {
   });
 
   /*
+   * PATH 上第一个命中恰好在我们安装根里（我们自己那份）时不能就此停手：后面那个才是系统的。
+   * 只看首个命中会把系统那份漏掉，界面就显示「没检测到」。
+   */
+  const shadowHome = makeHome();
+  const oursDir = path.join(shadowHome, "runtime", "node", TOOLS.node.version);
+  fs.mkdirSync(oursDir, { recursive: true });
+  fs.writeFileSync(path.join(oursDir, "node.exe"), "");
+  const sysDir = makeHome();
+  fs.writeFileSync(path.join(sysDir, "node.exe"), "");
+  const shadowed = createRuntime({
+    home: shadowHome,
+    spawnSyncImpl: fakeSpawn([{ match: "node", result: { status: 0, stdout: "v24.14.0", stderr: "" } }]),
+    env: { PATH: [oursDir, sysDir].join(path.delimiter) }
+  });
+  assert.strictEqual(
+    shadowed.status().tools[0].system.path,
+    path.join(sysDir, "node.exe"),
+    "跳过我们自己那份，继续往后找系统的"
+  );
+
+  /*
    * PATH 上没有（`where` 找不到）但官方安装位置里有：也要认出来。
    * 客户机上「装好了却没进进程 PATH」是常见情况（装完没重开客户端、Store 版别名目录不在 PATH 里）。
    */
