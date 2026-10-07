@@ -23,7 +23,8 @@ describe("restartAndWait", () => {
         calls += 1
         if (calls < 2) throw new Error("还没监听")
       },
-      failedNote: "没起来",
+      goneNote: "没了",
+      stuckNote: "没换成",
       restart: async () => undefined,
       wait: { ...c }
     })
@@ -31,21 +32,38 @@ describe("restartAndWait", () => {
     expect(calls).toBe(2)
   })
 
-  it("一直起不来就到点回假", async () => {
+  it("一直连不上（没人答话）就到点回假，说「后端没了」那句", async () => {
     const c = clock()
     let calls = 0
     const outcome = await restartAndWait({
       probe: async () => {
         calls += 1
-        throw new Error("连不上本地服务")
+        throw new ApiFailure("OFFLINE", "连不上本地服务", "Failed to fetch")
       },
-      failedNote: "没起来",
+      goneNote: "没了",
+      stuckNote: "没换成",
       restart: async () => undefined,
       wait: { timeoutMs: 900, intervalMs: 300, ...c }
     })
     expect(outcome.ok).toBe(false)
+    expect(outcome).toEqual({ ok: false, note: "没了", serviceUp: false })
     // 0 / 300 / 600 / 900 四次探测，到点就停。
     expect(calls).toBe(4)
+  })
+
+  it("后端一直在答话、只是没换成目标那一版：别按「没了」说，更新页还打得开", async () => {
+    const c = clock()
+    const outcome = await restartAndWait({
+      probe: async () => {
+        // health 答了话、报的还是旧版本（runSwitch 的探测就是这么抛的）。
+        throw new Error("还不是目标版本")
+      },
+      goneNote: "没了",
+      stuckNote: "没换成",
+      restart: async () => undefined,
+      wait: { timeoutMs: 0, ...c }
+    })
+    expect(outcome).toEqual({ ok: false, note: "没换成", serviceUp: true })
   })
 
   it("断连算预期：继续等，服务回来就算成功", async () => {
@@ -56,7 +74,8 @@ describe("restartAndWait", () => {
         calls += 1
         if (calls < 3) throw new Error("连不上本地服务")
       },
-      failedNote: "没起来",
+      goneNote: "没了",
+      stuckNote: "没换成",
       restart: async () => {
         throw new ApiFailure("OFFLINE", "连不上本地服务", "")
       },
@@ -72,7 +91,8 @@ describe("restartAndWait", () => {
       probe: async () => {
         probed += 1
       },
-      failedNote: "没起来",
+      goneNote: "没了",
+      stuckNote: "没换成",
       restart: async () => {
         throw new ApiFailure("BUSY", "1 次流水线正在跑，现在不能重启客户端", "等它跑完再重启。")
       }
@@ -88,14 +108,15 @@ describe("restartAndWait", () => {
     const c = clock()
     const outcome = await restartAndWait({
       probe: async () => {
-        throw new Error("连不上本地服务")
+        throw new ApiFailure("OFFLINE", "连不上本地服务", "")
       },
-      failedNote: "没起来",
+      goneNote: "没了",
+      stuckNote: "没换成",
       restart: async () => undefined,
       wait: { timeoutMs: 0, ...c }
     })
     // 等不到 = 新的一份没起来，后端也不在了：调用方不能再把人往更新页带。
-    expect(outcome).toEqual({ ok: false, note: "没起来", serviceUp: false })
+    expect(outcome).toEqual({ ok: false, note: "没了", serviceUp: false })
   })
 
 })

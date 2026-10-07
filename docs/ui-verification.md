@@ -38,9 +38,13 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 ### 改了什么
 
 - `ui/src/lib/restart-watch.ts`：`serviceUpOn(error)` 判「这一次请求说明后端还在吗」（只有这一处：请求断在半路＝
-  已经不在，后端答了话（哪怕是拒绝）＝还在）；结论里多一个 `serviceUp` —— 「被拒（后端还在）」与
-  「等不到（后端已经没了）」是两件事，界面要分开对待。页面「现在连不连得上」仍由 `use-health` 的轮询自己判
-  （顶栏据此说「服务未就绪」）：那是持续可用性，与单次请求两回事，注释里写明各判各的。
+  已经不在，后端答了话（哪怕是拒绝）＝还在）。「等不到」再按**最后一次探测**分两种：后端一直在答话（换了、
+  只是没换成目标那一版）不是「没了」，不能按没了说 —— 那会把还活着的后端说成死了，还会拦住顶栏把人带去更新页。
+  三种终局（被拒 / 没换成 / 后端没了）怎么拼成结论收在 `rejectedOutcome` / `goneOutcome` 两个构造器里，
+  两个入口都不再各自拼对象。页面「现在连不连得上」仍由 `use-health` 的轮询自己判（顶栏据此说「服务未就绪」）：
+  那是持续可用性，与单次请求两回事，注释里写明各判各的。
+- `ui/src/lib/update-switch.ts`：「换了没换成」那一句（`SWITCH_STUCK_NOTE`）与「后端没了」那句各只有一处；
+  写指针那一步断在半路与「切过去没起来」共用后者。
 - `ui/src/lib/describe-failure.ts`：「后端已经答不上话」给用户的那一句收成 `SERVICE_GONE_NOTE` 一处 ——
   不说技术原文（连不上本地服务 / Failed to fetch 都不指向下一步），只说去哪儿看、怎么恢复。
   `ui/src/App.tsx` 的顶栏在 offline 时自己也渲染它：原来 offline 只留一个「服务未就绪」，会把整块
@@ -72,8 +76,8 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | `npm test`（后端） | 48 通过 |
 | `npm run test:coverage`（后端） | all files 94.70 / 82.73 / 96.01（门禁 90/75/90） |
 | `cd ui; npx tsc -b` | 通过 |
-| `cd ui; npx vitest run` | 59 文件 347 用例通过（本次 +5：serviceUpOn、写指针两种失败与文案、红点那两处消费判据） |
-| `cd ui; npm run test:coverage` | all files 95.96 / 91.71 / 94.73 / 95.96 |
+| `cd ui; npx vitest run` | 59 文件 348 用例通过（本次 +6：serviceUpOn、「等不到」的两种、写指针两种失败与文案、红点那两处消费判据） |
+| `cd ui; npm run test:coverage` | all files 95.94 / 91.64 / 94.82 / 95.94 |
 | `cd ui; npm run lint` | 通过（只有既有 warning） |
 | `npm run build:ui` | 通过，`public/` 已重建并入库 |
 
