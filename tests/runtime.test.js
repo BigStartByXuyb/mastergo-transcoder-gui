@@ -246,8 +246,14 @@ async function main() {
 
   // 设置里显式允许之后，才轮到系统上那一份。
   withSystem(true, function () {
-    assert.strictEqual(resolveNodeExe(home), process.execPath, "允许了才用当前进程这一份");
-    assert.strictEqual(resolvePwshExe(home), "pwsh", "允许了才落到系统 PATH 里的 pwsh");
+    /*
+     * 用的是「系统上那份」的具体路径（不是裸命令名，也不是当前进程那一份）：
+     * 与界面那一行报出来的是同一个查找函数的结果，两处不会分叉。
+     */
+    const systemNode = resolveNodeExe(home);
+    assert.ok(path.isAbsolute(systemNode) && /node\.exe$/i.test(systemNode), "允许后给的是系统那份 node 的绝对路径");
+    const systemPwsh = resolvePwshExe(home);
+    assert.ok(path.isAbsolute(systemPwsh) && /pwsh\.exe$/i.test(systemPwsh), "允许后给的是系统那份 pwsh 的绝对路径");
   });
 
   // 装好自带那份：无论开关怎么设，都优先用我们自己的。
