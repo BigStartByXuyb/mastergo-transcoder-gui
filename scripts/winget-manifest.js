@@ -23,17 +23,11 @@ const fs = require("fs");
 const path = require("path");
 
 const source = require("../lib/source.js");
-const winget = require("../lib/winget-manifest.js");
+const { argValue } = require("./lib/args.js");
+const winget = require("./lib/winget-manifest.js");
 const { versionFacts } = require("./lib/winget-facts.js");
 
 const ROOT = path.join(__dirname, "..");
-
-function argValue(name, fallback) {
-  const index = process.argv.indexOf("--" + name);
-  if (index < 0) return fallback;
-  const value = process.argv[index + 1];
-  return value === undefined || value.startsWith("--") ? fallback : value;
-}
 
 function main() {
   /*

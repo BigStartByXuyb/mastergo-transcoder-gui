@@ -16,21 +16,16 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 
 const { buildManifest, sha256File } = require("../lib/app-manifest.js");
+const { argValue } = require("./lib/args.js");
+const { folderOf } = require("./lib/bundle-name.js");
 
 const ROOT = path.join(__dirname, "..");
-
-function argValue(name, fallback) {
-  const index = process.argv.indexOf("--" + name);
-  if (index < 0) return fallback;
-  const value = process.argv[index + 1];
-  return value === undefined || value.startsWith("--") ? fallback : value;
-}
 
 function main() {
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
   const version = argValue("version", pkg.version);
   const outDir = path.resolve(ROOT, argValue("out", "dist"));
-  const folder = "mastergo-transcoder-gui-" + version;
+  const folder = folderOf(version);
   const stage = path.join(outDir, folder);
 
   fs.rmSync(stage, { recursive: true, force: true });

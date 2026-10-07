@@ -12,7 +12,7 @@ const os = require("os");
 const path = require("path");
 const { spawn, spawnSync } = require("child_process");
 
-const winget = require("../lib/winget-manifest.js");
+const winget = require("../scripts/lib/winget-manifest.js");
 const { versionFacts } = require("../scripts/lib/winget-facts.js");
 
 const ROOT = path.join(__dirname, "..");

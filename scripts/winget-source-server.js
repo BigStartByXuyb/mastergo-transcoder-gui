@@ -3,10 +3,10 @@
 
 /*
  * 内网 winget 源：按 winget 的 REST 源协议回答三件事 —— 服务信息、搜索、取某个包的清单。
- * 数据只有一份文件（lib/winget-manifest.js 的 SOURCE_FILE）加一个静态资产目录；
+ * 数据只有一份文件（scripts/lib/winget-manifest.js 的 SOURCE_FILE）加一个静态资产目录；
  * 每次请求现读那份文件，所以换一版就是把文件换掉，不用重启。
  *
- * 跑法（服务机上要四样：这个脚本、lib/winget-manifest.js、lib/versions.js、数据目录 ——
+ * 跑法（服务机上要四样：这个脚本、scripts/lib/winget-manifest.js、lib/versions.js、数据目录 ——
  * 清单的字段与版本比大小都在 lib 那两处，服务不另写一份；见 docs/winget-internal-source.md）：
  *   node scripts/winget-source-server.js --root /srv/mastergo-winget --port 18443
  *   node scripts/winget-source-server.js --root … --port 18443 --cert server.crt --key server.key
@@ -26,7 +26,8 @@ const http = require("http");
 const https = require("https");
 const path = require("path");
 
-const winget = require("../lib/winget-manifest.js");
+const { argValue } = require("./lib/args.js");
+const winget = require("./lib/winget-manifest.js");
 
 // 不给 --port 时的端口：与部署那台一致（见 docs/winget-internal-source.md）。
 const DEFAULT_PORT = 18443;
@@ -35,13 +36,6 @@ const DEFAULT_IDENTIFIER = "BigStart";
 const MANIFESTS_PREFIX = "/api/packageManifests/";
 // 静态资产的路由前缀与目录名同一处来：地址里的段落名与盘上的目录名还是一件事。
 const FILES_PREFIX = "/" + winget.SOURCE_FILES_DIR + "/";
-
-function argValue(name, fallback) {
-  const index = process.argv.indexOf("--" + name);
-  if (index < 0) return fallback;
-  const value = process.argv[index + 1];
-  return value === undefined || value.startsWith("--") ? fallback : value;
-}
 
 // 数据文件每次请求现读：换一版就是把文件换掉，不用重启服务。
 function readPackages(root) {

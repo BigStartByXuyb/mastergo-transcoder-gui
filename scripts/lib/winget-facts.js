@@ -7,22 +7,22 @@
  * 两个入口的事实只有这一处 —— 版本或目录命名一改，两个产物不会各说一套。
  *
  * urlOf 由调用方给：公网那份按 release 地址拼，内网那份指向源服务自己的静态资产目录。
- * 边界：只在构建机上跑（要读仓库、要算文件哈希）；服务机上跑的是 lib/winget-manifest.js，那份不做 IO。
+ * 边界：只在构建机上跑（要读仓库、要算文件哈希）；服务机上跑的是 scripts/lib/winget-manifest.js，那份不做 IO。
  */
 
 const fs = require("fs");
 const path = require("path");
 
 const { sha256File } = require("../../lib/app-manifest.js");
+const { folderOf } = require("./bundle-name.js");
 
 const ROOT = path.join(__dirname, "..", "..");
-// 包内目录名按版本拼；发布产物、清单里的入口路径、内网源里的 zip 名都从这里来。
-const FOLDER_PREFIX = "mastergo-transcoder-gui-";
 
 function versionFacts(options) {
   const o = options || {};
   const version = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).version;
-  const folder = FOLDER_PREFIX + version;
+  // 包内目录名与打包脚本同一个来源（scripts/lib/bundle-name.js）。
+  const folder = folderOf(version);
   const zip = path.resolve(ROOT, o.zip || path.join("dist", folder + ".zip"));
   if (!fs.existsSync(zip)) {
     throw new Error("找不到这一版的 zip：" + zip + "（先跑 node scripts/pack-bundle.js）");

@@ -115,7 +115,7 @@ winget install BigStart.MasterGoTranscoder
 **两条命令对应两个不同的包标识**（同一台机器上两个同名包会打架，内网那份也不该出现在公网 winget-pkgs 里）：
 
 - 公网 / GitHub（现在默认）：`winget install BigStart.MasterGoTranscoder`
-- 内网 / 公司 GitLab：`winget install BigStart.MasterGoTranscoder.Internal`
+- 内网（自建源）：`winget install BigStart.MasterGoTranscoder.Internal`
 
 包地址与清单怎么落地：公网那条（提 PR、谁提交、要谁配合）在 `docs/winget-publish.md`，
 内网那条（服务怎么起、怎么发版、客户机怎么配）在 `docs/winget-internal-source.md`，这里都不重复。

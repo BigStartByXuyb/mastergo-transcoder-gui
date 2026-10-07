@@ -39,7 +39,7 @@
 ```
 mastergo-winget/
   scripts/winget-source-server.js     ← 仓库 scripts/winget-source-server.js
-  lib/winget-manifest.js              ← 仓库 lib/winget-manifest.js
+  scripts/lib/winget-manifest.js      ← 仓库 scripts/lib/winget-manifest.js
   lib/versions.js                     ← 仓库 lib/versions.js
   data/winget-source.json             ← scripts/winget-source.js 生成
   data/files/<这一版的 zip>            ← 同一个生成器一起放进去的
@@ -49,7 +49,8 @@ mastergo-winget/
 
 ```powershell
 scp -O scripts/winget-source-server.js ctyun@10.101.0.62:/home/ctyun/mastergo-winget/scripts/
-scp -O lib/winget-manifest.js lib/versions.js ctyun@10.101.0.62:/home/ctyun/mastergo-winget/lib/
+scp -O scripts/lib/winget-manifest.js ctyun@10.101.0.62:/home/ctyun/mastergo-winget/scripts/lib/
+scp -O lib/versions.js ctyun@10.101.0.62:/home/ctyun/mastergo-winget/lib/
 ```
 
 证书（一次性）：自签一张带 SAN 的，私钥留在 `certs/`（**不进 `data/files/`**，那里是要对外发的）：
@@ -130,7 +131,7 @@ winget install BigStart.MasterGoTranscoder.Internal --accept-source-agreements -
 - **`source add` 要管理员**：这是 winget 自己的规矩（源写在机器范围），与我们的包无关。
 - **源里只放当前这一版**：`scripts/winget-source.js` 每次重写整个输出目录；winget 按最新版装与升级，
   不需要留历史版本（历史版本由程序自己的更新机制管，见 `docs/install.md`）。
-- **数据文件不要手写**：包地址、哈希、清单字段都由 `lib/winget-manifest.js` 一处给（与三个 YAML 同一份事实），
+- **数据文件不要手写**：包地址、哈希、清单字段都由 `scripts/lib/winget-manifest.js` 一处给（与三个 YAML 同一份事实），
   换包就重跑生成器。
 - **源服务里没有秘密**：只有公开的包与证书（私钥在 `certs/`，不在对外发的目录里）。
 
@@ -143,4 +144,5 @@ winget install BigStart.MasterGoTranscoder.Internal --accept-source-agreements -
 | 安装 | `winget install BigStart.MasterGoTranscoder.Internal` → 下载 5,020,839 字节 → 校验哈希通过 → 解压 → 加上命令别名 → 成功；`winget list` 里源显示 `BigStart`，包在 `%LOCALAPPDATA%\Microsoft\WinGet\Packages\BigStart.MasterGoTranscoder.Internal_BigStart` |
 | 卸载 | `winget uninstall BigStart.MasterGoTranscoder.Internal` 成功，命令别名与包目录都没有残留 |
 | 信息接口声明不认的字段之后 | 又装了一遍（`/api/information` 现在会报出 `Tag`/`PackageFamilyName`/`ProductCode`/`UpgradeCode`/`NormalizedPackageNameAndPublisher`/`Market`/`HasInstallerType` 七个），搜索与安装都照旧成功 —— 客户端因此能在发请求前就避开这些字段 |
+| 复核收口之后 | 共享的渲染模块挪到 `scripts/lib/`（不再随客户端更新包发出去）、事实装配与命令行取值各收一处、包内目录名与打包脚本同源；服务器按新目录重起，`winget install` 再装一遍、再卸载，都成功 |
 | 途中修掉的 | 第一次装到一半报「一个或多个源不支持搜索请求」（`0x8a150043`）：winget 装包前会把同一个关键词同时放进好几个字段的 `Inclusions`，那是**或**（`(Query \|\| Inclusions...) && Filters...`），我按「且」算导致一条都没命中。按 winget 自己的定义改掉，那条真请求原文留在 `tests/winget-source.test.js` 里 |

@@ -9,12 +9,15 @@
  * 包是 portable：zip 里就是我们的启动器，winget 把 zip 解进自己的包目录、把 mastergo-transcoder.exe
  * 链进 PATH，不跑任何安装程序。
  *
+ * 放在 scripts/lib 而不是 lib：它不是运行时代码（客户端那份运行树的清单只收 lib/public/vendor，
+ * 放 lib 会跟着每个客户机的更新包走）。用它的是两个生成器与内网源服务。
+ *
  * 边界：只认调用方给的事实（标识 / 版本 / 包地址 / 哈希 / 包内目录），自身不做 IO ——
  * 服务机上跑的就是这一份，它只该带 lib/versions.js 一个依赖（见 docs/winget-internal-source.md）。
  * 「这一版的事实」怎么装配（读 package.json、算哈希）在 scripts/lib/winget-facts.js，那是构建机上的事。
  */
 
-const { compareVersions } = require("./versions.js");
+const { compareVersions } = require("../../lib/versions.js");
 
 // 公网那一份的标识；内网那一份用 INTERNAL_ID（同一台机器上两个同名包会打架）。
 const DEFAULT_ID = "BigStart.MasterGoTranscoder";
@@ -259,7 +262,8 @@ function matchesCriteria(pkg, criteria) {
 
 /* 搜索结果里的一行：包这一层给标识、名字、发行者，版本单列。 */
 function searchRow(pkg) {
-  const locale = (latestOf(pkg) && latestOf(pkg).DefaultLocale) || {};
+  const latest = latestOf(pkg);
+  const locale = (latest && latest.DefaultLocale) || {};
   return {
     PackageIdentifier: pkg.PackageIdentifier,
     PackageName: locale.PackageName,
