@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { ApiFailure } from "@/lib/api"
-import { restartAndWait, serviceUpOn } from "@/lib/restart-watch"
+import { restartAndWait } from "@/lib/restart-watch"
 
 /* 可控时钟：sleep 往前推时间，now 读它，于是「等多久」在测试里是确定的。 */
 function clock() {
@@ -72,7 +72,8 @@ describe("restartAndWait", () => {
     const outcome = await restartAndWait({
       probe: async () => {
         calls += 1
-        if (calls < 3) throw new Error("连不上本地服务")
+        // 「连不上」按契约只能写成 OFFLINE：普通 Error 表示「答了话、只是还不是目标那一版」。
+        if (calls < 3) throw new ApiFailure("OFFLINE", "连不上本地服务", "Failed to fetch")
       },
       goneNote: "没了",
       stuckNote: "没换成",
@@ -121,10 +122,3 @@ describe("restartAndWait", () => {
 
 })
 
-describe("serviceUpOn", () => {
-  it("连不上（OFFLINE）＝后端已经不在；别的异常＝它答了话，还在", () => {
-    expect(serviceUpOn(new ApiFailure("OFFLINE", "连不上本地服务", "Failed to fetch"))).toBe(false)
-    expect(serviceUpOn(new ApiFailure("BUSY", "1 次流水线正在跑", "等它跑完再重启。"))).toBe(true)
-    expect(serviceUpOn(new Error("boom"))).toBe(true)
-  })
-})

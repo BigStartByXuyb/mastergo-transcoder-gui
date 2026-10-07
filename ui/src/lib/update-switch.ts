@@ -1,6 +1,6 @@
 import { api } from "@/lib/api"
-import { SERVICE_GONE_NOTE } from "@/lib/describe-failure"
-import { goneOutcome, rejectedOutcome, restartAndWait, serviceUpOn, type RestartWaitOutcome } from "@/lib/restart-watch"
+import { SERVICE_GONE_NOTE, serviceUpOn } from "@/lib/describe-failure"
+import { goneOutcome, rejectedOutcome, restartAndWait, type RestartWaitOutcome } from "@/lib/restart-watch"
 
 /*
  * 「换了，只是没换成目标那一版」：后端一直在答话，所以不是「服务没在跑」——

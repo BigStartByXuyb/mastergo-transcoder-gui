@@ -1,5 +1,5 @@
-import { ApiFailure, api } from "@/lib/api"
-import { describeFailure } from "@/lib/describe-failure"
+import { api } from "@/lib/api"
+import { describeFailure, serviceUpOn } from "@/lib/describe-failure"
 
 /*
  * 重启客户端这件事的整套协议，只有这一份：
@@ -16,7 +16,8 @@ import { describeFailure } from "@/lib/describe-failure"
  *   没换成（serviceUp=true）—— 后端一直在答话，只是报的不是目标那一版：它没死，别按死了说；
  *   后端没了（serviceUp=false）—— 界面上任何一页都载不出来，原因只剩客户端那个窗口里那几行。
  *
- * 这三种怎么拼成结论只有这一处（见下面两个构造器）；调用方只决定「什么时候算终局」。
+ * 这三种怎么拼成结论只有这一处（`rejectedOutcome` / `goneOutcome` / `stuckOutcome`）；
+ * 调用方只决定「什么时候算终局」。
  */
 export type ServiceWaitOptions = {
   /**
@@ -68,19 +69,6 @@ export type RestartWaitOptions = {
 
 // 两半都带 serviceUp：起来的那一份在答话，后端当然还在。
 export type RestartWaitOutcome = { ok: true; note: ""; serviceUp: true } | { ok: false; note: string; serviceUp: boolean }
-
-/*
- * 「这一次请求说明后端还在吗」只有这一处：请求断在半路（api 层一律折成 OFFLINE）＝已经不在；
- * 后端答了话（哪怕是拒绝，像有任务在跑、本地那份和清单对不上）＝还在。
- * 谁要据此决定「还要不要把人带到某一页」，都读这一条。
- *
- * 与另一件事分清楚：页面「现在连不连得上」由 use-health 每 5 秒轮询自己判（offline，顶栏据此说
- * 「服务未就绪」）—— 那是持续可用性，这是单次请求的结果，两问不同、各判各的。
- * 但「后端已经没了」给用户的那句话只有一处（describe-failure 的 SERVICE_GONE_NOTE）。
- */
-export function serviceUpOn(error: unknown): boolean {
-  return !(error instanceof ApiFailure && error.code === "OFFLINE")
-}
 
 /** 被拒：后端答了话，原话只有这一处拼（`describeFailure`），两个入口都调它。 */
 export function rejectedOutcome(error: unknown): RestartWaitOutcome {

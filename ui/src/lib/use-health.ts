@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 
 import { api, type Health } from "@/lib/api"
-import { serviceUpOn } from "@/lib/restart-watch"
+import { serviceUpOn } from "@/lib/describe-failure"
 
 /*
  * 轮询 /api/health。
