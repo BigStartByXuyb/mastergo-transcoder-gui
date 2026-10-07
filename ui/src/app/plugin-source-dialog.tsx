@@ -60,7 +60,7 @@ export function PluginSourceDialog(props: {
   frozen: boolean
   /** 正在传（下载 / 落盘）：出进度条、按钮转圈。 */
   transferring: boolean
-  /** 「检查更新」能不能点：与卡片上那颗同一个判据（use-plugin-update 算好）。 */
+  /** 「检查更新」能不能点：use-plugin-update 算好的那一个判据（与「下载并安装」同一套）。 */
   canCheck: boolean
   /** 改发布源：这一档（自带那一份）的「更新来源」在它自己的块里。 */
   onEditSource: () => void

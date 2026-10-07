@@ -75,7 +75,7 @@ export function usePluginUpdate(onInstalled: () => void) {
   }, [reload])
 
   /*
-   * 「检查更新」只有这一个入口：卡片上那颗按钮与「管理…」里的「保存并检查」都调它。
+   * 「检查更新」只有这一个入口：自带那一行的「管理…」面板里那颗按钮与「保存并检查」都调它。
    * 它走这一条线的动作骨架（忙碌位与别处一致），返回弹窗要的那两句话（卡片那颗不看返回值）；
    * 「怎么说」归 describePluginInstall 一处，没拿到结果时用刚才记住的那句原话。
    */
@@ -102,7 +102,7 @@ export function usePluginUpdate(onInstalled: () => void) {
 
   /*
    * 「检查更新」能不能点：这一条线自己有没有动作在跑、正在传、后端有没有别的任务在跑。
-   * 卡片上那颗与「管理…」面板里那颗是同一个动作，所以读同一个判据，不各写一份禁用条件。
+   * 「管理…」面板里那颗按钮读的就是这个值（与「下载并安装」共用同一套禁用条件）。
    */
   const workingNow = busyNow([{ busy: working, transferring }, { busy: update ? update.busy : "" }])
   const canCheck = Boolean(update) && !workingNow
