@@ -11,3 +11,8 @@ export function sourceCheckOutcome(summary: { label: string; note: string }, fai
   if (failed) return { failure: summary.note, note: "" }
   return { failure: "", note: summary.note ? summary.label + "；" + summary.note : summary.label }
 }
+
+/** 这一次压根没拿到结果（动作骨架抛了）：原因就是刚才那一步写下的那句话。 */
+export function sourceCheckDropped(failure: string): SourceCheckOutcome {
+  return { failure: failure, note: "" }
+}

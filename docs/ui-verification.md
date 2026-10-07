@@ -87,6 +87,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   「现在能不能动」这条冻结判据由卡片算一次传进面板（`frozen` / `transferring`），面板不再自己再算一遍。
   顺带按观察收了三处小冗余：`pluginLookup` 的两趟遍历并成一趟、`manifest-fetch` 注释不再引用已不返回的 `token()`、
   `server.js` 的 `openBrowser` 透传壳去掉（直接 `void openUrl(url)`）。
+- 第十五轮复核两条：「保存并检查」两半同一条路 —— 程序更新那一半也走那张卡的 `act`（忙碌位与卡片上那颗
+  「检查更新」一致），没拿到结果时用 `sourceCheckDropped` 把刚才那句原因交给弹窗（两半同形）；
+  `lib/pwsh.js` 去掉没人再传的 `maxBuffer` 覆盖项（结果走文件，stdout 上限固定够用）。
 - 这一页也补上**更新来源**那一行（类型 / 地址 / 修改发布源）与一颗「检查更新」：插件与程序更新取的是
   同一处设置（后端 `lib/source.js` 一处拼地址、`lib/manifest-fetch.js` 一处取清单），改一处两边都按新的走。
   弹窗因此改成按「哪一件事」参数化（`ui/src/app/source-dialog.tsx`），表单仍是同一份。

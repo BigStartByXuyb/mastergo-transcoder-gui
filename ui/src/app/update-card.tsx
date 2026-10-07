@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { ChevronRight, Download, Loader2, RefreshCw, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 
@@ -21,7 +21,7 @@ import { useStatusPoll } from "@/app/use-status-poll"
 import { startUpdateDownload } from "@/lib/update-download"
 import { runSwitch } from "@/lib/update-switch"
 import { missingFeatures } from "@/lib/version-features"
-import { sourceCheckOutcome } from "@/lib/source-check"
+import { sourceCheckDropped, sourceCheckOutcome } from "@/lib/source-check"
 import {
   blockedNote,
   canSwitch,
@@ -58,6 +58,8 @@ export function UpdateCard() {
   // 等着人确认的那一版：确认弹窗里会先把回退 / 新开运行 / 有任务在跑说清楚。
   const [confirming, setConfirming] = useState("")
   const [supervised, setSupervised] = useState(false)
+  // 最近一次失败的原话：动作骨架只把话写进状态，而「保存并检查」那一下要把同一句交给弹窗。
+  const failureRef = useRef("")
   // 改发布源的弹窗：更新从哪儿取。
   const [editingSource, setEditingSource] = useState(false)
 
@@ -85,7 +87,11 @@ export function UpdateCard() {
    * 页面上的每个动作都走这一条（骨架在 use-action-runner）：「怎么提示」由调用方给 ——
    * 有的要按结果（DownloadOutcome 的 kind/message）才决定说什么。
    */
-  const act = useActionRunner<UpdateStatus>({ setWorking, setFailure, setStatus })
+  const rememberFailure = useCallback(function (message: string) {
+    failureRef.current = message
+    setFailure(message)
+  }, [])
+  const act = useActionRunner<UpdateStatus>({ setWorking, setFailure: rememberFailure, setStatus })
 
   /*
    * 下某一版（含历史版本）：清单按那一版的 tag 取，之后同一条下载流程。
@@ -230,10 +236,10 @@ export function UpdateCard() {
             return { source: payload.status.source, hasToken: payload.status.hasToken }
           }}
           check={async () => {
-            const checked = (await api.updateCheck()).status
-            setStatus(checked)
-            // 报的这句话与卡片上那句同一处口径（describeUpdate），这里只说放哪一格。
-            return sourceCheckOutcome(describeUpdate(checked), checked.state === "error")
+            // 与卡片上那颗「检查更新」同一条路（act 套状态与忙碌位）；说的那句话同一处口径（describeUpdate）。
+            const payload = await act("check", () => api.updateCheck())
+            if (!payload) return sourceCheckDropped(failureRef.current)
+            return sourceCheckOutcome(describeUpdate(payload.status), payload.status.state === "error")
           }}
         />
       )}

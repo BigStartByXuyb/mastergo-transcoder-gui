@@ -7,7 +7,7 @@ import { finishDownload } from "@/app/download-actions"
 import { api, type PluginUpdateStatus } from "@/lib/api"
 import { startDownload } from "@/lib/download-run"
 import { describePluginInstall } from "@/lib/plugin-install"
-import { sourceCheckOutcome } from "@/lib/source-check"
+import { sourceCheckDropped, sourceCheckOutcome } from "@/lib/source-check"
 import { isDownloading, isTaskDone } from "@/lib/update-state"
 
 /*
@@ -98,7 +98,7 @@ export function usePluginUpdate(onInstalled: () => void) {
    */
   const checkOutcome = useCallback(async function () {
     const payload = await runCheck()
-    if (!payload) return { failure: failureRef.current, note: "" }
+    if (!payload) return sourceCheckDropped(failureRef.current)
     return sourceCheckOutcome(describePluginInstall(payload.status), payload.status.state === "error")
   }, [runCheck])
 
