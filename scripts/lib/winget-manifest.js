@@ -29,6 +29,8 @@ const MONIKER = "mastergo-transcoder";
 // 装完链进 PATH 的命令名。
 const COMMAND_ALIAS = "mastergo-transcoder";
 const LOCALE = "zh-CN";
+// winget 清单的模式版本：三份 YAML 的 schema 注释与 ManifestVersion 都取它（升版本只改这一处）。
+const MANIFEST_VERSION = "1.6.0";
 // zip 里保留着那一层目录，所以入口的相对路径要带上包内目录。
 const ENTRY_EXE = "mastergo-transcoder.exe";
 // 内网源的数据文件：生成器写它、服务读它，名字只在这一处。
@@ -73,23 +75,24 @@ function yamlFiles(pkg) {
   const locale = localeFields(pkg);
   const installer = installerFields(pkg);
   const installerFile = installer.NestedInstallerFiles[0];
+  const schema = "https://aka.ms/winget-manifest.";
   return [
     {
       name: pkg.id + ".yaml",
       body: [
-        "# yaml-language-server: $schema=https://aka.ms/winget-manifest.version.1.6.0.schema.json",
+        "# yaml-language-server: $schema=" + schema + "version." + MANIFEST_VERSION + ".schema.json",
         "PackageIdentifier: " + pkg.id,
         "PackageVersion: " + pkg.version,
         "DefaultLocale: " + LOCALE,
         "ManifestType: version",
-        "ManifestVersion: 1.6.0",
+        "ManifestVersion: " + MANIFEST_VERSION,
         ""
       ].join("\n")
     },
     {
       name: pkg.id + ".locale." + LOCALE + ".yaml",
       body: [
-        "# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json",
+        "# yaml-language-server: $schema=" + schema + "defaultLocale." + MANIFEST_VERSION + ".schema.json",
         "PackageIdentifier: " + pkg.id,
         "PackageVersion: " + pkg.version,
         "PackageLocale: " + locale.PackageLocale,
@@ -99,14 +102,14 @@ function yamlFiles(pkg) {
         "License: " + locale.License,
         "Moniker: " + locale.Moniker,
         "ManifestType: defaultLocale",
-        "ManifestVersion: 1.6.0",
+        "ManifestVersion: " + MANIFEST_VERSION,
         ""
       ].join("\n")
     },
     {
       name: pkg.id + ".installer.yaml",
       body: [
-        "# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json",
+        "# yaml-language-server: $schema=" + schema + "installer." + MANIFEST_VERSION + ".schema.json",
         "PackageIdentifier: " + pkg.id,
         "PackageVersion: " + pkg.version,
         "InstallerType: " + installer.InstallerType,
@@ -119,7 +122,7 @@ function yamlFiles(pkg) {
         "    InstallerUrl: " + installer.InstallerUrl,
         "    InstallerSha256: " + installer.InstallerSha256,
         "ManifestType: installer",
-        "ManifestVersion: 1.6.0",
+        "ManifestVersion: " + MANIFEST_VERSION,
         ""
       ].join("\n")
     }

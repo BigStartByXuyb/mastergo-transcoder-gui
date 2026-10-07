@@ -167,6 +167,10 @@ function checkSearch(packages) {
     ["ProductCode"],
     "没有的字段照实报出去，不猜"
   );
+  // Filters 落在不认的字段上：不能当它不存在（那等于放宽），一条都不给。
+  const unknownFilter = hit({ Filters: [match("ProductCode", ID, "Exact")] });
+  assert.deepStrictEqual(unknownFilter.Data, [], "按不认的字段收窄，不该拿回整个库");
+  assert.deepStrictEqual(unknownFilter.UnsupportedPackageMatchFields, ["ProductCode"]);
 }
 
 /* 生成器：数据文件与 zip 一起落盘，包地址指向这台源服务自己。 */

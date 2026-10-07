@@ -117,11 +117,22 @@ function searchCriteria(request) {
     }
     return list;
   };
+  /*
+   * Filters 是「且」：某一条落在我们不认的字段上，就没法判定它成不成立 —— 不能当它不存在
+   * （那等于把收窄条件放宽），也不该猜，所以一条都不给；客户端照响应里的
+   * UnsupportedPackageMatchFields 知道是源不支持这次搜索。
+   * Inclusions 是「或」：丢掉的只是「本来可能命中」的一条，只会少给、不会放宽，
+   * winget 客户端自己碰到不支持的 Inclusion 也是这么丢的。
+   */
+  const impossible = (asked.Filters || []).some(
+    (item) => item && !MATCH_FIELDS.includes(String(item.PackageMatchField || ""))
+  );
   return {
     query: asked.Query ? { keyword: asked.Query.KeyWord, matchType: asked.Query.MatchType } : null,
     inclusions: named(asked.Inclusions || []),
     filters: named(asked.Filters || []),
     unsupported: unsupported,
+    impossible: impossible,
     // MaximumResults 按契约：0 或不给＝不限制。
     limit: Number(asked.MaximumResults) > 0 ? Number(asked.MaximumResults) : 0
   };
@@ -133,6 +144,7 @@ function fieldHit(pkg, one) {
 
 /* 一个包算不算命中（语义见文件头）。Query 与 Inclusions 都为空＝整个库都是候选，只剩 Filters 收窄。 */
 function matchesCriteria(pkg, criteria) {
+  if (criteria.impossible) return false;
   const keywordHit = criteria.query
     ? MATCH_FIELDS.some((field) => fieldHit(pkg, { field: field, keyword: criteria.query.keyword, matchType: criteria.query.matchType }))
     : false;
