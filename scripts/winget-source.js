@@ -7,7 +7,7 @@
  *   files/<zip>          客户机装的时候从这里下 zip
  *
  * 用法：
- *   node scripts/winget-source.js --base https://10.101.0.62:8443
+ *   node scripts/winget-source.js --base https://10.101.0.62:18443
  *   node scripts/winget-source.js --base … --id BigStart.MasterGoTranscoder.Internal
  *   node scripts/winget-source.js --base … --zip dist/xxx.zip --out dist/winget-source
  *
@@ -18,9 +18,9 @@
 const fs = require("fs");
 const path = require("path");
 
-const { sha256File } = require("../lib/app-manifest.js");
 const source = require("../lib/source.js");
 const winget = require("../lib/winget-manifest.js");
+const { versionFacts } = require("./lib/winget-facts.js");
 
 const ROOT = path.join(__dirname, "..");
 
@@ -32,38 +32,28 @@ function argValue(name, fallback) {
 }
 
 function main() {
-  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
-  const version = pkg.version;
   const wantedBase = String(argValue("base", ""));
   // 基址合法性只认 lib/source.js 那一处判据：static 就是「一个 http(s) 基址」这一形态。
   const normalized = source.parseSource({ kind: "static", base: wantedBase });
   if (!normalized) throw new Error("基址不合法（要 http/https）：" + wantedBase);
-  const base = normalized.base;
   // 内网这一份的标识默认带 .Internal：同一台机器上两个同名包会打架。
   const id = String(argValue("id", winget.INTERNAL_ID));
-  const folder = "mastergo-transcoder-gui-" + version;
-  const zip = path.resolve(ROOT, argValue("zip", path.join("dist", folder + ".zip")));
   const outDir = path.resolve(ROOT, argValue("out", path.join("dist", "winget-source")));
-  if (!fs.existsSync(zip)) {
-    throw new Error("找不到这一版的 zip：" + zip + "（先跑 node scripts/pack-bundle.js）");
-  }
-
-  const facts = {
+  // 这一版的事实与三个 YAML 那份同源（lib 一处装配）；差别只在包地址指向这台源服务自己。
+  const facts = versionFacts({
     id: id,
-    version: version,
-    // 包里那份 zip 由这个服务自己发，所以地址指向它的静态资产目录。
-    url: base + "/" + winget.SOURCE_FILES_DIR + "/" + path.basename(zip),
-    sha256: sha256File(zip).toUpperCase(),
-    folder: folder
-  };
+    zip: argValue("zip", ""),
+    urlOf: (info) => normalized.base + "/" + winget.SOURCE_FILES_DIR + "/" + path.basename(info.zipPath)
+  });
 
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(path.join(outDir, winget.SOURCE_FILES_DIR), { recursive: true });
-  fs.copyFileSync(zip, path.join(outDir, winget.SOURCE_FILES_DIR, path.basename(zip)));
+  // 包里那份 zip 由这个服务自己发，所以它也要跟着数据一起落盘。
+  fs.copyFileSync(facts.zipPath, path.join(outDir, winget.SOURCE_FILES_DIR, path.basename(facts.zipPath)));
   const document = winget.sourceDocument([winget.restPackage(facts)]);
   fs.writeFileSync(path.join(outDir, winget.SOURCE_FILE), JSON.stringify(document, null, 2) + "\n", "utf8");
 
-  process.stdout.write("内网 winget 源数据（" + id + " · " + version + "）→ " + outDir + "\n");
+  process.stdout.write("内网 winget 源数据（" + facts.id + " · " + facts.version + "）→ " + outDir + "\n");
   process.stdout.write("  数据文件：" + winget.SOURCE_FILE + "\n");
   process.stdout.write("  包地址：" + facts.url + "\n");
   process.stdout.write("  sha256：" + facts.sha256 + "\n");

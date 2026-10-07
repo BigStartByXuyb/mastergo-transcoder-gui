@@ -22,9 +22,9 @@
 const fs = require("fs");
 const path = require("path");
 
-const { sha256File } = require("../lib/app-manifest.js");
 const source = require("../lib/source.js");
 const winget = require("../lib/winget-manifest.js");
+const { versionFacts } = require("./lib/winget-facts.js");
 
 const ROOT = path.join(__dirname, "..");
 
@@ -36,8 +36,6 @@ function argValue(name, fallback) {
 }
 
 function main() {
-  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
-  const version = pkg.version;
   /*
    * 默认基址与地址拼法都取 lib/source.js 那一处：清单里的包地址跟客户端自己下载用的是同一套规则。
    * 源类型也要跟着换 —— GitHub 的 release 路径与 GitLab 的通用包路径不是一种形状；
@@ -50,29 +48,20 @@ function main() {
   // parseSource 不回落：类型认识、基址合法才给结果；否则宁可报错，也不要一份悄悄指到别处的清单。
   const normalized = source.parseSource({ kind: kind, base: wantedBase });
   if (!normalized) throw new Error("基址不合法（要 http/https）：" + wantedBase);
-  const base = normalized.base;
   const id = String(argValue("id", winget.DEFAULT_ID));
-  const folder = "mastergo-transcoder-gui-" + version;
-  const zip = path.resolve(ROOT, argValue("zip", path.join("dist", folder + ".zip")));
   const outDir = path.resolve(ROOT, argValue("out", path.join("dist", "winget")));
-  if (!fs.existsSync(zip)) {
-    throw new Error("找不到这一版的 zip：" + zip + "（先跑 node scripts/pack-bundle.js）");
-  }
-
-  // 标识、版本、包地址、哈希、包内目录 —— 清单要说的就这五样。
-  const facts = {
+  // 标识、版本、包地址、哈希、包内目录 —— 清单要说的就这五样，装配在 lib 一处（内网源那份同源）。
+  const facts = versionFacts({
     id: id,
-    version: version,
-    url: source.assetUrl(normalized, version, folder + ".zip"),
-    sha256: sha256File(zip).toUpperCase(),
-    folder: folder
-  };
+    zip: argValue("zip", ""),
+    urlOf: (info) => source.assetUrl(normalized, info.version, info.folder + ".zip")
+  });
 
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir, { recursive: true });
   for (const file of winget.yamlFiles(facts)) fs.writeFileSync(path.join(outDir, file.name), file.body, "utf8");
 
-  process.stdout.write("winget 清单（" + id + " · " + version + "）→ " + outDir + "\n");
+  process.stdout.write("winget 清单（" + facts.id + " · " + facts.version + "）→ " + outDir + "\n");
   process.stdout.write("  包地址：" + facts.url + "\n");
   process.stdout.write("  sha256：" + facts.sha256 + "\n");
 }

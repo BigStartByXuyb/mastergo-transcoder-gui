@@ -63,12 +63,12 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
 cp certs/mastergo-winget.crt data/files/mastergo-winget.crt   # 客户机下载的就是这一张
 ```
 
-起服务（`start.sh` 里写全参数，`@reboot` 也调它，命令只留一处）：
+起服务（`start.sh` 里写全参数，`@reboot` 也调它，命令只留一处；不停留任何状态文件，
+停就用进程名停 —— 一次性写的 pid 文件在启动失败时会留下一个死 pid，反倒容易误伤别的进程）：
 
 ```bash
 #!/bin/bash
 cd "$(dirname "$0")"
-echo $$ > server.pid
 exec node scripts/winget-source-server.js --root data --port 18443 \
   --cert certs/mastergo-winget.crt --key certs/mastergo-winget.key --identifier BigStart
 ```
@@ -84,7 +84,7 @@ nohup ./start.sh > server.log 2>&1 &
 ```bash
 cat server.log                          # 端口：18443（HTTPS）
 curl -sk https://127.0.0.1:18443/       # {"Ok":true,"Packages":1}
-kill "$(cat server.pid)"                # 要停就停这个 pid 文件里的进程
+pkill -f winget-source-server.js        # 停；换数据文件不用停，重起才用得上
 ```
 
 ## 发一版新的
@@ -141,5 +141,6 @@ winget install BigStart.MasterGoTranscoder.Internal --accept-source-agreements -
 | 服务机 | Ubuntu 24.04.4，Node v22.23.2；18443 起 HTTPS，`/api/information`、`/api/manifestSearch`、`/api/packageManifests`、`/files/*`（GET 与 HEAD）四个都通 |
 | 客户机（Windows，winget v1.29.380） | 证书导入成功；`source add` 成功；`winget search --source BigStart mastergo` 列出「MasterGo 转码客户端 0.6.50」 |
 | 安装 | `winget install BigStart.MasterGoTranscoder.Internal` → 下载 5,020,839 字节 → 校验哈希通过 → 解压 → 加上命令别名 → 成功；`winget list` 里源显示 `BigStart`，包在 `%LOCALAPPDATA%\Microsoft\WinGet\Packages\BigStart.MasterGoTranscoder.Internal_BigStart` |
-| 卸载 | `winget uninstall BigStart.MasterGoTranscoder.Internal` 成功 |
+| 卸载 | `winget uninstall BigStart.MasterGoTranscoder.Internal` 成功，命令别名与包目录都没有残留 |
+| 信息接口声明不认的字段之后 | 又装了一遍（`/api/information` 现在会报出 `Tag`/`PackageFamilyName`/`ProductCode`/`UpgradeCode`/`NormalizedPackageNameAndPublisher`/`Market`/`HasInstallerType` 七个），搜索与安装都照旧成功 —— 客户端因此能在发请求前就避开这些字段 |
 | 途中修掉的 | 第一次装到一半报「一个或多个源不支持搜索请求」（`0x8a150043`）：winget 装包前会把同一个关键词同时放进好几个字段的 `Inclusions`，那是**或**（`(Query \|\| Inclusions...) && Filters...`），我按「且」算导致一条都没命中。按 winget 自己的定义改掉，那条真请求原文留在 `tests/winget-source.test.js` 里 |

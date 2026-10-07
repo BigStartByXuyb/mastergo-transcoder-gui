@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 "use strict";
 
-// 内网 winget 源：数据生成（标识 / 版本 / 包地址 / 哈希）与四个 REST 端点。
-// 服务用真进程真端口起，验的就是 winget 会打的那几个地址。
+// 内网 winget 源：纯函数直接调，服务用真进程真端口起 —— 验的就是 winget 会打的那几个地址。
 // 跑法：node tests/winget-source.test.js
 
 const assert = require("assert");
 const crypto = require("crypto");
 const fs = require("fs");
+const net = require("net");
 const os = require("os");
 const path = require("path");
 const { spawn, spawnSync } = require("child_process");
 
 const winget = require("../lib/winget-manifest.js");
+const { versionFacts } = require("../scripts/lib/winget-facts.js");
 
 const ROOT = path.join(__dirname, "..");
 const GENERATOR = path.join(ROOT, "scripts", "winget-source.js");
@@ -21,29 +22,52 @@ const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"))
 const FOLDER = "mastergo-transcoder-gui-" + pkg.version;
 const ZIP = FOLDER + ".zip";
 const ID = "BigStart.MasterGoTranscoder.Internal";
+const BASE = "https://internal.example.com";
 
-// 起服务、等它把真实端口打出来（--port 0 让系统分一个空端口）。
-function startServer(root) {
+// 先自己占一个空端口再放掉：服务不用把端口写进日志，用例也不去解析那句给人看的文案。
+function freePort() {
   return new Promise(function (resolve, reject) {
-    const child = spawn(process.execPath, [SERVER, "--root", root, "--port", "0", "--identifier", "BigStart"]);
-    let output = "";
-    const timer = setTimeout(function () {
+    const probe = net.createServer();
+    probe.on("error", reject);
+    probe.listen(0, "127.0.0.1", function () {
+      const port = probe.address().port;
+      probe.close(function () {
+        resolve(port);
+      });
+    });
+  });
+}
+
+// 起来没有看端口答不答应，不看 stdout。
+function startServer(root, port) {
+  const child = spawn(process.execPath, [SERVER, "--root", root, "--port", String(port), "--identifier", "BigStart"]);
+  let output = "";
+  child.stdout.setEncoding("utf8");
+  child.stdout.on("data", function (chunk) {
+    output += chunk;
+  });
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", function (chunk) {
+    output += chunk;
+  });
+  return new Promise(function (resolve, reject) {
+    child.on("error", reject);
+    const deadline = Date.now() + 20000;
+    (async function poll() {
+      while (Date.now() < deadline) {
+        try {
+          const response = await fetch("http://127.0.0.1:" + port + "/api/information");
+          if (response.ok) return resolve(child);
+        }
+        catch {
+          // 还没监听上，接着等
+        }
+        await new Promise((done) => setTimeout(done, 200));
+      }
       child.kill();
       reject(new Error("服务没起来：" + output));
-    }, 20000);
-    child.stdout.setEncoding("utf8");
-    child.stdout.on("data", function (chunk) {
-      output += chunk;
-      const found = output.match(/端口：(\d+)/);
-      if (found) {
-        clearTimeout(timer);
-        resolve({ child: child, port: Number(found[1]) });
-      }
-    });
-    child.on("error", function (error) {
-      clearTimeout(timer);
-      reject(error);
-    });
+      return undefined;
+    })();
   });
 }
 
@@ -52,12 +76,11 @@ async function main() {
   const zip = path.join(tmp, ZIP);
   fs.writeFileSync(zip, "fake-zip-bytes", "utf8");
   const out = path.join(tmp, "winget-source");
-  const base = "https://10.101.0.62:8443";
   const sha = crypto.createHash("sha256").update(fs.readFileSync(zip)).digest("hex").toUpperCase();
-  const facts = { id: ID, version: pkg.version, url: base + "/files/" + ZIP, sha256: sha, folder: FOLDER };
+  const facts = { id: ID, version: pkg.version, url: BASE + "/files/" + ZIP, sha256: sha, folder: FOLDER };
 
   /*
-   * 纯函数部分直接调：清单的两种形状、两个标识、内网源的目录约定。
+   * 纯函数直接调：清单的两种形状、两个标识、内网源的目录约定。
    * 这些名字是外面的契约（winget 认标识、部署按目录名找数据文件），钉在这里改一处就知道。
    */
   assert.deepStrictEqual(
@@ -71,11 +94,32 @@ async function main() {
   assert.strictEqual(winget.SOURCE_FILES_DIR, "files", "静态资产目录名");
   assert.strictEqual(winget.DEFAULT_ID, "BigStart.MasterGoTranscoder", "公网那一份的标识");
   assert.strictEqual(winget.INTERNAL_ID, "BigStart.MasterGoTranscoder.Internal", "内网那一份的标识");
+  assert.deepStrictEqual(winget.manifestBody([winget.restPackage(facts)], ID, "9.9.9"), null, "没有这一版就是 null");
+  assert.strictEqual(winget.manifestBody([winget.restPackage(facts)], ID, pkg.version).Data.Versions.length, 1);
+
+  // 事实的装配只有一处：版本号取 package.json、zip 不在就当场报错（两个入口都从这里过）。
+  const made = versionFacts({ id: ID, zip: zip, urlOf: (info) => BASE + "/files/" + info.folder + ".zip" });
+  assert.strictEqual(made.version, pkg.version, "版本号取 package.json");
+  assert.strictEqual(made.folder, FOLDER, "包内目录按版本拼");
+  assert.strictEqual(made.sha256, sha, "哈希现算");
+  assert.throws(
+    () => versionFacts({ id: ID, zip: path.join(tmp, "nope.zip"), urlOf: () => "" }),
+    /找不到这一版的 zip/,
+    "包不在就要报错"
+  );
+
+  /*
+   * 服务信息：源名、认的 REST 版本，以及「我们不认哪几个字段」——
+   * 这一份与搜索里报的必须是同一份事实（信息接口照实声明，客户端能在发请求前就避开）。
+   */
   const information = winget.informationBody("BigStart").Data;
   assert.strictEqual(information.SourceIdentifier, "BigStart", "服务信息里的源名");
   assert.ok(information.ServerSupportedVersions.includes("1.6.0"), "要认 winget 会挑的那个 REST 版本");
-  assert.deepStrictEqual(winget.manifestBody([winget.restPackage(facts)], ID, "9.9.9"), null, "没有这一版就是 null");
-  assert.strictEqual(winget.manifestBody([winget.restPackage(facts)], ID, pkg.version).Data.Versions.length, 1);
+  assert.deepStrictEqual(
+    information.UnsupportedPackageMatchFields,
+    ["Tag", "PackageFamilyName", "ProductCode", "UpgradeCode", "NormalizedPackageNameAndPublisher", "Market", "HasInstallerType"],
+    "信息接口声明的就是搜索那边报的同一份"
+  );
 
   /*
    * 搜索语义：(Query || Inclusions...) && Filters...
@@ -91,22 +135,23 @@ async function main() {
   assert.strictEqual(winget.searchBody(packages, { Query: { KeyWord: "mastergo", MatchType: "Substring" } }).Data.length, 1, "关键词搜");
   assert.strictEqual(winget.searchBody(packages, { Query: { KeyWord: "别的包", MatchType: "Substring" } }).Data.length, 0, "搜不到就是空列表");
   assert.strictEqual(winget.searchBody(packages, { FetchAllManifests: true, MaximumResults: 1 }).Data.length, 1, "Query 与 Inclusions 都为空＝整个库都是候选");
+  assert.strictEqual(winget.searchBody(packages, { Query: { KeyWord: "mastergo", MatchType: "Substring" }, MaximumResults: 0 }).Data.length, 1, "不限制条数");
   assert.deepStrictEqual(
     winget.searchBody(packages, { Inclusions: [match("ProductCode", ID, "Exact")] }).UnsupportedPackageMatchFields,
     ["ProductCode"],
     "没有的字段照实报出去，不猜"
   );
 
-  const made = spawnSync(process.execPath, [GENERATOR, "--zip", zip, "--out", out, "--base", base], { encoding: "utf8" });
-  assert.strictEqual(made.status, 0, "生成器要跑通：" + String(made.stderr || ""));
+  // 生成器：数据文件与 zip 一起落盘，包地址指向这台源服务自己。
+  const generated = spawnSync(process.execPath, [GENERATOR, "--zip", zip, "--out", out, "--base", BASE], { encoding: "utf8" });
+  assert.strictEqual(generated.status, 0, "生成器要跑通：" + String(generated.stderr || ""));
 
-  // 数据文件：包与版本的 REST 形状，包地址指向这个服务自己发的 zip。
   const document = JSON.parse(fs.readFileSync(path.join(out, "winget-source.json"), "utf8"));
   const entry = document.Packages[0];
   assert.strictEqual(entry.PackageIdentifier, ID, "内网那一份用带 .Internal 的标识");
   const version = entry.Versions[0];
   assert.strictEqual(version.PackageVersion, pkg.version, "版本号取 package.json");
-  assert.strictEqual(version.Installers[0].InstallerUrl, base + "/files/" + ZIP, "包地址＝源地址 + 静态资产目录");
+  assert.strictEqual(version.Installers[0].InstallerUrl, BASE + "/files/" + ZIP, "包地址＝源地址 + 静态资产目录");
   assert.strictEqual(version.Installers[0].InstallerSha256, sha, "哈希现算，与包一致");
   assert.strictEqual(
     version.Installers[0].NestedInstallerFiles[0].RelativeFilePath,
@@ -120,14 +165,16 @@ async function main() {
   assert.notStrictEqual(badBase.status, 0);
   assert.match(String(badBase.stderr || ""), /基址不合法/);
 
-  const server = await startServer(out);
-  const api = "http://127.0.0.1:" + server.port + "/api";
+  const port = await freePort();
+  const server = await startServer(out, port);
+  const origin = "http://127.0.0.1:" + port;
+  const api = origin + "/api";
   try {
-    // winget 先问服务认哪些 REST 版本。
-    const information = await (await fetch(api + "/information")).json();
-    assert.strictEqual(information.Data.SourceIdentifier, "BigStart");
-    assert.ok(information.Data.ServerSupportedVersions.includes("1.6.0"), "要认 winget 会用到的那个版本");
-    assert.deepStrictEqual(information.Data.UnsupportedPackageMatchFields, []);
+    // winget 先问服务认哪些 REST 版本，以及这个源不认哪些字段。
+    const info = await (await fetch(api + "/information")).json();
+    assert.strictEqual(info.Data.SourceIdentifier, "BigStart");
+    assert.ok(info.Data.ServerSupportedVersions.includes("1.6.0"));
+    assert.ok(info.Data.UnsupportedPackageMatchFields.includes("PackageFamilyName"), "信息接口与搜索同一份字段清单");
 
     async function search(body) {
       const response = await fetch(api + "/manifestSearch", {
@@ -139,7 +186,7 @@ async function main() {
       return await response.json();
     }
 
-    // 关键词搜（winget search 走这条）。
+    // 关键词搜（winget search 走这条）：回来的是包这一层 + 版本。
     const byKeyword = await search({ Query: { KeyWord: "mastergo", MatchType: "Substring" } });
     assert.strictEqual(byKeyword.Data.length, 1);
     assert.strictEqual(byKeyword.Data[0].PackageIdentifier, ID);
@@ -166,7 +213,7 @@ async function main() {
     // 取清单：winget 拿着标识（和版本）来要安装信息。
     const manifest = await (await fetch(api + "/packageManifests/" + ID + "?Version=" + pkg.version)).json();
     const installer = manifest.Data.Versions[0].Installers[0];
-    assert.strictEqual(installer.InstallerUrl, base + "/files/" + ZIP);
+    assert.strictEqual(installer.InstallerUrl, BASE + "/files/" + ZIP);
     assert.strictEqual(installer.InstallerSha256, sha);
     assert.strictEqual(installer.NestedInstallerType, "portable");
 
@@ -177,22 +224,22 @@ async function main() {
     assert.strictEqual(missingPackage.status, 404);
 
     // 静态资产：zip 与部署时生成的证书都从这里取。
-    const file = await fetch("http://127.0.0.1:" + server.port + "/files/" + ZIP);
+    const file = await fetch(origin + "/files/" + ZIP);
     assert.strictEqual(file.status, 200);
     const bytes = Buffer.from(await file.arrayBuffer());
     assert.strictEqual(crypto.createHash("sha256").update(bytes).digest("hex").toUpperCase(), sha, "发出去的 zip 与本地一致");
 
     // HEAD 与 GET 同路：只看一眼「在不在、多大」不该 404（下载前先核一遍大小用得上）。
-    const head = await fetch("http://127.0.0.1:" + server.port + "/files/" + ZIP, { method: "HEAD" });
+    const head = await fetch(origin + "/files/" + ZIP, { method: "HEAD" });
     assert.strictEqual(head.status, 200);
     assert.strictEqual(Number(head.headers.get("content-length")), fs.statSync(zip).size);
 
     // 不许爬出资产目录。
-    const escape = await fetch("http://127.0.0.1:" + server.port + "/files/..%2Fwinget-source.json");
+    const escape = await fetch(origin + "/files/..%2Fwinget-source.json");
     assert.strictEqual(escape.status, 404);
   }
   finally {
-    server.child.kill();
+    server.kill();
   }
 
   fs.rmSync(tmp, { recursive: true, force: true });
