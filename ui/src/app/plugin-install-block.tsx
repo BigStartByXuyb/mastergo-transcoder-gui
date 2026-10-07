@@ -1,6 +1,7 @@
 
 import { Progress } from "@/components/ui/progress"
-import { BusyActionButton, CheckUpdateButton } from "@/app/update-source-actions"
+import { BusyActionButton } from "@/app/busy-action-button"
+import { CheckUpdateButton } from "@/app/update-source-actions"
 import { PluginInstallBadge } from "@/app/plugin-source-facts"
 import { UpdateSourceRow } from "@/app/update-source-row"
 import type { PluginUpdateStatus } from "@/lib/api"

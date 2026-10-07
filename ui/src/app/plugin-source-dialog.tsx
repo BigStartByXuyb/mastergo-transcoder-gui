@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { IdentifierText } from "@/app/identifier-text"
 import { PluginInstallActions, PluginInstallBlock } from "@/app/plugin-install-block"
 import { ChooseSourceButton } from "@/app/update-source-actions"
+import { CHOSEN_AUTO_LABEL, CHOSEN_PICK_LABEL } from "@/app/plugin-chosen-row"
 import {
   SourceAlsoFrom,
   SourceCopyCount,
@@ -41,7 +42,8 @@ const KIND_NOTE: Record<string, string> = {
   env: "系统环境变量给的那一份：在系统里设（或启动前设），客户端启动时继承，新起的进程才读到。",
   agent: "这一份归 Codex / Claude 自己管：客户端只读不改，装与更新都在它们那边做。",
   install: "客户端自带的那一份：机器上没有 Codex / Claude 时，用它「下载并安装」装一份。",
-  chosen: "这一档就是表里「我指定的那一份」那一行：用那一行的「指定一个目录…」换一份，或用「交给客户端找」清掉。"
+  // 按钮名字从 plugin-chosen-row 那一处取：两颗按钮改名，这句跟着改，不会各说一套。
+  chosen: `这一档就是表里「我指定的那一份」那一行：换一份用它那一行的「${CHOSEN_PICK_LABEL.unset}／${CHOSEN_PICK_LABEL.set}」，清掉用「${CHOSEN_AUTO_LABEL}」。`
 }
 
 export function PluginSourceDialog(props: {

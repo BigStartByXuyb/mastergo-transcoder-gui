@@ -43,6 +43,10 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - 再一轮复核收口：**承载「我指定的那一份」的那一行不再给「用这份」** —— 它记的就是这一行自己，点了是空操作还会弹
   「已换用这一份」（`canChooseThis` 里排掉这一档，判据仍在 lib/plugin-sources 一处）；`CHOSEN_SLOT_ID` 随之收回
   模块内（外部只走 `ownsChosenSlot`）。用例补一条「指定的那份没在生效时：只有换目录 / 交给客户端找」。
+- 又一轮复核收口两条：通用忙碌壳从按业务命名的模块里搬出来（新 `ui/src/app/busy-action-button.tsx`，
+  `update-source-actions` 只剩「用这份 / 检查更新」两颗业务按钮，由它包装）；那一行两颗按钮的名字收成一处
+  （`plugin-chosen-row` 的 `CHOSEN_PICK_LABEL` / `CHOSEN_AUTO_LABEL`），点开这一档的面板里那句话读同一处 ——
+  原来它写死了「指定一个目录…」，而按钮在已指定时叫「换个目录…」。
 - 文档同步：`docs/install.md` 的「二之一、插件装在哪儿」改成两块版面，`README.md` 第 2 档那句改成「在插件页表里
   那一行的操作列上换」；面板里 `chosen` 那一档的说明不再指「页面上面那条」。
 
