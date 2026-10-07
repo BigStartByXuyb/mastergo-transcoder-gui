@@ -102,7 +102,7 @@ export function usePluginUpdate(onInstalled: () => void) {
 
   /*
    * 「检查更新」能不能点：这一条线自己有没有动作在跑、正在传、后端有没有别的任务在跑。
-   * 「管理…」面板里那颗按钮读的就是这个值（与「下载并安装」共用同一套禁用条件）。
+   * 只读动作，所以不等来源清单那一半；装那一颗更严（写盘，见 plugin-install-block 里 `frozen` 那条注释）。
    */
   const workingNow = busyNow([{ busy: working, transferring }, { busy: update ? update.busy : "" }])
   const canCheck = Boolean(update) && !workingNow
