@@ -62,8 +62,11 @@ export function usePluginUpdate(onInstalled: () => void) {
     onError: setProbe
   })
 
-  // 动作骨架与另外三张卡同一处（use-action-runner）：置 working → 清旧错 → 跑 → 套状态 → 收尾。
-  const act = useActionRunner<PluginUpdateStatus>({ setWorking: setWorking, setFailure: rememberFailure, setStatus: setUpdate })
+  /*
+   * 动作骨架与另外三张卡同一处（use-action-runner）：置 working → 清旧错 → 跑 → 套状态 → 收尾。
+   * 落地交给 adopt：动作与轮询因此走同一条落地路径（「装完了」那一下两条路都会判到）。
+   */
+  const act = useActionRunner<PluginUpdateStatus>({ setWorking: setWorking, setFailure: rememberFailure, setStatus: adopt })
 
   /*
    * 立刻重读一次状态：改完发布源要马上看到这一份说的是新地址。
@@ -80,12 +83,7 @@ export function usePluginUpdate(onInstalled: () => void) {
    * 卡片上那颗与「保存并检查」那一下都走这一条 —— 两条路只有「结果怎么说」不同。
    */
   const runCheck = useCallback(
-    () =>
-      act(PLUGIN_UPDATE_KEYS.check, async function () {
-        const payload = await api.pluginUpdateCheck()
-        setProbe("")
-        return payload
-      }),
+    () => act(PLUGIN_UPDATE_KEYS.check, () => api.pluginUpdateCheck()),
     [act]
   )
 

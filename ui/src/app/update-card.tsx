@@ -94,6 +94,14 @@ export function UpdateCard() {
   const act = useActionRunner<UpdateStatus>({ setWorking, setFailure: rememberFailure, setStatus })
 
   /*
+   * 「检查更新」只有这一处实现：卡片上那颗按钮与「修改发布源」里的「保存并检查」都调它
+   * （与插件那一半同形）。能不能点也只有一处判据：这条线自己有没有动作在跑、正在传、
+   * 后端有没有别的任务在跑。
+   */
+  const runCheck = useCallback(() => act("check", () => api.updateCheck()), [act])
+  const canCheck = Boolean(status && !status.busy && !transferring && !working)
+
+  /*
    * 下某一版（含历史版本）：清单按那一版的 tag 取，之后同一条下载流程。
    * 下完这一行就从「历史版本」变成「可切换」。
    */
@@ -200,7 +208,12 @@ export function UpdateCard() {
         )}
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" disabled={Boolean(working)} onClick={() => void act("check", () => api.updateCheck())}>
+          <Button
+            variant="outline"
+            disabled={!canCheck}
+            aria-busy={working === "check"}
+            onClick={() => void runCheck()}
+          >
             {working === "check" ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
             检查更新
           </Button>
@@ -236,8 +249,8 @@ export function UpdateCard() {
             return { source: payload.status.source, hasToken: payload.status.hasToken }
           }}
           check={async () => {
-            // 与卡片上那颗「检查更新」同一条路（act 套状态与忙碌位）；说的那句话同一处口径（describeUpdate）。
-            const payload = await act("check", () => api.updateCheck())
+            // 与卡片上那颗「检查更新」同一个入口（runCheck）；说的那句话同一处口径（describeUpdate）。
+            const payload = await runCheck()
             if (!payload) return sourceCheckDropped(failureRef.current)
             return sourceCheckOutcome(describeUpdate(payload.status), payload.status.state === "error")
           }}
