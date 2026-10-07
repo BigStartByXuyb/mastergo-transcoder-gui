@@ -3,7 +3,7 @@ import type { ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { IdentifierText } from "@/app/identifier-text"
-import { ChooseSourceButton } from "@/app/plugin-source-actions"
+import { ChooseSourceButton } from "@/app/update-source-actions"
 import { PluginInstallBadge, SourceAlsoFrom, SourceCopyCount, SourceStatusBadge, SourceVersion } from "@/app/plugin-source-facts"
 import {
   isInstallRow,

@@ -1,13 +1,12 @@
 import { useState } from "react"
-import { Copy, FolderOpen, Loader2 } from "lucide-react"
+import { Copy, FolderOpen } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { CheckUpdateButton, ChooseSourceButton } from "@/app/plugin-source-actions"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Progress } from "@/components/ui/progress"
 import { IdentifierText } from "@/app/identifier-text"
+import { PluginInstallActions, PluginInstallBlock } from "@/app/plugin-install-block"
+import { ChooseSourceButton } from "@/app/update-source-actions"
 import {
-  PluginInstallBadge,
   SourceAlsoFrom,
   SourceCopyCount,
   SourceResolvedRoot,
@@ -17,17 +16,14 @@ import {
 import { api, type PluginUpdateStatus } from "@/lib/api"
 import { copyText } from "@/app/copy-text"
 import { describeFailure } from "@/lib/describe-failure"
-import { describePluginInstall } from "@/lib/plugin-install"
 import {
   INSTALL_SLOT_ID,
   isInstallRow,
-  PLUGIN_BUSY,
   canChooseThis,
   chooseKeyOf,
   choosePathOf,
   type PluginSourceRow
 } from "@/lib/plugin-sources"
-import { describeTask, taskFailureNote, taskPercent } from "@/lib/update-state"
 
 
 /*
@@ -81,11 +77,7 @@ export function PluginSourceDialog(props: {
   // 那是两个取值域（kind 只有 arg/chosen/env/agent/install，id 是八个档位各自的 id）。
   const ownInstall = row.id === INSTALL_SLOT_ID
 
-  const summary = describePluginInstall(props.update)
   const transferring = props.transferring
-  const taskFailure = props.update ? taskFailureNote(props.update.task) : ""
-  // 这一块本来就在「这一行里有自带那一档」时才渲染，所以不用再与一次 install。
-  const canInstall = summary.canInstall && !props.frozen
 
   async function openFolder() {
     setFailure("")
@@ -124,28 +116,8 @@ export function PluginSourceDialog(props: {
             <SourceAlsoFrom row={row} />
           </div>
 
-          {/* 客户端自带那一份：状态与两个动作在这里，行内不再各摆一套。 */}
-          {install && (
-            <div className="flex flex-col gap-2 rounded-md border p-3">
-              <div className="flex flex-wrap items-center gap-2">
-                {/* 状态徽章与来源表里自带那一行读同一个组件（文字与色调同一处）。 */}
-                <PluginInstallBadge status={props.update} />
-                {props.update && props.update.busy && (
-                  <span className="text-muted-foreground text-xs">
-                    {"有任务在跑（" + props.update.busy + "），先等它跑完再装。"}
-                  </span>
-                )}
-              </div>
-              {summary.note && !transferring && <span className="text-muted-foreground text-xs">{summary.note}</span>}
-              {transferring && props.update && (
-                <div className="flex flex-col gap-1">
-                  <Progress value={taskPercent(props.update.task)} />
-                  <span className="text-muted-foreground text-xs">{describeTask(props.update.task)}</span>
-                </div>
-              )}
-              {!transferring && taskFailure && <span className="text-destructive text-xs">{taskFailure}</span>}
-            </div>
-          )}
+          {/* 客户端自带那一份的状态与进度（那一块的实现在 plugin-install-block）。 */}
+          {install && <PluginInstallBlock status={props.update} transferring={transferring} />}
         </div>
 
         {failure && <span className="text-destructive text-xs">{failure}</span>}
@@ -184,24 +156,15 @@ export function PluginSourceDialog(props: {
 
           <div className="flex flex-wrap gap-2">
             {install && (
-              <>
-                <CheckUpdateButton
-                  busy={props.busy.update === PLUGIN_BUSY.check}
-                  disabled={!props.canCheck}
-                  onClick={() => props.onCheck()}
-                />
-                <Button
-                  size="sm"
-                  disabled={!canInstall}
-                  aria-busy={props.busy.update === PLUGIN_BUSY.install || transferring}
-                  onClick={() => props.onInstall()}
-                >
-                  {(props.busy.update === PLUGIN_BUSY.install || transferring) && (
-                    <Loader2 className="size-4 animate-spin" />
-                  )}
-                  {summary.action}
-                </Button>
-              </>
+              <PluginInstallActions
+                status={props.update}
+                busy={props.busy.update}
+                transferring={transferring}
+                frozen={props.frozen}
+                canCheck={props.canCheck}
+                onCheck={props.onCheck}
+                onInstall={props.onInstall}
+              />
             )}
           </div>
         </DialogFooter>

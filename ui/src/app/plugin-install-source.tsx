@@ -1,4 +1,4 @@
-import { CheckUpdateButton } from "@/app/plugin-source-actions"
+import { CheckUpdateButton } from "@/app/update-source-actions"
 import { UpdateSourceRow } from "@/app/update-source-row"
 import { PLUGIN_BUSY } from "@/lib/plugin-sources"
 import type { PluginUpdateStatus } from "@/lib/api"
