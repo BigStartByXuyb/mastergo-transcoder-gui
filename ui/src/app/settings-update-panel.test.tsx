@@ -27,11 +27,11 @@ function sources(): PluginSources {
     plugin: { root: PLUGIN_ROOT, version: "1.0.369", engine: ENGINE, engineExists: true, runAllExists: true, failure: "" },
     sources: [
       {
-        // 插件只有一处来源：客户端自带那一份（客户端能自己装、自己更新它）。
+        // 这一页只看客户端自带那一份（它能自己装、自己更新它）；查找顺序那一整列在插件页。
         id: "install",
         label: "客户端自带",
+        note: "客户端自带的那一份",
         path: drive("C", "Users", "me", "app", "plugins"),
-        kind: "install",
         exists: true,
         pluginRoot: drive("C", "Users", "me", "app", "plugins", "mastergo-wpf-transcoder", "1.0.369"),
         version: "1.0.369",

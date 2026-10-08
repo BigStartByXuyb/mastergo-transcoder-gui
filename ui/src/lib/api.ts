@@ -8,19 +8,27 @@ export type PluginSummary = {
   engine: string
   engineExists: boolean
   runAllExists: boolean
-  /** 没装插件时后端给的原话：说清查过的那一处（插件只有客户端自带那一处）。 */
+  /** 一处都没找到时后端给的原话：逐条列出查过的位置和各自有没有。 */
   failure: string
 }
 
 /**
- * 插件来源的一条。来源只有一处（客户端自带），所以这一条就是那一份：
- * 它在哪个目录、那儿解析到哪一份、此刻是不是在用它。
+ * 插件来源的一条：查的路径、那里有没有、解析到哪一份、此刻是不是在用它。
+ * 顺序与档位由后端 lib/plugin-root.js 一处给（--plugin → 环境变量 → Codex 缓存/市场 →
+ * Claude 缓存/市场 → 客户端自带）：界面照后端给的顺序与档位渲染，不自己重排。
  */
 export type PluginSource = {
-  id: "install"
+  /**
+   * 档位 id 是**后端给的值**（`lib/plugin-root.js` 的 pluginSources() 一处产出）：
+   * 界面不维护一份词表，只按拿到的值渲染。界面唯一要认的那个 id 是 `install`
+   * （见 lib/plugin-sources.ts 的 INSTALL_SLOT_ID，自带的更新动作挂在那一行上）——
+   * 后端加档/改名时改那一处，界面这边只有它需要跟着动。
+   */
+  id: string
   label: string
+  /** 这一档「归谁管」的一句话（后端给的，界面只渲染）。 */
+  note: string
   path: string
-  kind: "install"
   exists: boolean
   pluginRoot: string
   version: string
@@ -47,7 +55,7 @@ export type PluginUpdateStatus = {
   local: { version: string; dir: string }
   error: UpdateFailure | null
   task: UpdateTask
-  /** 有任务在跑时不能装（装完就会换掉生效的那一份）；空串＝空闲，界面据此提示并禁用。 */
+  /** 有任务在跑时不能装（装完可能改变生效的那一份）；空串＝空闲，界面据此提示并禁用。 */
   busy: string
   /**
    * 这一份插件从哪儿取：插件自己那一项设置（没配＝插件仓库），拼法与程序更新同用后端 lib/source.js。

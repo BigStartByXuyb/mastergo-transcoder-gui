@@ -9,14 +9,22 @@
 // 跑法：node tests/mapping.test.js
 
 const assert = require("assert");
+const os = require("os");
+const path = require("path");
 
 const { createMapping } = require("../lib/mapping.js");
 const { resolvePluginRoot } = require("../lib/plugin-root.js");
 const { readPluginInfo } = require("../lib/plugin.js");
 const { installRoot } = require("../lib/runtime.js");
 
-// 插件只有一处来源：客户端自带那一份（安装根 plugins/ 下）。CI 会把插件铺到那儿再跑这一条。
-const root = resolvePluginRoot({ installRoot: installRoot() });
+// 按查找顺序定位（第一档是 --plugin，这里不传）；CI 会把插件铺成客户端自带那一份再跑这一条。
+// 只看安装根那一档：env 与 home 都给空/不存在的路径，免得读到运行测试这台机器上的 Codex / Claude 缓存
+// （否则同一条测试在不同机器上会解析到不同版本的插件，断言跟着漂）。
+const root = resolvePluginRoot("", {
+  installRoot: installRoot(),
+  env: {},
+  home: path.join(os.tmpdir(), "no-such-home-for-mapping-test")
+});
 const mapping = createMapping({ plugin: readPluginInfo(root) }).read();
 console.log("插件：" + root.replace(/\\/g, "/") + "（v" + mapping.pluginVersion + "）");
 
