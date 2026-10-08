@@ -52,6 +52,7 @@ const { createChats } = require("./lib/chat.js");
 const { createUploads } = require("./lib/uploads.js");
 const { applyProxy } = require("./lib/proxy.js");
 const { createTokenSource, SOURCE_LABELS } = require("./lib/mcp-token.js");
+const { syncSupervisor } = require("./lib/bootstrap.js");
 const { createLog } = require("./lib/log.js");
 
 const HERE = __dirname;
@@ -109,6 +110,15 @@ process.on("unhandledRejection", function (reason) {
 process.on("exit", function (code) {
   log.write("exit", "进程退出 code=" + code);
 });
+
+/*
+ * 安装根的「壳」跟当前生效这一版对齐：应用内更新只往 versions/<版本>/ 铺新版本、改 current.json，
+ * 壳本身从来不动 —— 不对齐的话，壳里的修复（比如「换版本不再另开窗口」）永远到不了客户机。
+ * 铺不动不影响这一份能不能跑，所以只记一行日志（判据与文件清单在 lib/bootstrap.js 一处）。
+ */
+const supervisor = syncSupervisor({ home: HOME, from: HERE });
+if (supervisor.failure) log.write("bootstrap", supervisor.failure);
+else if (supervisor.updated.length) log.write("bootstrap", "安装根的壳按 v" + VERSION + " 对齐：" + supervisor.updated.join("、"));
 
 // 运行时「哪一份用系统上那份」只有一个来源：设置里那张逐份的表，现读（刚改完就生效）。
 runtimePolicy.setSource(function () { return settings.read().runtime.system; });
