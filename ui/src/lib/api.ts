@@ -48,7 +48,7 @@ export type PluginUpdateStatus = {
   local: { version: string; dir: string }
   error: UpdateFailure | null
   task: UpdateTask
-  /** 有任务在跑时不能装（装完就会换掉生效的那一份）；空串＝空闲，界面据此提示并禁用。 */
+  /** 有任务在跑时不能装（装完可能改变生效的那一份）；空串＝空闲，界面据此提示并禁用。 */
   busy: string
   /**
    * 这一份插件从哪儿取：插件自己那一项设置（没配＝插件仓库），拼法与程序更新同用后端 lib/source.js。
