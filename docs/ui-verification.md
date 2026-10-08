@@ -69,6 +69,10 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - 再一轮复核收口（一条）：`lib/settings.js` 里 `field || "source"` 三处（读凭据、有没有凭据、取源）各自
   写了一遍默认 → 默认字段名交给 `source.lineOf(field).field` 一处说（写时清哪个键、读时缓存在哪个键才不会分叉）；
   顺带把 `lib/manifest-fetch.js` 里「已归一的源再交回去归一」的三处收敛成给现取的源，并去掉文件末尾多出的空行。
+- 再一轮复核收口（一条 + 三条非阻断）：「归一必给」立成唯一判据（`lib/source.js` 的 `requireNormalize`），
+  取清单与建缓存两个构造器改调它，不再各写一遍 `typeof` 与各自的文案；取文件地址收进取清单那一套
+  （`manifestFetch.fileUrl(版本, 哈希)`），调用方不再把已归一的源交回去归一；写发布源也走 `lineOf`
+  （不直接索引 `LINES`）；凭据文件名只按已归一的字段名算，不再二次解析。
 
 ### 点过的东西
 
