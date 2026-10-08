@@ -313,15 +313,23 @@ async function main() {
   }
 
   /*
-   * 插件有自己的版本线：装配处没注入源时按插件仓库取（不是客户端仓库那份默认），
-   * 并且和程序更新一样带一个后台复查（startWatch）—— 两条线的节拍都在 lib/manifest-fetch.js 一处。
+   * 插件有自己的版本线：源由装配处必给（缺了直接说，不在这里自带一份回落 —— 同一件事两个答案会互相顶替）；
+   * 给了一份坏配置时，回落的是**插件仓库**那份默认（归一随线走，不是客户端仓库那份）；
+   * 并且和程序更新一样带一个后台复查（startWatch）—— 两条线的节拍都在 lib/recheck.js 一处。
    */
   {
-    const update = createPluginUpdate({ home: sandbox(), fetchImpl: async function () { throw new Error("不该联网"); } });
+    assert.throws(function () {
+      createPluginUpdate({ home: sandbox() });
+    }, /pluginSource/, "不给源要说清楚缺什么");
+    const update = createPluginUpdate({
+      home: sandbox(),
+      pluginSource: function () { return { kind: "nonsense", base: "https://x/y" }; },
+      fetchImpl: async function () { throw new Error("不该联网"); }
+    });
     assert.strictEqual(
       update.status().source.base,
       source.PLUGIN_DEFAULT_BASE,
-      "没注入源＝插件仓库（插件那条线的默认，不是客户端仓库）"
+      "坏配置回落插件仓库（这条线的默认，不是客户端仓库）"
     );
     assert.strictEqual(update.status().source.manifestUrl, source.PLUGIN_DEFAULT_BASE + "/releases/latest/download/" + PLUGIN_MANIFEST_NAME);
     assert.strictEqual(typeof update.startWatch, "function", "插件线也要能起后台复查");
