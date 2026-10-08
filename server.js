@@ -10,6 +10,7 @@
  *   lib/plugin.js      插件信息与步骤契约
  *   lib/resolve.js     控件查询（链接 → 控件 ID）
  *   lib/system-open.js 交给系统打开（起完服务打开界面、插件页的「打开目录」）
+ *   lib/bootstrap.js   启动时把安装根的壳按当前生效这一版对齐（应用内更新不会换壳，见那里的说明）
  *
  * 用法：
  *   node server.js                                  # 起服务并打开浏览器（默认 127.0.0.1:8787）
