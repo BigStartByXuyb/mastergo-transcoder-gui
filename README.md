@@ -198,7 +198,8 @@ node scripts/publish.js --no-fresh-run      # 声明这版不要求新开一次�
 
 发布的另一条路是打 tag：先把 `package.json` 版本号改好并提交，再推 `v<版本>` tag，CI 的 `release` 作业会用同一个
 `scripts/publish.js --upload` 传资产。两条路的门槛一样：tag 与 `package.json` 版本号必须一致，且 `public/` 必须是当前源码构建出来的那一份。
-客户端读的是 `releases/latest/download/manifest.json`，所以清单永远最后传 —— 清单先到而文件没到，客户端会下到 404。
+客户端读的是 `releases/latest/download/manifest.json`，所以清单永远最后传（这条不变式在
+[`docs/release-and-update.md`](docs/release-and-update.md) 的发布件那一节）。
 
 清单是 `{version, files: {路径: sha256}, releasedAt, minClientVersion, freshRunRequired}`，版本号只有一个来源：`package.json`。
 文件按内容哈希命名，改一个文件只传/只下那一个：客户端先把本地同哈希的文件放进内容库，缺的才下载。

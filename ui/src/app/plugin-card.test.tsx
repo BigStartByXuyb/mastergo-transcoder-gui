@@ -7,10 +7,10 @@ import { INSTALLED_ROOT, INSTALL_PARENT, PLUGIN_SOURCE_BASE, drive, pluginUpdate
 
 /*
  * 插件页：查找顺序（后端给的那七档，界面不重排）+ 一张表（来源 / 版本 / 状态 / 路径 / 操作）。
- * 这一页只读与查看 —— 没有任何「换用某一档」的动作；只有客户端自带那一份带管理面板
+ * 这一页只读与查看 —— 没有任何「换用某一档」的动作；只有「客户端自带」那一档带管理面板
  * （检查更新 / 下载并安装 / 更新来源）。
- * 档位的名字与那句话都由后端给，界面只渲染 —— 这里用夹具名即可，真名由后端用例锁
- * （tests/plugin-sources.test.js 比的是 lib/plugin-root.js 的 pluginPlaces()）。
+ * 档位的名字与那句话都由后端给，界面只渲染：夹具一律用夹具名（真名与那句话由
+ * tests/plugin-sources.test.js 比着 lib/plugin-root.js 的 pluginPlaces() 锁）。
  *
  * 夹具路径按段拼（drive 在 settings-fixtures 里）：源码里不出现「盘符 + 反斜杠」那种机器专属写法。
  */
@@ -44,7 +44,7 @@ function view(options: { activeId?: string; failure?: string; sameRoot?: boolean
   const activeId = options.activeId ?? "codex-cache"
   const installRoot = options.sameRoot ? CODEX_ROOT : INSTALLED_ROOT
   const sources: PluginSource[] = [
-    source("arg", { label: "启动参数 --plugin" }),
+    source("arg", { label: "启动参数（夹具）" }),
     source("env", {
       label: "环境变量（夹具）",
       note: "系统环境变量给的那一份：在系统里设（或启动前设），客户端启动时继承。",
@@ -56,7 +56,7 @@ function view(options: { activeId?: string; failure?: string; sameRoot?: boolean
       active: activeId === "env"
     }),
     source("codex-cache", {
-      label: "Codex 插件缓存",
+      label: "Codex 缓存（夹具）",
       path: CODEX_CACHE,
       exists: true,
       pluginRoot: CODEX_ROOT,
@@ -64,9 +64,9 @@ function view(options: { activeId?: string; failure?: string; sameRoot?: boolean
       found: [CODEX_ROOT],
       active: activeId === "codex-cache"
     }),
-    source("codex-market", { label: "Codex 插件市场", path: drive("C", "Users", "me", ".codex", "plugins", "marketplaces") }),
+    source("codex-market", { label: "Codex 市场（夹具）", path: drive("C", "Users", "me", ".codex", "plugins", "marketplaces") }),
     source("claude-cache", {
-      label: "Claude 插件缓存",
+      label: "Claude 缓存（夹具）",
       path: CLAUDE_CACHE,
       exists: true,
       pluginRoot: CLAUDE_ROOT,
@@ -74,9 +74,9 @@ function view(options: { activeId?: string; failure?: string; sameRoot?: boolean
       found: ["a", "b", "c", "d"],
       active: activeId === "claude-cache"
     }),
-    source("claude-market", { label: "Claude 插件市场", path: drive("C", "Users", "me", ".claude", "plugins", "marketplaces") }),
+    source("claude-market", { label: "Claude 市场（夹具）", path: drive("C", "Users", "me", ".claude", "plugins", "marketplaces") }),
     source("install", {
-      label: "客户端自带",
+      label: "客户端自带（夹具）",
       path: INSTALL_PARENT,
       exists: true,
       pluginRoot: installRoot,
@@ -154,16 +154,16 @@ describe("PluginCard", () => {
   it("一张表列全部档位：顺序来自后端，正在用的只标一处", async () => {
     stub(view())
     render(<PluginCard />)
-    await waitFor(() => expect(within(screen.getByRole("table")).getByText("Codex 插件缓存")).toBeTruthy())
+    await waitFor(() => expect(within(screen.getByRole("table")).getByText("Codex 缓存（夹具）")).toBeTruthy())
 
     const table = within(screen.getByRole("table"))
     // 七档都在同一张表里，没设的那两档也列出来（标「没有」）。
-    expect(table.getByText("启动参数 --plugin")).toBeTruthy()
+    expect(table.getByText("启动参数（夹具）")).toBeTruthy()
     expect(table.getByText("环境变量（夹具）")).toBeTruthy()
-    expect(table.getByText("Codex 插件市场")).toBeTruthy()
-    expect(table.getByText("Claude 插件缓存")).toBeTruthy()
-    expect(table.getByText("Claude 插件市场")).toBeTruthy()
-    expect(table.getByText("客户端自带")).toBeTruthy()
+    expect(table.getByText("Codex 市场（夹具）")).toBeTruthy()
+    expect(table.getByText("Claude 缓存（夹具）")).toBeTruthy()
+    expect(table.getByText("Claude 市场（夹具）")).toBeTruthy()
+    expect(table.getByText("客户端自带（夹具）")).toBeTruthy()
     expect(screen.getAllByText("正在用").length).toBe(1)
     // 只读页：没有任何「换用某一档」的动作。
     expect(screen.queryByText("用这份")).toBeNull()
@@ -172,12 +172,12 @@ describe("PluginCard", () => {
   it("顺序条把每一档的处境写出来，同一份插件只算一次", async () => {
     stub(view({ sameRoot: true }))
     render(<PluginCard />)
-    await waitFor(() => expect(within(screen.getByRole("table")).getByText("Codex 插件缓存")).toBeTruthy())
+    await waitFor(() => expect(within(screen.getByRole("table")).getByText("Codex 缓存（夹具）")).toBeTruthy())
 
     // 客户端自带与 Codex 缓存指向同一个插件根：七档只列出六行（后一档并进最先命中的那档）。
     const table = within(screen.getByRole("table"))
     expect(screen.getAllByRole("row").length).toBe(7) // 表头 1 + 数据 6
-    expect(table.getByText("同时来自：客户端自带")).toBeTruthy()
+    expect(table.getByText("同时来自：客户端自带（夹具）")).toBeTruthy()
     // 顺序条上那一档照旧列出来，标出它与第几档是同一份。
     expect(await screen.findByText(/与第 3 档同一份/)).toBeTruthy()
   })
@@ -185,9 +185,9 @@ describe("PluginCard", () => {
   it("自带那一行写着它自己的更新状态，点「管理…」开面板", async () => {
     stub(view({ activeId: "install" }))
     render(<PluginCard />)
-    const dialog = await openRow("客户端自带", "管理…")
+    const dialog = await openRow("客户端自带（夹具）", "管理…")
 
-    expect(within(dialog).getByText("客户端自带")).toBeTruthy()
+    expect(within(dialog).getByText("客户端自带（夹具）")).toBeTruthy()
     expect(within(dialog).getByText("修改发布源")).toBeTruthy()
     expect(within(dialog).getByRole("button", { name: /已是最新版|下载并安装|更新到/ })).toBeTruthy()
   })
@@ -216,7 +216,7 @@ describe("PluginCard", () => {
   it("「更新来源」在自带那一行的管理面板里，点「修改发布源」开的是插件这一半的弹窗", async () => {
     stub(view({ activeId: "install" }))
     render(<PluginCard />)
-    const dialog = await openRow("客户端自带", "管理…")
+    const dialog = await openRow("客户端自带（夹具）", "管理…")
     fireEvent.click(within(dialog).getByRole("button", { name: "修改发布源" }))
 
     // 地址栏预填的是插件那条发布源（插件自己那一项设置）。
@@ -228,7 +228,7 @@ describe("PluginCard", () => {
     const calls: string[] = []
     stub(view({ activeId: "install" }), { onRequest: (url) => calls.push(url) })
     render(<PluginCard />)
-    const dialog = await openRow("客户端自带", "管理…")
+    const dialog = await openRow("客户端自带（夹具）", "管理…")
 
     fireEvent.click(within(dialog).getByRole("button", { name: "检查更新" }))
     await waitFor(() => expect(calls.some((url) => url.includes("/api/plugin/update/check"))).toBe(true))
@@ -243,7 +243,7 @@ describe("PluginCard", () => {
       })
     })
     render(<PluginCard />)
-    const dialog = await openRow("客户端自带", "管理…")
+    const dialog = await openRow("客户端自带（夹具）", "管理…")
 
     expect(within(dialog).getByRole("button", { name: "检查更新" }).hasAttribute("disabled")).toBe(true)
     expect(within(dialog).getByRole("button", { name: /更新到 v1.0.372/ }).hasAttribute("disabled")).toBe(true)
