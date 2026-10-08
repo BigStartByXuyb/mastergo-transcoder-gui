@@ -9,7 +9,6 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { createSettings } = require("../lib/settings.js");
 const { pluginSources, pluginRootsUnder, resolvePluginRoot } = require("../lib/plugin-root.js");
 const { createPluginRuntime } = require("../lib/plugin.js");
 

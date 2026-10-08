@@ -24,12 +24,12 @@ function source(id: PluginSource["id"], over: Partial<PluginSource> = {}): Plugi
     id: id,
     label: id,
     path: "p/" + id,
-    kind: "agent",
     exists: false,
     pluginRoot: "",
     version: "",
     found: [],
     active: false,
+    note: "（夹具）",
     ...over
   }
 }
@@ -42,10 +42,10 @@ function view(options: { activeId?: string; failure?: string; sameRoot?: boolean
   const activeId = options.activeId ?? "codex-cache"
   const installRoot = options.sameRoot ? CODEX_ROOT : INSTALLED_ROOT
   const sources: PluginSource[] = [
-    source("arg", { label: "启动参数 --plugin", kind: "arg" }),
+    source("arg", { label: "启动参数 --plugin" }),
     source("env", {
       label: "环境变量 MASTERGO_PLUGIN_ROOT",
-      kind: "env",
+      note: "系统环境变量给的那一份：在系统里设（或启动前设），客户端启动时继承。",
       path: ENV_DIR,
       exists: true,
       pluginRoot: ENV_ROOT,
@@ -75,7 +75,6 @@ function view(options: { activeId?: string; failure?: string; sameRoot?: boolean
     source("claude-market", { label: "Claude 插件市场", path: drive("C", "Users", "me", ".claude", "plugins", "marketplaces") }),
     source("install", {
       label: "客户端自带",
-      kind: "install",
       path: INSTALL_PARENT,
       exists: true,
       pluginRoot: installRoot,
@@ -197,7 +196,8 @@ describe("PluginCard", () => {
     render(<PluginCard />)
     const dialog = await openRow("环境变量 MASTERGO_PLUGIN_ROOT", "详情…")
 
-    expect(within(dialog).getByText(/这一档归|系统环境变量给的那一份/)).toBeTruthy()
+    // 「这一档归谁管」那句话由后端随来源一起给，界面只渲染。
+    expect(within(dialog).getByText(/系统环境变量给的那一份/)).toBeTruthy()
     expect(within(dialog).getByText(/解析到：/)).toBeTruthy()
     expect(within(dialog).queryByText("用这份")).toBeNull()
     expect(within(dialog).queryByText("检查更新")).toBeNull()
