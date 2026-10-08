@@ -114,11 +114,7 @@ export function PluginSourceDialog(props: {
 
         <DialogFooter className="flex-wrap gap-2 sm:justify-between">
           <div className="flex flex-wrap gap-2">
-            {/*
-              有插件才给「打开目录」：「这一档解析到插件」就是「那个目录真的在」（定位只认这个），
-              而没设 / 那里没有插件的那几档，点了只会报「这个目录不在了」。
-            */}
-            {/* 「解析到插件」就是「那个目录真的在」（定位只认这个）：exists 已经蕴含 path 非空。 */}
+            {/* 有插件才给「打开目录」：exists 蕴含 path 非空（「解析到插件」就是「那个目录真的在」）。 */}
             {row.exists && (
               <Button size="sm" variant="outline" onClick={() => void openFolder()}>
                 <FolderOpen className="size-4" />
