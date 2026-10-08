@@ -17,10 +17,10 @@
  *   node server.js --port 9000 --no-open
  *   node server.js --project D:\SomeProject         # 从工程目录自动发现页面帧（离线优先）
  *   node server.js --snapshot <dsl.snapshot.json>    # 完全离线：只用一份快照
- *   node server.js --plugin <插件目录>               # 显式指定 mastergo-wpf-transcoder 插件根
  *   node server.js --token mg_xxx                    # 缺省按 env、本机保存、~/.codex/config.toml 的顺序找
  *
- * 引擎一律来自插件：找不到就停，不用自带副本（同一逻辑只有一个实现）。
+ * 引擎一律来自插件，且只有一处来源：客户端自带那一份（安装根 plugins/ 下）。找不到就停，不用自带副本
+ * （同一逻辑只有一个实现）。
  */
 
 const fs = require("fs");
@@ -47,7 +47,7 @@ const { createMapping } = require("./lib/mapping.js");
 const { createUpdate } = require("./lib/update.js");
 const { createPluginUpdate } = require("./lib/plugin-update.js");
 const { createCodex } = require("./lib/codex.js");
-const { createRuntime, resolvePwshExe } = require("./lib/runtime.js");
+const { createRuntime, installRoot, resolvePwshExe } = require("./lib/runtime.js");
 const runtimePolicy = require("./lib/runtime-policy.js");
 const { createChats } = require("./lib/chat.js");
 const { createUploads } = require("./lib/uploads.js");
@@ -85,12 +85,11 @@ const options = {
   token: argValue("token", ""),
   project: argValue("project", ""),
   snapshot: argValue("snapshot", ""),
-  plugin: argValue("plugin", ""),
   open: argv.indexOf("--no-open") < 0
 };
 
-// 用户状态与凭据都在安装根（HOME）；settings 要早于 token 取值链建好。
-const HOME = process.env.MASTERGO_HOME || HERE;
+// 用户状态与凭据都在安装根（HOME）；来源只有一处（lib/runtime.js），插件自带那一份与运行时都按它定位。
+const HOME = installRoot();
 const settings = createSettings(HOME);
 
 /*
@@ -151,13 +150,11 @@ const tokenSource = createTokenSource({
 const proxy = applyProxy();
 
 /*
- * 插件从哪一份跑：命令行 > 设置里选的 > 环境变量 > Codex / Claude 缓存 > 客户端自带。
- * 一处都没有也照常起服务 —— 设置页要把「查过哪些路径」摆出来，人才知道去哪儿装。
+ * 插件只有一处来源：客户端自带那一份（安装根 plugins/ 下）。
+ * 没装也照常起服务 —— 插件页要把「装在哪儿」摆出来，人才知道去哪儿装。
  */
 const pluginRuntime = createPluginRuntime({
-  explicitDir: options.plugin,
-  installRoot: HOME,
-  settings: settings
+  installRoot: HOME
 });
 const PLUGIN = pluginRuntime.current();
 
@@ -248,8 +245,8 @@ const codex = createCodex({
   home: HOME,
   settings: settings,
   isBusy: busyReason,
-  // 写盘防线要知道自定插件根在哪儿，不然「工程目录」填成插件本体就没人拦。
-  pluginHomes: createPluginHomes({ pluginDir: options.plugin, chosenRoot: pluginRuntime.chosen })
+  // 写盘防线要知道插件那一处在哪儿，不然「工程目录」填成插件本体就没人拦。
+  pluginHomes: createPluginHomes({ installRoot: HOME })
 });
 // 运行时：客户端自带的 Node / PowerShell 7 与 claude 的检测结果，设置页的运行时卡片读它。
 const runtime = createRuntime({

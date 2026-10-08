@@ -2,18 +2,17 @@ import { Check } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { IdentifierText } from "@/app/identifier-text"
-import type { PluginUpdateStatus } from "@/lib/api"
+import type { PluginSource, PluginUpdateStatus } from "@/lib/api"
 import { describePluginInstall } from "@/lib/plugin-install"
-import type { PluginSourceRow } from "@/lib/plugin-sources"
 
 /*
- * 一个来源的几条事实：状态徽章 / 版本 / 这一处有几份 / 同时来自 / 解析到哪一份。
- * 表里那一行与点开后的面板都渲染这一份 —— 两处说的是同一份数据，就不该各写一遍
- * （改口径只改这里，表与面板不会一处说「可用」、另一处说别的）。
+ * 一个来源的几条事实：状态徽章 / 版本 / 这一处有几份 / 解析到哪一份。
+ * 卡片那一行与点开后的面板都渲染这一份 —— 两处说的是同一份数据，就不该各写一遍
+ * （改口径只改这里，卡与面板不会一处说「正在用」、另一处说别的）。
  */
 
 /**
- * 一个来源此刻的处境怎么说。表、面板的徽章与顺序条上那一档读同一处 ——
+ * 一个来源此刻的处境怎么说。卡片那一行与面板的徽章读同一处 ——
  * 同一格事实（有 / 没有 / 正在用）不会一处写「有」、另一处写「可用」。
  */
 export function sourceStatusText(active: boolean, exists: boolean): string {
@@ -33,22 +32,12 @@ export function SourceStatusBadge(props: { active: boolean; exists: boolean }) {
   return <Badge variant="outline">{sourceStatusText(false, props.exists)}</Badge>
 }
 
-/**
- * 顺序条上一档的亮/灰：正在用＝亮（加粗 + 实心底色），有但没用＝中灰，没有＝更淡的灰。
- * 判据就是 active / exists —— 与徽章、与顺序条上「正在用 / 可用 / 没有」那句是同一对输入，
- * 不另算一套「处境」（措辞仍由 sourceStatusText 一处给）。
- */
-export function sourceTone(active: boolean, exists: boolean): string {
-  if (active) return "border-foreground/30 bg-accent font-medium"
-  return exists ? "text-muted-foreground" : "text-muted-foreground/60"
-}
-
-export function SourceVersion(props: { row: PluginSourceRow }) {
+export function SourceVersion(props: { row: PluginSource }) {
   if (!props.row.exists || !props.row.version) return <span className="text-muted-foreground">—</span>
   return <span className="font-mono">v{props.row.version}</span>
 }
 
-export function SourceCopyCount(props: { row: PluginSourceRow }) {
+export function SourceCopyCount(props: { row: PluginSource }) {
   if (props.row.found.length <= 1) return null
   return (
     <span className="text-muted-foreground block text-xs">
@@ -57,20 +46,15 @@ export function SourceCopyCount(props: { row: PluginSourceRow }) {
   )
 }
 
-export function SourceAlsoFrom(props: { row: PluginSourceRow }) {
-  if (props.row.alsoFrom.length === 0) return null
-  return <span className="text-muted-foreground block text-xs">同时来自：{props.row.alsoFrom.join("、")}</span>
-}
-
-/** 面板里那一行「解析到：某一份」——表里放不下，只在面板里出现。 */
-export function SourceResolvedRoot(props: { row: PluginSourceRow }) {
+/** 面板里那一行「解析到：某一份」——卡片那一行放不下，只在面板里出现。 */
+export function SourceResolvedRoot(props: { row: PluginSource }) {
   if (props.row.found.length === 0) return null
   return <IdentifierText className="text-muted-foreground text-xs" text={"解析到：" + props.row.pluginRoot} />
 }
 
 /**
  * 「客户端自带那一份」的更新状态徽章（文字与色调都按 describePluginInstall 一处给）：
- * 来源表里自带那一行与点开后的管理面板读的是同一个组件，不会一处写「有新版」、另一处忘了带上色调。
+ * 卡片那一行与点开后的管理面板读的是同一个组件，不会一处写「有新版」、另一处忘了带上色调。
  */
 export function PluginInstallBadge(props: { status: PluginUpdateStatus | null }) {
   const summary = describePluginInstall(props.status)

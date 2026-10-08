@@ -514,35 +514,24 @@ async function main() {
   assert.throws(function () { fencedCodex.execArgs({ prompt: "x", write: true, projectRoot: pluginSub, confirmRoot: pluginSub }); }, /不能是插件目录/);
   assert.throws(function () { fencedCodex.execArgs({ prompt: "x", write: true, projectRoot: path.join(pluginHome, "..", path.basename(pluginHome)), confirmRoot: pluginHome }); }, /不能是插件目录/, "换个写法指向同一个目录也要拦");
 
-  // 自定插件根（--plugin / 设置里选的）同样在保护清单里：真清单、真判据走一遍。
-  const customRoot = fs.mkdtempSync(path.join(os.tmpdir(), "gui-custom-plugin-"));
-  tempDirs.push(customRoot);
+  // 插件地盘（客户端自带那一份所在的位置）同样在保护清单里：真清单、真判据走一遍。
+  const installRoot = fs.mkdtempSync(path.join(os.tmpdir(), "gui-install-root-"));
+  tempDirs.push(installRoot);
+  const installHome = path.join(installRoot, "plugins");
+  fs.mkdirSync(installHome, { recursive: true });
   // 与装配处（server.js）用同一个工厂拼这份清单：接线只有一处，测试验的就是它。
-  const byArgCodex = makeCodex({
+  const byInstallRootCodex = makeCodex({
     home: home,
     settings: fakeSettings(),
     env: cleanEnv(home),
     fetchImpl: remote.fetchImpl,
     spawnSyncImpl: probe(),
-    pluginHomes: createPluginHomes({ env: cleanEnv(home), pluginDir: customRoot })
+    pluginHomes: createPluginHomes({ installRoot: installRoot })
   });
   assert.throws(
-    function () { byArgCodex.execArgs({ prompt: "x", write: true, projectRoot: customRoot, confirmRoot: customRoot }); },
+    function () { byInstallRootCodex.execArgs({ prompt: "x", write: true, projectRoot: installHome, confirmRoot: installHome }); },
     /不能是插件目录/,
-    "--plugin 指的那份不能被当成工程目录"
-  );
-  const bySettingCodex = makeCodex({
-    home: home,
-    settings: fakeSettings(),
-    env: cleanEnv(home),
-    fetchImpl: remote.fetchImpl,
-    spawnSyncImpl: probe(),
-    pluginHomes: createPluginHomes({ env: cleanEnv(home), chosenRoot: customRoot })
-  });
-  assert.throws(
-    function () { bySettingCodex.execArgs({ prompt: "x", write: true, projectRoot: customRoot, confirmRoot: customRoot }); },
-    /不能是插件目录/,
-    "设置里选的那份也不能被当成工程目录"
+    "插件那一处不能被当成工程目录"
   );
 
   // 直接给了不可用的厂商名以外，配置缺项要能原样报出来。

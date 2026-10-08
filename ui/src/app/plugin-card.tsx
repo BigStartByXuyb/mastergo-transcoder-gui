@@ -2,48 +2,37 @@ import { useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { ClampText } from "@/app/clamp-text"
 import { PixelLoader } from "@/app/pixel-loader"
-import { LookupOrder } from "@/app/plugin-order-bar"
-import { PluginSourceDialog } from "@/app/plugin-source-dialog"
-import { PluginSourceTable } from "@/app/plugin-source-table"
+import { IdentifierText } from "@/app/identifier-text"
+import { PluginDetailDialog } from "@/app/plugin-detail-dialog"
 import { SourceDialog } from "@/app/source-dialog"
+import { PluginInstallBadge, SourceCopyCount, SourceStatusBadge, SourceVersion } from "@/app/plugin-source-facts"
 import { usePluginSources } from "@/app/use-plugin-sources"
 import { usePluginUpdate } from "@/app/use-plugin-update"
 import { sourceViewOf } from "@/lib/source-check"
 import { busyNow } from "@/lib/update-state"
-import {
-  isInstallRow,
-  PLUGIN_BUSY,
-  chooseKeyOf,
-  choosePathOf,
-  pluginLookup
-} from "@/lib/plugin-sources"
 
 // 插件：转码引擎来自 mastergo-wpf-transcoder 插件，客户端不自带引擎。
 //
-// 这一页只说两件事，各占一处，不重复：
-//   按什么顺序找 —— 上面那条顺序，每一档都列出来（后端给的顺序，界面不重排）
-//   每一档是什么 —— 一张表：来源 / 版本 / 状态 / 路径 / 操作；点开某一行是那一档的详情，
-//                  点开「客户端自带」那一行是它的管理：更新来源（GitHub / GitLab / 静态目录，
-//                  与「程序更新」同一个弹窗，但存的是插件自己那一项设置：没配＝插件仓库）
-//                  + 检查更新 / 下载并安装 / 进度。
-// 「我指定的那一份」不另占一块：它就是查找顺序里的第 2 档，动作（指定/换目录、交给客户端找）
-// 落在表里那一行上。
+// 插件只有一处来源：客户端自带那一份（装在安装根 plugins/ 下）。这一页只说它：
+// 来源 / 版本 / 状态 / 路径四格事实一行看完，「更多」点开是它的管理
+// （更新来源 —— GitHub / GitLab / 静态目录，与「程序更新」同一个弹窗，但存的是插件自己那一项设置：
+// 没配＝插件仓库 —— 加上检查更新 / 下载并安装 / 进度）。
 //
-// 取数分两半，各有各的 hook：来源清单与指针动作（use-plugin-sources）、
-// 自带那一份的更新与轮询（use-plugin-update）；本组件只编排与渲染。
+// 取数分两半，各有各的 hook：来源清单（use-plugin-sources）、自带那一份的更新与轮询
+// （use-plugin-update）；本组件只编排与渲染。
 export function PluginCard() {
-  const [opened, setOpened] = useState("")
+  const [opened, setOpened] = useState(false)
   const [editingSource, setEditingSource] = useState(false)
   const sources = usePluginSources()
   const update = usePluginUpdate(() => void sources.load())
 
-  const lookup = sources.view ? pluginLookup(sources.view.sources) : { slots: [], rows: [] }
-  const selected = lookup.rows.find((row) => row.id === opened) ?? null
+  const source = sources.view ? sources.view.sources[0] ?? null : null
   /*
-   * 有任一半在跑、后端有任务、或正在传，就冻住「换一份 / 改发布源」这类动作：判据是 lib/update-state
-   * 的 busyNow（与「程序更新」那张卡同一处）。这里只把这一页的三路忙位摆出来 ——
+   * 有任一半在跑、后端有任务、或正在传，就冻住「改发布源 / 装一份」这类动作：判据是 lib/update-state
+   * 的 busyNow（与「程序更新」那张卡同一处）。这里只把这一页的几路忙位摆出来 ——
    * 「哪一半的哪个动作在跑」仍由各自那一半的 busy 字符串回答，不合成成同一个字符串再比对。
    */
   const frozen = busyNow([
@@ -57,7 +46,7 @@ export function PluginCard() {
       <CardHeader>
         <CardTitle>插件</CardTitle>
         <CardDescription>
-          转码引擎来自插件：按下面那条顺序找，表格逐档对到它找到的那一份。
+          转码引擎来自插件：客户端自带那一份，装在安装根 <span className="font-mono">plugins/</span> 下。
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -74,32 +63,31 @@ export function PluginCard() {
 
         {sources.view && sources.view.plugin.failure && (
           <Alert variant="destructive">
-            <AlertTitle>没找到插件</AlertTitle>
+            <AlertTitle>没装插件</AlertTitle>
             <AlertDescription>
               <ClampText lines={5} text={sources.view.plugin.failure} />
             </AlertDescription>
           </Alert>
         )}
 
-        {sources.view && (
+        {source && (
           <>
-            {/* 查找顺序：每一档一句话，谁在生效、谁没有、哪两档是同一份，一眼看完。 */}
-            <LookupOrder slots={lookup.slots} onOpen={(id) => setOpened(id)} />
-
-            {/* 表：与顺序一一对应（同一份插件只列一行），点开某一行是那一档的详情 / 管理。
-                「我指定的那一份」的那两个动作也在它自己那一行上（不另占顶层一块）。 */}
-            <PluginSourceTable
-              rows={lookup.rows}
-              update={update.update}
-              chosen={sources.view.chosen}
-              busy={sources.busy}
-              frozen={frozen}
-              onOpen={(id) => setOpened(id)}
-              // 行内「用这份」与面板里那颗同一口径（判据与记哪个目录都在 lib/plugin-sources）。
-              onChoose={(row) => void sources.choose(choosePathOf(row), chooseKeyOf(row))}
-              onPick={() => void sources.pickFolder()}
-              onAuto={() => void sources.choose("", PLUGIN_BUSY.auto)}
-            />
+            {/* 这一份：来源 / 版本 / 状态 / 路径四格 + 更新状态 + 「更多」。 */}
+            <div className="flex flex-col gap-2 rounded-md border p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm">{source.label}</span>
+                <SourceVersion row={source} />
+                <SourceStatusBadge active={source.active} exists={source.exists} />
+                <PluginInstallBadge status={update.update} />
+              </div>
+              {source.path && <IdentifierText className="text-muted-foreground text-xs" text={source.path} />}
+              <SourceCopyCount row={source} />
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" disabled={!source.exists} onClick={() => setOpened(true)}>
+                  更多
+                </Button>
+              </div>
+            </div>
 
             {/* 两半各自的失败：来源清单那一半与自带那份那一半，谁出事谁说话。 */}
             {update.failure && <span className="text-destructive text-xs">{update.failure}</span>}
@@ -120,18 +108,16 @@ export function PluginCard() {
           />
         )}
 
-        {selected && (
-          <PluginSourceDialog
-            row={selected}
-            update={isInstallRow(selected) ? update.update : null}
-            busy={{ source: sources.busy, update: update.busy }}
+        {opened && source && (
+          <PluginDetailDialog
+            row={source}
+            update={update.update}
+            busy={update.busy}
             frozen={frozen}
             transferring={update.transferring}
             canCheck={update.canCheck}
-            // 自带那一份的「更新来源」摆在它的管理面板里（那一块只对它有意义）。
             onEditSource={() => setEditingSource(true)}
-            onClose={() => setOpened("")}
-            onChoose={(path, key) => void sources.choose(path, key)}
+            onClose={() => setOpened(false)}
             onCheck={() => void update.check()}
             onInstall={() => void update.install()}
           />

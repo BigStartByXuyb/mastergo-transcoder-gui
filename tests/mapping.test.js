@@ -13,8 +13,10 @@ const assert = require("assert");
 const { createMapping } = require("../lib/mapping.js");
 const { resolvePluginRoot } = require("../lib/plugin-root.js");
 const { readPluginInfo } = require("../lib/plugin.js");
+const { installRoot } = require("../lib/runtime.js");
 
-const root = resolvePluginRoot("");
+// 插件只有一处来源：客户端自带那一份（安装根 plugins/ 下）。CI 会把插件铺到那儿再跑这一条。
+const root = resolvePluginRoot({ installRoot: installRoot() });
 const mapping = createMapping({ plugin: readPluginInfo(root) }).read();
 console.log("插件：" + root.replace(/\\/g, "/") + "（v" + mapping.pluginVersion + "）");
 

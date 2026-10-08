@@ -6,7 +6,7 @@ import { PluginInstallBadge } from "@/app/plugin-source-facts"
 import { UpdateSourceRow } from "@/app/update-source-row"
 import type { PluginUpdateStatus } from "@/lib/api"
 import { describePluginInstall } from "@/lib/plugin-install"
-import { PLUGIN_BUSY } from "@/lib/plugin-sources"
+import { PLUGIN_BUSY } from "@/lib/plugin-busy"
 import { describeTask, taskFailureNote, taskPercent } from "@/lib/update-state"
 
 /*

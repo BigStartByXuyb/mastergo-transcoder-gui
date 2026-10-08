@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useState } from "react"
-import { toast } from "sonner"
 
 import { useAlive } from "@/app/use-alive"
 import { useValueRunner } from "@/app/use-action-runner"
 import { api, type PluginSources } from "@/lib/api"
-import { PLUGIN_BUSY } from "@/lib/plugin-sources"
+import { PLUGIN_BUSY } from "@/lib/plugin-busy"
 
 /*
- * 插件来源清单这一半：读一次、换一份（用这份）、选一个目录、或交回按顺序自动。
- * 只管「哪一份插件」这件事；自带那一份的更新（检查/下载）在 use-plugin-update.ts。
+ * 插件来源清单这一半：读一次（插件装在哪儿、是哪一版）。
+ * 只管「插件在哪」这件事；那一份的更新（检查/下载）在 use-plugin-update.ts。
  */
 
 export function usePluginSources() {
@@ -35,37 +34,5 @@ export function usePluginSources() {
     void load()
   }, [load])
 
-  /*
-   * 换一份之后的收尾：把新清单落到界面、说一句。
-   * 「用这份」那颗按钮与「指定一个目录…」选完目录是同一种收尾，只写这一处（path 为空＝交回自动）。
-   */
-  const adoptChosen = useCallback(function (payload: PluginSources, path: string) {
-    setView(payload)
-    toast.success(path ? "已换用这一份插件" : "已改回按顺序自动找")
-  }, [])
-
-  // 换一份：空串＝回到「按顺序自动」；有任务在跑时后端会拒绝并说明原因。
-  const choose = useCallback(
-    async function (path: string, key: string) {
-      await act(key, () => api.pluginChoose(path), (payload) => adoptChosen(payload, path))
-    },
-    [act, adoptChosen]
-  )
-
-  const pickFolder = useCallback(async function () {
-    // 一次点击＝一个动作：选目录与换过去在同一层骨架里（不在骨架里再套一层骨架）。
-    await act(PLUGIN_BUSY.pick, async () => {
-      const picked = await api.pickFolder()
-      // 取消或没弹出选择框：照它的话说一句，什么都不换。
-      if (!picked.path) {
-        if (picked.reason) toast.info(picked.reason)
-        return null
-      }
-      const payload = await api.pluginChoose(picked.path)
-      adoptChosen(payload, picked.path)
-      return payload
-    })
-  }, [act, adoptChosen])
-
-  return { view: view, failure: failure, busy: busy, load: load, choose: choose, pickFolder: pickFolder }
+  return { view: view, failure: failure, busy: busy, load: load }
 }

@@ -33,78 +33,36 @@ function makePlugin(body) {
 
 function casePluginRootErrors() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gui-edges-home-"));
-  // 插件地盘就这几处（纯计算）：写盘拦截与插件定位共用同一份判据。
+  // 插件地盘只有一处（纯计算）：客户端自带那一份所在的目录。写盘拦截与插件定位共用这一份判据。
+  const installRoot = path.join(tmp, "app");
   assert.deepStrictEqual(
-    pluginHomes({ env: { CODEX_HOME: path.join(tmp, "codex") }, home: path.join(tmp, "home") }),
-    [path.join(tmp, "codex", "plugins"), path.join(tmp, "home", ".claude", "plugins")]
+    pluginHomes({ installRoot: installRoot }),
+    [path.join(installRoot, "plugins")],
+    "安装根下的 plugins/ 就是插件地盘"
   );
-  assert.deepStrictEqual(
-    pluginHomes({ env: { MASTERGO_PLUGIN_ROOT: path.join(tmp, "root") }, home: path.join(tmp, "home") }),
-    [
-      path.resolve(path.join(tmp, "root")),
-      path.join(tmp, "home", ".codex", "plugins"),
-      path.join(tmp, "home", ".claude", "plugins")
-    ],
-    "显式指定的那份排最前，没给 CODEX_HOME 就退回 ~/.codex"
-  );
-  // 自定插件根也要算「插件的地盘」：写盘防线读的是同一份，缺了它插件本体能被当成工程目录。
-  assert.deepStrictEqual(
-    pluginHomes({
-      env: {},
-      home: path.join(tmp, "home"),
-      explicitDir: path.join(tmp, "arg"),
-      chosenRoot: path.join(tmp, "picked")
-    }),
-    [
-      path.resolve(path.join(tmp, "arg")),
-      path.resolve(path.join(tmp, "picked")),
-      path.join(tmp, "home", ".codex", "plugins"),
-      path.join(tmp, "home", ".claude", "plugins")
-    ],
-    "--plugin 与设置里选的那份都进保护清单"
-  );
-  assert.strictEqual(
-    pluginHomes({ env: {}, home: path.join(tmp, "home"), explicitDir: path.join(tmp, "picked"), chosenRoot: path.join(tmp, "picked") }).length,
-    3,
-    "两处指到同一个目录时只留一条"
-  );
+  assert.deepStrictEqual(pluginHomes({}), [], "还没定安装根时给空清单（还没承认过任何插件地盘）");
 
   assert.throws(
-    () => resolvePluginRoot(tmp),
-    /不是 mastergo-wpf-transcoder 插件根/,
-    "--plugin 指到别的目录要直接说清楚，而不是回退到别处"
+    () => resolvePluginRoot({ installRoot: installRoot }),
+    (error) => /找不到 mastergo-wpf-transcoder 插件/.test(error.message) && /已查找/.test(error.message),
+    "一处都没有时要说清查过哪儿"
   );
 
-  const previous = { codex: process.env.CODEX_HOME, root: process.env.MASTERGO_PLUGIN_ROOT, home: process.env.HOME, profile: process.env.USERPROFILE };
-  try {
-    process.env.CODEX_HOME = path.join(tmp, "codex");
-    delete process.env.MASTERGO_PLUGIN_ROOT;
-    process.env.HOME = path.join(tmp, "home");
-    process.env.USERPROFILE = path.join(tmp, "home");
-    assert.throws(
-      () => resolvePluginRoot(),
-      (error) => /找不到 mastergo-wpf-transcoder 插件/.test(error.message) && /已查找/.test(error.message),
-      "一处都没有时要列出已查找的路径"
-    );
+  // 版本目录按数字段比：1.0.10 必须赢过 1.0.9
+  const marker = path.join("skills", "mastergo-to-wpf", "SKILL.md");
+  const plugins = path.join(installRoot, "plugins", "mastergo-wpf-transcoder");
+  write(path.join(plugins, "1.0.9", marker), "# 老版本\n");
+  write(path.join(plugins, "1.0.10", marker), "# 新版本\n");
+  assert.match(resolvePluginRoot({ installRoot: installRoot }), /1\.0\.10$/, "按数字段比较，取最高版本");
 
-    // 版本目录按数字段比：1.0.10 必须赢过 1.0.9
-    const marker = path.join("skills", "mastergo-to-wpf", "SKILL.md");
-    write(path.join(process.env.CODEX_HOME, "plugins", "cache", "bigstart-plugins", "mastergo-wpf-transcoder", "1.0.9", marker), "# 老版本\n");
-    write(path.join(process.env.CODEX_HOME, "plugins", "cache", "bigstart-plugins", "mastergo-wpf-transcoder", "1.0.10", marker), "# 新版本\n");
-    assert.match(resolvePluginRoot(), /1\.0\.10$/, "按数字段比较，取最高版本");
+  // 插件根直接摆在 plugins/<插件名>/（没分版本目录）也是插件根。
+  const flatRoot = fs.mkdtempSync(path.join(os.tmpdir(), "gui-edges-flat-"));
+  const flatInstall = path.join(flatRoot, "app");
+  write(path.join(flatInstall, "plugins", "mastergo-wpf-transcoder", marker), "# 就一份\n");
+  assert.match(resolvePluginRoot({ installRoot: flatInstall }), /mastergo-wpf-transcoder$/, "没分版本目录时那一层就是插件根");
 
-    // 环境变量指向已存在的插件根时优先于安装目录
-    assert.match(resolvePluginRoot(path.join(process.env.CODEX_HOME, "plugins", "cache", "bigstart-plugins", "mastergo-wpf-transcoder", "1.0.9")), /1\.0\.9$/);
-    process.env.MASTERGO_PLUGIN_ROOT = path.join(process.env.CODEX_HOME, "plugins", "cache", "bigstart-plugins", "mastergo-wpf-transcoder", "1.0.9");
-    assert.match(resolvePluginRoot(), /1\.0\.9$/, "环境变量指定目录优先（本机显式指定）");
-  }
-  finally {
-    if (previous.codex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = previous.codex;
-    if (previous.root === undefined) delete process.env.MASTERGO_PLUGIN_ROOT; else process.env.MASTERGO_PLUGIN_ROOT = previous.root;
-    if (previous.home === undefined) delete process.env.HOME; else process.env.HOME = previous.home;
-    if (previous.profile === undefined) delete process.env.USERPROFILE; else process.env.USERPROFILE = previous.profile;
-    fs.rmSync(tmp, { recursive: true, force: true });
-  }
+  fs.rmSync(tmp, { recursive: true, force: true });
+  fs.rmSync(flatRoot, { recursive: true, force: true });
 }
 
 function caseStepContractFailures() {

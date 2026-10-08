@@ -12,16 +12,19 @@ export type PluginSummary = {
   failure: string
 }
 
-/** 插件来源的一条：查的路径、那里有没有、解析到哪一份、此刻是不是在用它。 */
+/**
+ * 插件来源的一条。来源只有一处（客户端自带），所以这一条就是那一份：
+ * 它在哪个目录、那儿解析到哪一份、此刻是不是在用它。
+ */
 export type PluginSource = {
-  id: "arg" | "chosen" | "env" | "codex-cache" | "codex-market" | "claude-cache" | "claude-market" | "install"
+  id: "install"
   label: string
   path: string
-  kind: "arg" | "chosen" | "env" | "agent" | "install"
+  kind: "install"
   exists: boolean
   pluginRoot: string
   version: string
-  /** 这一条下面认出来的全部插件根（有版本目录时按高版本在前）。 */
+  /** 这一处认出来的全部插件根（装了多版时按高版本在前）。 */
   found: string[]
   active: boolean
 }
@@ -29,8 +32,6 @@ export type PluginSource = {
 export type PluginSources = {
   ok: true
   plugin: PluginSummary
-  /** 插件页上「我指定的那一份」；空串＝按内置顺序自动找。 */
-  chosen: string
   sources: PluginSource[]
 }
 
@@ -860,7 +861,6 @@ export const api = {
   plugin: () => request<PluginInfo>("/api/plugin"),
   pluginSources: () => request<PluginSources>("/api/plugin/sources"),
   /** path 为空串＝回到「按顺序自动」。换完立刻生效，不用重启客户端。 */
-  pluginChoose: (path: string) => post<PluginSources>("/api/plugin/choose", { path }),
   /** 在文件管理器里打开一个目录（插件页各行的「打开目录」）。打不开时 ok=false，reason 是原话。 */
   openFolder: (path: string) => post<{ ok: boolean; reason: string }>("/api/system/open-folder", { path }),
   pluginUpdateStatus: () => request<{ ok: true; status: PluginUpdateStatus }>("/api/plugin/update/status"),

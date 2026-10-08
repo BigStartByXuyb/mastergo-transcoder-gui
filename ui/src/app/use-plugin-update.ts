@@ -8,7 +8,7 @@ import { finishDownload } from "@/app/download-actions"
 import { api, type PluginUpdateStatus } from "@/lib/api"
 import { startDownload } from "@/lib/download-run"
 import { describePluginInstall } from "@/lib/plugin-install"
-import { PLUGIN_BUSY } from "@/lib/plugin-sources"
+import { PLUGIN_BUSY } from "@/lib/plugin-busy"
 import { requireStatus, sourceCheckOutcomeOf } from "@/lib/source-check"
 import { busyNow, isDownloading, isTaskDone } from "@/lib/update-state"
 
@@ -16,7 +16,7 @@ import { busyNow, isDownloading, isTaskDone } from "@/lib/update-state"
  * 「客户端自带的那一份」这一半：它的状态要一直跟着（表格里那一行要标「有新版」），
  * 检查只拉清单、装是一条后台下载。装完那一下喊一声 onInstalled（父组件据此重读来源清单）。
  *
- * 忙碌位只报「这一半」的 key（PLUGIN_BUSY 的 check / install，表在 lib/plugin-sources 一处）：
+ * 忙碌位只报「这一半」的 key（PLUGIN_BUSY 的 check / install，表在 lib/plugin-busy 一处）：
  * 来源清单那一半也有自己的忙碌位，两边各报各的，由卡片分别交给界面，不合成成同一个字符串。
  */
 
