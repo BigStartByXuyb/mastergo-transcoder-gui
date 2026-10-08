@@ -34,7 +34,7 @@ export function updateStatusFixture(over: Partial<UpdateStatus> = {}): UpdateSta
     available: null,
     error: null,
     task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
-    source: sourceFixture(),
+    source: sourceFixture("source"),
     hasToken: false,
     ...over
   }
@@ -52,13 +52,17 @@ export function sourceViewFixture(value: UpdateStatus) {
 export const SOURCE_BASE = "https://github.com/example/client-release"
 export const PLUGIN_SOURCE_BASE = "https://github.com/example/plugin-release"
 
-/** 发布源：程序更新与插件各有一项设置，形状一样、清单名不同（这条夹具给的是程序更新那条）。 */
-export function sourceFixture(base = SOURCE_BASE, manifest = "manifest.json"): UpdateSource {
+/**
+ * 发布源：程序更新与插件各有一项设置，形状一样 —— 字段名（存哪一项）由调用方按这条线给，
+ * 没有默认值：哪条线就说哪条线的字段名，不在这里留一个「默认是程序更新那条」。
+ */
+export function sourceFixture(field: string, base = SOURCE_BASE, manifest = "manifest.json"): UpdateSource {
   return {
     kind: "github",
     base: base,
     manifestUrl: base + "/releases/latest/download/" + manifest,
-    kinds: ["github", "gitlab", "static"]
+    kinds: ["github", "gitlab", "static"],
+    field: field
   }
 }
 
@@ -95,7 +99,7 @@ export function pluginUpdateFixture(over: PluginUpdateOverrides = {}): PluginUpd
     task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
     busy: "",
     // 插件从哪儿取：插件自己那一项设置（默认是插件仓库，清单名也换成插件那份）。
-    source: sourceFixture(PLUGIN_SOURCE_BASE, "plugin-manifest.json"),
+    source: sourceFixture("pluginSource", PLUGIN_SOURCE_BASE, "plugin-manifest.json"),
     hasToken: false,
     ...over
   }

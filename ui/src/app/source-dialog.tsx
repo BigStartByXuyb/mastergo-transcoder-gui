@@ -18,7 +18,10 @@ import { sourceKindLabel } from "@/lib/source-kind"
 
 /*
  * 改发布源：「程序更新」与「插件（流水线）」各有一项设置（两条版本线各有各的源与默认），表单共用这一份 ——
- * 差别只有三项：标题、**存到哪一项设置**（field）与「按哪一份清单验一次」，都由调用方给。
+ * 差别只有两项：标题与「按哪一份清单验一次」，都由调用方给。
+ *
+ * 存到哪一项设置不在这里定：读后端这条状态里的 field（`view.source.field`，就是它自己那一项设置的字段名）——
+ * 「有哪几条版本线」只有后端 lib/source.js 的 LINES 一处，前端不另列一份字段名。
  *
  * 类型下拉的选项来自后端的 status.source.kinds：后端认哪几种就列哪几种，前端只留显示名
  * （认不出的类型直接用原值当显示名）。地址怎么拼只有后端 lib/source.js 一处，这里只把拼出来的
@@ -27,12 +30,7 @@ import { sourceKindLabel } from "@/lib/source-kind"
 export function SourceDialog(props: {
   /** 说的是哪一件事的发布源（标题与说明里照实写）。 */
   subject: string
-  /**
-   * 改的是哪一项设置：程序更新那条是 `source`，插件那条是 `pluginSource`。
-   * 必须写明白 —— 在插件页改源却存进客户端那项，会把客户端更新源带到插件仓库去。
-   */
-  field: "source" | "pluginSource"
-  /** 打开时的现状：用它预填类型与地址；token 只显示「有没有」，不回显值。 */
+  /** 打开时的现状：用它预填类型与地址，存档也按它给的字段名；token 只显示「有没有」，不回显值。 */
   view: SourceView
   onClose: () => void
   /** 存完取回最新的一份现状（客户端拿 updateStatus，插件那一半拿 pluginUpdateStatus）。 */
@@ -63,7 +61,7 @@ export function SourceDialog(props: {
 
   // 存：只负责存下来与回填，不决定要不要验。
   async function persist(extra: Record<string, unknown>) {
-    await api.settingsSave({ [props.field]: Object.assign({ kind, base }, extra) })
+    await api.settingsSave({ [current.source.field]: Object.assign({ kind, base }, extra) })
     adopt(await props.reload())
     setToken("")
   }

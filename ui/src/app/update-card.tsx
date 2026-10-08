@@ -248,7 +248,6 @@ export function UpdateCard() {
       {editingSource && status && (
         <SourceDialog
           subject="程序更新"
-          field="source"
           view={sourceViewOf(status.source, status.hasToken)}
           onClose={() => setEditingSource(false)}
           reload={async () => {

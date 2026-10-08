@@ -66,7 +66,7 @@ const status = (patch: Partial<UpdateStatus> = {}): UpdateStatus => ({
   available: null,
   error: null,
   task: task(),
-  source: sourceFixture(),
+  source: sourceFixture("source"),
   hasToken: false,
   ...patch
 })

@@ -94,7 +94,8 @@ export type PluginAvailable = {
  * 以及后端认哪几种源类型 —— 下拉照 kinds 渲染，不在前端另抄一份校验名单。
  * 程序更新与插件那一半显示的是同一种东西，所以只有这一个类型。
  */
-export type UpdateSource = { kind: string; base: string; manifestUrl: string; kinds: string[] }
+/** 这条版本线的发布源：field 是它自己那一项设置的字段名（改发布源就存到这一项）。 */
+export type UpdateSource = { kind: string; base: string; manifestUrl: string; kinds: string[]; field: string }
 
 export type FrameEntry = {
   fileId: string

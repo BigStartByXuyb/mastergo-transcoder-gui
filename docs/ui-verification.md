@@ -62,6 +62,10 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   改成新口径；**凭据也跟着拆**——两条线各一份 token（`source-credentials` 与 `plugin-source-credentials`），
   否则程序更新那条配的私有 GitLab token 会随插件线默认的另一个主机发出去，清一条也会清掉另一条
   （用例钉住：两条 token 互不影响、清单条只清自己的）。
+- 再一轮复核收口（两条）：拼地址／请求头／给界面看的描述那几个入口原来还自带「不传就按客户端默认回落」，
+  与「归一由装配处必给」形成两份 → 改成必给（漏传直接说）；装配处与 winget 清单生成器各按自己那条线传
+  （用例钉住：不传就抛）。版本线的字段名原来前端 `SourceDialog` 另列一份（联合类型加两处字面量）→
+  后端各条状态里的 source 描述带出 `field`（与 `kinds` 同一做法），弹窗按它存，前端不再列字段名。
 
 ### 点过的东西
 

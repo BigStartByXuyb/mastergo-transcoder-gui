@@ -12,7 +12,7 @@ import { describeUpdate } from "@/lib/update-state"
  */
 
 // 两份夹具（程序更新状态、弹窗要的现状）都在 settings-fixtures 一处：这里不再各写一份。
-const BASE = sourceFixture().base
+const BASE = sourceFixture("source").base
 const status = updateStatusFixture
 
 function ok(body: unknown) {
@@ -22,7 +22,6 @@ function ok(body: unknown) {
 function dialogProps(value: UpdateStatus) {
   return {
     subject: "程序更新",
-    field: "source" as const,
     view: sourceViewFixture(value),
     onClose: () => undefined,
     reload: async () => sourceViewFixture((await api.updateStatus()).status),

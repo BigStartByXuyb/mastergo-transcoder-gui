@@ -11,50 +11,53 @@ const source = require("../lib/source.js");
 const GH = { kind: "github", base: source.DEFAULT_BASE };
 const GL = { kind: "gitlab", base: "https://git.example.com/team/mastergo-transcoder-gui" };
 const ST = { kind: "static", base: "http://10.0.0.9/updates" };
+// 归一必给：坏配置回哪份默认只有 lib/source.js 的 LINES 一处说 —— 按线取那一处传进去（与装配处同一口径）。
+const CLIENT = source.lineOf("source").normalize;
+const PLUGIN = source.lineOf("pluginSource").normalize;
 
 function caseGithub() {
   assert.strictEqual(
-    source.manifestUrl(GH),
+    source.manifestUrl(GH, source.MANIFEST_NAME, CLIENT),
     source.DEFAULT_BASE + "/releases/latest/download/manifest.json"
   );
   assert.strictEqual(
-    source.manifestUrlOf(GH, "0.6.30"),
+    source.manifestUrlOf(GH, "0.6.30", CLIENT),
     source.DEFAULT_BASE + "/releases/download/v0.6.30/manifest.json"
   );
   assert.strictEqual(
-    source.blobUrl(GH, "0.6.30", "abc123"),
+    source.blobUrl(GH, "0.6.30", "abc123", CLIENT),
     source.DEFAULT_BASE + "/releases/download/v0.6.30/abc123"
   );
   // 插件那一半按同一套协议换清单名：地址只有文件名不同（最新那份，落在同一个 Release 上）。
   assert.strictEqual(source.MANIFEST_NAME, "manifest.json");
   assert.strictEqual(
-    source.manifestUrl(GH, source.PLUGIN_MANIFEST_NAME),
+    source.manifestUrl(GH, source.PLUGIN_MANIFEST_NAME, CLIENT),
     source.DEFAULT_BASE + "/releases/latest/download/plugin-manifest.json"
   );
 }
 
 function caseGitlab() {
   assert.strictEqual(
-    source.manifestUrl(GL),
+    source.manifestUrl(GL, source.MANIFEST_NAME, CLIENT),
     "https://git.example.com/team/mastergo-transcoder-gui/-/releases/permalink/latest/downloads/manifest.json"
   );
   assert.strictEqual(
-    source.manifestUrlOf(GL, "0.7.0"),
+    source.manifestUrlOf(GL, "0.7.0", CLIENT),
     "https://git.example.com/team/mastergo-transcoder-gui/-/packages/generic/mastergo-transcoder-gui/v0.7.0/manifest.json"
   );
   assert.strictEqual(
-    source.blobUrl(GL, "0.7.0", "deadbeef"),
+    source.blobUrl(GL, "0.7.0", "deadbeef", CLIENT),
     "https://git.example.com/team/mastergo-transcoder-gui/-/packages/generic/mastergo-transcoder-gui/v0.7.0/deadbeef"
   );
-  assert.deepStrictEqual(source.requestHeaders(GL, "glpat-xxx"), { "private-token": "glpat-xxx" });
+  assert.deepStrictEqual(source.requestHeaders(GL, "glpat-xxx", CLIENT), { "private-token": "glpat-xxx" });
 }
 
 function caseStatic() {
-  assert.strictEqual(source.manifestUrl(ST), "http://10.0.0.9/updates/manifest.json");
-  assert.strictEqual(source.manifestUrlOf(ST, "0.7.0"), "http://10.0.0.9/updates/v0.7.0/manifest.json");
+  assert.strictEqual(source.manifestUrl(ST, source.MANIFEST_NAME, CLIENT), "http://10.0.0.9/updates/manifest.json");
+  assert.strictEqual(source.manifestUrlOf(ST, "0.7.0", CLIENT), "http://10.0.0.9/updates/v0.7.0/manifest.json");
   // 文件集中在 files/ 下：历史版本共用同一份，不重复占地方。
-  assert.strictEqual(source.blobUrl(ST, "0.7.0", "deadbeef"), "http://10.0.0.9/updates/files/deadbeef");
-  assert.deepStrictEqual(source.requestHeaders(ST, "secret"), { authorization: "Bearer secret" });
+  assert.strictEqual(source.blobUrl(ST, "0.7.0", "deadbeef", CLIENT), "http://10.0.0.9/updates/files/deadbeef");
+  assert.deepStrictEqual(source.requestHeaders(ST, "secret", CLIENT), { authorization: "Bearer secret" });
 }
 
 function caseNormalize() {
@@ -81,21 +84,21 @@ function caseNormalize() {
 }
 
 function caseHeaders() {
-  assert.strictEqual(source.requestHeaders(GH, ""), null, "公开源不带头");
-  assert.deepStrictEqual(source.requestHeaders(GH, "ghp_x"), { authorization: "Bearer ghp_x" });
+  assert.strictEqual(source.requestHeaders(GH, "", CLIENT), null, "公开源不带头");
+  assert.deepStrictEqual(source.requestHeaders(GH, "ghp_x", CLIENT), { authorization: "Bearer ghp_x" });
 }
 
 function caseDescribe() {
-  assert.deepStrictEqual(source.describeSource(GL), {
+  assert.deepStrictEqual(source.describeSource(GL, source.MANIFEST_NAME, CLIENT), {
     kind: "gitlab",
     base: "https://git.example.com/team/mastergo-transcoder-gui",
-    manifestUrl: source.manifestUrl(GL),
+    manifestUrl: source.manifestUrl(GL, source.MANIFEST_NAME, CLIENT),
     // 界面下拉照 kinds 渲染：类型名单只有这一处，前端不另抄一份。
     kinds: source.KINDS
   });
   // 插件那一半的「去哪儿取清单」也由这一处拼：换清单名就换一整套地址。
   assert.strictEqual(
-    source.describeSource(ST, source.PLUGIN_MANIFEST_NAME).manifestUrl,
+    source.describeSource(ST, source.PLUGIN_MANIFEST_NAME, PLUGIN).manifestUrl,
     "http://10.0.0.9/updates/plugin-manifest.json"
   );
 }
@@ -119,18 +122,23 @@ function casePluginSource() {
   // 两条线的默认基址不是同一个：插件那条按插件仓库取。
   assert.notStrictEqual(source.PLUGIN_DEFAULT_BASE, source.DEFAULT_BASE, "两条线各回各的官方仓库");
 
-  // 拼地址那几个入口也接受「坏配置回落哪份默认」：不传＝客户端那份（老调用方照旧），插件那条传它自己的。
+  // 拼地址的入口按线拿归一：插件那条传它自己的，坏配置才回插件仓库（不传就抛，见「归一必给」）。
   assert.strictEqual(
-    source.manifestUrl(null, source.PLUGIN_MANIFEST_NAME, source.pluginSourceOf),
+    source.manifestUrl(null, source.PLUGIN_MANIFEST_NAME, PLUGIN),
     source.PLUGIN_DEFAULT_BASE + "/releases/latest/download/" + source.PLUGIN_MANIFEST_NAME,
     "插件那条线按插件仓库回落"
   );
-  assert.strictEqual(
-    source.manifestUrl(null),
-    source.DEFAULT_BASE + "/releases/latest/download/" + source.MANIFEST_NAME,
-    "不传 normalize 还是客户端那份默认（老调用方不变）"
-  );
+}
 
+// 归一必给：漏传直接说，不静默按客户端那条回落（那会让漏注入的插件线悄悄去客户端仓库取清单）。
+function caseNormalizeRequired() {
+  const missing = /归一/;
+  assert.throws(() => source.assetUrl(GH, "0.6.30", "x.zip"), missing, "资产地址要归一");
+  assert.throws(() => source.manifestUrl(GH, source.MANIFEST_NAME), missing, "最新清单地址要归一");
+  assert.throws(() => source.manifestUrlOf(GH, "0.6.30"), missing, "某一版清单地址要归一");
+  assert.throws(() => source.blobUrl(GH, "0.6.30", "abc123"), missing, "文件地址要归一");
+  assert.throws(() => source.requestHeaders(GH, "ghp_x"), missing, "请求头要归一");
+  assert.throws(() => source.describeSource(GH, source.MANIFEST_NAME), missing, "给界面看的描述要归一");
 }
 
 try {
@@ -141,7 +149,8 @@ try {
     ["坏配置回落", caseNormalize],
     ["私有源的请求头", caseHeaders],
     ["给界面看的描述", caseDescribe],
-    ["插件那条线的源", casePluginSource]
+    ["插件那条线的源", casePluginSource],
+    ["归一必给", caseNormalizeRequired]
   ];
   for (const [name, run] of cases) {
     run();
