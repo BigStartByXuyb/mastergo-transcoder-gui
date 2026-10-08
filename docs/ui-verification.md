@@ -37,7 +37,7 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - 客户端插件线直接消费它：`lib/source.js` 新增 `PLUGIN_DEFAULT_BASE` 与 `pluginSourceOf`（没配／配坏了回插件仓库）；
   `lib/settings.js` 增插件自己那一项设置与 `pluginSource()`（规则要的是存盘原值，
   只有这一层拿得到）；`lib/plugin-update.js` 用这条线自己的源。
-- 节拍统一：`RECHECK_MS` 从 `lib/update.js` 移到两条线共用的 `lib/manifest-fetch.js`，插件线新增 `startWatch()`
+- 节拍统一：复查节拍从 `lib/update.js` 移到两条线共用的 `lib/recheck.js`，插件线新增 `startWatch()`
   （启动查一次 + 每 10 分钟复查）。
 - 清单缓存记来源：`createManifestCache` 写入时记下 `source`，读时对不上就当作「还没检查过」——
   换源之后不再拿旧源的结论说「已是最新」。
@@ -55,7 +55,7 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - 又一轮复核收口（两条）：把还写着「与程序更新同一处设置 / 插件跟着客户端线走」的注释全部改成新设计
   （插件读自己那一项 `pluginSource`，没配／配坏回插件仓库）；`settings.write` 里两项发布源的写入抽成
   `writeSource(field, patch)` 一处（归一、token、clearToken、清缓存不再两份逐字重复）。
-- 再一轮复核收口（三条）：两条更新线的后台复查抽成 `lib/manifest-fetch.js` 的 `createRecheck` 一处
+- 再一轮复核收口（三条）：两条更新线的后台复查抽成 `lib/recheck.js` 的 `createRecheck` 一处
   （起过不再起、unref、忙时跳过都在那里）；界面夹具里插件的默认源改成插件仓库（清单名也换成插件那份）；
   `docs/plugin-release.md` 的示例命令补上 `--notes`（建 Release 必须有，否则打包脚本直接失败）。
 - 再一轮复核收口（两条）：`update-source-row.tsx` / `source-check.ts` 里最后两处「两半同一处发布源」的注释

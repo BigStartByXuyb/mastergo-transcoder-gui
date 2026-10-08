@@ -45,7 +45,7 @@ v<版本>/plugin-manifest.json  历史版本的清单（静态源没有「某一
 （`lib/source.js` 的 `normalizeSource` 与 `pluginSourceOf`）。内网想一个地址取两边：把两份清单与它们的
 文件放进同一个静态目录（文件按内容哈希命名，两条线不会撞），两项都填那个目录。
 
-节拍（`lib/manifest-fetch.js` 的 `RECHECK_MS`，两条线共用）：启动时静默查一次，之后每 10 分钟复查一次；
+节拍（`lib/recheck.js` 的 `createRecheck`，两条线共用）：启动时静默查一次，之后每 10 分钟复查一次；
 查到新版，插件页「客户端自带」那一行自己会亮「有新版」。装完立刻重新定位插件（有任务在跑时先拒绝装）。
 
 ## 客户端这边不再有什么
