@@ -44,7 +44,7 @@ Release 上有两种东西：
 
 这里只说两条要点：**没装插件时客户端就停下并列出它查过的位置**（客户端不随包分发插件）；
 **装它不用先装 Codex / Claude** —— 设置 → 更新 → 插件（流水线）里点「下载并安装」即可
-（发布件协议与装到哪儿见 [`release-and-update.md`](release-and-update.md)）。
+（发布件协议见 [`release-and-update.md`](release-and-update.md)）。
 
 ## 三、第一次跑
 

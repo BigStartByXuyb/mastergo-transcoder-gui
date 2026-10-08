@@ -114,7 +114,7 @@ lib/launch.js       读 current.json，判断那一份能不能跑
 [`docs/plugin-sources.md`](docs/plugin-sources.md) 一处说；插件本体一条实现仍然只在插件仓库那一处，
 本仓库不自带引擎副本，也不随包（zip）分发插件。装它不用先装 Codex / Claude：
 设置 → 更新 → 插件（流水线）里点「下载并安装」，客户端按插件自己的发布件取
-（发布件协议与装到哪儿见 [`docs/release-and-update.md`](docs/release-and-update.md)）。
+（发布件协议见 [`docs/release-and-update.md`](docs/release-and-update.md)）。
 
 插件内需要：
 
