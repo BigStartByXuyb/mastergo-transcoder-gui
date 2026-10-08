@@ -33,7 +33,7 @@ function read(rel) {
  */
 const SCANNED_EXT = /\.(js|mjs|cjs|ts|tsx|md|json|ps1|cmd|yml|yaml|toml)$/;
 const SKIP_DIRS = [
-  ".git", "node_modules", "coverage",
+  ".git", "node_modules", "coverage", "public",
   "agents", "blobs", "chats", "logs", "plugins", "runtime", "update-cache", "vendor", "versions", "work",
   "dist", "output", ".playwright-cli"
 ];
@@ -156,21 +156,22 @@ function caseFactsHaveOneHome() {
   }
 }
 
-// README 与安装文档不复述逐档清单：它们只留一句 + 指向权威文档。
-// 「逐档复述」的签名是**列表项**（`1. 启动参数 …` / `- 启动参数 …`），不是提到某个档位的名字 ——
-// 「客户端自带那份运行环境」这类正常说法不该被这条挡住。
+// 逐档清单只在 docs/plugin-sources.md 里：别的说明只留一句 + 指向它。
+// 「复述」的签名有三种 —— 一行里出现两个以上的档位名、一个档位的列表项（`1. 启动参数 …`）、
+// 档位表的表头（`| 第几档 | 来源 |`）。单个档位名本身不算（「客户端自带那份运行环境」这类正常说法）。
 function caseNoTierListCopy() {
-  for (const rel of [README, DOCS + "/install.md"]) {
-    const text = read(rel);
-    assert.ok(text.includes(path.basename(TIERS_DOC)), rel + " 要指向 " + TIERS_DOC);
-    const labels = truth().map(function (source) { return source.label.replace(/`/g, ""); });
-    const listed = text.split(/\r?\n/).filter(function (line) {
-      const trimmed = line.trim();
-      if (!/^(?:\d+\.|-)\s/.test(trimmed)) return false;
-      return labels.some(function (label) { return trimmed.includes(label); });
+  const labels = truth().map(function (source) { return source.label.replace(/`/g, ""); });
+  for (const rel of proseFiles()) {
+    if (rel === TIERS_DOC) continue;
+    const copied = read(rel).split(/\r?\n/).filter(function (line) {
+      if (/^\|\s*第几档\s*\|/.test(line.trim())) return true;
+      const hits = labels.filter(function (label) { return line.includes(label); }).length;
+      return hits > 1 || (hits === 1 && /^\s*(?:\d+\.|-)\s/.test(line));
     });
-    assert.deepStrictEqual(listed, [], rel + " 里不要再逐档列清单（那一份清单只在 " + TIERS_DOC + " 里）");
+    assert.deepStrictEqual(copied, [], rel + " 里不要再逐档列清单（那一份清单只在 " + TIERS_DOC + " 里）");
   }
+  assert.ok(read(README).includes(path.basename(TIERS_DOC)), README + " 要指向 " + TIERS_DOC);
+  assert.ok(read(DOCS + "/install.md").includes(path.basename(TIERS_DOC)), DOCS + "/install.md 要指向 " + TIERS_DOC);
 }
 
 // 文档索引里的每一份文档都要在，且每一份 docs/*.md 都要进索引。
@@ -189,7 +190,7 @@ try {
     ["环境变量名不散落", caseEnvNameNotScattered],
     ["引用的文档都存在", caseDocRefsResolve],
     ["一句话只有一处说", caseFactsHaveOneHome],
-    ["README / 安装文档不复述逐档清单", caseNoTierListCopy],
+    ["逐档清单不在别处复述", caseNoTierListCopy],
     ["每份文档都进索引", caseDocsIndexed]
   ];
   for (const [name, run] of cases) {
