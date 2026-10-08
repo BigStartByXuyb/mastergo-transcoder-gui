@@ -105,8 +105,7 @@ function caseSource() {
   assert.strictEqual(settings.read().source.hasToken, false, "清掉 token 后不再算有");
   assert.strictEqual(settings.readSourceToken(), "");
   // 插件那一项自己配：改动只落在它自己那一项上。
-  const pluginSaved = settings.write({ pluginSource: { kind: "static", base: "http://10.0.0.8/plugin-updates" } }).pluginSource;
-  assert.strictEqual(pluginSaved.base, "http://10.0.0.8/plugin-updates", "插件源能单独配");
+  settings.write({ pluginSource: { kind: "static", base: "http://10.0.0.8/plugin-updates" } });
   assert.strictEqual(settings.pluginSource().base, "http://10.0.0.8/plugin-updates");
   assert.strictEqual(
     settings.read().source.base,

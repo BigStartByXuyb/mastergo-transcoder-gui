@@ -402,7 +402,7 @@ describe("PluginCard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "管理…" }))
     const panel = await screen.findByRole("dialog")
-    // 面板里才看得见「从哪儿取」：类型 + 地址（与「程序更新」那一侧是同一处设置）。
+    // 面板里才看得见「从哪儿取」：类型 + 地址（存的是插件那一项设置，默认＝插件仓库）。
     expect(within(panel).getByText("更新来源")).toBeTruthy()
     expect(within(panel).getByText(pluginUpdateFixture().source.base)).toBeTruthy()
 
