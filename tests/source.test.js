@@ -119,6 +119,18 @@ function casePluginSource() {
   );
   // 两条线的默认基址不是同一个：插件那条按插件仓库取。
   assert.notStrictEqual(source.PLUGIN_DEFAULT_BASE, source.DEFAULT_BASE, "两条线各回各的官方仓库");
+
+  // 拼地址那几个入口也接受「坏配置回落哪份默认」：不传＝客户端那份（老调用方照旧），插件那条传它自己的。
+  assert.strictEqual(
+    source.manifestUrl(null, source.PLUGIN_MANIFEST_NAME, source.pluginSourceOf),
+    source.PLUGIN_DEFAULT_BASE + "/releases/latest/download/" + source.PLUGIN_MANIFEST_NAME,
+    "插件那条线按插件仓库回落"
+  );
+  assert.strictEqual(
+    source.manifestUrl(null),
+    source.DEFAULT_BASE + "/releases/latest/download/" + source.MANIFEST_NAME,
+    "不传 normalize 还是客户端那份默认（老调用方不变）"
+  );
 }
 
 try {
