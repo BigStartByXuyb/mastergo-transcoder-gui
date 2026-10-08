@@ -110,18 +110,11 @@ lib/launch.js       读 current.json，判断那一份能不能跑
 
 控件 ID、映射命中、控件 XML、整页流水线全部由 `mastergo-wpf-transcoder` 插件内的脚本产出，与 Codex / Claude Code 走的是同一份实现。本仓库只负责界面、编排与转发：查询引擎 `lib/node-controls.js` 逐个子进程调用插件的取数、固化快照、mapping、控件代码发射脚本，ID 直接 `require` 插件的 `lib/page-node-id.js`。
 
-插件只有**一处来源**：客户端自带的那一份，装在 `<安装根>\plugins\mastergo-wpf-transcoder\<插件版本>\`
-（装了多版时取最高版本）。没装时**直接失败并报告查过的那一处**：客户端不随包（zip）分发插件，
-要用就按下一段自己装；插件本体一条实现仍然只在插件仓库那一处，本仓库不自带引擎副本。
-
-插件页说的就是这一份：一行事实（客户端自带 · 版本 · 状态 · 路径 · 这一处有几份），点「更多」是它的管理
-面板 —— 版本 / 路径 / 解析到哪一份、**更新来源**（类型 / 地址 / 修改发布源，弹窗与程序更新同一个、
-存的是**插件那一项设置**：公网 GitHub、公司 GitLab、内网静态目录都行；程序更新那条另有自己的一项，
-改一条不会动另一条）、状态与进度，以及打开目录 / 复制路径 / 检查更新 / 下载并安装。
-
-装它不用先装 Codex / Claude：设置 → 更新 → 插件（流水线）里点「下载并安装」，
-客户端按插件自己的发布件取（`plugin-manifest.json`，与客户端本体同一套协议：一份清单 + 按 sha256 取文件）——
-插件在它自己的仓库打 tag 时发这份发布件，客户端不再随发布件钉一版插件。装完就地生效，不用再点「用这份」。
+插件**从哪儿找**（七档查找顺序、界面怎么显示、每一档归谁管）只在
+[`docs/plugin-sources.md`](docs/plugin-sources.md) 一处说；插件本体一条实现仍然只在插件仓库那一处，
+本仓库不自带引擎副本，也不随包（zip）分发插件。装它不用先装 Codex / Claude：
+设置 → 更新 → 插件（流水线）里点「下载并安装」，客户端按插件自己的发布件取
+（发布件协议见 [`docs/release-and-update.md`](docs/release-and-update.md)）。
 
 插件内需要：
 
@@ -194,7 +187,7 @@ React 挂载前的那一下由 `ui/index.html` 里的静态占位顶上（直接
 
 本仓库这条版本线只管**客户端本体**，远端是 GitHub Releases（公开仓库，不需要自建服务端）；
 插件（`mastergo-wpf-transcoder`）有自己的版本线，在它自己的仓库里打 tag 时发同构的发布件
-（见 `docs/plugin-release.md`），客户端只做消费者。
+（见 `docs/release-and-update.md`），客户端只做消费者。
 
 ```
 npm run publish:update                      # 产物化到 dist/update：manifest.json + files/<sha256>
@@ -205,7 +198,8 @@ node scripts/publish.js --no-fresh-run      # 声明这版不要求新开一次�
 
 发布的另一条路是打 tag：先把 `package.json` 版本号改好并提交，再推 `v<版本>` tag，CI 的 `release` 作业会用同一个
 `scripts/publish.js --upload` 传资产。两条路的门槛一样：tag 与 `package.json` 版本号必须一致，且 `public/` 必须是当前源码构建出来的那一份。
-客户端读的是 `releases/latest/download/manifest.json`，所以清单永远最后传 —— 清单先到而文件没到，客户端会下到 404。
+客户端读的是 `releases/latest/download/manifest.json`，所以清单永远最后传（这条不变式在
+[`docs/release-and-update.md`](docs/release-and-update.md) 的发布件那一节）。
 
 清单是 `{version, files: {路径: sha256}, releasedAt, minClientVersion, freshRunRequired}`，版本号只有一个来源：`package.json`。
 文件按内容哈希命名，改一个文件只传/只下那一个：客户端先把本地同哈希的文件放进内容库，缺的才下载。

@@ -18,8 +18,8 @@ permissions:
 
 jobs:
   ci:
-    # 取 main 上那一版：980f0ba9 这一版把插件夹具铺成「客户端自带那一份」（安装根 plugins/ 下）再跑测试，
-    # 不再用 MASTERGO_PLUGIN_ROOT 指插件 —— 夹具按安装根那份摆，与用户机器上装好之后的样子一致。
+    # 取 980f0ba9 这一版：插件夹具铺成「客户端自带那一份」（安装根 plugins/ 下）再跑测试 ——
+    # 夹具按安装根那份摆，与用户机器上装好之后的样子一致。
     uses: BigStartByXuyb/cicd/.github/workflows/desktop-app.yml@980f0ba93a4829f7c6879d0e548c879ddf919548
     with:
       ci_ref: 980f0ba93a4829f7c6879d0e548c879ddf919548

@@ -7,7 +7,7 @@
  *
  * 谁在调它：插件仓库打 tag 时的那条发布作业（.github/workflows/plugin-release.yml）——
  * 插件有自己的版本线：版本 = 插件仓库的 tag，发布件发在插件仓库自己的 Release 上，客户端只消费。
- * 客户端本体发布时不再打包插件，也不再钉「哪一版插件」（原来那份 plugin-pin.json 已删）。
+ * 客户端本体发布不打插件、也不钉插件版本：插件自己说自己的版本。
  *
  * 用法：node scripts/pack-plugin.js --repo-dir <插件仓库的检出目录> --tag v1.0.377 \
  *                                   --dir plugins/mastergo-wpf-transcoder --out <发布件目录> \

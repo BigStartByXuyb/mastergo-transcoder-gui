@@ -12,7 +12,7 @@ import { TabButton } from "@/app/tab-button"
  * 子页挂在 `#settings?tab=<key>` 上，切页、刷新、从别处链接进来都落在同一页。
  *
  * 插件与更新是同一件事的两段（谁在更新、更新谁），合并进「更新」一页：`&part=client|plugin`。
- * 界面上曾经有个独立的「插件」页，老链接（tab=plugin）落到同一页的插件那一段。
+ * `tab=plugin` 这个深链也认（不废已经发出去的链接），落到同一页的插件那一段。
  */
 
 const TABS = [
@@ -34,8 +34,8 @@ export function SettingsPage(props: {
   onPickTab: (tab: string) => void
   onPickPart: (part: string) => void
 }) {
-  const legacyPlugin = props.tab === "plugin"
-  const wanted = legacyPlugin ? "update" : props.tab
+  const pluginDeepLink = props.tab === "plugin"
+  const wanted = pluginDeepLink ? "update" : props.tab
   const active: TabKey = TAB_KEYS.includes(wanted) ? (wanted as TabKey) : "ai"
 
   return (
@@ -68,7 +68,7 @@ export function SettingsPage(props: {
         {active === "update" && (
           <SettingsUpdatePanel
             /* 客户端 / 插件（流水线）两段：谁在更新、更新谁。 */
-            part={legacyPlugin ? "plugin" : props.part}
+            part={pluginDeepLink ? "plugin" : props.part}
             onPickPart={props.onPickPart}
           />
         )}

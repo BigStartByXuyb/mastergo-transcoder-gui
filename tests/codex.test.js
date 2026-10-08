@@ -15,7 +15,7 @@ const zlib = require("zlib");
 
 const { createCodex } = require("../lib/codex.js");
 const { describeRelease, fetchRelease, versionOfTag } = require("../lib/codex-release.js");
-const { createPluginHomes } = require("../lib/plugin-root.js");
+const { createPluginHomes, PLUGIN_ENV_NAME } = require("../lib/plugin-root.js");
 
 /*
  * 写盘防线的插件地盘清单在 createCodex 里是必给的（见 lib/codex.js）：
@@ -534,10 +534,10 @@ async function main() {
   const byEnvCodex = makeCodex({
     home: home,
     settings: fakeSettings(),
-    env: Object.assign(cleanEnv(home), { MASTERGO_PLUGIN_ROOT: customRoot }),
+    env: Object.assign(cleanEnv(home), { [PLUGIN_ENV_NAME]: customRoot }),
     fetchImpl: remote.fetchImpl,
     spawnSyncImpl: probe(),
-    pluginHomes: createPluginHomes({ env: Object.assign(cleanEnv(home), { MASTERGO_PLUGIN_ROOT: customRoot }) })
+    pluginHomes: createPluginHomes({ env: Object.assign(cleanEnv(home), { [PLUGIN_ENV_NAME]: customRoot }) })
   });
   assert.throws(
     function () { byEnvCodex.execArgs({ prompt: "x", write: true, projectRoot: customRoot, confirmRoot: customRoot }); },

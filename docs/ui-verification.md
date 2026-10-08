@@ -1,8 +1,8 @@
 # 界面验收记录
 
 每完成一个任务，除单元测试外，还要在真实界面上把这次涉及的功能点一遍，结论记在这里。按时间倒序。
-**每一条记的是当次的口径**；当前口径以代码、`docs/install.md` 与 `README.md` 为准（例如插件来源在
-2026-10-08 收敛成「客户端自带」一处，那之前的条目里仍会看到八档查找顺序的说法，那是当时的实况）。
+**每一条记的是当次的口径**；当前口径以代码与 `docs/README.md` 索引指向的那份权威文档为准
+（记录里的档位数、路径、变量名都可能是当时的实况）。
 
 ## 怎么点
 
@@ -17,6 +17,51 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
+
+## 2026-10-09 说明收敛成一处权威 + 文档索引 + 一致性门禁
+
+### 用户提的
+
+「严禁有任何 过去XXX现在XXX 这种写法，统一以当前值为准，不要有任何兼容和新老一起在结构和写法，也
+不要有任何我们XX，都是以当前项目为准，且是以当前版本为唯一，不要考虑任何兼容问题，干干净净彻底」；
+上一轮 CI 复核还留了一条：`install.md` 仍复述 `plugin-release.md` 已权威的更新节拍与来源细节。
+
+### 改了什么
+
+- 说明一处权威：新增 `docs/plugin-sources.md`（七档查找顺序的完整说明）与
+  `docs/release-and-update.md`（两条版本线的更新来源与复查节拍、插件发布件的形状与怎么发一版）；
+  `README.md` 与 `docs/install.md` 里原来各写一遍的段落收成一句 + 指向。
+- 文档索引：新增 `docs/README.md` —— 每一类说明归哪一份写在这张表里，同一件事不许两份文档各写一遍。
+- 机械门禁 `tests/docs-consistency.test.js`：档位表与 `pluginPlaces()` 逐字一致、环境变量名只在真值源与
+  权威文档里出现、一句话只有一个住处（「每 10 分钟」「有任务在跑时不给装」「同时来自」）、README 与
+  `install.md` 不复述逐档清单、每份 `docs/*.md` 都进索引。
+- 去沿革与兼容：`lib/plugin-root.js` 的表头不再写「哪一档已去掉」、`resolvePluginRoot` 的入口只按入参
+  形状报一句可读错误（不再拿「旧签名」当由头）；
+  `docs/release-and-update.md` 的「客户端这边不再有什么」「边界与兼容」两节改成陈述当前；
+  `ui/src/app/plugin-card.tsx`、`ui/src/app/plugin-card.test.tsx`、`tests/plugin-sources.test.js`
+  的注释同步。
+- 环境变量名只有一处定义（`lib/plugin-root.js` 的 `PLUGIN_ENV_NAME`）：后端用例与界面用例都走常量或夹具名
+  —— 界面与界面用例不写那个字面量。
+
+### 真界面点过
+
+`runtime\node\current\node.exe server.js --port 8799 --no-open`（cwd＝仓库根），开
+`#settings?tab=update&part=plugin`（v0.6.63）：
+
+| 点哪儿 | 看到什么 | 结论 |
+| --- | --- | --- |
+| 插件（流水线） | 七档顺序条：第 3 档 Codex 插件缓存「正在用」，第 5 / 6 档与第 7 档「可用」，其余「没有」 | 与 `plugin-sources.md` 的查找顺序一致 |
+| 来源表 | 来源 / 版本 / 状态 / 路径 / 操作 五列七行；只有「正在用」那一行标着，另外六行给「详情…」，自带那行给「管理…」 | 与「界面怎么显示」一致 |
+| 第 7 行「管理…」 | 第 7 档那句说明 / 版本 v2.3.7 / 这一处有 3 份用最高版本 / 解析到 `plugins\mastergo-wpf-transcoder\2.3.7` / 更新来源 GitHub 仓库 + 修改发布源 / 打开目录 / 复制路径 / 检查更新 / 已是最新版 | 与 `plugin-sources.md` 列的管理面板一致（图 `output/playwright/plugin-page-manage-2026-10-09.png`） |
+| 第 2 行「详情…」 | 只读详情：第 2 档那句说明 + 版本「—」，没有「用这份」也没有「检查更新」 | 只读页成立（图 `output/playwright/plugin-page-detail-2026-10-09.png`） |
+
+页面里没有任何「我指定的那一份」或「用这份」。
+
+### 没点到的
+
+- 换用前两档（`--plugin` / 环境变量）要改启动参数或系统环境变量，不在这页里点 —— 由
+  `tests/plugin-sources.test.js` 与 `tests/edges.test.js` 覆盖。
+- 「有任务在跑时不给装」要真跑一次流水线才撞得上 —— 由 `tests/plugin-update.test.js` 覆盖。
 
 ## 2026-10-08 插件查找顺序改回来（只去掉「我指定的那一份」）
 

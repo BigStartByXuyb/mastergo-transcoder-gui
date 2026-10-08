@@ -1,8 +1,8 @@
 import type { PluginSource } from "@/lib/api"
 
 /*
- * 插件查找顺序：后端 pluginSources() 给的就是顺序（--plugin → 环境变量 → Codex 缓存/市场 →
- * Claude 缓存/市场 → 客户端自带），这里只做两件事，界面照着渲染，不重排、也不重述顺序：
+ * 插件查找顺序：后端 pluginSources() 给的就是顺序（有几档、每一档见 lib/plugin-root.js 的
+ * pluginPlaces() 与 docs/plugin-sources.md），这里只做两件事，界面照着渲染，不重排、也不重述顺序：
  *   slots  按查找顺序的每一档（序号 + 这一档的处境）；被合并掉的那几条标出与第几档是同一份
  *   rows   表里的行：解析到同一个插件根时只列一行 —— 留下**最先命中的那一档**（它就是查找停下的地方），
  *          后几档并进它，名字挂 alsoFrom

@@ -20,8 +20,8 @@
  *   node server.js --plugin <插件目录>               # 显式指定插件根（查找顺序第一档）
  *   node server.js --token mg_xxx                    # 缺省按 env、本机保存、~/.codex/config.toml 的顺序找
  *
- * 引擎一律来自插件（查找顺序见 lib/plugin-root.js：--plugin → 环境变量 → Codex / Claude 缓存与市场 →
- * 客户端自带），找不到就停，不用自带副本（同一逻辑只有一个实现）。
+ * 引擎一律来自插件（查找顺序与每一档见 lib/plugin-root.js 的 pluginPlaces() 与 docs/plugin-sources.md），
+ * 找不到就停，不用自带副本（同一逻辑只有一个实现）。
  */
 
 const fs = require("fs");
@@ -152,7 +152,7 @@ const tokenSource = createTokenSource({
 const proxy = applyProxy();
 
 /*
- * 插件按查找顺序现取：--plugin > 环境变量 > Codex / Claude 缓存与市场 > 客户端自带（安装根 plugins/ 下）。
+ * 插件按查找顺序现取（顺序见 lib/plugin-root.js 的 pluginPlaces()）。
  * 一处都没有也照常起服务 —— 插件页要把「查过哪些路径」摆出来，人才知道去哪儿装。
  */
 const pluginRuntime = createPluginRuntime({
