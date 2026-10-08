@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Loader2 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -21,6 +21,17 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
   const hint = props.update
   const target = hint ? hint.ready || hint.availableVersion : ""
 
+  /*
+   * 状态一变（下载好、切成新版）就把上一次那句收掉：它说的是上一刻的事，留着会让人以为现在还坏着
+   * —— 实测过的样子：下载其实已经好了，红字还挂在旁边。
+   */
+  useEffect(
+    function () {
+      setFailure("")
+    },
+    [hint ? hint.state : "", hint ? hint.ready : ""]
+  )
+
   if (!hint || !target || hint.state === "up_to_date" || hint.state === "error") return null
 
   const downloaded = hint.state === "download_ready"
@@ -36,6 +47,7 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
       // 这条入口没有自己的状态可套：起来了或本来就有，都带去更新页；失败留在原地把原因说清。
       finishDownload(got, {
         setFailure,
+        // 起来了或本来就有，都把人带到更新页；「已经在下载了」（busy）按同一处兜底也走这一条。
         onStarted: props.onOpenUpdatePage,
         onAlready: props.onOpenUpdatePage
       })
