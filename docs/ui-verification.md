@@ -66,6 +66,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   与「归一由装配处必给」形成两份 → 改成必给（漏传直接说）；装配处与 winget 清单生成器各按自己那条线传
   （用例钉住：不传就抛）。版本线的字段名原来前端 `SourceDialog` 另列一份（联合类型加两处字面量）→
   后端各条状态里的 source 描述带出 `field`（与 `kinds` 同一做法），弹窗按它存，前端不再列字段名。
+- 再一轮复核收口（一条）：`lib/settings.js` 里 `field || "source"` 三处（读凭据、有没有凭据、取源）各自
+  写了一遍默认 → 默认字段名交给 `source.lineOf(field).field` 一处说（写时清哪个键、读时缓存在哪个键才不会分叉）；
+  顺带把 `lib/manifest-fetch.js` 里「已归一的源再交回去归一」的三处收敛成给现取的源，并去掉文件末尾多出的空行。
 
 ### 点过的东西
 
