@@ -192,9 +192,9 @@ const pluginUpdate = createPluginUpdate({
    */
   pluginSource: function () { return settings.pluginSource(); },
   // 凭据与源配套：插件这条线读插件那一份（不拿程序更新那条的 token 去请求另一个主机）。
-  token: function () { return settings.readPluginSourceToken(); },
+  token: function () { return settings.readSourceToken("pluginSource"); },
   // 与程序更新同一种廉价判断（状态轮询那条路读的就是它）：有没有 token 不解密。
-  hasToken: function () { return settings.hasPluginSourceToken(); }
+  hasToken: function () { return settings.hasSourceToken("pluginSource"); }
 });
 // Codex 引擎：只下载进安装根，用户的 ~/.codex 一概不动；对话与写盘由插件脚本负责。
 const codex = createCodex({

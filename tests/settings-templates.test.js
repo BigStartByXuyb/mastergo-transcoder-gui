@@ -118,14 +118,14 @@ function caseSource() {
    * 共用一份会把私有 GitLab 的 token 当 Bearer 发去另一个主机，清一条也会把另一条清掉。
    */
   settings.write({ pluginSource: { kind: "static", base: "http://10.0.0.8/plugin-updates", token: "plugin-t0ken" } });
-  assert.strictEqual(settings.readPluginSourceToken(), "plugin-t0ken", "插件那条存的是自己那份");
+  assert.strictEqual(settings.readSourceToken("pluginSource"), "plugin-t0ken", "插件那条存的是自己那份");
   assert.strictEqual(settings.readSourceToken(), "", "程序更新那条的 token 没被带出来（上一步刚清过）");
-  assert.strictEqual(settings.hasPluginSourceToken(), true, "插件那条的廉价判断也是自己那份");
+  assert.strictEqual(settings.hasSourceToken("pluginSource"), true, "插件那条的廉价判断也是自己那份");
   settings.write({ source: { kind: "static", base: "http://10.0.0.9/updates", token: "client-t0ken" } });
   assert.strictEqual(settings.readSourceToken(), "client-t0ken", "程序更新那条存自己那份");
-  assert.strictEqual(settings.readPluginSourceToken(), "plugin-t0ken", "插件那条不受影响");
+  assert.strictEqual(settings.readSourceToken("pluginSource"), "plugin-t0ken", "插件那条不受影响");
   settings.write({ pluginSource: { clearToken: true } });
-  assert.strictEqual(settings.readPluginSourceToken(), "", "清插件那条的凭据");
+  assert.strictEqual(settings.readSourceToken("pluginSource"), "", "清插件那条的凭据");
   assert.strictEqual(settings.readSourceToken(), "client-t0ken", "程序更新那条的凭据还在");
 
   // 配坏了：插件那条回它自己的默认。
