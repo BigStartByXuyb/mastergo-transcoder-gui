@@ -168,7 +168,7 @@ export function UpdateCard() {
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle>程序更新</CardTitle>
           <Badge variant={summary.tone}>{summary.label}</Badge>
-          {status && <span className="text-muted-foreground text-xs">插件（流水线）版本在本页上一行切过去管</span>}
+          {status && <span className="text-muted-foreground text-xs">插件（流水线）有自己的版本线，在上面的「插件（流水线）」那一段管</span>}
         </div>
         <CardDescription>保持客户端最新，随时可以回到之前的版本。</CardDescription>
       </CardHeader>
