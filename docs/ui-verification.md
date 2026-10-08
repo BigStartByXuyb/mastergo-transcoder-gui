@@ -87,6 +87,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   `normalize` 两个互不校验的入参 → 统一成一条 `line`（`lineOf(field)` 的结果），拼地址那几个入口也收这一条，
   `describeSource` 把字段名一并带出；两个构造器对 `source` 也做必给校验（与两条装配处的口径一致）。
   顺带：发布源补丁没带 `kind` / `base` 时不再动那一项设置（只清凭据不会把源改回默认）。
+- 再一轮复核收口（两条）：插件线「某一版的清单地址」原来按客户端那份清单名拼（`manifest.json`）→ 取清单
+  那一套自己拼这一版（用它自己那份清单名；用例钉住插件线拼的是 `plugin-manifest.json`）；
+  `createManifestCache` 补上「源必给」校验，与 `createManifestFetch` 及两条装配处同一条口径。
 
 ### 点过的东西
 

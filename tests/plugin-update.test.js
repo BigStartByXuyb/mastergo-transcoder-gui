@@ -384,6 +384,25 @@ async function main() {
     assert.deepStrictEqual(asked, ["hasToken"], "读状态只问注入的那份廉价判断");
   }
 
+  /*
+   * 插件线「某一版的清单地址」按插件那份清单名拼：客户端那份是 manifest.json，插件是 plugin-manifest.json ——
+   * 拼错名字会把「下载某个历史版本」变成永远 404。
+   */
+  {
+    const { createManifestFetch } = require("../lib/manifest-fetch.js");
+    const fetch = createManifestFetch({
+      manifestName: PLUGIN_MANIFEST_NAME,
+      source: { kind: "github", base: BASE },
+      line: source.lineOf("pluginSource"),
+      fetchImpl: async function () { throw new Error("不该联网"); }
+    });
+    assert.strictEqual(
+      fetch.manifestUrlOf("1.0.377"),
+      BASE + "/releases/download/v1.0.377/" + PLUGIN_MANIFEST_NAME,
+      "插件线按某一版取的是插件那份清单名"
+    );
+  }
+
   console.log("plugin-update: 全部通过");
 }
 
