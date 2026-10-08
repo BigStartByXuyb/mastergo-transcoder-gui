@@ -21,7 +21,7 @@ function caseGithub() {
     source.DEFAULT_BASE + "/releases/latest/download/manifest.json"
   );
   assert.strictEqual(
-    source.manifestUrlOf(GH, "0.6.30", CLIENT),
+    source.assetUrl(GH, "0.6.30", source.MANIFEST_NAME, CLIENT),
     source.DEFAULT_BASE + "/releases/download/v0.6.30/manifest.json"
   );
   assert.strictEqual(
@@ -42,7 +42,7 @@ function caseGitlab() {
     "https://git.example.com/team/mastergo-transcoder-gui/-/releases/permalink/latest/downloads/manifest.json"
   );
   assert.strictEqual(
-    source.manifestUrlOf(GL, "0.7.0", CLIENT),
+    source.assetUrl(GL, "0.7.0", source.MANIFEST_NAME, CLIENT),
     "https://git.example.com/team/mastergo-transcoder-gui/-/packages/generic/mastergo-transcoder-gui/v0.7.0/manifest.json"
   );
   assert.strictEqual(
@@ -54,7 +54,7 @@ function caseGitlab() {
 
 function caseStatic() {
   assert.strictEqual(source.manifestUrl(ST, source.MANIFEST_NAME, CLIENT), "http://10.0.0.9/updates/manifest.json");
-  assert.strictEqual(source.manifestUrlOf(ST, "0.7.0", CLIENT), "http://10.0.0.9/updates/v0.7.0/manifest.json");
+  assert.strictEqual(source.assetUrl(ST, "0.7.0", source.MANIFEST_NAME, CLIENT), "http://10.0.0.9/updates/v0.7.0/manifest.json");
   // 文件集中在 files/ 下：历史版本共用同一份，不重复占地方。
   assert.strictEqual(source.blobUrl(ST, "0.7.0", "deadbeef", CLIENT), "http://10.0.0.9/updates/files/deadbeef");
   assert.deepStrictEqual(source.requestHeaders(ST, "secret", CLIENT), { authorization: "Bearer secret" });
@@ -147,7 +147,7 @@ function caseLineRequired() {
   const missing = /这条线/;
   assert.throws(() => source.assetUrl(GH, "0.6.30", "x.zip"), missing, "资产地址要这条线");
   assert.throws(() => source.manifestUrl(GH, source.MANIFEST_NAME), missing, "最新清单地址要这条线");
-  assert.throws(() => source.manifestUrlOf(GH, "0.6.30"), missing, "某一版清单地址要这条线");
+  assert.throws(() => source.assetUrl(GH, "0.6.30", source.MANIFEST_NAME), missing, "某一版清单地址要这条线");
   assert.throws(() => source.blobUrl(GH, "0.6.30", "abc123"), missing, "文件地址要这条线");
   assert.throws(() => source.requestHeaders(GH, "ghp_x"), missing, "请求头要这条线");
   assert.throws(() => source.describeSource(GH, source.MANIFEST_NAME), missing, "给界面看的描述要这条线");

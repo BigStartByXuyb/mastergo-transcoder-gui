@@ -90,6 +90,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - 再一轮复核收口（两条）：插件线「某一版的清单地址」原来按客户端那份清单名拼（`manifest.json`）→ 取清单
   那一套自己拼这一版（用它自己那份清单名；用例钉住插件线拼的是 `plugin-manifest.json`）；
   `createManifestCache` 补上「源必给」校验，与 `createManifestFetch` 及两条装配处同一条口径。
+- 再一轮复核收口（一条）：`lib/source.js` 的 `manifestUrlOf` 在「某一版清单地址」收进取清单那一套之后
+  已无生产调用者（且它写死客户端那份清单名，拿着插件线用会拼错）→ 连同导出一起删掉；
+  `lib/manifest-fetch.js` 的注释按新的入参（`line`）改口径。
 
 ### 点过的东西
 
