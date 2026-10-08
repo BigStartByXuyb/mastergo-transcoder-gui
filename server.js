@@ -174,7 +174,8 @@ const update = createUpdate({
   // 源与 token 每次现取：设置里刚改完，「检查更新」立刻按新的走。有没有 token 走廉价判断，轮询不解密。
   source: function () { return settings.read().source; },
   token: function () { return settings.readSourceToken(); },
-  hasToken: function () { return settings.read().source.hasToken; }
+  // 与插件那条线同一处判定（同一个形状，只是 field 不同）：有没有 token 不解密。
+  hasToken: function () { return settings.hasSourceToken("source"); }
 });
 /*
  * 插件那一半：客户机上没有 Codex/Claude 时，客户端按发布件里的插件清单自己装一份，装在安装根
