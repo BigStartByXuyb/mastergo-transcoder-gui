@@ -10,7 +10,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { SUPERVISOR_FILES, syncSupervisor } = require("../lib/bootstrap.js");
+const { SUPERVISOR_FILES, COMPAT_FILES, syncSupervisor } = require("../lib/bootstrap.js");
 
 const ROOT = path.join(__dirname, "..");
 const OLD_SHELL = { "launch.js": "// 旧壳（没有 childArgs）\n", "lib/launch.js": "// 旧的选版\n" };
@@ -67,7 +67,11 @@ function leftovers(home) {
 const home = sandbox();
 const dir = versionDir(home, "9.9.9", NEW_SHELL);
 const first = syncSupervisor({ home: home, from: dir });
-assert.deepStrictEqual(first.updated, SUPERVISOR_FILES, "三份壳都铺过去（含安装根原来没有的那份）");
+assert.deepStrictEqual(
+  first.updated,
+  SUPERVISOR_FILES.concat(COMPAT_FILES),
+  "壳自己的两份都铺过去，安装根原来没有的那份共享件也补上"
+);
 assert.deepStrictEqual(first.missing, []);
 assert.strictEqual(first.failure, "");
 for (const name of SUPERVISOR_FILES) assert.strictEqual(read(home, name), NEW_SHELL[name], "安装根的 " + name + " 变成生效那一版的");
@@ -77,6 +81,17 @@ assert.deepStrictEqual(leftovers(home), [], "铺完不留临时件与备份件")
 const second = syncSupervisor({ home: home, from: dir });
 assert.deepStrictEqual(second.updated, [], "一样就不动");
 assert.deepStrictEqual(second.same, SUPERVISOR_FILES, "三份都算「本来就一样」");
+
+/*
+ * 二之二、共享件（lib/log.js）只补不缺：安装根**已经有**它时永远不动 ——
+ * 那份是服务与「备用版本」在用的，换掉就成了跨版本混用。
+ */
+const shared = sandbox();
+write(shared, "lib/log.js", OLD_SHELL["lib/launch.js"]);
+const sharedDir = versionDir(shared, "9.9.9", NEW_SHELL);
+const sharedResult = syncSupervisor({ home: shared, from: sharedDir });
+assert.deepStrictEqual(sharedResult.updated, SUPERVISOR_FILES, "只换壳自己那两份");
+assert.strictEqual(read(shared, "lib/log.js"), OLD_SHELL["lib/launch.js"], "安装根已有的 log.js 不动");
 
 // 三、生效那一份里没有壳（很老的版本目录）：跳过，不算失败，也不动安装根。
 const bare = versionDir(home, "0.1.0", { "server.js": "// 老的版本，没有壳\n" });
@@ -125,7 +140,7 @@ assert.deepStrictEqual(midwayResult.updated, [], "整组没成，就不算铺过
 assert.strictEqual(read(midway, "launch.js"), OLD_SHELL["launch.js"], "先换掉的那份已还原");
 assert.strictEqual(read(midway, "lib/launch.js"), OLD_SHELL["lib/launch.js"], "失败那份保持原样");
 
-for (const dir of [home, other, blocked, midway]) fs.rmSync(dir, { recursive: true, force: true });
+for (const dir of [home, shared, other, blocked, midway]) fs.rmSync(dir, { recursive: true, force: true });
 
 /*
  * 清单要跟壳的实际依赖一致：把壳各份源码里的字面量相对 require 全找出来，每一份都必须在
@@ -144,9 +159,12 @@ function relativeRequires(rel) {
   return out;
 }
 
-for (const name of SUPERVISOR_FILES) {
+for (const name of SUPERVISOR_FILES.concat(COMPAT_FILES)) {
   for (const required of relativeRequires(name)) {
-    assert.ok(SUPERVISOR_FILES.includes(required), name + " require 的 " + required + " 要在壳的清单里");
+    assert.ok(
+      SUPERVISOR_FILES.concat(COMPAT_FILES).includes(required),
+      name + " require 的 " + required + " 要在壳的清单里"
+    );
   }
 }
 assert.ok(SUPERVISOR_FILES.includes("launch.js"), "壳从 launch.js 起算");
