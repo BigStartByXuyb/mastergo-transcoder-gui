@@ -17,12 +17,15 @@ const { spawn } = require("child_process");
 const path = require("path");
 
 const { resolveLaunch, RESTART_CODE, childArgs } = require("./lib/launch.js");
-const { createLog } = require("./lib/log.js");
 
 const HOME = __dirname;
-// 与子进程共用同一份日志（logs/server-YYYY-MM-DD.log）：子进程被系统杀掉时，它自己来不及写，
-// 这一侧看到的退出码就是唯一证据。
-const log = createLog(HOME);
+/*
+ * 壳这边不写日志：日志实现（lib/log.js）属于服务。壳要是 require 它，应用内更新把壳换新时就得分清
+ * 「这份模块属于谁」——铺回去会把安装根那份「备用版本」还在用的模块换掉（跨版本混用），不铺又会让
+ * 新壳配旧模块。所以壳只用自己拥有的那两份（launch.js + lib/launch.js，见 lib/bootstrap.js）。
+ * 子进程怎么结束的由它自己记：正常/换版本退出写 [exit]，被硬杀则由下一次启动读 logs/run.json 补报
+ * （lib/run-mark.js）；这一侧只把人和控制台要看的那几行打印出来。
+ */
 
 function childEnv() {
   return Object.assign({}, process.env, { MASTERGO_HOME: HOME, MASTERGO_SUPERVISED: "1" });
@@ -41,9 +44,7 @@ function runOnce(target, firstBoot) {
       resolve({ code: code === null ? 1 : code, signal: signal || "" });
     });
     child.on("error", function (error) {
-      const text = "起不来：" + String(error && error.message ? error.message : error);
-      process.stderr.write(text + "\n");
-      log.write("crash", text);
+      process.stderr.write("起不来：" + String(error && error.message ? error.message : error) + "\n");
       resolve({ code: 1, signal: "" });
     });
   });
@@ -56,14 +57,12 @@ async function main() {
     const target = resolveLaunch(HOME);
     const which = target.fromPointer ? "v" + target.version + "（current.json）" : "本地这一份（无指针）";
     process.stdout.write("版本: " + which + "\n");
-    log.write("boot", "监督进程起 " + which + " pid " + process.pid);
     const ended = await runOnce(target, firstBoot);
     if (ended.code !== RESTART_CODE) {
-      log.write("exit", "子进程退出 code=" + ended.code
-        + (ended.signal ? "（信号 " + ended.signal + "）" : "") + "，监督进程跟着退出");
+      process.stdout.write("子进程退出 code=" + ended.code
+        + (ended.signal ? "（信号 " + ended.signal + "）" : "") + "，监督进程跟着退出\n");
       process.exit(ended.code);
     }
-    log.write("switch", "按 current.json 换一份接着跑（子进程退出码 " + ended.code + "）");
     process.stdout.write("按 current.json 换一份接着跑\n");
     firstBoot = false;
   }
