@@ -34,8 +34,8 @@ export function SettingsPage(props: {
   onPickTab: (tab: string) => void
   onPickPart: (part: string) => void
 }) {
-  const legacyPlugin = props.tab === "plugin"
-  const wanted = legacyPlugin ? "update" : props.tab
+  const pluginDeepLink = props.tab === "plugin"
+  const wanted = pluginDeepLink ? "update" : props.tab
   const active: TabKey = TAB_KEYS.includes(wanted) ? (wanted as TabKey) : "ai"
 
   return (
@@ -68,7 +68,7 @@ export function SettingsPage(props: {
         {active === "update" && (
           <SettingsUpdatePanel
             /* 客户端 / 插件（流水线）两段：谁在更新、更新谁。 */
-            part={legacyPlugin ? "plugin" : props.part}
+            part={pluginDeepLink ? "plugin" : props.part}
             onPickPart={props.onPickPart}
           />
         )}

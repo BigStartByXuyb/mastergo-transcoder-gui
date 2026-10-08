@@ -76,6 +76,11 @@ function casePluginRootErrors() {
     /不是 mastergo-wpf-transcoder 插件根/,
     "--plugin 指到别的目录要直接说清楚，而不是回退到别处"
   );
+  assert.throws(
+    () => resolvePluginRoot({ installRoot: tmp }),
+    /第一个参数是插件目录/,
+    "把选项对象当第一个参数传要在这里说清楚，不落到 path.resolve 的底层 TypeError"
+  );
 
   const previous = { codex: process.env.CODEX_HOME, root: process.env[PLUGIN_ENV_NAME], home: process.env.HOME, profile: process.env.USERPROFILE };
   try {
