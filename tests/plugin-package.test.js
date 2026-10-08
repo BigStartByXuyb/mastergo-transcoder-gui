@@ -136,9 +136,9 @@ function main() {
   // （那个仓库的 .github/workflows/plugin-release.yml 调同一个脚本，实现只有这一份）。
   assert.ok(WORKFLOW.indexOf("pack-plugin.js") < 0, "客户端发布不再打包插件");
   assert.strictEqual(
+    source.lineOf("pluginSource").normalize(null).base,
     source.PLUGIN_DEFAULT_BASE,
-    "https://github.com/BigStartByXuyb/test",
-    "插件线的默认源是插件仓库"
+    "插件线的默认源是插件仓库（常量只有 lib/source.js 一处，不在这里再抄一份字面量）"
   );
 
   packTwice();
