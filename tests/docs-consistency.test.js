@@ -8,7 +8,6 @@
 // 改名之后引用没跟上）在这里当场失败，不用等人逐轮审。
 
 const assert = require("assert");
-const { execFileSync } = require("child_process");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -29,18 +28,35 @@ function read(rel) {
 }
 
 /*
- * 扫描范围：仓库跟踪的文件（git ls-files）。用户状态、产物目录、第三方解压件都不是「说明」的一部分，
- * 它们在 .gitignore 里，这里不再抄一份跳过名单。
+ * 扫描范围：仓库自己的源码与说明。用户状态、产物目录、第三方解压件都不是「说明」的一部分 ——
+ * 跳过名单与 .gitignore 里的目录一一对应（跑这份用例的机器上拿到的是这棵树的副本，不一定有 .git）。
  */
 const SCANNED_EXT = /\.(js|mjs|cjs|ts|tsx|md|json|ps1|cmd|yml|yaml|toml)$/;
+const SKIP_DIRS = [
+  ".git", "node_modules", "coverage",
+  "agents", "blobs", "chats", "logs", "plugins", "runtime", "update-cache", "vendor", "versions", "work",
+  "dist", "output", ".playwright-cli"
+];
 
 function scannedFiles() {
-  const out = execFileSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" });
-  return out.split("\0").filter(function (rel) {
-    if (!rel || !SCANNED_EXT.test(rel)) return false;
-    // 发布说明与验收记录记的是当次实况，不参与「当前口径」的比对。
-    return rel !== RECORD && path.basename(rel) !== "changelog.json";
-  });
+  const found = [];
+  const walk = function (dir) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (SKIP_DIRS.includes(entry.name)) continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (!SCANNED_EXT.test(entry.name)) continue;
+      const rel = path.relative(ROOT, full).split(path.sep).join("/");
+      // 发布说明与验收记录记的是当次实况，不参与「当前口径」的比对。
+      if (rel === RECORD || path.basename(rel) === "changelog.json") continue;
+      found.push(rel);
+    }
+  };
+  walk(ROOT);
+  return found;
 }
 
 /* 说明书：仓库里的 Markdown（验收记录除外）。 */
