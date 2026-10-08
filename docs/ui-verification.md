@@ -16,6 +16,63 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-10-08 插件独立版本线：插件不再随客户端发布
+
+### 用户报的问题
+
+「插件版本好像更新了？？？但是 GUI 里还是只检测到 371？？？」
+
+### 查出来的
+
+- 插件的「最新版」原来只认**客户端发布件**里那份 `plugin-manifest.json`，而打包哪一版插件由客户端仓库的
+  `plugin-pin.json` 决定（当时钉 v1.0.371）。
+- 插件仓库 main 已经 1.0.377（tag 只到 v1.0.371），客户端 pin 还是 v1.0.371 —— 插件改 bug 得等客户端发版，
+  本机检出的那份插件更是根本不在查找顺序里（所以 GUI 看不到）。
+- 两条线的发现节拍也不同：客户端每 10 分钟复查，插件只在启动查一次。
+
+### 改了什么
+
+- **插件有自己的版本线**：插件仓库打 tag 时由它的发布作业发同构发布件（`plugin-manifest.json` + 按 sha256 命名的
+  文件）到自己的 Release；打包实现只有客户端那一份（`scripts/pack-plugin.js`，作业按 commit 钉住来调）。
+- 客户端插件线直接消费它：`lib/source.js` 新增 `PLUGIN_DEFAULT_BASE` 与 `pluginSourceOf`（配了一个**不是客户端
+  官方仓库**的发布源就跟着它走，否则按插件仓库）；`lib/settings.js` 增 `pluginSource()`（规则要的是存盘原值，
+  只有这一层拿得到）；`lib/plugin-update.js` 用这条线自己的源。
+- 节拍统一：`RECHECK_MS` 从 `lib/update.js` 移到两条线共用的 `lib/manifest-fetch.js`，插件线新增 `startWatch()`
+  （启动查一次 + 每 10 分钟复查）。
+- 清单缓存记来源：`createManifestCache` 写入时记下 `source`，读时对不上就当作「还没检查过」——
+  换源之后不再拿旧源的结论说「已是最新」。
+- 不再随客户端发布插件：`plugin-pin.json` 删除、`scripts/pack-plugin.js` 入参改成 `--tag / --dir`（不再读 pin）、
+  客户端发布流程删掉「Pack the plugin release」那一步。
+- 文档：新增 `docs/plugin-release.md`（插件侧发布流程 + 客户端消费规则）；`README.md`、`docs/install.md` 的
+  「插件从哪来」与发布源规矩按新的写；发布源弹窗的说法改成「留空＝各回各的官方仓库，填了＝两条线都从这里取」。
+
+### 点过的东西
+
+| # | 操作 | 预期 | 结果 |
+| --- | --- | --- | --- |
+| 1 | 真机：插件页「客户端自带」→ 管理… | 更新来源＝插件仓库；检查更新如实报取不到（插件仓库还没发过发布件） | 通过（`output/playwright/plugin-own-line-panel.png`：GitHub 仓库 `https://github.com/BigStartByXuyb/test` + 检查失败「下载失败（HTTP 404）」） |
+| 2 | 真机：`GET /api/plugin/update/status` | 旧源那份缓存不算数，状态是「还没检查过」 | 通过（state=unchecked、source=插件仓库、available 空） |
+| 3 | 本地：`node scripts/pack-plugin.js --repo-dir <夹具> --tag v1.2.3 --dir plugins/mastergo-wpf-transcoder --out …` | 产出清单与按哈希命名的文件；tag 与声明版本对不上、缺标记文件都要拦 | 通过（`tests/plugin-package.test.js`） |
+
+### 没做的 / 待续
+
+- 插件仓库那条发布作业（`.github/workflows/plugin-release.yml`）在**另一个仓库**里，另开 PR；
+  等它合入并打第一个 tag（v1.0.377）之后，客户端这边「检查更新」才会由 404 变成「有新版」。
+- 因此这一版客户端**先不要发版**：等插件仓库出了第一个发布件再发（否则新装的客户机点「检查更新」取不到）。
+- 客户端对插件的契约仍按老办法兜（缺文件 / 步骤契约字段在用到时如实报），没有新增「最低插件版本」的硬门禁，
+  这一条写在 `docs/plugin-release.md` 的边界里。
+
+### 自动化门禁
+
+| 门禁 | 结果 |
+| --- | --- |
+| `npm test`（后端） | 50 通过 |
+| `npm run test:coverage`（后端） | all files 94.79 / 83.12 / 95.74 |
+| `cd ui; npx vitest run` | 60 文件 355 用例通过 |
+| `cd ui; npm run test:coverage` | all files 95.95 / 91.69 / 94.85 / 95.95 |
+| `cd ui; npm run lint` / 结构确定性检查 | 通过 / PASS |
+| `npm run build:ui` | 通过，`public/` 已重建 |
+
 ## 2026-10-07 插件页：第 2 档不再单独占一块（②）+ 查找顺序立成单独一栏、按处境给亮/灰（③）
 
 ### 用户报的问题

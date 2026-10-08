@@ -330,6 +330,37 @@ async function main() {
   }
 
   /*
+   * 源换过之后，旧源那份缓存不算数：否则换了源（插件改成它自己的仓库）还会照旧显示
+   * 「已是最新」—— 那不是现在这个源的结论。判据在 lib/manifest-fetch.js 的缓存一处，两条版本线共用。
+   */
+  {
+    const home = sandbox();
+    const remoteTree = makePlugin(path.join(sandbox(), "remote"), "1.0.9");
+    const first = createPluginUpdate({
+      home: home,
+      pluginSource: { kind: "github", base: BASE },
+      fetchImpl: remote(remoteTree, "1.0.9").fetchImpl
+    });
+    await first.check();
+    assert.strictEqual(first.status().state, "update_available", "先按 A 源查一次，缓存里有 A 的结论");
+
+    const other = createPluginUpdate({
+      home: home,
+      pluginSource: { kind: "static", base: "http://10.0.0.9/updates" },
+      fetchImpl: async function () { throw new Error("不该联网"); }
+    });
+    assert.strictEqual(other.status().state, "unchecked", "换了源＝这个源还没问过");
+    assert.strictEqual(other.status().available, null, "不拿别的源的结论顶");
+
+    const back = createPluginUpdate({
+      home: home,
+      pluginSource: { kind: "github", base: BASE },
+      fetchImpl: async function () { throw new Error("不该联网"); }
+    });
+    assert.strictEqual(back.status().state, "update_available", "换回同一个源，缓存照用（离线也说得出上次的结果）");
+  }
+
+  /*
    * 有没有 token：装配处（server.js）注入了那份廉价判断（只看设置里记的标记，不解密），
    * 状态就该读它 —— 注入的那份被问到、取值链那份不被碰（轮询路径不解密）。
    */
