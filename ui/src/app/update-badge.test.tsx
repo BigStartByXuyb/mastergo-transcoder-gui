@@ -143,4 +143,46 @@ describe("UpdateBadge", () => {
     await waitFor(() => expect(onOpenUpdatePage).toHaveBeenCalled())
     expect(screen.getByText(/正在跑/)).toBeTruthy()
   })
+
+  /*
+   * 「已经在下载了」不是失败：后端那条任务本来就在跑，这一次点只是来得晚了一步 ——
+   * 之前这里会把它写成红字，而且下载好了红字还挂着（实测过）。
+   */
+  it("后端说已经在下载了：不发红字，把人带到更新页看进度", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ ok: false, error: { code: "BUSY_DOWNLOAD", message: "已经在下载了", hint: "等这一次下载结束。" } }), {
+            status: 409
+          })
+        )
+      )
+    )
+    const onOpenUpdatePage = vi.fn()
+    render(<UpdateBadge update={hint()} supervised onOpenUpdatePage={onOpenUpdatePage} />)
+    fireEvent.click(screen.getByRole("button"))
+    await waitFor(() => expect(onOpenUpdatePage).toHaveBeenCalled())
+    expect(screen.queryByText(/已经在下载了/)).toBeNull()
+  })
+
+  it("下载好之后，上一次那句失败收掉（不留红字）", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ ok: false, error: { code: "HTTP_500", message: "下载失败（HTTP 500）", hint: "" } }), {
+            status: 500
+          })
+        )
+      )
+    )
+    const view = render(<UpdateBadge update={hint()} supervised onOpenUpdatePage={vi.fn()} />)
+    fireEvent.click(screen.getByRole("button"))
+    await waitFor(() => expect(screen.getByText(/下载失败/)).toBeTruthy())
+    view.rerender(
+      <UpdateBadge update={hint({ state: "download_ready", ready: "0.6.12" })} supervised onOpenUpdatePage={vi.fn()} />
+    )
+    await waitFor(() => expect(screen.queryByText(/下载失败/)).toBeNull())
+  })
 })

@@ -16,6 +16,8 @@ export function finishDownload<TStatus>(
     setFailure: (message: string) => void
     setStatus?: (status: TStatus) => void
     onAlready?: (message: string) => void
+    /** 后端那条任务正在跑（这一次来晚了一步）：默认与「已经有这一份」一样说一句，不发红字。 */
+    onBusy?: (message: string) => void
     onStarted?: () => void
   }
 ): void {
@@ -23,6 +25,7 @@ export function finishDownload<TStatus>(
   applyDownload(result, {
     setFailure: handlers.setFailure,
     onAlready: handlers.onAlready ?? ((message) => toast.info(message)),
+    onBusy: handlers.onBusy ?? handlers.onAlready ?? ((message) => toast.info(message)),
     onStarted: handlers.onStarted
   })
 }
