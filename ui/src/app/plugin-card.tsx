@@ -87,8 +87,6 @@ export function PluginCard() {
             <PluginSourceTable
               rows={lookup.rows}
               update={update.update}
-              busy={sources.busy}
-              frozen={frozen}
               onOpen={(id) => setOpened(id)}
             />
 
@@ -115,7 +113,7 @@ export function PluginCard() {
           <PluginSourceDialog
             row={selected}
             update={isInstallRow(selected) ? update.update : null}
-            busy={{ source: sources.busy, update: update.busy }}
+            busy={update.busy}
             frozen={frozen}
             transferring={update.transferring}
             canCheck={update.canCheck}

@@ -19,10 +19,6 @@ export function PluginSourceTable(props: {
   rows: PluginSourceRow[]
   /** 自带那一份的状态（这一行里没有自带的也能传，只是不加那个更新状态徽章）。 */
   update: PluginUpdateStatus | null
-  /** 来源清单那一半的忙碌位（读清单）。 */
-  busy: string
-  /** 哪一半在跑都算忙。 */
-  frozen: boolean
   onOpen: (rowId: string) => void
 }) {
   return (

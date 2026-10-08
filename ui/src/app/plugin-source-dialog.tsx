@@ -43,11 +43,8 @@ export function PluginSourceDialog(props: {
   row: PluginSourceRow
   /** 自带那一份的状态（插件页在轮询它）；这一行里没有自带的（members 不含 install）时传 null。 */
   update: PluginUpdateStatus | null
-  /**
-   * 这一页两半的忙碌位：来源清单那一半（换这份 / 选目录 / 读清单，键是行 id 或 PLUGIN_BUSY 里那几把）
-   * 与自带那一半（check / install）。两半各报各的，由面板按各自那一半的键去比。
-   */
-  busy: { source: string; update: string }
+  /** 自带那一半的忙碌位（PLUGIN_BUSY 的 check / install）：面板按它比才知道是哪一颗在跑。 */
+  busy: string
   /**
    * 这一刻能不能动「换一份 / 改发布源 / 装一份」：卡片算一次传进来（那边也是三个来源合一），
    * 面板不自己再算一遍 —— 否则规则一改就会出现「卡片上能点、面板里不能点」。
@@ -148,7 +145,7 @@ export function PluginSourceDialog(props: {
             {install && (
               <PluginInstallActions
                 status={props.update}
-                busy={props.busy.update}
+                busy={props.busy}
                 transferring={transferring}
                 frozen={props.frozen}
                 canCheck={props.canCheck}
