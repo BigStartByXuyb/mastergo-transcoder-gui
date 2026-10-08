@@ -10,7 +10,7 @@ import { PLUGIN_BUSY } from "@/lib/plugin-busy"
 import { describeTask, taskFailureNote, taskPercent } from "@/lib/update-state"
 
 /*
- * 「客户端自带那一份」这一块。行内面板里自带那一行点开就是这个，与表里那一行、顺序条上那一档说的是同一份状态。
+ * 「客户端自带那一份」这一块。插件页那一行的「更多」点开就是这个：状态、进度与动作都读同一份后端状态。
  *
  * 分两块导出，按「实现在哪一半」切：
  *   PluginInstallBlock   面板正文：更新来源那一行（含它自己的「修改发布源」按钮 —— 弹窗同一个，
