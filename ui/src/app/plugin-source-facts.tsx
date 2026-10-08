@@ -11,11 +11,8 @@ import { describePluginInstall } from "@/lib/plugin-install"
  * （改口径只改这里，卡与面板不会一处说「正在用」、另一处说别的）。
  */
 
-/**
- * 一个来源此刻的处境怎么说。卡片那一行与面板的徽章读同一处 ——
- * 同一格事实（有 / 没有 / 正在用）不会一处写「有」、另一处写「可用」。
- */
-export function sourceStatusText(active: boolean, exists: boolean): string {
+/* 一个来源此刻的处境怎么说。卡片那一行与面板的徽章读同一处 —— 同一格事实不会一处写「有」、另一处写别的。 */
+function sourceStatusText(active: boolean, exists: boolean): string {
   if (active) return "正在用"
   return exists ? "可用" : "没有"
 }

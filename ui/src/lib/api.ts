@@ -8,7 +8,7 @@ export type PluginSummary = {
   engine: string
   engineExists: boolean
   runAllExists: boolean
-  /** 一处都没找到时后端给的原话：逐条列出已查找的路径和各自有没有。 */
+  /** 没装插件时后端给的原话：说清查过的那一处（插件只有客户端自带那一处）。 */
   failure: string
 }
 
@@ -860,7 +860,6 @@ export const api = {
   health: () => request<Health>("/api/health"),
   plugin: () => request<PluginInfo>("/api/plugin"),
   pluginSources: () => request<PluginSources>("/api/plugin/sources"),
-  /** path 为空串＝回到「按顺序自动」。换完立刻生效，不用重启客户端。 */
   /** 在文件管理器里打开一个目录（插件页各行的「打开目录」）。打不开时 ok=false，reason 是原话。 */
   openFolder: (path: string) => post<{ ok: boolean; reason: string }>("/api/system/open-folder", { path }),
   pluginUpdateStatus: () => request<{ ok: true; status: PluginUpdateStatus }>("/api/plugin/update/status"),

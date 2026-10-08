@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   ci:
-    # 取 main 上那一版：983… 这一版把「插件从哪一份跑」改成只认客户端自带那一份（铺到安装根 plugins/）
+    # 取 main 上那一版：980f0ba9 这一版把「插件从哪一份跑」改成只认客户端自带那一份（铺到安装根 plugins/）
     # —— 与客户端里 lib/plugin-root.js 的定位口径同一件事，测试依赖的夹具也按它铺。
     uses: BigStartByXuyb/cicd/.github/workflows/desktop-app.yml@980f0ba93a4829f7c6879d0e548c879ddf919548
     with:

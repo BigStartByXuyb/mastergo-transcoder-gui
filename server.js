@@ -227,7 +227,7 @@ const update = createUpdate({
 const pluginUpdate = createPluginUpdate({
   home: HOME,
   onInstalled: function () { pluginRuntime.reload(); },
-  // 装完就是生效，所以和「换一份插件」同一道门禁：有任务在跑时先不换。
+  // 装完就是生效（会换掉跑在路上的那次用的实现），所以与切版本同一道门禁：有任务在跑时先不装。
   isBusy: busyReason,
   /*
    * 插件有自己的版本线：它在插件仓库那边打 tag 时发同构的发布件，客户端直接消费它。
