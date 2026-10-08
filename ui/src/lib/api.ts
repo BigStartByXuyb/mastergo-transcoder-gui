@@ -654,7 +654,7 @@ export type UpdateAvailable = {
 }
 
 export type UpdateStatus = {
-  state: "up_to_date" | "update_available" | "download_ready" | "error"
+  state: "unchecked" | "up_to_date" | "update_available" | "download_ready" | "error"
   current: string
   /** 现在这一版能做什么。 */
   currentNotes: string[]

@@ -119,6 +119,14 @@ export function describeUpdate(status: UpdateStatus | null): UpdateSummary {
       note: failedNote(status)
     }
   }
+  /*
+   * 还没成功问过远端（离线首启，或换发布源之后缓存按源失效）时说「还没检查过」——
+   * 与插件那条线同一句话（ui/src/lib/plugin-install.ts 的 unchecked 分支），
+   * 不能拿「已是最新」去表示「新源一次都还没问过」。
+   */
+  if (status.state === "unchecked") {
+    return { label: "还没检查过远端", tone: "outline", note: "点「检查更新」，看发布源里有没有新版。" }
+  }
   return { label: "已是最新 v" + status.current, tone: "outline", note: failedNote(status) }
 }
 

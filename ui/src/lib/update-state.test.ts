@@ -123,6 +123,10 @@ describe("describeUpdate", () => {
     expect(ready.label).toBe("v0.2.0 已就绪")
     expect(ready.note).toBe("上次检查更新没成功：下载失败")
     expect(describeUpdate(status({ state: "up_to_date" })).note).toBe("")
+    // 还没问过远端（离线首启、或换发布源后缓存按源失效）时，说的与插件那条线一样是「还没检查过」。
+    const unchecked = describeUpdate(status({ state: "unchecked" }))
+    expect(unchecked.label).toBe("还没检查过远端")
+    expect(unchecked.note).toContain("检查更新")
   })
 })
 

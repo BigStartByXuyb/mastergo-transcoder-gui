@@ -115,7 +115,7 @@ async function main() {
   const update = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: home, home: home, version: "0.1.0", fetchImpl: server.fetchImpl, isBusy: function () { return busy; } });
 
   const initial = update.status();
-  assert.strictEqual(initial.state, "up_to_date", "没查过又没缓存就是最新");
+  assert.strictEqual(initial.state, "unchecked", "没查过又没缓存＝还没问过远端（不说「已是最新」）");
   assert.deepStrictEqual(initial.staged.map(function (item) { return item.version; }), ["0.1.0"], "安装根自己这一份算本地的一份");
   assert.strictEqual(initial.rollback, "", "只有一份时没有可回退的");
 

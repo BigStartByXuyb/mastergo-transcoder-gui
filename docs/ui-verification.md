@@ -206,6 +206,11 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   （与同文件「必给」的新口径打脸）、`ui/src/lib/api.ts` 的 `UpdateStatus.source` 还写着「与插件那一半
   同一个来源」（两条线各有各的一项设置）、`lib/plugin-update.js` 的模块头还写着「客户端从自己的发布源取」
   —— 三处按现口径改写。
+- 再一轮复核收口（一条）：换发布源之后缓存按源失效，客户端那条线却没有「没查过」这一态，界面会拿
+  「已是最新」表示「新源一次都还没问过」（插件线同处境说「还没检查过」）→ `lib/update.js` 的 `readState`
+  补上 `unchecked`（只在拿到**本源**的缓存时才说 `up_to_date`），前端 `UpdateStatus.state` 联合类型与
+  `describeUpdate` 同步扩一态，说法与插件线对齐（`ui/src/lib/plugin-install.ts` 的 unchecked 分支）。
+  `lib/routes.js` 里「程序更新四态」的注释随之改成五态。
 
 ### 点过的东西
 
