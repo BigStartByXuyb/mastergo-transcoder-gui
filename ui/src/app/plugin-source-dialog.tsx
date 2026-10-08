@@ -57,8 +57,7 @@ export function PluginSourceDialog(props: {
   /* 这一行里有没有「客户端自带」那一档：有就带更新块（检查更新 / 下载并安装 / 进度）。
      自带的副本正好被指针指着时（两者合成一行），管理的入口也在这一行上。 */
   const install = isInstallRow(row)
-  // 「这一行就是自带那一档本身」（而不是别的档并进了它）：比的是档位 id，不是 kind ——
-  // 那是两个取值域（kind 只有 arg/env/agent/install，id 是七档各自的 id）。
+  // 「这一行就是自带那一档本身」（而不是别的档并进了它）：比的是档位 id（后端给的七档 id 之一）。
   const ownInstall = row.id === INSTALL_SLOT_ID
 
   const transferring = props.transferring
