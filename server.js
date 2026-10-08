@@ -187,8 +187,8 @@ const pluginUpdate = createPluginUpdate({
   isBusy: busyReason,
   /*
    * 插件有自己的版本线：它在插件仓库那边打 tag 时发同构的发布件，客户端直接消费它。
-   * 源按一条规矩算 —— 设置里配过一个**不是客户端官方仓库**的发布源（内网镜像那种）就跟着它走，
-   * 否则按插件仓库；规则与拼法只有 lib/source.js 的 pluginSourceOf 一处。
+   * 插件读的是**自己那一项设置**（local.json 的 pluginSource）：没配／配坏了回插件仓库；
+   * 与程序更新那项（source）互不影响。默认值与拼法只有 lib/source.js 的 pluginSourceOf 一处。
    */
   pluginSource: function () { return settings.pluginSource(); },
   token: function () { return settings.readSourceToken(); },

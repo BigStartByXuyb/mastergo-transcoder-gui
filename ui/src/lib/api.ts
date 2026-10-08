@@ -49,7 +49,7 @@ export type PluginUpdateStatus = {
   /** 有任务在跑时不能装（装完就可能换掉生效的那一份）；空串＝空闲，界面据此提示并禁用。 */
   busy: string
   /**
-   * 这一份插件从哪儿取：与程序更新同一处设置、同一份拼法（后端 lib/source.js），只是清单名不同。
+   * 这一份插件从哪儿取：插件自己那一项设置（没配＝插件仓库），拼法与程序更新同用后端 lib/source.js。
    * 插件页的「更新来源」那一行照实显示它。
    */
   source: UpdateSource

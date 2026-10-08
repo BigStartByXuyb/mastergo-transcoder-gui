@@ -34,8 +34,8 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 
 - **插件有自己的版本线**：插件仓库打 tag 时由它的发布作业发同构发布件（`plugin-manifest.json` + 按 sha256 命名的
   文件）到自己的 Release；打包实现只有客户端那一份（`scripts/pack-plugin.js`，作业按 commit 钉住来调）。
-- 客户端插件线直接消费它：`lib/source.js` 新增 `PLUGIN_DEFAULT_BASE` 与 `pluginSourceOf`（配了一个**不是客户端
-  官方仓库**的发布源就跟着它走，否则按插件仓库）；`lib/settings.js` 增 `pluginSource()`（规则要的是存盘原值，
+- 客户端插件线直接消费它：`lib/source.js` 新增 `PLUGIN_DEFAULT_BASE` 与 `pluginSourceOf`（没配／配坏了回插件仓库）；
+  `lib/settings.js` 增插件自己那一项设置与 `pluginSource()`（规则要的是存盘原值，
   只有这一层拿得到）；`lib/plugin-update.js` 用这条线自己的源。
 - 节拍统一：`RECHECK_MS` 从 `lib/update.js` 移到两条线共用的 `lib/manifest-fetch.js`，插件线新增 `startWatch()`
   （启动查一次 + 每 10 分钟复查）。
@@ -44,7 +44,7 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - 不再随客户端发布插件：`plugin-pin.json` 删除、`scripts/pack-plugin.js` 入参改成 `--tag / --dir`（不再读 pin）、
   客户端发布流程删掉「Pack the plugin release」那一步。
 - 文档：新增 `docs/plugin-release.md`（插件侧发布流程 + 客户端消费规则）；`README.md`、`docs/install.md` 的
-  「插件从哪来」与发布源规矩按新的写；发布源弹窗的说法改成「留空＝各回各的官方仓库，填了＝两条线都从这里取」。
+  「插件从哪来」与发布源规矩按新的写；发布源弹窗的说法改成「两条线各有各的这一项，留空＝各回各的官方仓库」。
 - 复核收口（三条）：插件线的后台复查也**避开正在跑的装**（与程序更新同一条判据）；清单缓存与取清单两处的
   注入键名统一成 `source`（同一个概念不两个名）；测试里没人读的常量删掉。
 - 复核收口（BLOCK-001 + REVIEW-002）：发布源改成**两条线各一项设置**（`source` 与 `pluginSource`）。
@@ -52,6 +52,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   再也取不到自己的清单。现在插件那一项有自己的默认（插件仓库），弹窗按 `field` 存对应那一项，
   改一条不动另一条（用例钉住：存进的是 `pluginSource`、不带 `source`）；文案也去掉了
   「填了＝两条线都从这里取」那句概括（填的恰好是某条线的官方仓库时并不等于换源）。
+- 又一轮复核收口（两条）：把还写着「与程序更新同一处设置 / 插件跟着客户端线走」的注释全部改成新设计
+  （插件读自己那一项 `pluginSource`，没配／配坏回插件仓库）；`settings.write` 里两项发布源的写入抽成
+  `writeSource(field, patch)` 一处（归一、token、clearToken、清缓存不再两份逐字重复）。
 
 ### 点过的东西
 

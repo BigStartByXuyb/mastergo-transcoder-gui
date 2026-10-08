@@ -48,7 +48,7 @@ export function sourceViewFixture(value: UpdateStatus) {
 /** 界面侧夹具用的默认发布源：与后端 lib/source.js 的内置默认一致（两份不能互相引，各自一处、口径一致）。 */
 export const SOURCE_BASE = "https://github.com/BigStartByXuyb/mastergo-transcoder-gui"
 
-/** 发布源：程序更新与插件那一半显示的是同一处设置，夹具也只做一份。 */
+/** 发布源：程序更新与插件各有一项设置，形状一样（这条夹具给的是程序更新那条）。 */
 export function sourceFixture(base = SOURCE_BASE): UpdateSource {
   return {
     kind: "github",
@@ -90,7 +90,7 @@ export function pluginUpdateFixture(over: PluginUpdateOverrides = {}): PluginUpd
     error: null,
     task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
     busy: "",
-    // 插件从哪儿取：与程序更新同一处设置（清单名不同），所以夹具也只做这一份。
+    // 插件从哪儿取：插件自己那一项设置（形状一样、清单名不同，默认是插件仓库）。
     source: sourceFixture(),
     hasToken: false,
     ...over
