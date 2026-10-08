@@ -156,7 +156,7 @@ export function isDownloading(task: UpdateTask): boolean {
   return task.phase === "downloading" || task.phase === "materializing"
 }
 
-/** 下完了（正在下载 → 下完那一下，界面据此重读一次来源表）。 */
+/** 下完了（正在下载 → 下完那一下，界面据此重读一次插件状态）。 */
 export function isTaskDone(task: UpdateTask): boolean {
   return task.phase === "done"
 }
@@ -182,7 +182,7 @@ export function canSwitch(status: UpdateStatus | null, version = ""): boolean {
 
 /*
  * 这一刻忙不忙：给的这几路里有没有在跑的（这一页自己的动作、后端报的任务、正在传）。
- * 「检查更新」能不能点、以及「换一份 / 改发布源 / 装一份」要不要冻住，两张卡都读这一条 ——
+ * 「检查更新」能不能点、以及「改发布源 / 装一份」要不要冻住，两张卡都读这一条 ——
  * 规则只有这一处，卡片与「管理…」面板不会一处说能点、另一处说不能点。
  */
 export function busyNow(parts: { busy: string; transferring?: boolean }[]): boolean {

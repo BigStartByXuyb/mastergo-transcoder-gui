@@ -10,14 +10,14 @@ import { PLUGIN_BUSY } from "@/lib/plugin-busy"
 import { describeTask, taskFailureNote, taskPercent } from "@/lib/update-state"
 
 /*
- * 「客户端自带那一份」这一块。行内面板里自带那一行点开就是这个，与表里那一行、顺序条上那一档说的是同一份状态。
+ * 「客户端自带那一份」这一块。插件页那一行的「更多」点开就是这个：状态、进度与动作都读同一份后端状态。
  *
  * 分两块导出，按「实现在哪一半」切：
  *   PluginInstallBlock   面板正文：更新来源那一行（含它自己的「修改发布源」按钮 —— 弹窗同一个，
  *                        存的是插件自己那一项设置，没配时按插件仓库取，见 lib/source.js 的 pluginSourceOf）、
  *                        状态（有新版 / 是最新 / 未检查 / 检查失败）与进度
  *   PluginInstallActions 面板页脚：两个动作 —— 检查更新 / 下载并安装
- * 两面动作的松紧不一样：检查只读远端，装会写盘、还可能换掉生效的那一份，所以装那颗用整页的 `frozen`。
+ * 两面动作的松紧不一样：检查只读远端，装会写盘、还会换掉生效的那一份，所以装那颗用整页的 `frozen`。
  */
 
 export function PluginInstallBlock(props: {
@@ -72,7 +72,7 @@ export function PluginInstallActions(props: {
   busy: string
   /** 正在传（下载 / 落盘）：装那颗按钮转圈。 */
   transferring: boolean
-  /** 整页闲不闲（含来源清单那一半）：装会写盘、还可能换掉生效的那一份，所以比「检查更新」严一档。 */
+  /** 整页闲不闲（含来源清单那一半）：装会写盘、还会换掉生效的那一份，所以比「检查更新」严一档。 */
   frozen: boolean
   /** 「检查更新」能不能点（use-plugin-update 算好）。 */
   canCheck: boolean

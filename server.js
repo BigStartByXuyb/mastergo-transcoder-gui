@@ -166,7 +166,7 @@ const tokenOf = function () { return tokenSource.value(); };
 
 const resolver = createResolver({
   engine: PLUGIN.engine,
-  // 插件根每次现取：设置里换一份之后立刻生效，不用重启客户端。
+  // 插件根每次现取：装上新版之后立刻生效，不用重启客户端。
   pluginRoot: function () { return PLUGIN.root; },
   // pwsh 也现取：换了运行时、或改了「允许用系统那份」之后，下一次查询就按新的走。
   pwsh: function () { return resolvePwshExe(); },
@@ -227,7 +227,7 @@ const update = createUpdate({
 const pluginUpdate = createPluginUpdate({
   home: HOME,
   onInstalled: function () { pluginRuntime.reload(); },
-  // 装完就是生效，所以和「换一份插件」同一道门禁：有任务在跑时先不换。
+  // 装完就是生效（会换掉跑在路上的那次用的实现），所以与切版本同一道门禁：有任务在跑时先不装。
   isBusy: busyReason,
   /*
    * 插件有自己的版本线：它在插件仓库那边打 tag 时发同构的发布件，客户端直接消费它。
