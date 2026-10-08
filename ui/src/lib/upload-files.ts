@@ -14,7 +14,8 @@ export type PickedFile = {
   relativePath?: string
 }
 
-async function toBase64(file: File): Promise<string> {
+/** 文件读成 base64：对话附件与作业A 的设计稿位图共用这一份（大图分块拼，别爆栈）。 */
+export async function fileToBase64(file: File): Promise<string> {
   const buffer = new Uint8Array(await file.arrayBuffer())
   let binary = ""
   // 一次拼 32 KB：大图用 String.fromCharCode(...bytes) 会爆栈。
@@ -35,7 +36,7 @@ export async function uploadAttachments(picked: PickedFile[]): Promise<UploadedF
     payload.push({
       name: item.file.name,
       relativePath: item.relativePath || item.file.webkitRelativePath || item.file.name,
-      base64: await toBase64(item.file)
+      base64: await fileToBase64(item.file)
     })
   }
   const payloadResult = await api.agentUpload(payload)

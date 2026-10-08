@@ -18,6 +18,40 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-10-08 作业A 的设计稿位图能在界面上传了（读图那条开关的入口）
+
+### 需求
+
+「流水线A也没有上传图片的部分？」—— 作业A 的读图是个开关：图放 `<工程目录>\Generated\_inputs\<页面名>.design.png`，
+按设计稿原始尺寸导出（尺寸必须等于 DSL 画板尺寸），有图就必须先有分组表，否则第 8 步停下。
+原来只能自己把文件拷进工程，界面上没有入口。
+
+### 改了什么
+
+- `lib/design-image.js`（新）：这一件事的三格事实 —— 图在哪、尺寸对不对、分组表在不在。
+  `readPixelSize()` 只解析 PNG（IHDR）与 JPEG（SOF 段）的文件头，不引第三方库；画板尺寸取 DSL 快照根节点的
+  `layoutStyle.width/height`（与插件 `layoutTree` 读的是同一处）。存图是整份替换（临时件 + 改名），
+  后缀与文件头都要对得上，换格式时旧的那张删掉（插件按 png→jpg→jpeg 取，留着旧的会取错）。
+- `lib/routes.js`：`GET /api/design-image`（读状态）与 `POST /api/design-image`（存一张，bodyLimit 与对话附件同档）。
+- `ui/src/app/design-image-card.tsx`（新）+ `pipeline-page.tsx` 挂载：作业A 的任务详情里多一块
+  「设计稿位图」——画板尺寸、这一页放着的图（名字 / 尺寸 / 大小）、分组表在不在，加上「选择位图…」。
+  尺寸不一致、不是位图这些原话由后端给（那条判据在 `lib/design-image.js`），界面只渲染。
+- `ui/src/lib/upload-files.ts`：`toBase64` 改成导出的 `fileToBase64`，与对话附件共用一份（大图分块拼）。
+
+### 验收
+
+| 步 | 操作 | 预期 | 实测 |
+|---|---|---|---|
+| 1 | 打开作业A 任务详情（`#pipeline?task=4519f005…`） | 出现「设计稿位图」：没有图 · DSL 画板 1280×1024 · 分组表还没有 · 「选择位图…」 | 通过 |
+| 2 | 传一张真的 1280×1024 PNG（System.Drawing 现画） | 有图 · 尺寸一致 · **缺分组表**（红） · 显示 `F7LaserPreciseFocus.design.png` 1280×1024 8 KB · 按钮变「换一张」 | 通过 |
+| 3 | 再传一张 640×480 | 红字「图与画板尺寸不一致：图 640×480，画板 1280×1024：按设计稿原始尺寸导出……」；**上一张没被覆盖**（仍显示 1280×1024 / 尺寸一致） | 通过 |
+| 4 | 接口直读 | `GET /api/design-image` 回 `canvas 1280x1024`、`image`、`groups.exists`；落盘在 `<工作目录>\Generated\_inputs\` | 通过 |
+| 断点用例 | 后端 `tests/design-image.test.js`（PNG/JPEG 尺寸解析、换格式只留一张、拒绝的几种、还没跑到第 2 步、分组表在不在） | 6 组全过 | 通过 |
+| 界面用例 | 前端 `design-image-card.test.tsx`（无图 / 有图一致 / 不一致+缺表 / 上传 / 后端拒绝） | 5 条全过 | 通过 |
+| 全量门禁 | 后端 54 条 + 覆盖率、前端 59 文件 347 条、`tsc`、oxlint、`check-app-structure.mjs` | 通过 |
+
+截图：`output/playwright/design-image-card-062.png`。
+
 ## 2026-10-08 插件页只留「客户端自带」那一份（删掉我指定的那一份 / 环境变量 / 两个缓存与市场）
 
 ### 用户报的问题

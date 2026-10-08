@@ -146,6 +146,26 @@ export type PluginInfo = {
   steps: PipelineStep[]
 }
 
+/**
+ * 作业A 的设计稿位图：这一页「读图」那条开关的输入（口径见后端 lib/design-image.js）。
+ * 图必须按设计稿原始尺寸导出 —— 尺寸要等于 DSL 画板尺寸；有图就必须先有分组表，否则第 8 步停下。
+ */
+export type DesignImage = {
+  projectRoot: string
+  target: string
+  /** 图该放的那个目录（<工程目录>/Generated/_inputs）。 */
+  dir: string
+  /** 约定名：<页面名>.design.png。 */
+  expectedName: string
+  /** DSL 画板尺寸（也就是「图该有的尺寸」）；还没跑到第 2 步时是 null。 */
+  canvas: { width: number; height: number } | null
+  /** 现在放着的那一张；没放过就是 null。 */
+  image: { path: string; name: string; bytes: number; width: number; height: number } | null
+  /** 图与画板尺寸是否一致（两边都读得出来时才有意义）。 */
+  matches: boolean
+  groups: { path: string; exists: boolean }
+}
+
 export type ResolvedNode = {
   ref: string
   id: string
@@ -860,6 +880,14 @@ export const api = {
   health: () => request<Health>("/api/health"),
   plugin: () => request<PluginInfo>("/api/plugin"),
   pluginSources: () => request<PluginSources>("/api/plugin/sources"),
+  /** 作业A 的读图输入：这一页放着哪张图、尺寸对不对、分组表在不在。 */
+  designImage: (projectRoot: string, target: string) =>
+    request<{ ok: true; image: DesignImage }>(
+      "/api/design-image?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
+    ),
+  /** 存一张设计稿位图（整份替换；尺寸与画板不一致会被后端按原话拒绝）。 */
+  saveDesignImage: (body: { projectRoot: string; target: string; name: string; data: string }) =>
+    post<{ ok: true; image: DesignImage }>("/api/design-image", body),
   /** 在文件管理器里打开一个目录（插件页各行的「打开目录」）。打不开时 ok=false，reason 是原话。 */
   openFolder: (path: string) => post<{ ok: boolean; reason: string }>("/api/system/open-folder", { path }),
   pluginUpdateStatus: () => request<{ ok: true; status: PluginUpdateStatus }>("/api/plugin/update/status"),

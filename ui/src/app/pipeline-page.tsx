@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
 import { DoneBoard } from "@/app/done-board"
+import { DesignImageCard } from "@/app/design-image-card"
 import { NewTaskCard } from "@/app/new-task-card"
 import { TaskDetailCard } from "@/app/task-detail-card"
 import { TaskLogCard } from "@/app/task-log-card"
@@ -292,6 +293,9 @@ export function PipelinePage({
           onResolve={resolveConflict}
         />
       )}
+
+      {/* 作业A 才读图：这个任务的工程目录里那一张设计稿位图，就是第 8 步分组的输入。 */}
+      {task && task.request.mode === "A" && task.workDir && <DesignImageCard task={task} />}
 
       {task && counts.total > 0 && (
         <TaskPendingCard
