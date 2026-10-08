@@ -83,6 +83,10 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   两条线各自的默认仓库；`createManifestFetch` 返回对象里已经没人调的 `hasToken` 删掉（`describe()` 已带这一格）；
   前端 `UpdateSource` 上方两段叠在一起的注释合成一段。顺带：`pack-plugin.js` 的 `--out` 改成必给
   （打包前会清空它，省略就等于删某个默认目录），设置层逐条读版本线改用 `source.lines()`。
+- 再一轮复核收口（一条 + 一条非阻断）：「哪条版本线」原来在取清单与建缓存两个构造器里拆成 `field` 与
+  `normalize` 两个互不校验的入参 → 统一成一条 `line`（`lineOf(field)` 的结果），拼地址那几个入口也收这一条，
+  `describeSource` 把字段名一并带出；两个构造器对 `source` 也做必给校验（与两条装配处的口径一致）。
+  顺带：发布源补丁没带 `kind` / `base` 时不再动那一项设置（只清凭据不会把源改回默认）。
 
 ### 点过的东西
 

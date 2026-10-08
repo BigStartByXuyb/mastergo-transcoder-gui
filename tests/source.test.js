@@ -11,9 +11,9 @@ const source = require("../lib/source.js");
 const GH = { kind: "github", base: source.DEFAULT_BASE };
 const GL = { kind: "gitlab", base: "https://git.example.com/team/mastergo-transcoder-gui" };
 const ST = { kind: "static", base: "http://10.0.0.9/updates" };
-// 归一必给：坏配置回哪份默认只有 lib/source.js 的 LINES 一处说 —— 按线取那一处传进去（与装配处同一口径）。
-const CLIENT = source.lineOf("source").normalize;
-const PLUGIN = source.lineOf("pluginSource").normalize;
+// 这条线必给：坏配置回哪份默认、这项设置叫什么只有 lib/source.js 的按线表一处说 —— 传的就是 lineOf 那一条。
+const CLIENT = source.lineOf("source");
+const PLUGIN = source.lineOf("pluginSource");
 
 function caseGithub() {
   assert.strictEqual(
@@ -94,7 +94,9 @@ function caseDescribe() {
     base: "https://git.example.com/team/mastergo-transcoder-gui",
     manifestUrl: source.manifestUrl(GL, source.MANIFEST_NAME, CLIENT),
     // 界面下拉照 kinds 渲染：类型名单只有这一处，前端不另抄一份。
-    kinds: source.KINDS
+    kinds: source.KINDS,
+    // 这项设置叫什么也一并带出：前端按它存，不另列一份字段名。
+    field: "source"
   });
   // 插件那一半的「去哪儿取清单」也由这一处拼：换清单名就换一整套地址。
   assert.strictEqual(
@@ -140,15 +142,15 @@ function casePluginSource() {
   );
 }
 
-// 归一必给：漏传直接说，不静默按客户端那条回落（那会让漏注入的插件线悄悄去客户端仓库取清单）。
-function caseNormalizeRequired() {
-  const missing = /归一/;
-  assert.throws(() => source.assetUrl(GH, "0.6.30", "x.zip"), missing, "资产地址要归一");
-  assert.throws(() => source.manifestUrl(GH, source.MANIFEST_NAME), missing, "最新清单地址要归一");
-  assert.throws(() => source.manifestUrlOf(GH, "0.6.30"), missing, "某一版清单地址要归一");
-  assert.throws(() => source.blobUrl(GH, "0.6.30", "abc123"), missing, "文件地址要归一");
-  assert.throws(() => source.requestHeaders(GH, "ghp_x"), missing, "请求头要归一");
-  assert.throws(() => source.describeSource(GH, source.MANIFEST_NAME), missing, "给界面看的描述要归一");
+// 这条线必给：漏传直接说，不静默按客户端那条回落（那会让漏注入的插件线悄悄去客户端仓库取清单）。
+function caseLineRequired() {
+  const missing = /这条线/;
+  assert.throws(() => source.assetUrl(GH, "0.6.30", "x.zip"), missing, "资产地址要这条线");
+  assert.throws(() => source.manifestUrl(GH, source.MANIFEST_NAME), missing, "最新清单地址要这条线");
+  assert.throws(() => source.manifestUrlOf(GH, "0.6.30"), missing, "某一版清单地址要这条线");
+  assert.throws(() => source.blobUrl(GH, "0.6.30", "abc123"), missing, "文件地址要这条线");
+  assert.throws(() => source.requestHeaders(GH, "ghp_x"), missing, "请求头要这条线");
+  assert.throws(() => source.describeSource(GH, source.MANIFEST_NAME), missing, "给界面看的描述要这条线");
 }
 
 try {
@@ -160,7 +162,7 @@ try {
     ["私有源的请求头", caseHeaders],
     ["给界面看的描述", caseDescribe],
     ["插件那条线的源", casePluginSource],
-    ["归一必给", caseNormalizeRequired]
+    ["这条线必给", caseLineRequired]
   ];
   for (const [name, run] of cases) {
     run();
