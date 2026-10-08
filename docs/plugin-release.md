@@ -21,7 +21,7 @@ v<版本>/plugin-manifest.json  历史版本的清单（静态源没有「某一
 2. 打 tag（就是那个版本号）：`git tag v1.0.378 && git push origin v1.0.378`。
 3. 插件仓库的 `.github/workflows/plugin-release.yml` 接到 tag 后跑一次打包与上传：
    - 检出**插件仓库**（tag）与**客户端仓库**（钉一个 commit —— 打包实现只有客户端那一份，见下）；
-   - `node <客户端>/scripts/pack-plugin.js --repo-dir <插件仓库> --tag "$TAG" --dir plugins/mastergo-wpf-transcoder --out dist/plugin --upload "$TAG"`；
+   - `node <客户端>/scripts/pack-plugin.js --repo-dir <插件仓库> --tag "$TAG" --dir plugins/mastergo-wpf-transcoder --out dist/plugin --upload "$TAG" --notes "插件发布件 $TAG"`（建 Release 要给 `--notes`，没有会直接失败）；
    - 资产传到**插件仓库自己的 Release**：先传文件，清单最后传（清单先到而文件没到，客户端会下到 404）。
 
 打包脚本会拦两种「发出去也是废的」情况：tag 与 `plugin.json` 里声明的版本对不上、

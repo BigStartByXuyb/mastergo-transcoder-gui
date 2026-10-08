@@ -45,15 +45,19 @@ export function sourceViewFixture(value: UpdateStatus) {
   return sourceViewOf(value.source, value.hasToken)
 }
 
-/** 界面侧夹具用的默认发布源：与后端 lib/source.js 的内置默认一致（两份不能互相引，各自一处、口径一致）。 */
+/*
+ * 界面侧夹具用的两份默认发布源：与后端 lib/source.js 的两个内置默认一致
+ * （两份不能互相引，各自一处、口径一致）—— 程序更新＝客户端仓库，插件＝插件仓库。
+ */
 export const SOURCE_BASE = "https://github.com/BigStartByXuyb/mastergo-transcoder-gui"
+export const PLUGIN_SOURCE_BASE = "https://github.com/BigStartByXuyb/test"
 
-/** 发布源：程序更新与插件各有一项设置，形状一样（这条夹具给的是程序更新那条）。 */
-export function sourceFixture(base = SOURCE_BASE): UpdateSource {
+/** 发布源：程序更新与插件各有一项设置，形状一样、清单名不同（这条夹具给的是程序更新那条）。 */
+export function sourceFixture(base = SOURCE_BASE, manifest = "manifest.json"): UpdateSource {
   return {
     kind: "github",
     base: base,
-    manifestUrl: base + "/releases/latest/download/manifest.json",
+    manifestUrl: base + "/releases/latest/download/" + manifest,
     kinds: ["github", "gitlab", "static"]
   }
 }
@@ -90,8 +94,8 @@ export function pluginUpdateFixture(over: PluginUpdateOverrides = {}): PluginUpd
     error: null,
     task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
     busy: "",
-    // 插件从哪儿取：插件自己那一项设置（形状一样、清单名不同，默认是插件仓库）。
-    source: sourceFixture(),
+    // 插件从哪儿取：插件自己那一项设置（默认是插件仓库，清单名也换成插件那份）。
+    source: sourceFixture(PLUGIN_SOURCE_BASE, "plugin-manifest.json"),
     hasToken: false,
     ...over
   }
