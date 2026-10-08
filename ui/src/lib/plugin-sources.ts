@@ -81,17 +81,6 @@ export function pluginLookup(sources: PluginSource[]): PluginLookup {
   return { slots: slots, rows: rows }
 }
 
-export type PluginSlotState = "active" | "available" | "missing" | "same"
-
-/** 一档的处境：正在用 / 有 / 没有 / 与前面某一档是同一份（被并掉了）。 */
-export function slotState(slot: PluginSourceSlot): PluginSlotState {
-  if (slot.mergedInto) return "same"
-  if (slot.active) return "active"
-  return slot.exists ? "available" : "missing"
-}
-
-
-
 /** 这一行里有没有「客户端自带」那一档（它的管理入口与更新状态都挂在这一行上）。 */
 export function isInstallRow(row: Pick<PluginSourceRow, "members">): boolean {
   return row.members.includes(INSTALL_SLOT_ID)

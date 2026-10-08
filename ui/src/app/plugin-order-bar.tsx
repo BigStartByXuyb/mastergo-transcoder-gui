@@ -1,4 +1,4 @@
-import { slotState, type PluginSourceSlot } from "@/lib/plugin-sources"
+import type { PluginSourceSlot } from "@/lib/plugin-sources"
 import { sourceStatusText, sourceTone } from "@/app/plugin-source-facts"
 import { cn } from "@/lib/utils"
 
@@ -40,12 +40,12 @@ export function LookupOrder(props: { slots: PluginSourceSlot[]; onOpen: (rowId: 
   )
 }
 
-// 一档的处境：前三样（正在用 / 可用 / 没有）的措辞与表、面板的徽章读同一处（sourceStatusText）。
+// 一档的处境：前三样（正在用 / 可用 / 没有）的措辞与表、面板的徽章读同一处（sourceStatusText）；
+// 「与第 N 档同一份」这一种只有顺序条要说（它来自并进去的那一档的 mergedInto）。
 function SlotMark(props: { slot: PluginSourceSlot }) {
-  const state = slotState(props.slot)
-  if (state === "same") {
+  if (props.slot.mergedInto) {
     return <span className="text-muted-foreground">{`（与第 ${props.slot.mergedIntoOrder} 档同一份）`}</span>
   }
-  if (state === "active") return <span className="font-medium">{`（${sourceStatusText(true, true)}）`}</span>
-  return <span className="text-muted-foreground">{`（${sourceStatusText(false, state === "available")}）`}</span>
+  if (props.slot.active) return <span className="font-medium">{`（${sourceStatusText(true, props.slot.exists)}）`}</span>
+  return <span className="text-muted-foreground">{`（${sourceStatusText(false, props.slot.exists)}）`}</span>
 }

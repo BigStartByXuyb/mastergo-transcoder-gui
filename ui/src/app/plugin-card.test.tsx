@@ -174,10 +174,12 @@ describe("PluginCard", () => {
     render(<PluginCard />)
     await waitFor(() => expect(within(screen.getByRole("table")).getByText("Codex 插件缓存")).toBeTruthy())
 
-    // 客户端自带与 Codex 缓存指向同一个插件根：只列一行，后一档并进去写「同时来自」。
+    // 客户端自带与 Codex 缓存指向同一个插件根：七档只列出六行（后一档并进最先命中的那档）。
     const table = within(screen.getByRole("table"))
+    expect(screen.getAllByRole("row").length).toBe(7) // 表头 1 + 数据 6
     expect(table.getByText("同时来自：客户端自带")).toBeTruthy()
-    expect(table.queryByText("客户端自带", { selector: "span" })).toBeNull()
+    // 顺序条上那一档照旧列出来，标出它与第几档是同一份。
+    expect(await screen.findByText(/与第 3 档同一份/)).toBeTruthy()
   })
 
   it("自带那一行写着它自己的更新状态，点「管理…」开面板", async () => {

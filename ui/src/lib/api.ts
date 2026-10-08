@@ -8,14 +8,15 @@ export type PluginSummary = {
   engine: string
   engineExists: boolean
   runAllExists: boolean
-  /** 没装插件时后端给的原话：说清查过的那一处（插件只有客户端自带那一处）。 */
+  /** 一处都没找到时后端给的原话：逐条列出查过的位置和各自有没有。 */
   failure: string
 }
 
 /**
  * 插件来源的一条：查的路径、那里有没有、解析到哪一份、此刻是不是在用它。
  * 顺序与档位由后端 lib/plugin-root.js 一处给（--plugin → 环境变量 → Codex 缓存/市场 →
- * Claude 缓存/市场 → 客户端自带）。
+ * Claude 缓存/市场 → 客户端自带）；下面的 id / kind 取值是后端那七档的**同一套口径**
+ * （前后端各一份实现，改 lib/plugin-root.js 的 id/kind 时要同步改这里 —— 加档/改名都得两处一起）。
  */
 export type PluginSource = {
   id: "arg" | "env" | "codex-cache" | "codex-market" | "claude-cache" | "claude-market" | "install"
