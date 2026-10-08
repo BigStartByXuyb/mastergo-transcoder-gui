@@ -73,6 +73,11 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   取清单与建缓存两个构造器改调它，不再各写一遍 `typeof` 与各自的文案；取文件地址收进取清单那一套
   （`manifestFetch.fileUrl(版本, 哈希)`），调用方不再把已归一的源交回去归一；写发布源也走 `lineOf`
   （不直接索引 `LINES`）；凭据文件名只按已归一的字段名算，不再二次解析。
+- 再一轮复核收口（两条 + 一条非阻断）：取清单那一套同时给「某一版的清单地址」与「这条线的状态视图」
+  （`manifestFetch.manifestUrlOf(版本)`、`manifestFetch.describe()` 一次带出源描述、字段名与有没有凭据），
+  两条 `status()` 直接展开，前端那份接口形状不再两处各拼一遍，`lib/update.js` 也不再把已归一的源交回去；
+  `describeSource` 内部改用已归一的源拼地址。顺带堵住打包脚本的一个隐患：`--out` 这类路径参数没给值时
+  会变成「当前目录」，而打包那一步先删输出目录 —— 现在取值只有一处，给不出值当场回绝（用例钉住）。
 
 ### 点过的东西
 

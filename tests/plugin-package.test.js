@@ -122,6 +122,14 @@ function packInto(base) {
   assert.throws(function () {
     node([PACK, "--repo-dir", repo, "--dir", "plugins/" + pluginRoot.PLUGIN_NAME], { stdio: "pipe" });
   }, /--tag/, "没给 --tag 要报出来");
+
+  /*
+   * 路径参数后面没跟值：--out 拿到空串会变成「当前目录」，而打包那一步会先删掉输出目录 ——
+   * 这种写法必须在动手之前就回绝。
+   */
+  assert.throws(function () {
+    node([PACK, "--repo-dir", repo, "--tag", "v1.2.3", "--dir", "plugins/" + pluginRoot.PLUGIN_NAME, "--out"], { stdio: "pipe" });
+  }, /--out/, "参数没给值要报出来（不能当成当前目录）");
 }
 
 function main() {

@@ -46,16 +46,28 @@ function usage(message) {
   process.exit(2);
 }
 
+/*
+ * 取参数值：给不出值就直接回绝 —— --out 这类路径参数拿到空串会变成「当前目录」，
+ * 而打包那一步会先删掉输出目录。取值只有这一处，六个分支不再各写一遍 `|| ""`。
+ */
+function valueOf(argv, index, flag) {
+  const value = argv[index + 1];
+  if (typeof value === "undefined" || value === "" || value.startsWith("--")) {
+    usage("要给 " + flag + " 一个值（现在是：" + (typeof value === "undefined" ? "没给" : value) + "）。");
+  }
+  return value;
+}
+
 function parseArgs(argv) {
   const out = { repoDir: "", tag: "", dir: "", out: "dist", upload: "", notes: "" };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (arg === "--repo-dir") out.repoDir = String(argv[i + 1] || "");
-    else if (arg === "--tag") out.tag = String(argv[i + 1] || "").trim();
-    else if (arg === "--dir") out.dir = String(argv[i + 1] || "").trim();
-    else if (arg === "--out") out.out = String(argv[i + 1] || "");
-    else if (arg === "--upload") out.upload = String(argv[i + 1] || "");
-    else if (arg === "--notes") out.notes = String(argv[i + 1] || "");
+    if (arg === "--repo-dir") out.repoDir = valueOf(argv, i, arg);
+    else if (arg === "--tag") out.tag = valueOf(argv, i, arg).trim();
+    else if (arg === "--dir") out.dir = valueOf(argv, i, arg).trim();
+    else if (arg === "--out") out.out = valueOf(argv, i, arg);
+    else if (arg === "--upload") out.upload = valueOf(argv, i, arg);
+    else if (arg === "--notes") out.notes = valueOf(argv, i, arg);
     else usage("认不出的参数：" + arg);
     i += 1;
   }
