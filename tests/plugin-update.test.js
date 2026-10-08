@@ -18,6 +18,11 @@ const source = require("../lib/source.js");
 const { PLUGIN_MANIFEST_NAME, MANIFEST_NAME } = source;
 
 const BASE = source.DEFAULT_BASE;
+/*
+ * 装配处注入的那份「有没有凭据」的廉价判断（只看设置里记的标记，不解密）：生产由 server.js 注入，
+ * 用例里按「没有凭据」注入 —— 取清单那一套不留没注入就自己往下问的回落。
+ */
+const NO_TOKEN = function () { return false; };
 // 夹具里的相对路径一律用 / 拼（清单里的路径也是 / 分隔），免得平台差异混进用例。
 const MARKER = "skills/mastergo-to-wpf/SKILL.md";
 
@@ -116,7 +121,7 @@ async function main() {
     const remoteTree = makePlugin(path.join(sandbox(), "remote"), "1.0.2");
     const server = remote(remoteTree, "1.0.2");
     const installed = [];
-    const update = createPluginUpdate({
+    const update = createPluginUpdate({ hasToken: NO_TOKEN,
       home: home,
       pluginSource: { kind: "github", base: BASE },
       fetchImpl: server.fetchImpl,
@@ -169,7 +174,7 @@ async function main() {
       "lib/shared.js": "两边一模一样\n"
     });
     const server = remote(remoteTree, "1.0.2");
-    const update = createPluginUpdate({ home: home, pluginSource: { kind: "github", base: BASE }, fetchImpl: server.fetchImpl });
+    const update = createPluginUpdate({ hasToken: NO_TOKEN, home: home, pluginSource: { kind: "github", base: BASE }, fetchImpl: server.fetchImpl });
 
     const before = update.status();
     assert.strictEqual(before.local.version, "1.0.1");
@@ -203,7 +208,7 @@ async function main() {
     const server = remote(remoteTree, "2.0.0");
     // 其中一份内容远端回的字节与清单对不上：坏包必须被拒。
     server.corrupt("lib/core.js");
-    const update = createPluginUpdate({ home: home, pluginSource: { kind: "github", base: BASE }, fetchImpl: server.fetchImpl });
+    const update = createPluginUpdate({ hasToken: NO_TOKEN, home: home, pluginSource: { kind: "github", base: BASE }, fetchImpl: server.fetchImpl });
     await update.check();
     update.install();
     const done = await settle(update);
@@ -216,7 +221,7 @@ async function main() {
   // ---- 四、没检查过就点安装 / 远端没有插件清单 ----
   {
     const home = sandbox();
-    const update = createPluginUpdate({
+    const update = createPluginUpdate({ hasToken: NO_TOKEN,
       home: home,
       pluginSource: { kind: "github", base: BASE },
       fetchImpl: async function () { return { ok: false, status: 404 }; }
@@ -235,7 +240,7 @@ async function main() {
   // ---- 五、清单不是清单格式 ----
   {
     const home = sandbox();
-    const update = createPluginUpdate({
+    const update = createPluginUpdate({ hasToken: NO_TOKEN,
       home: home,
       pluginSource: { kind: "github", base: BASE },
       fetchImpl: async function () { return ok(JSON.stringify({ version: "1.0.0" })); }
@@ -249,7 +254,7 @@ async function main() {
     const home = sandbox();
     const remoteTree = makePlugin(path.join(sandbox(), "remote"), "3.0.0");
     const server = remote(remoteTree, "3.0.0");
-    const update = createPluginUpdate({
+    const update = createPluginUpdate({ hasToken: NO_TOKEN,
       home: home,
       pluginSource: { kind: "github", base: BASE },
       fetchImpl: server.fetchImpl,
@@ -268,7 +273,7 @@ async function main() {
     const byHash = new Map();
     for (const rel of Object.keys(files)) byHash.set(files[rel], fs.readFileSync(path.join(remoteTree, rel)));
     const seen = [];
-    const update = createPluginUpdate({
+    const update = createPluginUpdate({ hasToken: NO_TOKEN,
       home: home,
       pluginSource: { kind: "static", base: "http://10.0.0.9/updates" },
       token: "secret",
@@ -306,7 +311,7 @@ async function main() {
       path.join(installDir(home), STORE_LAYOUT.buildDir, BUILDING_PREFIX + "5.0.0-1"),
       "5.0.0"
     );
-    const update = createPluginUpdate({ home: home, pluginSource: { kind: "github", base: BASE }, fetchImpl: async function () { throw new Error("不该联网"); } });
+    const update = createPluginUpdate({ hasToken: NO_TOKEN, home: home, pluginSource: { kind: "github", base: BASE }, fetchImpl: async function () { throw new Error("不该联网"); } });
     assert.ok(fs.existsSync(path.join(leftover, MARKER)), "残骸确实是一棵像样的插件树");
     assert.deepStrictEqual(pluginRootsUnder(path.join(home, "plugins")), [], "插件定位一份都看不到");
     assert.strictEqual(update.status().local.version, "", "半成品不算本地那一份");
@@ -319,9 +324,9 @@ async function main() {
    */
   {
     assert.throws(function () {
-      createPluginUpdate({ home: sandbox() });
+      createPluginUpdate({ hasToken: NO_TOKEN, home: sandbox() });
     }, /pluginSource/, "不给源要说清楚缺什么");
-    const update = createPluginUpdate({
+    const update = createPluginUpdate({ hasToken: NO_TOKEN,
       home: sandbox(),
       pluginSource: function () { return { kind: "nonsense", base: "https://x/y" }; },
       fetchImpl: async function () { throw new Error("不该联网"); }
@@ -342,7 +347,7 @@ async function main() {
   {
     const home = sandbox();
     const remoteTree = makePlugin(path.join(sandbox(), "remote"), "1.0.9");
-    const first = createPluginUpdate({
+    const first = createPluginUpdate({ hasToken: NO_TOKEN,
       home: home,
       pluginSource: { kind: "github", base: BASE },
       fetchImpl: remote(remoteTree, "1.0.9").fetchImpl
@@ -350,7 +355,7 @@ async function main() {
     await first.check();
     assert.strictEqual(first.status().state, "update_available", "先按 A 源查一次，缓存里有 A 的结论");
 
-    const other = createPluginUpdate({
+    const other = createPluginUpdate({ hasToken: NO_TOKEN,
       home: home,
       pluginSource: { kind: "static", base: "http://10.0.0.9/updates" },
       fetchImpl: async function () { throw new Error("不该联网"); }
@@ -358,7 +363,7 @@ async function main() {
     assert.strictEqual(other.status().state, "unchecked", "换了源＝这个源还没问过");
     assert.strictEqual(other.status().available, null, "不拿别的源的结论顶");
 
-    const back = createPluginUpdate({
+    const back = createPluginUpdate({ hasToken: NO_TOKEN,
       home: home,
       pluginSource: { kind: "github", base: BASE },
       fetchImpl: async function () { throw new Error("不该联网"); }
@@ -394,6 +399,7 @@ async function main() {
       manifestName: PLUGIN_MANIFEST_NAME,
       source: { kind: "github", base: BASE },
       line: source.lineOf("pluginSource"),
+      hasToken: NO_TOKEN,
       fetchImpl: async function () { throw new Error("不该联网"); }
     });
     assert.strictEqual(
@@ -401,6 +407,14 @@ async function main() {
       BASE + "/releases/download/v1.0.377/" + PLUGIN_MANIFEST_NAME,
       "插件线按某一版取的是插件那份清单名"
     );
+    // 「有没有凭据」也必给：漏注入不能在轮询路径上退回「顺取值链问一次」（那会同步解密）。
+    assert.throws(function () {
+      createManifestFetch({
+        manifestName: PLUGIN_MANIFEST_NAME,
+        source: { kind: "github", base: BASE },
+        line: source.lineOf("pluginSource")
+      });
+    }, /hasToken/, "没给「有没有凭据」的判断要报出来");
   }
 
   console.log("plugin-update: 全部通过");

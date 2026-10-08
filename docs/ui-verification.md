@@ -96,6 +96,11 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - 再一轮复核收口（一条）：`docs/plugin-release.md` 的「发布件的形状」把 Release 资产与静态目录那套
   混成一块（按 `files/<sha256>` 铺静态源会取不到文件）→ 拆成两块：Release 的资产挂在这一版下面、
   静态目录那份集中在 `files/` 下并按 `v<版本>/` 取清单。
+- 再一轮复核收口（两条 + 一条非阻断）：取清单那一套的「有没有凭据」也并进「必给」口径（不留
+  「没注入就顺 token 取值链问一次」的回落 —— 那支会同步解密，而 `status()` 是每 15 秒轮询的口子；
+  用例统一注入一份廉价判断，缺了即抛有断言）；`lib/settings.js` 里「凭据文件存在且非空」的三处判断
+  抽成 `nonEmptyText(file)` 一处。顺带：`lib/recheck.js` 的两个入参（`isBusy` / `check`）也改成必给
+  —— 缺了会在每 10 分钟那次定时回调里抛未捕获的 `TypeError`。
 
 ### 点过的东西
 

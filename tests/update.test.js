@@ -12,11 +12,17 @@ const path = require("path");
 
 const { buildManifest } = require("../lib/app-manifest.js");
 const { createUpdate } = require("../lib/update.js");
+
 const { compareVersions } = require("../lib/versions.js");
 // 源类型名单只有 lib/source.js 一处（KINDS）：状态里给前端的就是它，用例按它断言。
 const sourceDefaults = require("../lib/source.js");
 // 程序更新这条线的源由装配处必给（与插件那条线同一条规矩）：用例统一注入内置默认那一份。
 const SOURCE = { kind: "github", base: sourceDefaults.DEFAULT_BASE };
+/*
+ * 装配处注入的那份「有没有凭据」的廉价判断（只看设置里记的标记，不解密）：生产由 server.js 注入，
+ * 用例里按「没有凭据」注入 —— 这个模块不留没注入就自己往下问的回落。
+ */
+const NO_TOKEN = function () { return false; };
 
 function makeTree(files) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-update-"));
@@ -106,7 +112,7 @@ async function main() {
 
   let busy = "";
   const server = remote(next, "0.2.0");
-  const update = createUpdate({ source: SOURCE, root: home, home: home, version: "0.1.0", fetchImpl: server.fetchImpl, isBusy: function () { return busy; } });
+  const update = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: home, home: home, version: "0.1.0", fetchImpl: server.fetchImpl, isBusy: function () { return busy; } });
 
   const initial = update.status();
   assert.strictEqual(initial.state, "up_to_date", "没查过又没缓存就是最新");
@@ -182,7 +188,7 @@ async function main() {
   assert.strictEqual(update.hint().state, "download_ready");
 
   // 本地已经是最新时不重复下载：这条分支不能因为判据改名而断掉。
-  const alreadyNew = createUpdate({ source: SOURCE, root: next, home: next, version: "0.2.0", fetchImpl: server.fetchImpl });
+  const alreadyNew = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: next, home: next, version: "0.2.0", fetchImpl: server.fetchImpl });
   await alreadyNew.check();
   const noop = await alreadyNew.stage("0.2.0");
   assert.strictEqual(noop.started, false);
@@ -207,7 +213,7 @@ async function main() {
     "lib/a.js": "a",
     "public/index.html": "html"
   });
-  const stageUpdate = createUpdate({ source: SOURCE,
+  const stageUpdate = createUpdate({ hasToken: NO_TOKEN, source: SOURCE,
     root: olderHome,
     home: olderHome,
     version: "0.2.0",
@@ -243,7 +249,7 @@ async function main() {
   // 外壳下限：清单要求比当前更高的客户端外壳时，下载与切换都拒。
   const gated = remote(next, "0.2.1", { minClientVersion: "9.9.9" });
   const gatedHome = makeTree({ "server.js": "旧客户端", "package.json": "{\"version\":\"0.1.0\"}" });
-  const gatedUpdate = createUpdate({ source: SOURCE, root: gatedHome, home: gatedHome, version: "0.1.0", fetchImpl: gated.fetchImpl });
+  const gatedUpdate = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: gatedHome, home: gatedHome, version: "0.1.0", fetchImpl: gated.fetchImpl });
   const gatedStatus = await gatedUpdate.check();
   assert.strictEqual(gatedStatus.state, "update_available");
   assert.strictEqual(gatedStatus.available.blocked.code, "CLIENT_TOO_OLD");
@@ -252,12 +258,12 @@ async function main() {
 
   // 远端没有这一版就下不了 / 没下过就点切换。
   const blank = makeTree({ "server.js": "空白", "package.json": "{\"version\":\"0.1.0\"}" });
-  const blankUpdate = createUpdate({ source: SOURCE, root: blank, home: blank, version: "0.1.0", fetchImpl: server.fetchImpl });
+  const blankUpdate = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: blank, home: blank, version: "0.1.0", fetchImpl: server.fetchImpl });
   await assert.rejects(function () { return blankUpdate.stage("9.9.9"); }, /远端没有 v9.9.9/);
   assert.throws(function () { blankUpdate.apply(); }, /还没有下载好的新版本/);
 
   // 联网失败：显式检查报 error，启动时的静默检查不打扰。
-  const offline = createUpdate({ source: SOURCE,
+  const offline = createUpdate({ hasToken: NO_TOKEN, source: SOURCE,
     root: blank,
     home: blank,
     version: "0.1.0",
@@ -289,7 +295,7 @@ async function main() {
     fs.writeFileSync(abs, rel === "package.json" ? "{\"version\":\"0.1.0\"}" : "old", "utf8");
   }
   const rootServer = remote(rootNewer, "0.2.0");
-  const rootUpdate = createUpdate({ source: SOURCE,
+  const rootUpdate = createUpdate({ hasToken: NO_TOKEN, source: SOURCE,
     root: rootNewer,
     home: rootNewer,
     version: "0.1.0",
@@ -317,7 +323,7 @@ async function main() {
    * 监督进程按指针把新的那一份拉起来之后（同一份 home，跑的是 0.2.0）：
    * 它既不该说「有新版」，也不该说「可切换到 0.2.0」——那是自己正在跑的版本，点下去只会得到 SAME_VERSION。
    */
-  const restarted = createUpdate({ source: SOURCE, root: rootNewer, home: rootNewer, version: "0.2.0", fetchImpl: rootServer.fetchImpl });
+  const restarted = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: rootNewer, home: rootNewer, version: "0.2.0", fetchImpl: rootServer.fetchImpl });
   assert.strictEqual(restarted.status().state, "up_to_date", "重启后设置页不再说可切换");
   assert.strictEqual(restarted.hint().state, "up_to_date", "探活快照同样不再说可切换");
   assert.strictEqual(restarted.hint().ready, "");
