@@ -78,6 +78,11 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   两条 `status()` 直接展开，前端那份接口形状不再两处各拼一遍，`lib/update.js` 也不再把已归一的源交回去；
   `describeSource` 内部改用已归一的源拼地址。顺带堵住打包脚本的一个隐患：`--out` 这类路径参数没给值时
   会变成「当前目录」，而打包那一步先删输出目录 —— 现在取值只有一处，给不出值当场回绝（用例钉住）。
+- 再一轮复核收口（三条 + 两条非阻断）：GitLab 通用包的包名原来写死成客户端仓库名（插件线配 GitLab 会永远
+  取不到自己的清单）→ 改成跟基址最后一段（用户填的那个项目名）走，`docs/plugin-release.md` 写明这条约定与
+  两条线各自的默认仓库；`createManifestFetch` 返回对象里已经没人调的 `hasToken` 删掉（`describe()` 已带这一格）；
+  前端 `UpdateSource` 上方两段叠在一起的注释合成一段。顺带：`pack-plugin.js` 的 `--out` 改成必给
+  （打包前会清空它，省略就等于删某个默认目录），设置层逐条读版本线改用 `source.lines()`。
 
 ### 点过的东西
 

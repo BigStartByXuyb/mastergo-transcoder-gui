@@ -41,7 +41,7 @@ function usage(message) {
   if (message) process.stderr.write(message + "\n");
   process.stderr.write(
     "用法：node scripts/pack-plugin.js --repo-dir <插件仓库的检出目录> --tag <tag> --dir <插件目录>\n" +
-    "      [--out dist/plugin] [--upload <tag> --notes <说明>]\n"
+    "      --out <发布件目录> [--upload <tag> --notes <说明>]\n"
   );
   process.exit(2);
 }
@@ -59,7 +59,7 @@ function valueOf(argv, index, flag) {
 }
 
 function parseArgs(argv) {
-  const out = { repoDir: "", tag: "", dir: "", out: "dist", upload: "", notes: "" };
+  const out = { repoDir: "", tag: "", dir: "", out: "", upload: "", notes: "" };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--repo-dir") out.repoDir = valueOf(argv, i, arg);
@@ -74,6 +74,8 @@ function parseArgs(argv) {
   if (!out.repoDir) usage("要给 --repo-dir：插件仓库的检出目录。");
   if (!out.tag) usage("要给 --tag：插件仓库里的那个 tag（版本号从它取）。");
   if (!out.dir) usage("要给 --dir：那个 tag 里插件所在的目录（形如 plugins/<插件名>）。");
+  // 输出目录必给：打包前会先删掉它，省略就落到一个默认目录上，删错地方比多打一个参数难查得多。
+  if (!out.out) usage("要给 --out：发布件落到哪个目录（打包前会先清空它）。");
   return out;
 }
 

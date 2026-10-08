@@ -130,6 +130,11 @@ function packInto(base) {
   assert.throws(function () {
     node([PACK, "--repo-dir", repo, "--tag", "v1.2.3", "--dir", "plugins/" + pluginRoot.PLUGIN_NAME, "--out"], { stdio: "pipe" });
   }, /--out/, "参数没给值要报出来（不能当成当前目录）");
+
+  // 输出目录必给：打包前会先清空它，省略就等于「删某个默认目录」，那是删错地方。
+  assert.throws(function () {
+    node([PACK, "--repo-dir", repo, "--tag", "v1.2.3", "--dir", "plugins/" + pluginRoot.PLUGIN_NAME], { stdio: "pipe" });
+  }, /--out/, "没给 --out 要报出来");
 }
 
 function main() {

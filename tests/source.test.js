@@ -128,6 +128,16 @@ function casePluginSource() {
     source.PLUGIN_DEFAULT_BASE + "/releases/latest/download/" + source.PLUGIN_MANIFEST_NAME,
     "插件那条线按插件仓库回落"
   );
+
+  /*
+   * GitLab 通用包的包名跟着基址（用户填的那个项目）走：两条线各有各的项目，
+   * 包名不再是写死的客户端仓库名 —— 插件线填自己的项目就拼自己那个包名。
+   */
+  assert.strictEqual(
+    source.assetUrl({ kind: "gitlab", base: "https://git.example.com/team/mastergo-wpf-transcoder" }, "1.0.377", source.PLUGIN_MANIFEST_NAME, PLUGIN),
+    "https://git.example.com/team/mastergo-wpf-transcoder/-/packages/generic/mastergo-wpf-transcoder/v1.0.377/" + source.PLUGIN_MANIFEST_NAME,
+    "插件线在 GitLab 上拼的是自己那个项目的包名"
+  );
 }
 
 // 归一必给：漏传直接说，不静默按客户端那条回落（那会让漏注入的插件线悄悄去客户端仓库取清单）。

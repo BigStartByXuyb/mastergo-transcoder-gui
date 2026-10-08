@@ -55,6 +55,7 @@ export const PLUGIN_SOURCE_BASE = "https://github.com/example/plugin-release"
 /**
  * 发布源：程序更新与插件各有一项设置，形状一样 —— 字段名（存哪一项）由调用方按这条线给，
  * 没有默认值：哪条线就说哪条线的字段名，不在这里留一个「默认是程序更新那条」。
+ * kinds 是接口给的取值（后端认哪几种由它说），夹具只按形状放一格，前端不据此校验。
  */
 export function sourceFixture(field: string, base = SOURCE_BASE, manifest = "manifest.json"): UpdateSource {
   return {
