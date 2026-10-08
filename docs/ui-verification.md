@@ -16,6 +16,51 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-10-08 插件页只留「客户端自带」那一份（删掉我指定的那一份 / 环境变量 / 两个缓存与市场）
+
+### 用户报的问题
+
+「这个插件的整个页面，我感觉做的都很不好……这个所谓我指定的那一份是什么意思」「这个功能和更新源，应该只属于客户端自带的这一栏吧」
+「不需要我指定的那一份这个列表，就一个客户端自带就可以了」「配置 github 和 gitlab 拉取最新的位置」找不到。
+
+### 查出来的
+
+- 插件定位原来是**八档查找顺序**（`--plugin` → 我指定的那一份 → `MASTERGO_PLUGIN_ROOT` → Codex 缓存/市场 →
+  Claude 缓存/市场 → 客户端自带），插件页把八档全列出来，还配一条顺序条 —— 用户只关心「现在用的是哪一份」。
+- 用户机器上「我指定的那一份」填的就是安装根下的 `plugins`，与「客户端自带」解析到**同一个插件根**：
+  那一档对他来说确实没有作用。
+- 8-08 那次「检查失败」是插件本身还是 2.3.6（发布线上已经 2.3.7）；「打开目录」没反应是那一档解析不到目录。
+
+### 改了什么
+
+- `lib/plugin-root.js`：来源收成一处 —— 客户端自带（安装根 `plugins/` 下，装了多版取最高版本）。
+  删掉 `pluginSources()` 的其余七档、`resolvePluginRoot` 的 `--plugin` 判据、`MASTERGO_PLUGIN_ROOT`、
+  `pluginHomes()` 里除安装根以外的目录。`pluginHomes` 与定位共用同一份判据。
+- `server.js` / `lib/plugin.js` / `lib/settings.js` / `lib/routes.js`：删掉 `--plugin` 启动参数、
+  设置项 `pluginRoot`、`/api/plugin/choose` 这条路由与运行时里的 `choose`；`HOME` 改成读
+  `lib/runtime.js` 的 `installRoot()`（安装根从哪来只有这一处）。
+- 界面：删掉顺序条、来源表、指定那一份那一行与它的两个动作、那一档的详情面板；
+  卡片只留一行事实（客户端自带 · 版本 · 状态 · 路径）+「更多」。点「更多」开的面板里是
+  版本 / 路径 / 这一处有几份 / 解析到哪一份、**更新来源**（GitHub / GitLab / 静态目录 + 「修改发布源」）、
+  状态与进度，以及打开目录 / 复制路径 / 检查更新 / 下载并安装。
+- 删除文件：`ui/src/lib/plugin-sources.ts`（判据收进后端）、`plugin-order-bar`、`plugin-chosen-row`、
+  `plugin-source-table`、`plugin-source-dialog` 与它们各自的用例；忙碌位表挪到 `ui/src/lib/plugin-busy.ts`。
+- CI：插件定位不再有「测试专用」的环境变量入口，共享 CI（`cicd` 仓库 desktop-app.yml）改成把插件夹具
+  **铺成客户端自带的那一份**（`<测试根>/plugins/mastergo-wpf-transcoder/`）再跑测试；`ci.yml` 的
+  `ci_ref` 跟着钉到新 commit。
+
+### 验收
+
+| 步 | 操作 | 预期 | 实测 |
+|---|---|---|---|
+| 1 | 更新 → 插件（流水线） | 只有一行：客户端自带 · v2.3.7 · 正在用 · 路径 · 「这一处有 3 份，用最高版本」；没有顺序条、没有「我指定的那一份」、没有缓存/市场那几行 | 通过 |
+| 2 | 点「更多」 | 面板：版本 v2.3.7 / 路径 / 解析到 `…\plugins\mastergo-wpf-transcoder\2.3.7` / 更新来源 GitHub + 修改发布源 / 打开目录 / 复制路径 / 检查更新 / 已是最新版 | 通过 |
+| 3 | 点「检查更新」 | 打到 `/api/plugin/update/check`，结论「是最新 v2.3.7」（与线上 `plugin-manifest.json` 一致） | 通过 |
+| 4 | 点「修改发布源」 | 开的是**插件这一半**的弹窗（标题「修改发布源 · 插件（流水线）」），地址预填 `https://github.com/BigStartByXuyb/test`，类型下拉含 GitHub / GitLab / 静态目录 | 通过 |
+| 5 | 点「打开目录」 | 打开安装根 `plugins`；失败时才出红字（实测无红字） | 通过 |
+| 6 | `GET /api/plugin/sources` | 一条：`install` / 客户端自带 / exists / active；响应里不再有 `chosen` | 通过 |
+| 全量门禁 | 后端 53 条 + 覆盖率门禁、前端 58 文件 342 条、`tsc`、oxlint | 通过 |
+
 ## 2026-10-08 安装根的「壳」跟着生效那一版对齐（让壳的改动能靠应用内更新到达）
 
 ### 用户报的问题

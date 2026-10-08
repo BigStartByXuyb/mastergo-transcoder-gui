@@ -18,10 +18,11 @@ permissions:
 
 jobs:
   ci:
-    # 取 main 上那一版：它在 195c1c6a（漏写标题不判 INVALID）之上又修了「证据写成行号区间」（#4）。
-    uses: BigStartByXuyb/cicd/.github/workflows/desktop-app.yml@bb03919d0b8e4c24f8c532b4c289758a98bdc4dc
+    # 取 main 上那一版：983… 这一版把「插件从哪一份跑」改成只认客户端自带那一份（铺到安装根 plugins/）
+    # —— 与客户端里 lib/plugin-root.js 的定位口径同一件事，测试依赖的夹具也按它铺。
+    uses: BigStartByXuyb/cicd/.github/workflows/desktop-app.yml@980f0ba93a4829f7c6879d0e548c879ddf919548
     with:
-      ci_ref: bb03919d0b8e4c24f8c532b4c289758a98bdc4dc
+      ci_ref: 980f0ba93a4829f7c6879d0e548c879ddf919548
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
