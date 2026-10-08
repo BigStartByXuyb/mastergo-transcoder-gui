@@ -172,7 +172,7 @@ const update = createUpdate({
   version: VERSION,
   isBusy: busyReason,
   // 源与 token 每次现取：设置里刚改完，「检查更新」立刻按新的走。有没有 token 走廉价判断，轮询不解密。
-  source: function () { return settings.read().source; },
+  source: function () { return settings.sourceOf("source"); },
   token: function () { return settings.readSourceToken(); },
   // 与插件那条线同一处判定（同一个形状，只是 field 不同）：有没有 token 不解密。
   hasToken: function () { return settings.hasSourceToken("source"); }
@@ -191,7 +191,7 @@ const pluginUpdate = createPluginUpdate({
    * 插件读的是**自己那一项设置**（local.json 的 pluginSource）：没配／配坏了回插件仓库；
    * 与程序更新那项（source）互不影响。默认值与拼法只有 lib/source.js 的 pluginSourceOf 一处。
    */
-  pluginSource: function () { return settings.pluginSource(); },
+  pluginSource: function () { return settings.sourceOf("pluginSource"); },
   // 凭据与源配套：插件这条线读插件那一份（不拿程序更新那条的 token 去请求另一个主机）。
   token: function () { return settings.readSourceToken("pluginSource"); },
   // 与程序更新同一种廉价判断（状态轮询那条路读的就是它）：有没有 token 不解密。

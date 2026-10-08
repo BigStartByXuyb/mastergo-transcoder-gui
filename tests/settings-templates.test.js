@@ -75,40 +75,40 @@ function caseActive() {
 function caseSource() {
   const home = tempHome(null);
   const settings = createSettings(home);
-  const initial = settings.read().source;
+  const initial = settings.sourceOf("source");
   assert.strictEqual(initial.kind, "github");
   assert.strictEqual(initial.base, sourceDefaults.DEFAULT_BASE);
-  assert.strictEqual(initial.hasToken, false);
+  assert.strictEqual(settings.hasSourceToken("source"), false);
   // 插件那条线有**自己那一项设置**：没配 → 插件仓库；改它不会动程序更新那条。
-  assert.strictEqual(settings.pluginSource().base, sourceDefaults.PLUGIN_DEFAULT_BASE, "没配＝插件仓库");
+  assert.strictEqual(settings.sourceOf("pluginSource").base, sourceDefaults.PLUGIN_DEFAULT_BASE, "没配＝插件仓库");
 
-  const saved = settings.write({
-    source: { kind: "gitlab", base: "https://git.example.com/team/repo/", token: "glpat-x" }
-  }).source;
+  settings.write({ source: { kind: "gitlab", base: "https://git.example.com/team/repo/", token: "glpat-x" } });
+  const saved = settings.sourceOf("source");
   assert.strictEqual(saved.kind, "gitlab");
   assert.strictEqual(saved.base, "https://git.example.com/team/repo", "末尾斜杠由 source.js 统一去掉");
-  assert.strictEqual(saved.hasToken, true);
+  assert.strictEqual(settings.hasSourceToken("source"), true);
   assert.strictEqual(
-    settings.pluginSource().base,
+    settings.sourceOf("pluginSource").base,
     sourceDefaults.PLUGIN_DEFAULT_BASE,
     "改程序更新那条源，插件那条不动（两条线各有各的源）"
   );
   assert.strictEqual(settings.readSourceToken(), "glpat-x", "token 解出来给更新模块用");
 
   // 不认识的类型 / 空基址：回落内置默认，不保留半份配置。
-  const broken = settings.write({ source: { kind: "svn", base: "https://x/y" } }).source;
+  settings.write({ source: { kind: "svn", base: "https://x/y" } });
+  const broken = settings.sourceOf("source");
   assert.strictEqual(broken.kind, "github");
   assert.strictEqual(broken.base, sourceDefaults.DEFAULT_BASE);
-  assert.strictEqual(settings.pluginSource().base, sourceDefaults.PLUGIN_DEFAULT_BASE, "坏配置＝没配，插件线回它自己的默认");
+  assert.strictEqual(settings.sourceOf("pluginSource").base, sourceDefaults.PLUGIN_DEFAULT_BASE, "坏配置＝没配，插件线回它自己的默认");
 
   settings.write({ source: { kind: "static", base: "http://10.0.0.9/updates", clearToken: true } }).source;
-  assert.strictEqual(settings.read().source.hasToken, false, "清掉 token 后不再算有");
+  assert.strictEqual(settings.hasSourceToken("source"), false, "清掉 token 后不再算有");
   assert.strictEqual(settings.readSourceToken(), "");
   // 插件那一项自己配：改动只落在它自己那一项上。
   settings.write({ pluginSource: { kind: "static", base: "http://10.0.0.8/plugin-updates" } });
-  assert.strictEqual(settings.pluginSource().base, "http://10.0.0.8/plugin-updates");
+  assert.strictEqual(settings.sourceOf("pluginSource").base, "http://10.0.0.8/plugin-updates");
   assert.strictEqual(
-    settings.read().source.base,
+    settings.sourceOf("source").base,
     "http://10.0.0.9/updates",
     "程序更新那条还是上一轮填的内网目录，没被插件那次改动带走"
   );
@@ -130,7 +130,7 @@ function caseSource() {
 
   // 配坏了：插件那条回它自己的默认。
   settings.write({ pluginSource: { kind: "svn", base: "https://x/y" } });
-  assert.strictEqual(settings.pluginSource().base, sourceDefaults.PLUGIN_DEFAULT_BASE, "插件源配坏了也回自己的默认");
+  assert.strictEqual(settings.sourceOf("pluginSource").base, sourceDefaults.PLUGIN_DEFAULT_BASE, "插件源配坏了也回自己的默认");
   fs.rmSync(home, { recursive: true, force: true });
 }
 

@@ -5,9 +5,6 @@
 // 跑法：node tests/source.test.js
 
 const assert = require("assert");
-const fs = require("fs");
-const path = require("path");
-
 const source = require("../lib/source.js");
 
 // 内置发布源只有 lib/source.js 一处（DEFAULT_BASE）：这里的期望值用它拼，不再各写一份字面量。
@@ -134,16 +131,6 @@ function casePluginSource() {
     "不传 normalize 还是客户端那份默认（老调用方不变）"
   );
 
-  /*
-   * 界面夹具里那两份默认基址是**前后端不能互引**的独立副本（界面那边 require 不到后端）：
-   * 用一条断言把口径钉住 —— 插件仓库改名 / 迁移时漏改一处，这里就红。
-   */
-  const fixtures = fs.readFileSync(path.join(__dirname, "..", "ui", "src", "lib", "settings-fixtures.ts"), "utf8");
-  assert.ok(fixtures.includes('SOURCE_BASE = "' + source.DEFAULT_BASE + '"'), "界面夹具的客户端默认源与后端一致");
-  assert.ok(
-    fixtures.includes('PLUGIN_SOURCE_BASE = "' + source.PLUGIN_DEFAULT_BASE + '"'),
-    "界面夹具的插件默认源与后端一致"
-  );
 }
 
 try {

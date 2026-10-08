@@ -46,11 +46,11 @@ export function sourceViewFixture(value: UpdateStatus) {
 }
 
 /*
- * 界面侧夹具用的两份默认发布源：与后端 lib/source.js 的两个内置默认一致
- * （两份不能互相引，各自一处、口径一致）—— 程序更新＝客户端仓库，插件＝插件仓库。
+ * 界面夹具用的两份发布源基址：**故意不是**产品那两个内置默认（它们只有后端 lib/source.js 一处；
+ * 前端 require 不到、也不该抄一份）。夹具只要形状像就行，地址是假的 —— 后端换默认不用动这里。
  */
-export const SOURCE_BASE = "https://github.com/BigStartByXuyb/mastergo-transcoder-gui"
-export const PLUGIN_SOURCE_BASE = "https://github.com/BigStartByXuyb/test"
+export const SOURCE_BASE = "https://github.com/example/client-release"
+export const PLUGIN_SOURCE_BASE = "https://github.com/example/plugin-release"
 
 /** 发布源：程序更新与插件各有一项设置，形状一样、清单名不同（这条夹具给的是程序更新那条）。 */
 export function sourceFixture(base = SOURCE_BASE, manifest = "manifest.json"): UpdateSource {
