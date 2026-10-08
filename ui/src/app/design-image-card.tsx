@@ -42,9 +42,13 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
     }
   }, [alive, projectRoot, target])
 
+  /*
+   * 任务每往前走一步（看板在轮询）就重读一次：画板尺寸来自第 2 步的快照，
+   * 挂载时那份快照可能还没有 —— 只读一次的话「DSL 画板」会一直是「还不知道」。
+   */
   useEffect(() => {
     void load()
-  }, [load])
+  }, [load, task.updatedAt, task.progress?.done])
 
   async function picked(file: File | undefined) {
     if (!file) return
