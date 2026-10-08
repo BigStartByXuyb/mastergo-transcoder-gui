@@ -132,15 +132,13 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
             className="hidden"
             onChange={(event) => void picked(event.target.files?.[0])}
           />
-          {/* 画板尺寸还不知道时不收（后端也按这条 fail-closed）：先让流水线跑到第 2 步。 */}
-          <Button size="sm" variant="outline" disabled={busy || !canvas} onClick={() => input.current?.click()}>
+          {/* 不能传时按后端给的 reason 显示并禁用（判据在后端，这里只渲染）。 */}
+          <Button size="sm" variant="outline" disabled={busy || Boolean(state?.blocked)} onClick={() => input.current?.click()}>
             {busy ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
             {image ? "换一张" : "选择位图…"}
           </Button>
           <span className="text-muted-foreground text-xs">
-            {canvas
-              ? "只接 PNG / JPEG；按设计稿原始尺寸导出（不是截图工具随手截的那一张）"
-              : "先让流水线跑到第 2 步（取数 + 固化快照），那时才知道图该多大"}
+            {state?.blocked || "按设计稿原始尺寸导出（不是截图工具随手截的那一张）"}
           </span>
         </div>
       </CardContent>

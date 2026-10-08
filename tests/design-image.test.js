@@ -72,6 +72,7 @@ function caseSaveAndRead() {
   assert.deepStrictEqual(before.canvas, { width: 1280, height: 1024 }, "画板尺寸取自 DSL 根节点");
   assert.strictEqual(before.groups.exists, false);
   assert.match(before.dir, /Generated[\\/]_inputs$/, "图该放的目录照实给出来");
+  assert.strictEqual(before.blocked, "", "画板尺寸读得出来就能传");
 
   const saved = upload(root, png(1280, 1024));
   assert.strictEqual(saved.matches, true, "尺寸与画板一致");
@@ -132,6 +133,7 @@ function caseNoSnapshot() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-nosnap-"));
   const state = designImage.read({ projectRoot: root, target: TARGET });
   assert.strictEqual(state.canvas, null);
+  assert.match(state.blocked, /先让流水线跑到第 2 步/, "不能传时把原因给界面照实显示");
   assert.throws(() => upload(root, png(640, 480)), (error) => {
     assert.strictEqual(error.code, "NO_CANVAS");
     assert.match(error.message, /还不知道这一页的画板尺寸/);

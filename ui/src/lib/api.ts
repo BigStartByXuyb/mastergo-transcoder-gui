@@ -160,6 +160,11 @@ export type DesignImage = {
   /** 图与画板尺寸是否一致（两边都读得出来时才有意义）。 */
   matches: boolean
   groups: { path: string; exists: boolean }
+  /**
+   * 现在不能传的原因（空串＝可以传）。判据在后端（save 在同一种情况下按同一句话拒收），
+   * 界面照原话显示并据此禁用按钮，不自己再判一遍。
+   */
+  blocked: string
 }
 
 export type ResolvedNode = {

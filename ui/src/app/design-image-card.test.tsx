@@ -52,6 +52,7 @@ function state(over: Partial<DesignImage> = {}): DesignImage {
     image: null,
     matches: false,
     groups: { path: INPUTS + "\\DemoPage.layout-groups.json", exists: false },
+    blocked: "",
     ...over
   }
 }
@@ -93,6 +94,14 @@ describe("DesignImageCard", () => {
     expect(screen.getByText(/还没有。传上来的话放到/)).toBeTruthy()
     expect(screen.getByText("还没有", { selector: "span" })).toBeTruthy()
     expect(screen.getByRole("button", { name: /选择位图/ })).toBeTruthy()
+  })
+
+  it("后端说现在不能传时：按它的原话显示并禁用按钮", async () => {
+    stub(state({ canvas: null, blocked: "先让流水线跑到第 2 步（取数 + 固化快照），那时才知道图该多大" }))
+    render(<DesignImageCard task={task()} />)
+
+    expect(await screen.findByText(/先让流水线跑到第 2 步/)).toBeTruthy()
+    expect(screen.getByRole("button", { name: /选择位图/ }).hasAttribute("disabled")).toBe(true)
   })
 
   it("有图且与画板一致、分组表也在：三格事实都标出来", async () => {
