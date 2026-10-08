@@ -13,14 +13,15 @@ export type PluginSummary = {
 }
 
 /**
- * 插件来源的一条。来源只有一处（客户端自带），所以这一条就是那一份：
- * 它在哪个目录、那儿解析到哪一份、此刻是不是在用它。
+ * 插件来源的一条：查的路径、那里有没有、解析到哪一份、此刻是不是在用它。
+ * 顺序与档位由后端 lib/plugin-root.js 一处给（--plugin → 环境变量 → Codex 缓存/市场 →
+ * Claude 缓存/市场 → 客户端自带）。
  */
 export type PluginSource = {
-  id: "install"
+  id: "arg" | "env" | "codex-cache" | "codex-market" | "claude-cache" | "claude-market" | "install"
   label: string
   path: string
-  kind: "install"
+  kind: "arg" | "env" | "agent" | "install"
   exists: boolean
   pluginRoot: string
   version: string

@@ -17,10 +17,11 @@
  *   node server.js --port 9000 --no-open
  *   node server.js --project D:\SomeProject         # 从工程目录自动发现页面帧（离线优先）
  *   node server.js --snapshot <dsl.snapshot.json>    # 完全离线：只用一份快照
+ *   node server.js --plugin <插件目录>               # 显式指定插件根（查找顺序第一档）
  *   node server.js --token mg_xxx                    # 缺省按 env、本机保存、~/.codex/config.toml 的顺序找
  *
- * 引擎一律来自插件，且只有一处来源：客户端自带那一份（安装根 plugins/ 下）。找不到就停，不用自带副本
- * （同一逻辑只有一个实现）。
+ * 引擎一律来自插件（查找顺序见 lib/plugin-root.js：--plugin → 环境变量 → Codex / Claude 缓存与市场 →
+ * 客户端自带），找不到就停，不用自带副本（同一逻辑只有一个实现）。
  */
 
 const fs = require("fs");
@@ -85,6 +86,7 @@ const options = {
   token: argValue("token", ""),
   project: argValue("project", ""),
   snapshot: argValue("snapshot", ""),
+  plugin: argValue("plugin", ""),
   open: argv.indexOf("--no-open") < 0
 };
 
@@ -150,10 +152,11 @@ const tokenSource = createTokenSource({
 const proxy = applyProxy();
 
 /*
- * 插件只有一处来源：客户端自带那一份（安装根 plugins/ 下）。
- * 没装也照常起服务 —— 插件页要把「装在哪儿」摆出来，人才知道去哪儿装。
+ * 插件按查找顺序现取：--plugin > 环境变量 > Codex / Claude 缓存与市场 > 客户端自带（安装根 plugins/ 下）。
+ * 一处都没有也照常起服务 —— 插件页要把「查过哪些路径」摆出来，人才知道去哪儿装。
  */
 const pluginRuntime = createPluginRuntime({
+  explicitDir: options.plugin,
   installRoot: HOME
 });
 const PLUGIN = pluginRuntime.current();
@@ -245,8 +248,8 @@ const codex = createCodex({
   home: HOME,
   settings: settings,
   isBusy: busyReason,
-  // 写盘防线要知道插件那一处在哪儿，不然「工程目录」填成插件本体就没人拦。
-  pluginHomes: createPluginHomes({ installRoot: HOME })
+  // 写盘防线要知道那几处插件地盘在哪，不然「工程目录」填成插件本体就没人拦。
+  pluginHomes: createPluginHomes({ pluginDir: options.plugin, installRoot: HOME })
 });
 // 运行时：客户端自带的 Node / PowerShell 7 与 claude 的检测结果，设置页的运行时卡片读它。
 const runtime = createRuntime({

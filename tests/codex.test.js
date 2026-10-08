@@ -514,24 +514,35 @@ async function main() {
   assert.throws(function () { fencedCodex.execArgs({ prompt: "x", write: true, projectRoot: pluginSub, confirmRoot: pluginSub }); }, /不能是插件目录/);
   assert.throws(function () { fencedCodex.execArgs({ prompt: "x", write: true, projectRoot: path.join(pluginHome, "..", path.basename(pluginHome)), confirmRoot: pluginHome }); }, /不能是插件目录/, "换个写法指向同一个目录也要拦");
 
-  // 插件地盘（客户端自带那一份所在的位置）同样在保护清单里：真清单、真判据走一遍。
-  const installRoot = fs.mkdtempSync(path.join(os.tmpdir(), "gui-install-root-"));
-  tempDirs.push(installRoot);
-  const installHome = path.join(installRoot, "plugins");
-  fs.mkdirSync(installHome, { recursive: true });
+  // 自定插件根（--plugin 指的那份）同样在保护清单里：真清单、真判据走一遍。
+  const customRoot = fs.mkdtempSync(path.join(os.tmpdir(), "gui-custom-plugin-"));
+  tempDirs.push(customRoot);
   // 与装配处（server.js）用同一个工厂拼这份清单：接线只有一处，测试验的就是它。
-  const byInstallRootCodex = makeCodex({
+  const byArgCodex = makeCodex({
     home: home,
     settings: fakeSettings(),
     env: cleanEnv(home),
     fetchImpl: remote.fetchImpl,
     spawnSyncImpl: probe(),
-    pluginHomes: createPluginHomes({ installRoot: installRoot })
+    pluginHomes: createPluginHomes({ env: cleanEnv(home), pluginDir: customRoot })
   });
   assert.throws(
-    function () { byInstallRootCodex.execArgs({ prompt: "x", write: true, projectRoot: installHome, confirmRoot: installHome }); },
+    function () { byArgCodex.execArgs({ prompt: "x", write: true, projectRoot: customRoot, confirmRoot: customRoot }); },
     /不能是插件目录/,
-    "插件那一处不能被当成工程目录"
+    "--plugin 指的那份不能被当成工程目录"
+  );
+  const byEnvCodex = makeCodex({
+    home: home,
+    settings: fakeSettings(),
+    env: Object.assign(cleanEnv(home), { MASTERGO_PLUGIN_ROOT: customRoot }),
+    fetchImpl: remote.fetchImpl,
+    spawnSyncImpl: probe(),
+    pluginHomes: createPluginHomes({ env: Object.assign(cleanEnv(home), { MASTERGO_PLUGIN_ROOT: customRoot }) })
+  });
+  assert.throws(
+    function () { byEnvCodex.execArgs({ prompt: "x", write: true, projectRoot: customRoot, confirmRoot: customRoot }); },
+    /不能是插件目录/,
+    "环境变量指的那份也不能被当成工程目录"
   );
 
   // 直接给了不可用的厂商名以外，配置缺项要能原样报出来。

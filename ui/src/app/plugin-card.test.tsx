@@ -6,35 +6,96 @@ import type { PluginSource, PluginSources, PluginUpdateStatus } from "@/lib/api"
 import { INSTALLED_ROOT, INSTALL_PARENT, PLUGIN_SOURCE_BASE, drive, pluginUpdateFixture } from "@/lib/settings-fixtures"
 
 /*
- * 插件页只有一处来源：客户端自带那一份。用例就照这一件事写 ——
- * 那一行说的是不是它、上面有没有多出别的档、管理入口里那些动作打到哪个接口。
+ * 插件页：查找顺序（后端给的那七档，界面不重排）+ 一张表（来源 / 版本 / 状态 / 路径 / 操作）。
+ * 这一页只读与查看 —— 没有「用这份」、也没有「我指定的那一份」（那一档已去掉）；
+ * 只有客户端自带那一份带管理面板（检查更新 / 下载并安装 / 更新来源）。
+ *
+ * 夹具路径按段拼（drive 在 settings-fixtures 里）：源码里不出现「盘符 + 反斜杠」那种机器专属写法。
  */
+const CODEX_CACHE = drive("C", "Users", "me", ".codex", "plugins", "cache")
+const CODEX_ROOT = drive("C", "Users", "me", ".codex", "plugins", "cache", "bigstart", "mastergo-wpf-transcoder", "1.0.369")
+const CLAUDE_CACHE = drive("C", "Users", "me", ".claude", "plugins", "cache")
+const CLAUDE_ROOT = drive("C", "Users", "me", ".claude", "plugins", "cache", "bigstart", "mastergo-wpf-transcoder")
+const ENV_DIR = drive("D", "old-plugin")
+const ENV_ROOT = drive("D", "mine", "mastergo-wpf-transcoder")
 
-/** 来源清单：一条，就是客户端自带那一份。传 over 覆盖它自己的几格。 */
-function view(over: Partial<PluginSource> = {}, failure = ""): PluginSources {
-  const row: PluginSource = {
-    id: "install",
-    label: "客户端自带",
-    path: INSTALL_PARENT,
-    kind: "install",
-    exists: true,
-    pluginRoot: INSTALLED_ROOT,
-    version: "1.0.369",
-    found: [INSTALLED_ROOT],
-    active: true,
+function source(id: PluginSource["id"], over: Partial<PluginSource> = {}): PluginSource {
+  return {
+    id: id,
+    label: id,
+    path: "p/" + id,
+    kind: "agent",
+    exists: false,
+    pluginRoot: "",
+    version: "",
+    found: [],
+    active: false,
     ...over
   }
+}
+
+/**
+ * 一台同时装着几份的机器：Codex 缓存（正在用）、Claude 缓存、环境变量指到别处、客户端自带；
+ * 启动参数那两档没设（照旧列出来，标「没有」）。响应按生产类型写：接口加字段这里就会被 tsc 拦下来。
+ */
+function view(options: { activeId?: string; failure?: string; sameRoot?: boolean } = {}): PluginSources {
+  const activeId = options.activeId ?? "codex-cache"
+  const installRoot = options.sameRoot ? CODEX_ROOT : INSTALLED_ROOT
+  const sources: PluginSource[] = [
+    source("arg", { label: "启动参数 --plugin", kind: "arg" }),
+    source("env", {
+      label: "环境变量 MASTERGO_PLUGIN_ROOT",
+      kind: "env",
+      path: ENV_DIR,
+      exists: true,
+      pluginRoot: ENV_ROOT,
+      version: "2.0.0",
+      found: [ENV_ROOT],
+      active: activeId === "env"
+    }),
+    source("codex-cache", {
+      label: "Codex 插件缓存",
+      path: CODEX_CACHE,
+      exists: true,
+      pluginRoot: CODEX_ROOT,
+      version: "1.0.369",
+      found: [CODEX_ROOT],
+      active: activeId === "codex-cache"
+    }),
+    source("codex-market", { label: "Codex 插件市场", path: drive("C", "Users", "me", ".codex", "plugins", "marketplaces") }),
+    source("claude-cache", {
+      label: "Claude 插件缓存",
+      path: CLAUDE_CACHE,
+      exists: true,
+      pluginRoot: CLAUDE_ROOT,
+      version: "1.0.245",
+      found: ["a", "b", "c", "d"],
+      active: activeId === "claude-cache"
+    }),
+    source("claude-market", { label: "Claude 插件市场", path: drive("C", "Users", "me", ".claude", "plugins", "marketplaces") }),
+    source("install", {
+      label: "客户端自带",
+      kind: "install",
+      path: INSTALL_PARENT,
+      exists: true,
+      pluginRoot: installRoot,
+      version: "1.0.369",
+      found: [installRoot],
+      active: activeId === "install"
+    })
+  ]
+  const active = sources.find((item) => item.active)
   return {
     ok: true,
     plugin: {
-      root: row.exists ? row.pluginRoot : "",
-      version: row.exists ? row.version : "",
+      root: active ? active.pluginRoot : "",
+      version: active ? active.version : "",
       engine: drive("D", "app", "lib", "node-controls.js"),
       engineExists: true,
       runAllExists: true,
-      failure: failure
+      failure: options.failure ?? ""
     },
-    sources: [row]
+    sources: sources
   }
 }
 
@@ -66,9 +127,7 @@ function stub(
       hooks.onInstall?.()
       if (hooks.installResponse) return hooks.installResponse
       const status = pluginUpdateFixture({ task: { phase: "done", done: 3, total: 3, downloaded: 3, error: null } })
-      return Promise.resolve(
-        new Response(JSON.stringify({ ok: true, started: true, version: "1.0.372", note: "", status }), { status: 200 })
-      )
+      return Promise.resolve(new Response(JSON.stringify({ ok: true, started: true, version: "1.0.372", note: "", status }), { status: 200 }))
     }
     if (url.includes("/api/system/open-folder")) {
       hooks.onOpenFolder?.(body)
@@ -78,141 +137,112 @@ function stub(
   })
 }
 
-/** 远端有新版、本机还没装的那一格：按钮上写的就是「下载并安装」（口径在 lib/plugin-install）。 */
-function notInstalledYet(over: Partial<PluginUpdateStatus> = {}): PluginUpdateStatus {
-  return pluginUpdateFixture({
-    state: "update_available",
-    local: { version: "", dir: "" },
-    available: { version: "1.0.372", tag: "v1.0.372", releasedAt: "", changed: 2, removed: 0, total: 12, checkedAt: "" },
-    ...over
-  })
-}
-
 afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-/** 点开「更多」，返回面板（面板里的断言都在它里面找）。 */
-async function openDetail() {
-  fireEvent.click(await screen.findByRole("button", { name: "更多" }))
+/** 点开某一行（表里那一行的「详情…／管理…」）。 */
+async function openRow(name: string, action: string) {
+  const table = within(await screen.findByRole("table"))
+  const row = table.getByText(name).closest("tr") as HTMLElement
+  fireEvent.click(within(row).getByRole("button", { name: action }))
   return await screen.findByRole("dialog")
 }
 
 describe("PluginCard", () => {
-  it("只列客户端自带那一份：来源 / 版本 / 状态 / 路径一行看完", async () => {
+  it("一张表列全部档位：顺序来自后端，正在用的只标一处", async () => {
     stub(view())
     render(<PluginCard />)
+    await waitFor(() => expect(within(screen.getByRole("table")).getByText("Codex 插件缓存")).toBeTruthy())
 
-    expect(await screen.findByText("客户端自带")).toBeTruthy()
-    expect(screen.getByText("v1.0.369")).toBeTruthy()
-    expect(screen.getByText("正在用")).toBeTruthy()
-    expect(screen.getByText(INSTALL_PARENT)).toBeTruthy()
-    // 只保留一处来源：别的档（我指定的那一份 / 环境变量 / 两个缓存）都不再出现在这一页。
+    const table = within(screen.getByRole("table"))
+    // 七档都在同一张表里，没设的那两档也列出来（标「没有」）。
+    expect(table.getByText("启动参数 --plugin")).toBeTruthy()
+    expect(table.getByText("环境变量 MASTERGO_PLUGIN_ROOT")).toBeTruthy()
+    expect(table.getByText("Codex 插件市场")).toBeTruthy()
+    expect(table.getByText("Claude 插件缓存")).toBeTruthy()
+    expect(table.getByText("Claude 插件市场")).toBeTruthy()
+    expect(table.getByText("客户端自带")).toBeTruthy()
+    expect(screen.getAllByText("正在用").length).toBe(1)
+    // 「我指定的那一份」那一档已去掉：页面里不该再出现它，也不该有「用这份」。
     expect(screen.queryByText(/我指定的那一份/)).toBeNull()
-    expect(screen.queryByText(/环境变量/)).toBeNull()
-    expect(screen.queryByText(/插件缓存/)).toBeNull()
-    expect(screen.queryByText(/插件市场/)).toBeNull()
-    expect(screen.queryByText(/查找顺序/)).toBeNull()
+    expect(screen.queryByText("用这份")).toBeNull()
   })
 
-  it("这一处装了几份时写出「用最高版本」", async () => {
-    const older = drive("D", "app", "plugins", "mastergo-wpf-transcoder", "1.0.368")
-    stub(view({ found: [INSTALLED_ROOT, older] }))
+  it("顺序条把每一档的处境写出来，同一份插件只算一次", async () => {
+    stub(view({ sameRoot: true }))
     render(<PluginCard />)
+    await waitFor(() => expect(within(screen.getByRole("table")).getByText("Codex 插件缓存")).toBeTruthy())
 
-    expect(await screen.findByText("这一处有 2 份，用最高版本")).toBeTruthy()
+    // 客户端自带与 Codex 缓存指向同一个插件根：只列一行，后一档并进去写「同时来自」。
+    const table = within(screen.getByRole("table"))
+    expect(table.getByText("同时来自：客户端自带")).toBeTruthy()
+    expect(table.queryByText("客户端自带", { selector: "span" })).toBeNull()
   })
 
-  it("一份都没装时：说清「没装插件」并把后端那句原话显示出来", async () => {
-    stub(
-      view({ exists: false, pluginRoot: "", version: "", found: [], active: false }, "找不到 mastergo-wpf-transcoder 插件。\n已查找：" + INSTALL_PARENT + "（没有）")
-    )
+  it("自带那一行写着它自己的更新状态，点「管理…」开面板", async () => {
+    stub(view({ activeId: "install" }))
     render(<PluginCard />)
+    const dialog = await openRow("客户端自带", "管理…")
 
-    expect(await screen.findByText("没装插件")).toBeTruthy()
-    expect(screen.getByText(/已查找/)).toBeTruthy()
-    // 没装就没有可打开的详情：那颗「更多」不给点。
-    expect(screen.getByRole("button", { name: "更多" }).hasAttribute("disabled")).toBe(true)
+    expect(within(dialog).getByText("客户端自带")).toBeTruthy()
+    expect(within(dialog).getByText("修改发布源")).toBeTruthy()
+    expect(within(dialog).getByRole("button", { name: /已是最新版|下载并安装|更新到/ })).toBeTruthy()
   })
 
-  it("「更多」开的面板里有更新来源那一行，点「修改发布源」开的是插件这一半的弹窗", async () => {
+  it("点别的行开的是详情：只读信息，不给「用这份」", async () => {
     stub(view())
     render(<PluginCard />)
-    const dialog = await openDetail()
+    const dialog = await openRow("环境变量 MASTERGO_PLUGIN_ROOT", "详情…")
 
-    expect(within(dialog).getByText("修改发布源")).toBeTruthy()
+    expect(within(dialog).getByText(/这一档归|系统环境变量给的那一份/)).toBeTruthy()
+    expect(within(dialog).getByText(/解析到：/)).toBeTruthy()
+    expect(within(dialog).queryByText("用这份")).toBeNull()
+    expect(within(dialog).queryByText("检查更新")).toBeNull()
+  })
+
+  it("一处都没找到时把后端列出来的已查找路径原样显示", async () => {
+    const missing = drive("C", "a")
+    stub(view({ failure: "找不到 mastergo-wpf-transcoder 插件。\n已查找：" + missing + "（没有）" }))
+    render(<PluginCard />)
+
+    expect(await screen.findByText("没找到插件")).toBeTruthy()
+    expect(screen.getByText(new RegExp("已查找：" + missing.replace(/\\/g, "\\\\") + "（没有）"))).toBeTruthy()
+  })
+
+  it("「更新来源」在自带那一行的管理面板里，点「修改发布源」开的是插件这一半的弹窗", async () => {
+    stub(view({ activeId: "install" }))
+    render(<PluginCard />)
+    const dialog = await openRow("客户端自带", "管理…")
     fireEvent.click(within(dialog).getByRole("button", { name: "修改发布源" }))
 
-    /*
-     * 开的是插件这一半的弹窗：标题写「插件（流水线）」，地址栏预填的是插件那条发布源。
-     * （两个弹窗叠着时上层会把下层标成 aria-hidden，所以这里只查当前可见的那一个。）
-     */
+    // 地址栏预填的是插件那条发布源（插件自己那一项设置）。
     await waitFor(() => expect(screen.getByDisplayValue(PLUGIN_SOURCE_BASE)).toBeTruthy())
     expect(screen.getAllByText(/插件（流水线）/).length).toBeGreaterThan(0)
   })
 
-  it("面板里的「检查更新」与「下载并安装」分别打到对应接口", async () => {
+  it("「检查更新」在自带那一行的管理面板里，打到插件那条接口", async () => {
     const calls: string[] = []
-    stub(view(), { onRequest: (url) => calls.push(url), update: notInstalledYet() })
+    stub(view({ activeId: "install" }), { onRequest: (url) => calls.push(url) })
     render(<PluginCard />)
-    const dialog = await openDetail()
+    const dialog = await openRow("客户端自带", "管理…")
 
     fireEvent.click(within(dialog).getByRole("button", { name: "检查更新" }))
     await waitFor(() => expect(calls.some((url) => url.includes("/api/plugin/update/check"))).toBe(true))
-
-    fireEvent.click(within(dialog).getByRole("button", { name: /下载并安装/ }))
-    await waitFor(() => expect(calls.some((url) => url.includes("/api/plugin/update/install"))).toBe(true))
   })
 
-  it("面板里的「打开目录」打到系统打开目录那个接口，路径就是这一处", async () => {
-    let opened: unknown = null
-    stub(view(), { onOpenFolder: (body) => (opened = body) })
+  it("正在传时，自带那一行的管理面板里「检查更新」与「下载并安装」都不给点", async () => {
+    stub(view({ activeId: "install" }), {
+      update: pluginUpdateFixture({
+        state: "update_available",
+        available: { version: "1.0.372", tag: "v1.0.372", releasedAt: "", changed: 2, removed: 0, total: 12, checkedAt: "" },
+        task: { phase: "downloading", done: 1, total: 3, downloaded: 1, error: null }
+      })
+    })
     render(<PluginCard />)
-    const dialog = await openDetail()
-
-    fireEvent.click(within(dialog).getByRole("button", { name: "打开目录" }))
-    await waitFor(() => expect(opened).toMatchObject({ path: INSTALL_PARENT }))
-  })
-
-  it("没装插件时面板里不给「打开目录」（那里没有目录可开）", async () => {
-    stub(view({ exists: false, pluginRoot: "", version: "", found: [], active: false }))
-    render(<PluginCard />)
-    // 「更多」在没装时禁用，这里直接按「已经开过面板」的那条路断言：面板里不该有这颗按钮。
-    expect(screen.queryByRole("button", { name: "打开目录" })).toBeNull()
-  })
-
-  it("装插件在跑时：只有「下载并安装」转圈，同一面板里的「检查更新」不跟着转", async () => {
-    let release: (value: Response) => void = () => undefined
-    const pending = new Promise<Response>((resolve) => (release = resolve))
-    stub(view(), { installResponse: pending, update: notInstalledYet() })
-    render(<PluginCard />)
-    const dialog = await openDetail()
-
-    fireEvent.click(within(dialog).getByRole("button", { name: /下载并安装/ }))
-
-    await waitFor(() => expect(screen.getByRole("button", { name: /下载并安装/ })).toBeTruthy())
-    // 「检查更新」那颗不该进忙碌态（忙碌位是两个动作各自的 key，不合成一个）。
-    expect(screen.getByRole("button", { name: "检查更新" })).toBeTruthy()
-    release(
-      new Response(
-        JSON.stringify({
-          ok: true,
-          started: true,
-          version: "1.0.372",
-          note: "",
-          status: pluginUpdateFixture({ task: { phase: "done", done: 3, total: 3, downloaded: 3, error: null } })
-        }),
-        { status: 200 }
-      )
-    )
-  })
-
-  it("正在传时，「检查更新」与「下载并安装」都不给点", async () => {
-    stub(view(), { update: notInstalledYet({ task: { phase: "downloading", done: 1, total: 3, downloaded: 1, error: null } }) })
-    render(<PluginCard />)
-    const dialog = await openDetail()
+    const dialog = await openRow("客户端自带", "管理…")
 
     expect(within(dialog).getByRole("button", { name: "检查更新" }).hasAttribute("disabled")).toBe(true)
-    expect(within(dialog).getByRole("button", { name: /下载并安装/ }).hasAttribute("disabled")).toBe(true)
+    expect(within(dialog).getByRole("button", { name: /更新到 v1.0.372/ }).hasAttribute("disabled")).toBe(true)
   })
 })

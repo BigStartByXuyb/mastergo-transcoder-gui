@@ -15,8 +15,8 @@ const { resolvePluginRoot } = require("../lib/plugin-root.js");
 const { readPluginInfo } = require("../lib/plugin.js");
 const { installRoot } = require("../lib/runtime.js");
 
-// 插件只有一处来源：客户端自带那一份（安装根 plugins/ 下）。CI 会把插件铺到那儿再跑这一条。
-const root = resolvePluginRoot({ installRoot: installRoot() });
+// 按查找顺序定位（第一档是 --plugin，这里不传）；CI 会把插件铺成客户端自带那一份再跑这一条。
+const root = resolvePluginRoot("", { installRoot: installRoot() });
 const mapping = createMapping({ plugin: readPluginInfo(root) }).read();
 console.log("插件：" + root.replace(/\\/g, "/") + "（v" + mapping.pluginVersion + "）");
 

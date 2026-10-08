@@ -18,6 +18,43 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-10-08 插件查找顺序改回来（只去掉「我指定的那一份」）
+
+### 用户报的问题
+
+「不需要的只有那个我指定的，那个栏目的内容，那个完全没用，那个和客户端自带的完全一样，但是其他的几个，都是可以继续保留的呀」
+—— 上一版把整条查找顺序都收成了「客户端自带」一处，收过头了。
+
+### 改了什么
+
+- `lib/plugin-root.js`：查找顺序改回七档（`--plugin` → `MASTERGO_PLUGIN_ROOT` → Codex 缓存/市场 →
+  Claude 缓存/市场 → 客户端自带）；只去掉「插件页上我指定的那一份」那一档（连同设置项 `pluginRoot`、
+  `/api/plugin/choose`、`lib/plugin.js` 的 `choose`/`chosen`）。写盘防线 `pluginHomes()` 与定位共用这一份，
+  并保留「客户端自带那一份所在的目录也在地盘里」。
+- `server.js`：`--plugin` 参数与 `pluginHomes({pluginDir, installRoot})` 接回来。
+- 界面：顺序条（`LookupOrder`）与来源表（`PluginSourceTable`）接回来，每行给「详情…／管理…」；
+  **不给「用这份」、也不给「指定一个目录…」**（那是「我指定的那一份」那一档的动作），所以
+  `plugin-chosen-row.tsx`、`ChooseSourceButton` 与 `canChooseThis/choosePathOf/chooseKeyOf` 不再存在。
+- 用例：`tests/plugin-sources.test.js`（七档顺序、同一根只标一条）、`tests/edges.test.js`（地盘清单）、
+  `tests/codex.test.js`（`--plugin` 与环境变量指的那份都要被写盘防线拦住）、`tests/mapping.test.js`（按新签名定位）、
+  `ui/src/app/plugin-card.test.tsx`（七档、只读、管理面板）。
+
+### 验收
+
+| 步 | 操作 | 预期 | 实测 |
+|---|---|---|---|
+| 1 | `pluginSources()`（本机真实环境） | 七档：`--plugin`（没有）/ 环境变量（没有）/ Codex 缓存（1.0.371）/ Codex 市场（没有）/ Claude 缓存（1.0.245）/ Claude 市场（1.0.245）/ 客户端自带（2.3.7） | 通过 |
+| 2 | 打开 设置 → 更新 → 插件（流水线） | 顺序条七档 + 表七行；「正在用」只标一处；没有「我指定的那一份」、没有「用这份」 | 通过（截图 `output/playwright/plugin-page-063.png`） |
+| 3 | 点「客户端自带」那一行的「管理…」 | 面板：版本 / 路径 / 解析到哪一份 / 更新来源（可改）/ 打开目录 / 复制路径 / 检查更新 / 下载并安装 | 通过 |
+| 4 | 点别的行的「详情…」 | 只读：版本 / 路径 / 这一处有几份 / 解析到哪一份，没有「用这份」 | 通过 |
+| 全量门禁 | 后端 54 条 + 覆盖率、前端 60 文件 350 条、`tsc`、oxlint、`check-app-structure.mjs` | 通过 |
+
+### 这台机器上要留意的实测结论
+
+按七档顺序定位，本机生效的是 **Codex 缓存里的 1.0.371**（不是客户端自带的 2.3.7）—— 这正是之前
+「插件更新了但界面只检测到 371」的原因。要让它用客户端自带那份，只能在前两档指过去
+（`--plugin` 或 `MASTERGO_PLUGIN_ROOT`），或把 Codex 缓存里那份装/删成想要的样子。
+
 ## 2026-10-08 作业A 的设计稿位图能在界面上传了（读图那条开关的入口）
 
 ### 需求
