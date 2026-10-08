@@ -33,8 +33,8 @@ function main() {
   /*
    * 默认基址与地址拼法都取 lib/source.js 那一处：清单里的包地址跟客户端自己下载用的是同一套规则。
    * 源类型也要跟着换 —— GitHub 的 release 路径与 GitLab 的通用包路径不是一种形状；
-   * 类型不认识、或基址不合法，都要直说：normalizeSource 会回落成内置的公网源，
-   * 回落了就变成「清单悄悄指到 GitHub」，比报错难查得多。
+   * 类型不认识、或基址不合法，都要直说：这里用 parseSource（不回落）——
+   * 一旦悄悄回落成内置的公网源，就变成「清单指到 GitHub」，比报错难查得多。
    */
   const kind = String(argValue("kind", "github"));
   if (!source.KINDS.includes(kind)) throw new Error("不认识的源类型：" + kind + "（可用：" + source.KINDS.join(" / ") + "）");
@@ -42,13 +42,15 @@ function main() {
   // parseSource 不回落：类型认识、基址合法才给结果；否则宁可报错，也不要一份悄悄指到别处的清单。
   const normalized = source.parseSource({ kind: kind, base: wantedBase });
   if (!normalized) throw new Error("基址不合法（要 http/https）：" + wantedBase);
+  // 清单里的包地址是客户端自己那条线：坏配置回哪份默认按按线表取（拼地址的入口必给这一条）。
+  const line = source.lineOf("source");
   const id = String(argValue("id", winget.DEFAULT_ID));
   const outDir = path.resolve(ROOT, argValue("out", path.join("dist", "winget")));
   // 标识、版本、包地址、哈希、包内目录 —— 清单要说的就这五样，装配在 lib 一处（内网源那份同源）。
   const facts = versionFacts({
     id: id,
     zip: argValue("zip", ""),
-    urlOf: (info) => source.assetUrl(normalized, info.version, info.folder + ".zip")
+    urlOf: (info) => source.assetUrl(normalized, info.version, info.folder + ".zip", line)
   });
 
   fs.rmSync(outDir, { recursive: true, force: true });

@@ -49,7 +49,7 @@ export type PluginUpdateStatus = {
   /** 有任务在跑时不能装（装完就可能换掉生效的那一份）；空串＝空闲，界面据此提示并禁用。 */
   busy: string
   /**
-   * 这一份插件从哪儿取：与程序更新同一处设置、同一份拼法（后端 lib/source.js），只是清单名不同。
+   * 这一份插件从哪儿取：插件自己那一项设置（没配＝插件仓库），拼法与程序更新同用后端 lib/source.js。
    * 插件页的「更新来源」那一行照实显示它。
    */
   source: UpdateSource
@@ -92,9 +92,10 @@ export type PluginAvailable = {
 /**
  * 现在从哪儿取清单：类型、基址、拼出来的清单地址（界面照实显示，不让用户自己拼），
  * 以及后端认哪几种源类型 —— 下拉照 kinds 渲染，不在前端另抄一份校验名单。
+ * field 是这条线自己那一项设置的字段名（改发布源就存到这一项）。
  * 程序更新与插件那一半显示的是同一种东西，所以只有这一个类型。
  */
-export type UpdateSource = { kind: string; base: string; manifestUrl: string; kinds: string[] }
+export type UpdateSource = { kind: string; base: string; manifestUrl: string; kinds: string[]; field: string }
 
 export type FrameEntry = {
   fileId: string
@@ -115,7 +116,7 @@ export type Health = {
   update: UpdateHint
 }
 
-/** /api/health 带回来的新版状态：state 与设置页的更新四态同一套口径。 */
+/** /api/health 带回来的新版状态：state 与设置页的更新五态同一套口径。 */
 export type UpdateHint = {
   state: string
   /** 正在跑的版本：确认弹窗要说清是升级还是回退。 */
@@ -653,7 +654,7 @@ export type UpdateAvailable = {
 }
 
 export type UpdateStatus = {
-  state: "up_to_date" | "update_available" | "download_ready" | "error"
+  state: "unchecked" | "up_to_date" | "update_available" | "download_ready" | "error"
   current: string
   /** 现在这一版能做什么。 */
   currentNotes: string[]
@@ -677,7 +678,10 @@ export type UpdateStatus = {
   available: UpdateAvailable | null
   error: UpdateFailure | null
   task: UpdateTask
-  /** 现在从哪儿取清单（与插件那一半是同一个类型、同一个来源）。 */
+  /**
+   * 程序更新这条线现在从哪儿取清单：与插件那一半是同一个类型、同一处拼法，
+   * 但各读自己那一项设置（本字段里的 field 就是这一项的名字）。
+   */
   source: UpdateSource
   /** 私有源存没存 token（值本身不出后端）。 */
   hasToken: boolean

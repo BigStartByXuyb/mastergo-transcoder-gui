@@ -128,11 +128,13 @@ lib/launch.js       读 current.json，判断那一份能不能跑
 插件页就是这个顺序本身：上面一条顺序（八档，没设的也列出来），下面一张表（来源 / 版本 / 状态 / 路径 / 操作；
 同一份插件只列一行），点某一行开它的详情，点「客户端自带」那一行开它的管理（检查更新 / 下载并安装 / 进度）。
 「从哪儿取」这件事只属于「客户端自带」那一份，所以它也在那个管理面板里：**更新来源**（类型 / 地址 /
-修改发布源，与程序更新是**同一处设置**：公网 GitHub、公司 GitLab、内网静态目录都行，改一处两边都按新的走）。
+修改发布源，弹窗与程序更新同一个、存的是**插件那一项设置**：公网 GitHub、公司 GitLab、内网静态目录都行；
+程序更新那条另有自己的一项，改一条不会动另一条）。
 
 「客户端自带」那一份不用先装 Codex / Claude：设置 → 更新 → 插件（流水线）里它的「管理…」里点「下载并安装」，
-客户端按发布件里的 `plugin-manifest.json`（与客户端本体同一套协议：一份清单 + 按 sha256 取文件）
-下到 `<安装根>\plugins\mastergo-wpf-transcoder\<插件版本>\`。查找顺序里它排在缓存/市场之后，
+客户端按插件自己的发布件取（`plugin-manifest.json`，与客户端本体同一套协议：一份清单 + 按 sha256 取文件）——
+插件在它自己的仓库打 tag 时发这份发布件，客户端不再随发布件钉一版插件。装到
+`<安装根>\plugins\mastergo-wpf-transcoder\<插件版本>\`。查找顺序里它排在缓存/市场之后，
 装完在插件页点那一行的「用这份」才换过去（那几处都没有插件时，装完就是它生效）。
 
 插件内需要：
@@ -204,7 +206,9 @@ React 挂载前的那一下由 `ui/index.html` 里的静态占位顶上（直接
 
 ## 程序更新
 
-版本线只有客户端自己这一条，远端是 GitHub Releases（公开仓库，不需要自建服务端）。
+本仓库这条版本线只管**客户端本体**，远端是 GitHub Releases（公开仓库，不需要自建服务端）；
+插件（`mastergo-wpf-transcoder`）有自己的版本线，在它自己的仓库里打 tag 时发同构的发布件
+（见 `docs/plugin-release.md`），客户端只做消费者。
 
 ```
 npm run publish:update                      # 产物化到 dist/update：manifest.json + files/<sha256>
@@ -234,7 +238,7 @@ node scripts/publish.js --no-fresh-run      # 声明这版不要求新开一次�
 
 | 接口 | 作用 |
 | --- | --- |
-| `GET /api/update/status` | 不联网，只读本地状态与上一次检查结果；四态 `up_to_date / update_available / download_ready / error` |
+| `GET /api/update/status` | 不联网，只读本地状态与上一次检查结果；五态 `unchecked / up_to_date / update_available / download_ready / error` |
 | `POST /api/update/check` | 拉远端清单并按 sha256 逐文件差分，结果缓存到 `update-cache/manifest.json`（离线也能显示「有新版 / 要换几个文件」） |
 | `POST /api/update/download` | 后台下载缺失内容并拼出 `versions/<版本>/`，进度在 `status().task` 里 |
 | `POST /api/update/apply` · `rollback` | 只写安装根的 `current.json` 指针，不抽走正在跑的目录，所以切完要重启客户端才生效 |

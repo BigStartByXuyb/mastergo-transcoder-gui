@@ -34,7 +34,7 @@ export function updateStatusFixture(over: Partial<UpdateStatus> = {}): UpdateSta
     available: null,
     error: null,
     task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
-    source: sourceFixture(),
+    source: sourceFixture("source"),
     hasToken: false,
     ...over
   }
@@ -45,16 +45,25 @@ export function sourceViewFixture(value: UpdateStatus) {
   return sourceViewOf(value.source, value.hasToken)
 }
 
-/** 界面侧夹具用的默认发布源：与后端 lib/source.js 的内置默认一致（两份不能互相引，各自一处、口径一致）。 */
-export const SOURCE_BASE = "https://github.com/BigStartByXuyb/mastergo-transcoder-gui"
+/*
+ * 界面夹具用的两份发布源基址：**故意不是**产品那两个内置默认（它们只有后端 lib/source.js 一处；
+ * 前端 require 不到、也不该抄一份）。夹具只要形状像就行，地址是假的 —— 后端换默认不用动这里。
+ */
+export const SOURCE_BASE = "https://github.com/example/client-release"
+export const PLUGIN_SOURCE_BASE = "https://github.com/example/plugin-release"
 
-/** 发布源：程序更新与插件那一半显示的是同一处设置，夹具也只做一份。 */
-export function sourceFixture(base = SOURCE_BASE): UpdateSource {
+/**
+ * 发布源：程序更新与插件各有一项设置，形状一样 —— 字段名（存哪一项）由调用方按这条线给，
+ * 没有默认值：哪条线就说哪条线的字段名，不在这里留一个「默认是程序更新那条」。
+ * kinds 是接口给的取值（后端认哪几种由它说），夹具只按形状放一格，前端不据此校验。
+ */
+export function sourceFixture(field: string, base = SOURCE_BASE, manifest = "manifest.json"): UpdateSource {
   return {
     kind: "github",
     base: base,
-    manifestUrl: base + "/releases/latest/download/manifest.json",
-    kinds: ["github", "gitlab", "static"]
+    manifestUrl: base + "/releases/latest/download/" + manifest,
+    kinds: ["github", "gitlab", "static"],
+    field: field
   }
 }
 
@@ -90,8 +99,8 @@ export function pluginUpdateFixture(over: PluginUpdateOverrides = {}): PluginUpd
     error: null,
     task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
     busy: "",
-    // 插件从哪儿取：与程序更新同一处设置（清单名不同），所以夹具也只做这一份。
-    source: sourceFixture(),
+    // 插件从哪儿取：插件自己那一项设置（默认是插件仓库，清单名也换成插件那份）。
+    source: sourceFixture("pluginSource", PLUGIN_SOURCE_BASE, "plugin-manifest.json"),
     hasToken: false,
     ...over
   }

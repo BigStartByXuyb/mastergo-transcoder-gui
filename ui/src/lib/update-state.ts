@@ -102,7 +102,7 @@ export function versionList(status: UpdateStatus): VersionRow[] {
 
 export type UpdateSummary = { label: string; tone: UpdateTone; note: string }
 
-/* 四态翻成用户看得懂的一句话。note 只留给失败原因，不复述状态名，也不解释怎么实现的。 */
+/* 五态翻成用户看得懂的一句话。note 只留给失败原因，不复述状态名，也不解释怎么实现的。 */
 export function describeUpdate(status: UpdateStatus | null): UpdateSummary {
   if (!status) return { label: "读取中…", tone: "outline", note: "" }
   if (status.state === "download_ready") {
@@ -118,6 +118,14 @@ export function describeUpdate(status: UpdateStatus | null): UpdateSummary {
       tone: "secondary",
       note: failedNote(status)
     }
+  }
+  /*
+   * 还没成功问过远端（离线首启，或换发布源之后缓存按源失效）时说「还没检查过」——
+   * 与插件那条线同一句话（ui/src/lib/plugin-install.ts 的 unchecked 分支），
+   * 不能拿「已是最新」去表示「新源一次都还没问过」。
+   */
+  if (status.state === "unchecked") {
+    return { label: "还没检查过远端", tone: "outline", note: "点「检查更新」，看发布源里有没有新版。" }
   }
   return { label: "已是最新 v" + status.current, tone: "outline", note: failedNote(status) }
 }

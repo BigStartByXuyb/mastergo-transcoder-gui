@@ -117,6 +117,133 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   - 想让应用内更新也能带上监督进程的修复，是另一件事（让切版本时同步引导副本，或让监督进程从
     `current.json` 指向的那一份重起自己），没做。
 
+## 2026-10-08 插件独立版本线：插件不再随客户端发布
+
+### 用户报的问题
+
+「插件版本好像更新了？？？但是 GUI 里还是只检测到 371？？？」
+
+### 查出来的
+
+- 插件的「最新版」原来只认**客户端发布件**里那份 `plugin-manifest.json`，而打包哪一版插件由客户端仓库的
+  `plugin-pin.json` 决定（当时钉 v1.0.371）。
+- 插件仓库 main 已经 1.0.377（tag 只到 v1.0.371），客户端 pin 还是 v1.0.371 —— 插件改 bug 得等客户端发版，
+  本机检出的那份插件更是根本不在查找顺序里（所以 GUI 看不到）。
+- 两条线的发现节拍也不同：客户端每 10 分钟复查，插件只在启动查一次。
+
+### 改了什么
+
+- **插件有自己的版本线**：插件仓库打 tag 时由它的发布作业发同构发布件（`plugin-manifest.json` + 按 sha256 命名的
+  文件）到自己的 Release；打包实现只有客户端那一份（`scripts/pack-plugin.js`，作业按 commit 钉住来调）。
+- 客户端插件线直接消费它：`lib/source.js` 新增 `PLUGIN_DEFAULT_BASE` 与 `pluginSourceOf`（没配／配坏了回插件仓库）；
+  `lib/settings.js` 增插件自己那一项设置与按字段取源的那一个入口（`sourceOf(field)`，规则要的是存盘原值，
+  只有这一层拿得到）；`lib/plugin-update.js` 用这条线自己的源。
+- 节拍统一：复查节拍从 `lib/update.js` 移到两条线共用的 `lib/recheck.js`，插件线新增 `startWatch()`
+  （启动查一次 + 每 10 分钟复查）。
+- 清单缓存记来源：`createManifestCache` 写入时记下 `source`，读时对不上就当作「还没检查过」——
+  换源之后不再拿旧源的结论说「已是最新」。
+- 不再随客户端发布插件：`plugin-pin.json` 删除、`scripts/pack-plugin.js` 入参改成 `--repo-dir / --tag / --dir`（不再读 pin）、
+  客户端发布流程删掉「Pack the plugin release」那一步。
+- 文档：新增 `docs/plugin-release.md`（插件侧发布流程 + 客户端消费规则）；`README.md`、`docs/install.md` 的
+  「插件从哪来」与发布源规矩按新的写；发布源弹窗的说法改成「两条线各有各的这一项，留空＝各回各的官方仓库」。
+- 复核收口（三条）：插件线的后台复查也**避开正在跑的装**（与程序更新同一条判据）；清单缓存与取清单两处的
+  注入键名统一成 `source`（同一个概念不两个名）；测试里没人读的常量删掉。
+- 复核收口（BLOCK-001 + REVIEW-002）：发布源改成**两条线各一项设置**（`source` 与 `pluginSource`）。
+  原来共用一项时，在插件页点「修改发布源」会把插件仓库写回共享设置 —— 客户端更新源就被带到插件仓库去，
+  再也取不到自己的清单。现在插件那一项有自己的默认（插件仓库），弹窗按 `field` 存对应那一项，
+  改一条不动另一条（用例钉住：存进的是 `pluginSource`、不带 `source`）；文案也去掉了
+  「填了＝两条线都从这里取」那句概括（填的恰好是某条线的官方仓库时并不等于换源）。
+- 又一轮复核收口（两条）：把还写着「与程序更新同一处设置 / 插件跟着客户端线走」的注释全部改成新设计
+  （插件读自己那一项 `pluginSource`，没配／配坏回插件仓库）；`settings.write` 里两项发布源的写入抽成
+  `writeSources(patch, raw)` 一处（归一、token、clearToken、清缓存不再两份逐字重复）。
+- 再一轮复核收口（三条）：两条更新线的后台复查抽成 `lib/recheck.js` 的 `createRecheck` 一处
+  （起过不再起、unref、忙时跳过都在那里）；界面夹具里插件的默认源改成插件仓库（清单名也换成插件那份）；
+  `docs/plugin-release.md` 的示例命令补上 `--notes`（建 Release 必须有，否则打包脚本直接失败）。
+- 再一轮复核收口（两条）：`update-source-row.tsx` / `source-check.ts` 里最后两处「两半同一处发布源」的注释
+  改成新口径；**凭据也跟着拆**——两条线各一份 token（`source-credentials` 与 `plugin-source-credentials`），
+  否则程序更新那条配的私有 GitLab token 会随插件线默认的另一个主机发出去，清一条也会清掉另一条
+  （用例钉住：两条 token 互不影响、清单条只清自己的）。
+- 再一轮复核收口（两条）：拼地址／请求头／给界面看的描述那几个入口原来还自带「不传就按客户端默认回落」，
+  与「归一由装配处必给」形成两份 → 改成必给（漏传直接说）；装配处与 winget 清单生成器各按自己那条线传
+  （用例钉住：不传就抛）。版本线的字段名原来前端 `SourceDialog` 另列一份（联合类型加两处字面量）→
+  后端各条状态里的 source 描述带出 `field`（与 `kinds` 同一做法），弹窗按它存，前端不再列字段名。
+- 再一轮复核收口（一条）：`lib/settings.js` 里 `field || "source"` 三处（读凭据、有没有凭据、取源）各自
+  写了一遍默认 → 默认字段名交给 `source.lineOf(field).field` 一处说（写时清哪个键、读时缓存在哪个键才不会分叉）；
+  顺带把 `lib/manifest-fetch.js` 里「已归一的源再交回去归一」的三处收敛成给现取的源，并去掉文件末尾多出的空行。
+- 再一轮复核收口（一条 + 三条非阻断）：「归一必给」立成唯一判据（`lib/source.js` 的 `requireNormalize`），
+  取清单与建缓存两个构造器改调它，不再各写一遍 `typeof` 与各自的文案；取文件地址收进取清单那一套
+  （`manifestFetch.fileUrl(版本, 哈希)`），调用方不再把已归一的源交回去归一；写发布源也走 `lineOf`
+  （不直接索引 `LINES`）；凭据文件名只按已归一的字段名算，不再二次解析。
+- 再一轮复核收口（两条 + 一条非阻断）：取清单那一套同时给「某一版的清单地址」与「这条线的状态视图」
+  （`manifestFetch.manifestUrlOf(版本)`、`manifestFetch.describe()` 一次带出源描述、字段名与有没有凭据），
+  两条 `status()` 直接展开，前端那份接口形状不再两处各拼一遍，`lib/update.js` 也不再把已归一的源交回去；
+  `describeSource` 内部改用已归一的源拼地址。顺带堵住打包脚本的一个隐患：`--out` 这类路径参数没给值时
+  会变成「当前目录」，而打包那一步先删输出目录 —— 现在取值只有一处，给不出值当场回绝（用例钉住）。
+- 再一轮复核收口（三条 + 两条非阻断）：GitLab 通用包的包名原来写死成客户端仓库名（插件线配 GitLab 会永远
+  取不到自己的清单）→ 改成跟基址最后一段（用户填的那个项目名）走，`docs/plugin-release.md` 写明这条约定与
+  两条线各自的默认仓库；`createManifestFetch` 返回对象里已经没人调的 `hasToken` 删掉（`describe()` 已带这一格）；
+  前端 `UpdateSource` 上方两段叠在一起的注释合成一段。顺带：`pack-plugin.js` 的 `--out` 改成必给
+  （打包前会清空它，省略就等于删某个默认目录），设置层逐条读版本线改用 `source.lines()`。
+- 再一轮复核收口（一条 + 一条非阻断）：「哪条版本线」原来在取清单与建缓存两个构造器里拆成 `field` 与
+  `normalize` 两个互不校验的入参 → 统一成一条 `line`（`lineOf(field)` 的结果），拼地址那几个入口也收这一条，
+  `describeSource` 把字段名一并带出；两个构造器对 `source` 也做必给校验（与两条装配处的口径一致）。
+  顺带：发布源补丁没带 `kind` / `base` 时不再动那一项设置（只清凭据不会把源改回默认）。
+- 再一轮复核收口（两条）：插件线「某一版的清单地址」原来按客户端那份清单名拼（`manifest.json`）→ 取清单
+  那一套自己拼这一版（用它自己那份清单名；用例钉住插件线拼的是 `plugin-manifest.json`）；
+  `createManifestCache` 补上「源必给」校验，与 `createManifestFetch` 及两条装配处同一条口径。
+- 再一轮复核收口（一条）：`lib/source.js` 的 `manifestUrlOf` 在「某一版清单地址」收进取清单那一套之后
+  已无生产调用者（且它写死客户端那份清单名，拿着插件线用会拼错）→ 连同导出一起删掉；
+  `lib/manifest-fetch.js` 的注释按新的入参（`line`）改口径。
+- 再一轮复核收口（一条）：`docs/plugin-release.md` 的「发布件的形状」把 Release 资产与静态目录那套
+  混成一块（按 `files/<sha256>` 铺静态源会取不到文件）→ 拆成两块：Release 的资产挂在这一版下面、
+  静态目录那份集中在 `files/` 下并按 `v<版本>/` 取清单。
+- 再一轮复核收口（两条 + 一条非阻断）：取清单那一套的「有没有凭据」也并进「必给」口径（不留
+  「没注入就顺 token 取值链问一次」的回落 —— 那支会同步解密，而 `status()` 是每 15 秒轮询的口子；
+  用例统一注入一份廉价判断，缺了即抛有断言）；`lib/settings.js` 里「凭据文件存在且非空」的三处判断
+  抽成 `nonEmptyText(file)` 一处。顺带：`lib/recheck.js` 的两个入参（`isBusy` / `check`）也改成必给
+  —— 缺了会在每 10 分钟那次定时回调里抛未捕获的 `TypeError`。
+- 再一轮复核收口（两条注释 + 一条模块头）：`hasToken()` 上方的注释还留着旧的「或顺着 token 取值链问一次」
+  （与同文件「必给」的新口径打脸）、`ui/src/lib/api.ts` 的 `UpdateStatus.source` 还写着「与插件那一半
+  同一个来源」（两条线各有各的一项设置）、`lib/plugin-update.js` 的模块头还写着「客户端从自己的发布源取」
+  —— 三处按现口径改写。
+- 再一轮复核收口（一条）：换发布源之后缓存按源失效，客户端那条线却没有「没查过」这一态，界面会拿
+  「已是最新」表示「新源一次都还没问过」（插件线同处境说「还没检查过」）→ `lib/update.js` 的 `readState`
+  补上 `unchecked`（只在拿到**本源**的缓存时才说 `up_to_date`），前端 `UpdateStatus.state` 联合类型与
+  `describeUpdate` 同步扩一态，说法与插件线对齐（`ui/src/lib/plugin-install.ts` 的 unchecked 分支）。
+  `lib/routes.js` 里「程序更新四态」的注释随之改成五态。
+- 再一轮复核收口（两条）：①插件线取文件原来不带版本（落到 Release 的「最新那一版」），缓存里的清单
+  比最新 Release 旧时就 404 → 改成按**这份清单自己的版本**取（与程序更新那条线一致；静态源那套文件与版本
+  无关，由 `lib/source.js` 的 `blobUrl` 认差别），插件那一半的假远端也照新地址收。②「四态」的现役表述
+  扫成五态（`README.md` 的接口表、`lib/update.js`、`lib/versions.js`、`ui/src/lib/api.ts`、
+  `ui/src/lib/update-state.ts`、用例标题）——`lib/plugin-update.js` 里那一处说的是插件线自己的四态，保持。
+
+### 点过的东西
+
+| # | 操作 | 预期 | 结果 |
+| --- | --- | --- | --- |
+| 1 | 真机：插件页「客户端自带」→ 管理… | 更新来源＝插件仓库；检查更新如实报取不到（插件仓库还没发过发布件） | 通过（`output/playwright/plugin-own-line-panel.png`：GitHub 仓库 `https://github.com/BigStartByXuyb/test` + 检查失败「下载失败（HTTP 404）」） |
+| 2 | 真机：`GET /api/plugin/update/status` | 旧源那份缓存不算数，状态是「还没检查过」 | 通过（state=unchecked、source=插件仓库、available 空） |
+| 3 | 本地：`node scripts/pack-plugin.js --repo-dir <夹具> --tag v1.2.3 --dir plugins/mastergo-wpf-transcoder --out …` | 产出清单与按哈希命名的文件；tag 与声明版本对不上、缺标记文件都要拦 | 通过（`tests/plugin-package.test.js`） |
+
+### 没做的 / 待续
+
+- 插件仓库那条发布作业（`.github/workflows/plugin-release.yml`）在**另一个仓库**里，另开 PR；
+  等它合入并打第一个 tag（v1.0.377）之后，客户端这边「检查更新」才会由 404 变成「有新版」。
+- 因此这一版客户端**先不要发版**：等插件仓库出了第一个发布件再发（否则新装的客户机点「检查更新」取不到）。
+- 客户端对插件的契约仍按老办法兜（缺文件 / 步骤契约字段在用到时如实报），没有新增「最低插件版本」的硬门禁，
+  这一条写在 `docs/plugin-release.md` 的边界里。
+
+### 自动化门禁
+
+| 门禁 | 结果 |
+| --- | --- |
+| `npm test`（后端） | 50 通过 |
+| `npm run test:coverage`（后端） | all files 94.86 / 83.07 / 95.34 |
+| `cd ui; npx vitest run` | 60 文件 355 用例通过 |
+| `cd ui; npm run test:coverage` | all files 95.95 / 91.69 / 94.85 / 95.95 |
+| `cd ui; npm run lint` / 结构确定性检查 | 通过 / PASS |
+| `npm run build:ui` | 通过，`public/` 已重建 |
+
 ## 2026-10-07 插件页：第 2 档不再单独占一块（②）+ 查找顺序立成单独一栏、按处境给亮/灰（③）
 
 ### 用户报的问题
@@ -1140,7 +1267,7 @@ winget 只会从它配置的源里找包；我们那三个 YAML 目前只是 Rel
 
 | 复核项 | 判断 | 处置 |
 | --- | --- | --- |
-| [REVIEW-001] `status()` 每次都解密发布源 token：解密是同步起一次 PowerShell，而状态每 15 秒（下载中 1.5 秒）轮询一次，下载时每个文件还要再拼一次请求头 —— 单线程被整段堵住 | 真问题（性能） | 两处分开：有没有 token 由 `hasToken` 廉价判断（`settings.read().source.hasToken`，只看文件在不在），值只在真发请求时解；解出来的值在 `settings` 内缓存，改/清 token 时置空重解 |
+| [REVIEW-001] `status()` 每次都解密发布源 token：解密是同步起一次 PowerShell，而状态每 15 秒（下载中 1.5 秒）轮询一次，下载时每个文件还要再拼一次请求头 —— 单线程被整段堵住 | 真问题（性能） | 两处分开：有没有 token 由 `settings.hasSourceToken(field)` 廉价判断（只看文件在不在），值只在真发请求时解；解出来的值在 `settings` 内缓存，改/清 token 时置空重解 |
 | [REVIEW-002] 默认仓库地址写了两份（`lib/source.js` 的 `DEFAULT_BASE` 与 `lib/update.js` 的 `owner`/`repo` 回退），且那条回退分支全仓无人调用 | 真问题（与「只改一处」矛盾 + 死分支） | 删掉 `owner`/`repo` 与那条回退；默认值只剩 `lib/source.js` 一处；入参只留测试注入用的固定值 |
 | [REVIEW-003] 源类型名单在后端 `KINDS` 与前端 `KIND_LABELS` 各有一份，后端加一种前端不跟、前端多列一种后端静默回落 | 真问题（同一规则两处表述） | 后端 `describeSource` 带上 `kinds`，前端下拉照它渲染；前端只留显示名（认不出的类型直接用原值当显示名），status 没到手时下拉与保存按钮禁用 |
 
