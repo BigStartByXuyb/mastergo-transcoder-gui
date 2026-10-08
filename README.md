@@ -206,7 +206,9 @@ React 挂载前的那一下由 `ui/index.html` 里的静态占位顶上（直接
 
 ## 程序更新
 
-版本线只有客户端自己这一条，远端是 GitHub Releases（公开仓库，不需要自建服务端）。
+本仓库这条版本线只管**客户端本体**，远端是 GitHub Releases（公开仓库，不需要自建服务端）；
+插件（`mastergo-wpf-transcoder`）有自己的版本线，在它自己的仓库里打 tag 时发同构的发布件
+（见 `docs/plugin-release.md`），客户端只做消费者。
 
 ```
 npm run publish:update                      # 产物化到 dist/update：manifest.json + files/<sha256>
