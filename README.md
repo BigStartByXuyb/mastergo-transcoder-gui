@@ -256,6 +256,13 @@ node scripts/publish.js --no-fresh-run      # 声明这版不要求新开一次�
 
 用户状态（`local.json`、`credentials`、`board.json`、`chats.json`、`work/`）永远在安装根，不随版本目录走。
 
+## 出问题时先看哪
+
+服务把「启动 / 退出 / 未捕获异常 / 未处理的 Promise 拒绝 / 切版本」写进安装根下的
+`logs/server-YYYY-MM-DD.log`（只留最近 7 天，最多几十 KB）。控制台窗口一关就什么都不剩，
+所以「程序闪退」这类问题事后要拿这个文件回答：哪个进程、什么错、什么退出码。
+监督进程（`launch.js`）与子进程（`server.js`）写的是同一份日志。
+
 ## 依赖
 
 - Node.js（跑后端与构建前端）
