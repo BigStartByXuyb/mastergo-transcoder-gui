@@ -18,6 +18,66 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-10-08 作业A 的设计稿位图能在界面上传了（读图那条开关的入口）
+
+### 需求
+
+「流水线A也没有上传图片的部分？」—— 作业A 的读图是个开关：图放 `<工程目录>\Generated\_inputs\<页面名>.design.png`，
+按设计稿原始尺寸导出（尺寸必须等于 DSL 画板尺寸），有图就必须先有分组表，否则第 8 步停下。
+原来只能自己把文件拷进工程，界面上没有入口。
+
+### 改了什么
+
+- `lib/design-image.js`（新）：这一件事的三格事实 —— 图在哪、尺寸对不对、分组表在不在。
+  `readPixelSize()` 只解析 PNG（IHDR）与 JPEG（SOF 段）的文件头，不引第三方库；画板尺寸取 DSL 快照根节点的
+  `layoutStyle.width/height`（与插件 `layoutTree` 读的是同一处）。存图是整份替换（临时件 + 改名），
+  后缀与文件头都要对得上，换格式时旧的那张删掉（插件按 png→jpg→jpeg 取，留着旧的会取错）。
+- `lib/routes.js`：`GET /api/design-image`（读状态）与 `POST /api/design-image`（存一张，bodyLimit 与对话附件同档）。
+- `ui/src/app/design-image-card.tsx`（新）+ `pipeline-page.tsx` 挂载：走 A 路线（`task.routes` 含 A）的任务详情里多一块
+  「设计稿位图」——画板尺寸、这一页放着的图（名字 / 尺寸 / 大小）、分组表在不在，加上「选择位图…」。
+  尺寸不一致、不是位图这些原话由后端给（那条判据在 `lib/design-image.js`），界面只渲染。
+- `ui/src/lib/upload-files.ts`：`toBase64` 改成导出的 `fileToBase64`，与对话附件共用一份（大图分块拼）。
+
+### 验收
+
+| 步 | 操作 | 预期 | 实测 |
+|---|---|---|---|
+| 1 | 打开作业A 任务详情（`#pipeline?task=4519f005…`） | 出现「设计稿位图」：没有图 · DSL 画板 1280×1024 · 分组表还没有 · 「选择位图…」 | 通过 |
+| 2 | 传一张真的 1280×1024 PNG（System.Drawing 现画） | 有图 · 尺寸一致 · **缺分组表**（红） · 显示 `F7LaserPreciseFocus.design.png` 1280×1024 8 KB · 按钮变「换一张」 | 通过 |
+| 3 | 再传一张 640×480 | 红字「图与画板尺寸不一致：图 640×480，画板 1280×1024：按设计稿原始尺寸导出……」；**上一张没被覆盖**（仍显示 1280×1024 / 尺寸一致） | 通过 |
+| 4 | 接口直读 | `GET /api/design-image` 回 `canvas 1280x1024`、`image`、`groups.exists`；落盘在 `<工作目录>\Generated\_inputs\` | 通过 |
+| 断点用例 | 后端 `tests/design-image.test.js`（PNG/JPEG 尺寸解析、换格式只留一张、拒绝的几种、还没跑到第 2 步、分组表在不在） | 6 组全过 | 通过 |
+| 界面用例 | 前端 `design-image-card.test.tsx`（无图 / 不能传 / 有图一致 / 不一致+缺表 / 上传 / 后端拒绝） | 6 条全过 | 通过 |
+| 全量门禁 | 后端 54 条 + 覆盖率、前端 59 文件 347 条、`tsc`、oxlint、`check-app-structure.mjs` | 通过 |
+
+截图：`output/playwright/design-image-card-062.png`。
+
+### 第一次跑 CI 后按审计复核改的两处（都是真问题）
+
+- **[REVIEW-001] AB 任务的 A 路线被漏掉**：挂载条件原来写 `mode === "A"`，把「A 路线会跑」等同于
+  「mode 恰好是 A」；而 `mode = AB` 时 A 段（mw-wpf）照样跑。改法不是就地放宽条件，而是把
+  「一个 mode 展开成哪几条路线」抽成**一处判据** —— `lib/run.js` 的 `routesOfMode()`（`start()` 用它展开、
+  看板任务快照用它算出 `routes: ["A"|"B"]` 给界面），界面按 `task.routes.includes("A")` 显示这一块。
+  `tests/run.test.js` 补了这条判据的用例（含 `AB` 必须含 A）。
+- **[REVIEW-002] 「后缀与文件头都要对得上」名不副实**：原来只校验了后缀合法、文件头能解析，
+  没校验两者**互相**对应 —— 一张 PNG 命名成 `shot.jpg` 会被当成 jpg 存下。改成**认内容的真实格式**：
+  `readPixelSize()` 同时返回 `format`，落盘后缀由它决定（PNG → `.png`，JPEG → `.jpg`），名字不再参与判定。
+  用例补了「内容真是 PNG 却叫 .bmp → 落到 `.design.png`」与「BMP 内容 → 拒」。
+
+### 第二次跑 CI 又收的四处（同样是审计挑出来的真问题）
+
+- **单文件 25 MB 与请求体换算各写两份**：这些通用件已经搬到 `lib/limits.js`（`MAX_FILE_BYTES` / `bodyLimitFor()` / `mb()`）
+  与 `lib/name-safety.js`（名字判据），两条线（对话附件、作业A 位图）都从它们取：值与判据各只有一处，
+  前端不判大小（超限由后端按原话拒绝）。
+- **换格式时先删旧图再写新图**：改成 `stage → land → 删其它后缀`（`lib/atomic-write.js` 的三步）——
+  换格式时写失败不会把这一页两张都弄没。
+- **前端「太大先拦」没走到共用入口**：直接删掉前端那道预检（`uploadAttachments` 里那份），
+  大小判据只剩后端一处 —— 前端再存一份数字，改一处就会漂。
+- **Target 直接拼进路径**：`requireTarget()` 现在拒路径分隔符、`..` 与 Windows 非法字符 ——
+  这个 Target 会变成文件名（`<页面名>.design.png`），不归一的话图能落到 `_inputs` 之外。
+  同一轮还收了两处：`mode` 归一化在 board 与 run 各写一份（改成 `lib/run.js` 的 `normalizeMode` 带 fallback，board 用它）、
+  base64 解码处那段不会失败的 try/catch 删掉。
+
 ## 2026-10-08 插件页只留「客户端自带」那一份（删掉我指定的那一份 / 环境变量 / 两个缓存与市场）
 
 ### 用户报的问题

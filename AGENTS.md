@@ -1,0 +1,47 @@
+# 本仓库的提交前自审清单
+
+动工前过一遍（定判据与编排），提交前再过一遍（自查这一族的全部出现处）。目标是一次改完，
+不让 CI 复核替我们发现同一类问题。
+
+## 一、同一件事只有一处
+
+- 值、判据、换算公式、错误码、文案、路径拼法、字段名：动工前先 `rg` 全仓搜一遍有没有第二份；
+  有就抽成共用件，再写新的那一条线。
+- 目录与文件名一律走具名 helper：`lib/workdir.js` 的 `productDir` / `inputsDir` / `runsRoot` / `runsDir`；
+  消费方不许手拼 `Generated` / `_inputs` / `runs`。
+- 名字类判据走 `lib/name-safety.js` 的 `hasIllegalNameChars` / `isPathLike`（Windows 非法字符、带路径分隔符或 `..`），
+  要变成文件名的外部输入（页面 Target 等）先按它们归一。
+- 字节上限与换算走 `lib/limits.js`（`MAX_FILE_BYTES` / `bodyLimitFor` / `mb`）；要落盘的文件大小都按它判。
+- 组合取值（A / B / AB 这类）按「集合里有没有」判，不写 `mode === "A"`：展开规则只在一处
+  （`lib/run.js` 的 `routesOfMode`），界面读后端给的 `routes`。
+- 前后端各有一份实现的地方（上传格式与上限等）必须写明「另一边在哪」，并让判据只有后端一处：
+  前端不复制数字，只渲染后端给的原话。
+- 界面里的路径、文件名、尺寸、上限一律取后端返回的字段，不写死。
+
+## 二、注释与实现同一次到位
+
+- 改行为就同一次改掉描述它的注释、`README.md`、`docs/install.md`、`changelog.json`，不留旧表述。
+- 注释里出现的数字或名字由常量拼出来，不另抄一遍。
+- 删功能时全仓检索它的旧说法（README、docs、界面文案、注释），一次清完。
+
+## 三、边界一次找齐
+
+- 会变成路径或文件名的外部输入先归一，再拼路径；读、写、清理用同一段名字。
+- 落盘先写新的、落位成功再删旧的；不许先删后写。
+- 拿不到判据的基准时 fail-closed（例如画板尺寸未知就不收那张图），不要先放行、之后再报不一致。
+- 每一处都问一遍：这一步失败时，上一个好的状态还在不在。
+- 插件口径来自插件自己的文档与脚本（`skills/mastergo-to-wpf/references/...`）：核实时读那一份，不凭记忆。
+
+## 四、不要为测试而导出
+
+- 不导出只有测试用的内部函数；测试锁公开行为（读到的状态、拒绝的原话、落盘结果）。
+- 新增导出后跑结构检查确认没有无人引用的导出。
+
+## 五、提交前必跑
+
+1. 后端：`npm test`、`npm run test:coverage`
+2. 前端：`npm --prefix ui run build`、`npm --prefix ui run lint`、`npm --prefix ui run test:coverage`
+3. 结构检查（与 CI 同一份实现，路径指向 cicd 检出）：
+   `node <cicd>/projects/desktop-app/scripts/ci/check-app-structure.mjs --root . --output <临时>/det.json --markdown <临时>/det.md`
+4. 真界面点一遍这次涉及的功能点，结论写进 `docs/ui-verification.md`（含截图路径）。
+5. 自己按上面四节把本次 diff 逐文件过一遍 —— 这一步不替代 CI，是让 CI 复核只用来兜底。

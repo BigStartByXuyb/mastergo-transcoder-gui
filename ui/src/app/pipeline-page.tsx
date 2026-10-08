@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
 import { DoneBoard } from "@/app/done-board"
+import { DesignImageCard } from "@/app/design-image-card"
 import { NewTaskCard } from "@/app/new-task-card"
 import { TaskDetailCard } from "@/app/task-detail-card"
 import { TaskLogCard } from "@/app/task-log-card"
@@ -292,6 +293,12 @@ export function PipelinePage({
           onResolve={resolveConflict}
         />
       )}
+
+      {/*
+        走 A 路线（mw-wpf）的任务才读图：AB 的 A 段同样读，所以判据是「路线里有 A」而不是 mode 恰好是 A。
+        图是按页面名放的，没有 Target 就无从谈起 —— 那种任务根本不显示这一块。
+      */}
+      {task && task.workDir && task.request.target && task.routes.includes("A") && <DesignImageCard task={task} />}
 
       {task && counts.total > 0 && (
         <TaskPendingCard

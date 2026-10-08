@@ -146,6 +146,27 @@ export type PluginInfo = {
   steps: PipelineStep[]
 }
 
+/**
+ * 作业A 的设计稿位图：这一页「读图」那条开关的输入（口径见后端 lib/design-image.js）。
+ * 图必须按设计稿原始尺寸导出 —— 尺寸要等于 DSL 画板尺寸；有图就必须先有分组表，否则布局推导那一步停下。
+ */
+export type DesignImage = {
+  /** 图该放的那个目录（后端算好给出来；界面不自己拼这一段）。 */
+  dir: string
+  /** DSL 画板尺寸（也就是「图该有的尺寸」）；固化快照那一步还没跑时是 null。 */
+  canvas: { width: number; height: number } | null
+  /** 现在放着的那一张；没放过就是 null。 */
+  image: { path: string; name: string; bytes: number; width: number; height: number } | null
+  /** 图与画板尺寸是否一致（两边都读得出来时才有意义）。 */
+  matches: boolean
+  groups: { path: string; exists: boolean }
+  /**
+   * 现在不能传的原因（空串＝可以传）。判据在后端（save 在同一种情况下按同一句话拒收），
+   * 界面照原话显示并据此禁用按钮，不自己再判一遍。
+   */
+  blocked: string
+}
+
 export type ResolvedNode = {
   ref: string
   id: string
@@ -460,6 +481,12 @@ export type BoardTask = {
   jobId: string
   /** 这个任务自己的工作目录（流水线的 -ProjectRoot）。 */
   workDir: string
+  /**
+   * 这个任务会跑哪几条路线（界面标签，按执行顺序）：A → [A]、B → [B]、AB → [A, B]。
+   * 判据是后端 lib/run.js 的 routesOfMode —— 与「实际跑哪几条」同源；界面按路线显示输入时读它，
+   * 别处不再自己解释 mode（AB 任务的 A 路线也要能拿到它的输入）。
+   */
+  routes: ("A" | "B")[]
   autoMerge: boolean
   progress: BoardProgress | null
   /** 这一页的流程：步骤来自插件自己的运行登记表，续跑会接着写同一份。 */
@@ -860,6 +887,17 @@ export const api = {
   health: () => request<Health>("/api/health"),
   plugin: () => request<PluginInfo>("/api/plugin"),
   pluginSources: () => request<PluginSources>("/api/plugin/sources"),
+  /** 作业A 的读图输入：这一页放着哪张图、尺寸对不对、分组表在不在。 */
+  designImage: (projectRoot: string, target: string) =>
+    request<{ ok: true; image: DesignImage }>(
+      "/api/design-image?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
+    ),
+  /**
+   * 存一张设计稿位图（整份替换）。格式按**内容**认，落盘后缀也按它取，所以不用传文件名；
+   * 尺寸与画板不一致、内容不是 PNG/JPEG 时，后端按原话拒绝。
+   */
+  saveDesignImage: (body: { projectRoot: string; target: string; data: string }) =>
+    post<{ ok: true; image: DesignImage }>("/api/design-image", body),
   /** 在文件管理器里打开一个目录（插件页各行的「打开目录」）。打不开时 ok=false，reason 是原话。 */
   openFolder: (path: string) => post<{ ok: boolean; reason: string }>("/api/system/open-folder", { path }),
   pluginUpdateStatus: () => request<{ ok: true; status: PluginUpdateStatus }>("/api/plugin/update/status"),
