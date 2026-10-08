@@ -52,6 +52,7 @@ const { createChats } = require("./lib/chat.js");
 const { createUploads } = require("./lib/uploads.js");
 const { applyProxy } = require("./lib/proxy.js");
 const { createTokenSource, SOURCE_LABELS } = require("./lib/mcp-token.js");
+const { createLog } = require("./lib/log.js");
 
 const HERE = __dirname;
 const PUBLIC_DIR = path.join(HERE, "public");
@@ -88,6 +89,26 @@ const options = {
 // 用户状态与凭据都在安装根（HOME）；settings 要早于 token 取值链建好。
 const HOME = process.env.MASTERGO_HOME || HERE;
 const settings = createSettings(HOME);
+
+/*
+ * 落盘的启动/退出证据（logs/server-YYYY-MM-DD.log）：
+ * 这个控制台窗口一关就什么都不剩，而「程序闪退」只能靠这几行回答是哪个进程、什么错、什么码退的。
+ * 未捕获异常与未处理拒绝照 Node 原本的行为退出（只是先写一行）——出错就退，重开交给监督进程。
+ */
+const log = createLog(HOME);
+log.write("boot", "启动 v" + VERSION + " port " + options.port + " pid " + process.pid
+  + (process.env.MASTERGO_SUPERVISED === "1" ? "（受监督）" : "") + " 安装根 " + HOME);
+process.on("uncaughtException", function (error) {
+  log.write("crash", "未捕获异常：" + (error && error.stack ? error.stack : String(error)));
+  process.exit(1);
+});
+process.on("unhandledRejection", function (reason) {
+  log.write("crash", "未处理的 Promise 拒绝：" + (reason && reason.stack ? reason.stack : String(reason)));
+  process.exit(1);
+});
+process.on("exit", function (code) {
+  log.write("exit", "进程退出 code=" + code);
+});
 
 // 运行时「哪一份用系统上那份」只有一个来源：设置里那张逐份的表，现读（刚改完就生效）。
 runtimePolicy.setSource(function () { return settings.read().runtime.system; });

@@ -17,8 +17,12 @@ const { spawn } = require("child_process");
 const path = require("path");
 
 const { resolveLaunch, RESTART_CODE } = require("./lib/launch.js");
+const { createLog } = require("./lib/log.js");
 
 const HOME = __dirname;
+// 与子进程共用同一份日志（logs/server-YYYY-MM-DD.log）：子进程被系统杀掉时，它自己来不及写，
+// 这一侧看到的退出码就是唯一证据。
+const log = createLog(HOME);
 
 function childEnv() {
   return Object.assign({}, process.env, { MASTERGO_HOME: HOME, MASTERGO_SUPERVISED: "1" });
@@ -31,10 +35,16 @@ function runOnce(target) {
       env: childEnv(),
       stdio: "inherit"
     });
-    child.on("exit", function (code) { resolve(code === null ? 1 : code); });
+    // code 与 signal 都留着：Windows 上被硬杀通常是带码退出（实测 4294967295），
+    // 但真按信号终止时要能看出来，别一律记成 code=1。
+    child.on("exit", function (code, signal) {
+      resolve({ code: code === null ? 1 : code, signal: signal || "" });
+    });
     child.on("error", function (error) {
-      process.stderr.write("起不来：" + String(error && error.message ? error.message : error) + "\n");
-      resolve(1);
+      const text = "起不来：" + String(error && error.message ? error.message : error);
+      process.stderr.write(text + "\n");
+      log.write("crash", text);
+      resolve({ code: 1, signal: "" });
     });
   });
 }
@@ -42,9 +52,16 @@ function runOnce(target) {
 async function main() {
   for (;;) {
     const target = resolveLaunch(HOME);
-    process.stdout.write("版本: " + (target.fromPointer ? "v" + target.version + "（current.json）" : "本地这一份（无指针）") + "\n");
-    const code = await runOnce(target);
-    if (code !== RESTART_CODE) process.exit(code);
+    const which = target.fromPointer ? "v" + target.version + "（current.json）" : "本地这一份（无指针）";
+    process.stdout.write("版本: " + which + "\n");
+    log.write("boot", "监督进程起 " + which + " pid " + process.pid);
+    const ended = await runOnce(target);
+    if (ended.code !== RESTART_CODE) {
+      log.write("exit", "子进程退出 code=" + ended.code
+        + (ended.signal ? "（信号 " + ended.signal + "）" : "") + "，监督进程跟着退出");
+      process.exit(ended.code);
+    }
+    log.write("switch", "按 current.json 换一份接着跑（子进程退出码 " + ended.code + "）");
     process.stdout.write("按 current.json 换一份接着跑\n");
   }
 }
