@@ -13,10 +13,9 @@ import { fileToBase64, humanSize } from "@/lib/upload-files"
 /*
  * 作业A 的设计稿位图：那条「读图」开关的输入。
  *
- * 这一块只说三件事，与后端 lib/design-image.js 一一对应：
- *   图在哪（<工程目录>/Generated/_inputs/<页面名>.design.png）／尺寸对不对（必须等于 DSL 画板尺寸）／
- *   分组表在不在（有图必须有表，否则第 8 步停下）。
- * 「尺寸不对」「不是位图」的原话由后端给（它才是那条判据），这里只渲染。
+ * 这一块只说三件事，与后端 lib/design-image.js 一一对应：图在哪（那一处目录由后端给）／
+ * 尺寸对不对（必须等于 DSL 画板尺寸）／分组表在不在（有图必须有表，否则第 8 步停下）。
+ * 目录、约定名、「尺寸不对 / 不是位图 / 画板尺寸还不知道」的原话都由后端给（判据都在它那一处），这里只渲染。
  */
 
 function sizeText(size: { width: number; height: number } | null): string {
@@ -86,9 +85,8 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
           {image && !state?.groups.exists && <Badge variant="destructive">缺分组表</Badge>}
         </CardTitle>
         <CardDescription>
-          作业A 读图是一个开关：按设计稿原始尺寸导出，位图尺寸必须等于 DSL 画板尺寸；有图就必须先有分组表
-          （<span className="font-mono">&lt;页面名&gt;.layout-groups.json</span>），否则第 8 步会停下报告。
-          不传图就按纯机械判据推导，照常跑。
+          作业A 读图是一个开关：按设计稿原始尺寸导出，位图尺寸必须等于 DSL 画板尺寸；有图就必须先有分组表，
+          否则第 8 步会停下报告。不传图就按纯机械判据推导，照常跑。分组表放在哪、叫什么，下面那一行照实显示。
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 text-sm">

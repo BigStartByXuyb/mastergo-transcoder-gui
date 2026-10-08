@@ -151,7 +151,7 @@ export type PluginInfo = {
  * 图必须按设计稿原始尺寸导出 —— 尺寸要等于 DSL 画板尺寸；有图就必须先有分组表，否则第 8 步停下。
  */
 export type DesignImage = {
-  /** 图该放的那个目录（<工程目录>/Generated/_inputs）。 */
+  /** 图该放的那个目录（后端算好给出来；界面不自己拼这一段）。 */
   dir: string
   /** DSL 画板尺寸（也就是「图该有的尺寸」）；还没跑到第 2 步时是 null。 */
   canvas: { width: number; height: number } | null
