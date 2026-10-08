@@ -7,8 +7,10 @@ import { INSTALLED_ROOT, INSTALL_PARENT, PLUGIN_SOURCE_BASE, drive, pluginUpdate
 
 /*
  * 插件页：查找顺序（后端给的那七档，界面不重排）+ 一张表（来源 / 版本 / 状态 / 路径 / 操作）。
- * 这一页只读与查看 —— 没有「用这份」、也没有「我指定的那一份」（那一档已去掉）；
- * 只有客户端自带那一份带管理面板（检查更新 / 下载并安装 / 更新来源）。
+ * 这一页只读与查看 —— 没有任何「换用某一档」的动作；只有客户端自带那一份带管理面板
+ * （检查更新 / 下载并安装 / 更新来源）。
+ * 档位的名字与那句话都由后端给，界面只渲染 —— 这里用夹具名即可，真名由后端用例锁
+ * （tests/plugin-sources.test.js 比的是 lib/plugin-root.js 的 pluginPlaces()）。
  *
  * 夹具路径按段拼（drive 在 settings-fixtures 里）：源码里不出现「盘符 + 反斜杠」那种机器专属写法。
  */
@@ -44,7 +46,7 @@ function view(options: { activeId?: string; failure?: string; sameRoot?: boolean
   const sources: PluginSource[] = [
     source("arg", { label: "启动参数 --plugin" }),
     source("env", {
-      label: "环境变量 MASTERGO_PLUGIN_ROOT",
+      label: "环境变量（夹具）",
       note: "系统环境变量给的那一份：在系统里设（或启动前设），客户端启动时继承。",
       path: ENV_DIR,
       exists: true,
@@ -157,14 +159,13 @@ describe("PluginCard", () => {
     const table = within(screen.getByRole("table"))
     // 七档都在同一张表里，没设的那两档也列出来（标「没有」）。
     expect(table.getByText("启动参数 --plugin")).toBeTruthy()
-    expect(table.getByText("环境变量 MASTERGO_PLUGIN_ROOT")).toBeTruthy()
+    expect(table.getByText("环境变量（夹具）")).toBeTruthy()
     expect(table.getByText("Codex 插件市场")).toBeTruthy()
     expect(table.getByText("Claude 插件缓存")).toBeTruthy()
     expect(table.getByText("Claude 插件市场")).toBeTruthy()
     expect(table.getByText("客户端自带")).toBeTruthy()
     expect(screen.getAllByText("正在用").length).toBe(1)
-    // 「我指定的那一份」那一档已去掉：页面里不该再出现它，也不该有「用这份」。
-    expect(screen.queryByText(/我指定的那一份/)).toBeNull()
+    // 只读页：没有任何「换用某一档」的动作。
     expect(screen.queryByText("用这份")).toBeNull()
   })
 
@@ -194,7 +195,7 @@ describe("PluginCard", () => {
   it("点别的行开的是详情：只读信息，不给「用这份」", async () => {
     stub(view())
     render(<PluginCard />)
-    const dialog = await openRow("环境变量 MASTERGO_PLUGIN_ROOT", "详情…")
+    const dialog = await openRow("环境变量（夹具）", "详情…")
 
     // 「这一档归谁管」那句话由后端随来源一起给，界面只渲染。
     expect(within(dialog).getByText(/系统环境变量给的那一份/)).toBeTruthy()

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 
-// 插件来源：都查过哪些路径、各自有没有、此刻用的是哪一份、换一份之后是不是立刻生效。
+// 插件来源：七档都查过哪些路径、各自有没有、此刻用的是哪一份。
 // 跑法：node tests/plugin-sources.test.js
 
 const assert = require("assert");
@@ -9,7 +9,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { pluginSources, pluginRootsUnder, resolvePluginRoot } = require("../lib/plugin-root.js");
+const { pluginSources, pluginRootsUnder, resolvePluginRoot, PLUGIN_ENV_NAME } = require("../lib/plugin-root.js");
 const { createPluginRuntime } = require("../lib/plugin.js");
 
 const MARKER = path.join("skills", "mastergo-to-wpf", "SKILL.md");
@@ -39,7 +39,7 @@ function sandbox() {
 
 // 取值链认的是进程环境：造夹具时临时改掉，结束后原样放回。
 function withEnv(values, body) {
-  const keys = ["CODEX_HOME", "HOME", "USERPROFILE", "MASTERGO_PLUGIN_ROOT"];
+  const keys = ["CODEX_HOME", "HOME", "USERPROFILE", PLUGIN_ENV_NAME];
   const previous = {};
   for (const key of keys) previous[key] = process.env[key];
   for (const key of keys) {
@@ -88,7 +88,7 @@ function caseSources() {
   assert.strictEqual(byId.get("install").exists, false, "客户端自带那份可以缺席");
 
   const explicit = pluginSources({
-    env: { MASTERGO_PLUGIN_ROOT: fx.claude },
+    env: { [PLUGIN_ENV_NAME]: fx.claude },
     home: box.home,
     codexHome: box.codex,
     explicitDir: fx.codexOld,
@@ -119,7 +119,7 @@ function caseOrder() {
     "命令行 --plugin 指到哪一份就用哪一份（它压过缓存里的副本）"
   );
   withEnv(
-    { CODEX_HOME: box.codex, HOME: box.home, USERPROFILE: box.home, MASTERGO_PLUGIN_ROOT: box.install },
+    { CODEX_HOME: box.codex, HOME: box.home, USERPROFILE: box.home, [PLUGIN_ENV_NAME]: box.install },
     () => {
       assert.match(resolvePluginRoot(""), /1\.0\.10$/, "环境变量指的不是插件根时往下走，不当成命中");
       assert.strictEqual(
@@ -186,7 +186,7 @@ function caseActiveOnce() {
     installRoot: box.install,
     home: box.home,
     // 环境变量与 Codex 缓存那一档指到同一份（同一个插件根）。
-    env: { CODEX_HOME: box.codex, MASTERGO_PLUGIN_ROOT: fx.codexNew }
+    env: { CODEX_HOME: box.codex, [PLUGIN_ENV_NAME]: fx.codexNew }
   });
 
   assert.strictEqual(runtime.current().root, fx.codexNew);

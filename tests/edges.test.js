@@ -15,7 +15,7 @@ const { readPipelineSteps, resolvePwsh } = require("../lib/plugin.js");
 // 这些用例要跑桩脚本（读步骤契约），需要一份 pwsh：测试机上那份显式允许使用 ——
 // 就是产品里运行环境页那一行选的「用系统上那一份」，不是隐式回落。
 require("../lib/runtime-policy.js").setSource(function () { return { node: true, pwsh: true }; });
-const { resolvePluginRoot, pluginHomes } = require("../lib/plugin-root.js");
+const { resolvePluginRoot, pluginHomes, PLUGIN_ENV_NAME } = require("../lib/plugin-root.js");
 
 function write(file, text) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -39,7 +39,7 @@ function casePluginRootErrors() {
     [path.join(tmp, "codex", "plugins"), path.join(tmp, "home", ".claude", "plugins")]
   );
   assert.deepStrictEqual(
-    pluginHomes({ env: { MASTERGO_PLUGIN_ROOT: path.join(tmp, "root") }, home: path.join(tmp, "home") }),
+    pluginHomes({ env: { [PLUGIN_ENV_NAME]: path.join(tmp, "root") }, home: path.join(tmp, "home") }),
     [
       path.resolve(path.join(tmp, "root")),
       path.join(tmp, "home", ".codex", "plugins"),
@@ -63,7 +63,7 @@ function casePluginRootErrors() {
   );
   assert.strictEqual(
     pluginHomes({
-      env: { MASTERGO_PLUGIN_ROOT: path.join(tmp, "picked") },
+      env: { [PLUGIN_ENV_NAME]: path.join(tmp, "picked") },
       home: path.join(tmp, "home"),
       explicitDir: path.join(tmp, "picked")
     }).length,
@@ -77,10 +77,10 @@ function casePluginRootErrors() {
     "--plugin 指到别的目录要直接说清楚，而不是回退到别处"
   );
 
-  const previous = { codex: process.env.CODEX_HOME, root: process.env.MASTERGO_PLUGIN_ROOT, home: process.env.HOME, profile: process.env.USERPROFILE };
+  const previous = { codex: process.env.CODEX_HOME, root: process.env[PLUGIN_ENV_NAME], home: process.env.HOME, profile: process.env.USERPROFILE };
   try {
     process.env.CODEX_HOME = path.join(tmp, "codex");
-    delete process.env.MASTERGO_PLUGIN_ROOT;
+    delete process.env[PLUGIN_ENV_NAME];
     process.env.HOME = path.join(tmp, "home");
     process.env.USERPROFILE = path.join(tmp, "home");
     assert.throws(
@@ -97,12 +97,12 @@ function casePluginRootErrors() {
 
     // 环境变量指向已存在的插件根时优先于安装目录
     assert.match(resolvePluginRoot(path.join(process.env.CODEX_HOME, "plugins", "cache", "bigstart-plugins", "mastergo-wpf-transcoder", "1.0.9")), /1\.0\.9$/);
-    process.env.MASTERGO_PLUGIN_ROOT = path.join(process.env.CODEX_HOME, "plugins", "cache", "bigstart-plugins", "mastergo-wpf-transcoder", "1.0.9");
+    process.env[PLUGIN_ENV_NAME] = path.join(process.env.CODEX_HOME, "plugins", "cache", "bigstart-plugins", "mastergo-wpf-transcoder", "1.0.9");
     assert.match(resolvePluginRoot(), /1\.0\.9$/, "环境变量指定目录优先（本机显式指定）");
   }
   finally {
     if (previous.codex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = previous.codex;
-    if (previous.root === undefined) delete process.env.MASTERGO_PLUGIN_ROOT; else process.env.MASTERGO_PLUGIN_ROOT = previous.root;
+    if (previous.root === undefined) delete process.env[PLUGIN_ENV_NAME]; else process.env[PLUGIN_ENV_NAME] = previous.root;
     if (previous.home === undefined) delete process.env.HOME; else process.env.HOME = previous.home;
     if (previous.profile === undefined) delete process.env.USERPROFILE; else process.env.USERPROFILE = previous.profile;
     fs.rmSync(tmp, { recursive: true, force: true });
