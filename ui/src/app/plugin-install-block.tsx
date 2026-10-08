@@ -13,7 +13,8 @@ import { describeTask, taskFailureNote, taskPercent } from "@/lib/update-state"
  * 「客户端自带那一份」这一块。行内面板里自带那一行点开就是这个，与表里那一行、顺序条上那一档说的是同一份状态。
  *
  * 分两块导出，按「实现在哪一半」切：
- *   PluginInstallBlock   面板正文：更新来源那一行（含它自己的「修改发布源」按钮，与程序更新同一处设置）、
+ *   PluginInstallBlock   面板正文：更新来源那一行（含它自己的「修改发布源」按钮 —— 发布源是同一个设置，
+ *                        只是插件这条线没配时按插件仓库取，见 lib/source.js 的 pluginSourceOf）、
  *                        状态（有新版 / 是最新 / 未检查 / 检查失败）与进度
  *   PluginInstallActions 面板页脚：两个动作 —— 检查更新 / 下载并安装
  * 两面动作的松紧不一样：检查只读远端，装会写盘、还可能换掉生效的那一份，所以装那颗用整页的 `frozen`。
@@ -25,7 +26,7 @@ export function PluginInstallBlock(props: {
   transferring: boolean
   /** 这一刻能不能改发布源（任一半在跑就不给改）。 */
   frozen: boolean
-  /** 改发布源：开那个弹窗（与程序更新同一处设置、同一个弹窗）。 */
+  /** 改发布源：开那个弹窗（发布源是同一个设置、同一个弹窗）。 */
   onEditSource: () => void
 }) {
   const summary = describePluginInstall(props.status)
@@ -33,7 +34,8 @@ export function PluginInstallBlock(props: {
   return (
     <div className="flex flex-col gap-2 rounded-md border p-3">
       {/*
-       * 这一份从哪儿取：与程序更新同一处设置（后端 lib/source.js 一处拼地址），
+       * 这一份从哪儿取：与程序更新同一个设置（后端 lib/source.js 一处拼地址）——
+       * 插件这条线的默认基址是插件仓库，配了发布源就跟着它走，
        * 而「从哪儿取」只对自带这一份有意义，所以它就摆在这一块里，不占页面顶层。
        */}
       {props.status && (

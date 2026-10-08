@@ -2,7 +2,8 @@
 "use strict";
 
 /*
- * 插件发布件的约定：名字由打包脚本与 lib/plugin-root.js 定，钉哪一版只在 plugin-pin.json 一处。
+ * 插件发布件的约定：名字由打包脚本与 lib/plugin-root.js 定；「打哪一版」由调用方给
+ * （--tag 是插件仓库的 tag，--dir 是插件在仓库里的位置），不再有客户端这边的 pin 文件。
  * 门禁不只做文本匹配 —— 这里造一个临时的插件仓库当夹具，真的调一遍打包脚本，
  * 核对产出的 zip 与清单、可复现的哈希，以及两条会拦下来的情况（tag 与声明版本对不上、缺标记文件）。
  *
@@ -18,7 +19,6 @@ const { execFileSync } = require("child_process");
 
 const ROOT = path.join(__dirname, "..");
 const pkg = require("../scripts/pack-plugin.js");
-const pin = require("../plugin-pin.json");
 const pluginRoot = require("../lib/plugin-root.js");
 const source = require("../lib/source.js");
 
@@ -60,12 +60,6 @@ function makePluginRepo(baseDir, version, options) {
   return repo;
 }
 
-function writePin(baseDir, repo, tag) {
-  const file = path.join(baseDir, "pin.json");
-  fs.writeFileSync(file, JSON.stringify({ repo: repo, tag: tag, path: "plugins/" + pluginRoot.PLUGIN_NAME }));
-  return file;
-}
-
 /*
  * 真的打一遍：清单里的名字、版本、哈希都要对得上，同一个 tag 打两次哈希一致。
  */
@@ -83,9 +77,8 @@ function packInto(base) {
   const repo = makePluginRepo(base, "1.2.3");
   // 同一个夹具上顺手验一下判据的正例：打包侧用的是客户端那条「是不是插件根」。
   assert.strictEqual(pluginRoot.isPluginRoot(path.join(repo, "plugins", pluginRoot.PLUGIN_NAME)), true, "夹具应当是插件根");
-  const pinFile = writePin(base, repo, "v1.2.3");
   const out = path.join(base, "out");
-  const args = [PACK, "--repo-dir", repo, "--out", out, "--pin", pinFile];
+  const args = [PACK, "--repo-dir", repo, "--tag", "v1.2.3", "--dir", "plugins/" + pluginRoot.PLUGIN_NAME, "--out", out];
 
   node(args);
   const manifestFile = path.join(out, pkg.MANIFEST_FILE);
@@ -115,19 +108,20 @@ function packInto(base) {
 
   // tag 与插件自己声明的版本对不上：宁可打不出来。
   git(repo, ["tag", "v9.9.9"]);
-  const wrongPin = writePin(base, repo, "v9.9.9");
   assert.throws(function () {
-    node([PACK, "--repo-dir", repo, "--out", path.join(base, "out2"), "--pin", wrongPin], { stdio: "pipe" });
+    node([PACK, "--repo-dir", repo, "--tag", "v9.9.9", "--dir", "plugins/" + pluginRoot.PLUGIN_NAME, "--out", path.join(base, "out2")], { stdio: "pipe" });
   }, /版本/, "tag 与插件声明的版本对不上时要失败");
 
   // 缺「客户端借以认出插件根」的标记文件：也要失败，不能发一个客户端认不出的包。
   const noMarker = makePluginRepo(base, "3.0.0", { marker: false });
-  const noMarkerDir = path.join(base, "nomarker");
-  fs.mkdirSync(noMarkerDir, { recursive: true });
-  const noMarkerPin = writePin(noMarkerDir, noMarker, "v3.0.0");
   assert.throws(function () {
-    node([PACK, "--repo-dir", noMarker, "--out", path.join(base, "out3"), "--pin", noMarkerPin], { stdio: "pipe" });
+    node([PACK, "--repo-dir", noMarker, "--tag", "v3.0.0", "--dir", "plugins/" + pluginRoot.PLUGIN_NAME, "--out", path.join(base, "out3")], { stdio: "pipe" });
   }, /SKILL\.md/, "缺标记文件时要失败");
+
+  // 少给参数要说清楚少了什么（发布作业里参数写错时一眼能看出是哪一个）。
+  assert.throws(function () {
+    node([PACK, "--repo-dir", repo, "--dir", "plugins/" + pluginRoot.PLUGIN_NAME], { stdio: "pipe" });
+  }, /--tag/, "没给 --tag 要报出来");
 }
 
 function main() {
@@ -135,24 +129,17 @@ function main() {
   assert.strictEqual(pkg.MANIFEST_FILE, "plugin-manifest.json", "名字就是发布件里那一份");
   assert.ok(pkg.MANIFEST_FILE.endsWith(".json"), "清单是 json");
 
-  // pin 只属于发布流程：填全、形状对，而且里面那个目录名必须就是插件名（不然两处名字会各说各话）。
   // tag → 版本号用生产代码那条判据（不在这里再写一份正则）。
-  assert.ok(/^\d+(\.\d+)*$/.test(pkg.versionOfTag(pin.tag)), "pin 的 tag 形如 v1.0.371：" + pin.tag);
   assert.strictEqual(pkg.versionOfTag("v1.0.371"), "1.0.371");
-  assert.ok(
-    source.parseSource({ kind: "github", base: String(pin.repo).trim().replace(/\/+$/, "") }) != null,
-    "pin 的仓库要是一个能被发布源接受的基址：" + pin.repo
-  );
-  assert.strictEqual(String(pin.path).split("/").pop(), pluginRoot.PLUGIN_NAME, "pin 的 path 里那个目录要叫 " + pluginRoot.PLUGIN_NAME);
 
-  // 发布流程取 pin 用的就是这一条命令：跑一遍，保证接线是通的。
-  const printed = node([PACK, "--print-pin"]).trim().split("\n");
-  assert.deepStrictEqual(
-    printed,
-    ["repo=" + String(pin.repo).trim().replace(/\/+$/, ""), "tag=" + String(pin.tag).trim()],
-    "打包脚本报出的 pin 要与 plugin-pin.json 一致"
+  // 插件有自己的版本线：客户端这边**不再**打包它 —— 打包由插件仓库打 tag 时的那条作业做
+  // （那个仓库的 .github/workflows/plugin-release.yml 调同一个脚本，实现只有这一份）。
+  assert.ok(WORKFLOW.indexOf("pack-plugin.js") < 0, "客户端发布不再打包插件");
+  assert.strictEqual(
+    source.PLUGIN_DEFAULT_BASE,
+    "https://github.com/BigStartByXuyb/test",
+    "插件线的默认源是插件仓库"
   );
-  assert.ok(WORKFLOW.indexOf("pack-plugin.js") >= 0, "发布流程要调插件打包脚本");
 
   packTwice();
   console.log("plugin-package.test.js 全部通过");

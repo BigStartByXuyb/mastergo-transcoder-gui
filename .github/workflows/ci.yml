@@ -127,24 +127,3 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-      # 插件包：客户机上没有 Codex/Claude 时，客户端按这份清单自己下载并装一份。
-      # 插件源码在它自己的仓库（marketplace）里，这里按钉住的 tag 取出来打成 zip + 清单，
-      # 与客户端的发布件放同一个 Release —— 客户机因此只需要配一个发布源。
-      - name: Pack the plugin release
-        run: |
-          # pin（哪个仓库、哪个 tag）由打包脚本报出，流程不自己读配置、也不自己拼名字。
-          mapfile -t plugin_pin < <(node scripts/pack-plugin.js --print-pin)
-          plugin_repo=""; plugin_tag=""
-          for line in "${plugin_pin[@]}"; do
-            case "$line" in
-              repo=*) plugin_repo="${line#repo=}" ;;
-              tag=*) plugin_tag="${line#tag=}" ;;
-            esac
-          done
-          git clone --depth 1 --branch "$plugin_tag" "$plugin_repo" "$RUNNER_TEMP/plugin"
-          # 暂存与上传都交给打包脚本（名字与顺序只在它一处），流程不拼名字、也不猜顺序。
-          # 给插件产物一个独立目录：暂存会清空自己的输出目录，不能跟别的发布步骤共用 dist。
-          node scripts/pack-plugin.js --repo-dir "$RUNNER_TEMP/plugin" --out dist/plugin \
-            --upload "$GITHUB_REF_NAME" --notes "插件发布件（跟随客户端 $GITHUB_REF_NAME）"
-        env:
-          GH_TOKEN: ${{ github.token }}

@@ -18,6 +18,8 @@ const source = require("../lib/source.js");
 const { PLUGIN_MANIFEST_NAME, MANIFEST_NAME } = source;
 
 const BASE = source.DEFAULT_BASE;
+// 插件有自己的版本线：默认基址是插件仓库（见 lib/source.js 的 pluginSourceOf）。
+const PLUGIN_BASE = source.PLUGIN_DEFAULT_BASE;
 // 夹具里的相对路径一律用 / 拼（清单里的路径也是 / 分隔），免得平台差异混进用例。
 const MARKER = "skills/mastergo-to-wpf/SKILL.md";
 
@@ -118,7 +120,7 @@ async function main() {
     const installed = [];
     const update = createPluginUpdate({
       home: home,
-      source: { kind: "github", base: BASE },
+      pluginSource: { kind: "github", base: BASE },
       fetchImpl: server.fetchImpl,
       onInstalled: function (manifest) { installed.push(manifest.version); }
     });
@@ -169,7 +171,7 @@ async function main() {
       "lib/shared.js": "两边一模一样\n"
     });
     const server = remote(remoteTree, "1.0.2");
-    const update = createPluginUpdate({ home: home, source: { kind: "github", base: BASE }, fetchImpl: server.fetchImpl });
+    const update = createPluginUpdate({ home: home, pluginSource: { kind: "github", base: BASE }, fetchImpl: server.fetchImpl });
 
     const before = update.status();
     assert.strictEqual(before.local.version, "1.0.1");
@@ -203,7 +205,7 @@ async function main() {
     const server = remote(remoteTree, "2.0.0");
     // 其中一份内容远端回的字节与清单对不上：坏包必须被拒。
     server.corrupt("lib/core.js");
-    const update = createPluginUpdate({ home: home, source: { kind: "github", base: BASE }, fetchImpl: server.fetchImpl });
+    const update = createPluginUpdate({ home: home, pluginSource: { kind: "github", base: BASE }, fetchImpl: server.fetchImpl });
     await update.check();
     update.install();
     const done = await settle(update);
@@ -218,7 +220,7 @@ async function main() {
     const home = sandbox();
     const update = createPluginUpdate({
       home: home,
-      source: { kind: "github", base: BASE },
+      pluginSource: { kind: "github", base: BASE },
       fetchImpl: async function () { return { ok: false, status: 404 }; }
     });
     assert.throws(function () { update.install(); }, /还没有检查过插件版本/);
@@ -237,7 +239,7 @@ async function main() {
     const home = sandbox();
     const update = createPluginUpdate({
       home: home,
-      source: { kind: "github", base: BASE },
+      pluginSource: { kind: "github", base: BASE },
       fetchImpl: async function () { return ok(JSON.stringify({ version: "1.0.0" })); }
     });
     const checked = await update.check();
@@ -251,7 +253,7 @@ async function main() {
     const server = remote(remoteTree, "3.0.0");
     const update = createPluginUpdate({
       home: home,
-      source: { kind: "github", base: BASE },
+      pluginSource: { kind: "github", base: BASE },
       fetchImpl: server.fetchImpl,
       isBusy: function () { return "1 次流水线正在跑"; }
     });
@@ -270,7 +272,7 @@ async function main() {
     const seen = [];
     const update = createPluginUpdate({
       home: home,
-      source: { kind: "static", base: "http://10.0.0.9/updates" },
+      pluginSource: { kind: "static", base: "http://10.0.0.9/updates" },
       token: "secret",
       fetchImpl: async function (url, init) {
         seen.push({ url: url, headers: (init && init.headers) || null });
@@ -306,10 +308,25 @@ async function main() {
       path.join(installDir(home), STORE_LAYOUT.buildDir, BUILDING_PREFIX + "5.0.0-1"),
       "5.0.0"
     );
-    const update = createPluginUpdate({ home: home, source: { kind: "github", base: BASE }, fetchImpl: async function () { throw new Error("不该联网"); } });
+    const update = createPluginUpdate({ home: home, pluginSource: { kind: "github", base: BASE }, fetchImpl: async function () { throw new Error("不该联网"); } });
     assert.ok(fs.existsSync(path.join(leftover, MARKER)), "残骸确实是一棵像样的插件树");
     assert.deepStrictEqual(pluginRootsUnder(path.join(home, "plugins")), [], "插件定位一份都看不到");
     assert.strictEqual(update.status().local.version, "", "半成品不算本地那一份");
+  }
+
+  /*
+   * 插件有自己的版本线：装配处没注入源时按插件仓库取（不是客户端仓库那份默认），
+   * 并且和程序更新一样带一个后台复查（startWatch）—— 两条线的节拍都在 lib/manifest-fetch.js 一处。
+   */
+  {
+    const update = createPluginUpdate({ home: sandbox(), fetchImpl: async function () { throw new Error("不该联网"); } });
+    assert.strictEqual(
+      update.status().source.base,
+      source.PLUGIN_DEFAULT_BASE,
+      "没注入源＝插件仓库（插件那条线的默认，不是客户端仓库）"
+    );
+    assert.strictEqual(update.status().source.manifestUrl, source.PLUGIN_DEFAULT_BASE + "/releases/latest/download/" + PLUGIN_MANIFEST_NAME);
+    assert.strictEqual(typeof update.startWatch, "function", "插件线也要能起后台复查");
   }
 
   /*
@@ -321,7 +338,7 @@ async function main() {
     const asked = [];
     const update = createPluginUpdate({
       home: home,
-      source: { kind: "github", base: BASE },
+      pluginSource: { kind: "github", base: BASE },
       fetchImpl: async function () { throw new Error("不该联网"); },
       token: function () { asked.push("token"); return "mg_secret"; },
       hasToken: function () { asked.push("hasToken"); return true; }

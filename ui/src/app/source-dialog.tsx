@@ -90,8 +90,9 @@ export function SourceDialog(props: {
         <DialogHeader>
           <DialogTitle>修改发布源 · {props.subject}</DialogTitle>
           <DialogDescription>
-            {props.subject}从这个地址检查有没有新版、从这儿把新版本下回来。默认是内置的 GitHub 仓库；
-            公司环境可以改成自己的 GitLab 或内网静态目录。
+            {props.subject}从这个地址检查有没有新版、从这儿把新版本下回来。留空＝各回各的官方仓库
+            （程序更新＝客户端仓库，插件＝插件仓库）；填了＝两条线都从这里取 —— 公司内网就把两份清单
+            （manifest.json 与 plugin-manifest.json）与它们的文件放在同一个静态目录下。
           </DialogDescription>
         </DialogHeader>
 

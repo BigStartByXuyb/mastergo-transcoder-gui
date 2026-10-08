@@ -101,6 +101,26 @@ function caseDescribe() {
   );
 }
 
+/*
+ * 插件那条线的源：没配＝插件自己的仓库（它有自己的版本线），配了＝跟着配的那个走
+ * （内网两份清单放同一个基址）；坏配置一律回到插件仓库，不半换。
+ */
+function casePluginSource() {
+  assert.strictEqual(source.pluginSourceOf(null).base, source.PLUGIN_DEFAULT_BASE, "没配＝插件仓库");
+  assert.strictEqual(
+    source.pluginSourceOf({ kind: "static", base: "http://10.0.0.9/updates" }).base,
+    "http://10.0.0.9/updates",
+    "配了内网静态目录就跟着它"
+  );
+  assert.strictEqual(
+    source.pluginSourceOf({ kind: "nonsense", base: "http://10.0.0.9/updates" }).base,
+    source.PLUGIN_DEFAULT_BASE,
+    "类型认不出来就整体不用它"
+  );
+  // 两条线的默认基址不是同一个：插件那条按插件仓库取。
+  assert.notStrictEqual(source.PLUGIN_DEFAULT_BASE, source.DEFAULT_BASE, "两条线各回各的官方仓库");
+}
+
 try {
   const cases = [
     ["GitHub 源的地址", caseGithub],
@@ -108,7 +128,8 @@ try {
     ["静态目录", caseStatic],
     ["坏配置回落", caseNormalize],
     ["私有源的请求头", caseHeaders],
-    ["给界面看的描述", caseDescribe]
+    ["给界面看的描述", caseDescribe],
+    ["插件那条线的源", casePluginSource]
   ];
   for (const [name, run] of cases) {
     run();

@@ -79,6 +79,8 @@ function caseSource() {
   assert.strictEqual(initial.kind, "github");
   assert.strictEqual(initial.base, sourceDefaults.DEFAULT_BASE);
   assert.strictEqual(initial.hasToken, false);
+  // 插件那条线有自己的默认：没配发布源 → 插件仓库（不是客户端仓库那份默认）。
+  assert.strictEqual(settings.pluginSource().base, sourceDefaults.PLUGIN_DEFAULT_BASE, "没配＝插件仓库");
 
   const saved = settings.write({
     source: { kind: "gitlab", base: "https://git.example.com/team/repo/", token: "glpat-x" }
@@ -86,16 +88,27 @@ function caseSource() {
   assert.strictEqual(saved.kind, "gitlab");
   assert.strictEqual(saved.base, "https://git.example.com/team/repo", "末尾斜杠由 source.js 统一去掉");
   assert.strictEqual(saved.hasToken, true);
+  assert.strictEqual(settings.pluginSource().base, "https://git.example.com/team/repo", "配了公司源，插件线也跟着它");
   assert.strictEqual(settings.readSourceToken(), "glpat-x", "token 解出来给更新模块用");
 
   // 不认识的类型 / 空基址：回落内置默认，不保留半份配置。
   const broken = settings.write({ source: { kind: "svn", base: "https://x/y" } }).source;
   assert.strictEqual(broken.kind, "github");
   assert.strictEqual(broken.base, sourceDefaults.DEFAULT_BASE);
+  assert.strictEqual(settings.pluginSource().base, sourceDefaults.PLUGIN_DEFAULT_BASE, "坏配置＝没配，插件线回它自己的默认");
 
   settings.write({ source: { kind: "static", base: "http://10.0.0.9/updates", clearToken: true } }).source;
   assert.strictEqual(settings.read().source.hasToken, false, "清掉 token 后不再算有");
   assert.strictEqual(settings.readSourceToken(), "");
+  assert.strictEqual(settings.pluginSource().base, "http://10.0.0.9/updates", "内网静态目录：两条线都从那里取");
+
+  // 配回客户端官方仓库（没换源）时，插件仍回它自己的默认 —— 那个仓库里没有插件发布件。
+  settings.write({ source: { kind: "github", base: sourceDefaults.DEFAULT_BASE } });
+  assert.strictEqual(
+    settings.pluginSource().base,
+    sourceDefaults.PLUGIN_DEFAULT_BASE,
+    "配的就是客户端官方仓库＝没换源"
+  );
   fs.rmSync(home, { recursive: true, force: true });
 }
 
