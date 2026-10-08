@@ -78,7 +78,7 @@ function caseSaveAndRead() {
   assert.strictEqual(before.image, null, "还没传时没有图");
   assert.deepStrictEqual(before.canvas, { width: 1280, height: 1024 }, "画板尺寸取自 DSL 根节点");
   assert.strictEqual(before.groups.exists, false);
-  assert.strictEqual(before.expectedName, "DemoPage.design.png");
+  assert.match(before.dir, /Generated[\\/]_inputs$/, "图该放的目录照实给出来");
 
   const saved = upload(root, png(1280, 1024));
   assert.strictEqual(saved.matches, true, "尺寸与画板一致");

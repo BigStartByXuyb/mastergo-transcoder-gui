@@ -51,17 +51,17 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
     setFailure("")
     setBusy(true)
     try {
+      // 上传完直接落状态（不重读一次）；卸载之后迟到的响应不回写，与 load() 同一套守卫。
       const payload = await api.saveDesignImage({
         projectRoot,
         target,
-        name: file.name,
         data: await fileToBase64(file)
       })
-      setState(payload.image)
+      if (alive.current) setState(payload.image)
     } catch (error) {
-      setFailure(describeFailure(error))
+      if (alive.current) setFailure(describeFailure(error))
     } finally {
-      setBusy(false)
+      if (alive.current) setBusy(false)
       // 选同一个文件两次也要能再传一次（input 的 value 不清就只响一次）。
       if (input.current) input.current.value = ""
     }
@@ -102,9 +102,8 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
             <span className="flex flex-wrap items-center gap-2">
               <ImageIcon className="size-4" />
               <span className="font-mono">{image.name}</span>
-              <span>
-                {image.width}×{image.height}
-              </span>
+              {/* 文件头读不出宽高时（文件坏了、或不是位图）照实说，别显示 0×0。 */}
+              <span>{image.width > 0 ? image.width + "×" + image.height : "这一份读不出尺寸"}</span>
               <span className="text-muted-foreground text-xs">{humanSize(image.bytes)}</span>
             </span>
           ) : (
@@ -124,7 +123,8 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
           <input
             ref={input}
             type="file"
-            accept="image/png,image/jpeg"
+            // 按内容认格式（后端那条判据），所以选择框只按大类筛一下，别用后缀把改名过的文件挡在外面。
+            accept="image/*"
             className="hidden"
             onChange={(event) => void picked(event.target.files?.[0])}
           />

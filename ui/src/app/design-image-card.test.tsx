@@ -47,10 +47,7 @@ function task(): BoardTask {
 
 function state(over: Partial<DesignImage> = {}): DesignImage {
   return {
-    projectRoot: WORK_DIR,
-    target: "DemoPage",
     dir: INPUTS,
-    expectedName: "DemoPage.design.png",
     canvas: { width: 1280, height: 1024 },
     image: null,
     matches: false,
@@ -118,17 +115,17 @@ describe("DesignImageCard", () => {
     expect(screen.getByText("缺分组表")).toBeTruthy()
   })
 
-  it("选一张图：按约定名与 base64 传上去，界面换成新状态", async () => {
-    let sent: { name?: string; data?: string; target?: string } = {}
+  it("选一张图：按 base64 传上去（不用传文件名，格式由内容定），界面换成新状态", async () => {
+    let sent: { data?: string; target?: string } = {}
     stub(state(), {
-      onSave: (body) => (sent = body as { name: string; data: string }),
+      onSave: (body) => (sent = body as { data: string; target: string }),
       save: state({ image: IMAGE, matches: true, groups: { path: "x", exists: true } })
     })
     render(<DesignImageCard task={task()} />)
     await screen.findByText("没有图")
 
     pick("DemoPage.design.png")
-    await waitFor(() => expect(sent.name).toBe("DemoPage.design.png"))
+    await waitFor(() => expect(sent.target).toBe("DemoPage"))
     expect(sent.target).toBe("DemoPage")
     expect(sent.data).toBe(Buffer.from([1, 2, 3, 4]).toString("base64"))
     expect(await screen.findByText("有图")).toBeTruthy()

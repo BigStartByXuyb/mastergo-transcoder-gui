@@ -151,12 +151,8 @@ export type PluginInfo = {
  * 图必须按设计稿原始尺寸导出 —— 尺寸要等于 DSL 画板尺寸；有图就必须先有分组表，否则第 8 步停下。
  */
 export type DesignImage = {
-  projectRoot: string
-  target: string
   /** 图该放的那个目录（<工程目录>/Generated/_inputs）。 */
   dir: string
-  /** 约定名：<页面名>.design.png。 */
-  expectedName: string
   /** DSL 画板尺寸（也就是「图该有的尺寸」）；还没跑到第 2 步时是 null。 */
   canvas: { width: number; height: number } | null
   /** 现在放着的那一张；没放过就是 null。 */
@@ -891,8 +887,11 @@ export const api = {
     request<{ ok: true; image: DesignImage }>(
       "/api/design-image?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
     ),
-  /** 存一张设计稿位图（整份替换；尺寸与画板不一致会被后端按原话拒绝）。 */
-  saveDesignImage: (body: { projectRoot: string; target: string; name: string; data: string }) =>
+  /**
+   * 存一张设计稿位图（整份替换）。格式按**内容**认，落盘后缀也按它取，所以不用传文件名；
+   * 尺寸与画板不一致、内容不是 PNG/JPEG 时，后端按原话拒绝。
+   */
+  saveDesignImage: (body: { projectRoot: string; target: string; data: string }) =>
     post<{ ok: true; image: DesignImage }>("/api/design-image", body),
   /** 在文件管理器里打开一个目录（插件页各行的「打开目录」）。打不开时 ok=false，reason 是原话。 */
   openFolder: (path: string) => post<{ ok: boolean; reason: string }>("/api/system/open-folder", { path }),
