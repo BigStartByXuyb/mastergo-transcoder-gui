@@ -14,6 +14,9 @@ work/
 chats.json
 chats/
 
+# 服务日志（安装根下按天落盘，闪退时靠它说话）
+logs/
+
 # 前端覆盖率报告（每次由 vitest 生成，不进仓库）
 ui/coverage/
 

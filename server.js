@@ -10,6 +10,7 @@
  *   lib/plugin.js      插件信息与步骤契约
  *   lib/resolve.js     控件查询（链接 → 控件 ID）
  *   lib/system-open.js 交给系统打开（起完服务打开界面、插件页的「打开目录」）
+ *   lib/bootstrap.js   启动时把安装根的壳按当前生效这一版对齐（应用内更新不会换壳，见那里的说明）
  *
  * 用法：
  *   node server.js                                  # 起服务并打开浏览器（默认 127.0.0.1:8787）
@@ -52,6 +53,9 @@ const { createChats } = require("./lib/chat.js");
 const { createUploads } = require("./lib/uploads.js");
 const { applyProxy } = require("./lib/proxy.js");
 const { createTokenSource, SOURCE_LABELS } = require("./lib/mcp-token.js");
+const { syncSupervisor } = require("./lib/bootstrap.js");
+const { readMark, beginRun, endRun } = require("./lib/run-mark.js");
+const { createLog } = require("./lib/log.js");
 
 const HERE = __dirname;
 const PUBLIC_DIR = path.join(HERE, "public");
@@ -88,6 +92,48 @@ const options = {
 // 用户状态与凭据都在安装根（HOME）；settings 要早于 token 取值链建好。
 const HOME = process.env.MASTERGO_HOME || HERE;
 const settings = createSettings(HOME);
+
+/*
+ * 落盘的启动/退出证据（logs/server-YYYY-MM-DD.log）：
+ * 这个控制台窗口一关就什么都不剩，而「程序闪退」只能靠这几行回答是哪个进程、什么错、什么码退的。
+ * 未捕获异常与未处理拒绝照 Node 原本的行为退出（只是先写一行）——出错就退，重开交给监督进程。
+ */
+const log = createLog(HOME);
+log.write("boot", "启动 v" + VERSION + " port " + options.port + " pid " + process.pid
+  + (process.env.MASTERGO_SUPERVISED === "1" ? "（受监督，监督进程 pid " + process.ppid + "）" : "")
+  + " 安装根 " + HOME);
+/*
+ * 上一次是不是正常退出：这一份在 logs/run.json 里留个记号，正常退出（含换版本的退出码 75）时自己摘掉。
+ * 留着没摘就说明上一次被硬杀（控制台窗口被关、任务管理器结束进程）—— 它自己来不及写日志，而监督进程
+ * 那一侧只看到退出码、说不出是哪一版哪个 pid；这一行只有下一次启动补得上（lib/run-mark.js）。
+ */
+const previous = readMark(HOME);
+if (previous && Number(previous.pid) !== process.pid) {
+  log.write("crash", "上一次运行（v" + String(previous.version || "?") + " pid " + String(previous.pid || "?")
+    + "，起于 " + String(previous.startedAt || "?") + "）没有正常退出");
+}
+beginRun(HOME, { version: VERSION, startedAt: new Date().toISOString() });
+process.on("uncaughtException", function (error) {
+  log.write("crash", "未捕获异常：" + (error && error.stack ? error.stack : String(error)));
+  process.exit(1);
+});
+process.on("unhandledRejection", function (reason) {
+  log.write("crash", "未处理的 Promise 拒绝：" + (reason && reason.stack ? reason.stack : String(reason)));
+  process.exit(1);
+});
+process.on("exit", function (code) {
+  endRun(HOME);
+  log.write("exit", "进程退出 code=" + code);
+});
+
+/*
+ * 安装根的「壳」跟当前生效这一版对齐：应用内更新只往 versions/<版本>/ 铺新版本、改 current.json，
+ * 壳本身从来不动 —— 不对齐的话，壳里的修复（比如「换版本不再另开窗口」）永远到不了客户机。
+ * 铺不动不影响这一份能不能跑，所以只记一行日志（判据与文件清单在 lib/bootstrap.js 一处）。
+ */
+const supervisor = syncSupervisor({ home: HOME, from: HERE });
+if (supervisor.failure) log.write("bootstrap", supervisor.failure);
+else if (supervisor.updated.length) log.write("bootstrap", "安装根的壳按 v" + VERSION + " 对齐：" + supervisor.updated.join("、"));
 
 // 运行时「哪一份用系统上那份」只有一个来源：设置里那张逐份的表，现读（刚改完就生效）。
 runtimePolicy.setSource(function () { return settings.read().runtime.system; });
