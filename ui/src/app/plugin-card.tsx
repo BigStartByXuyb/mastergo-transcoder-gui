@@ -110,6 +110,7 @@ export function PluginCard() {
         {editingSource && update.update && (
           <SourceDialog
             subject="插件（流水线）"
+            field="pluginSource"
             view={sourceViewOf(update.update.source, update.update.hasToken)}
             onClose={() => setEditingSource(false)}
             reload={async () => {

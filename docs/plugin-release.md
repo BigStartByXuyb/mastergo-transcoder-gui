@@ -33,15 +33,17 @@ v<版本>/plugin-manifest.json  历史版本的清单（静态源没有「某一
 
 ## 客户端从哪儿取
 
-只有一条规矩（`lib/source.js` 的 `pluginSourceOf`）：
+插件有自己的**发布源设置**（`local.json` 的 `pluginSource`，在插件页「客户端自带」那一行的管理面板里
+点「修改发布源」改）：
 
-| 设置里的发布源 | 程序更新从哪取 | 插件从哪取 |
+| | 默认从哪取 | 改了之后 |
 | --- | --- | --- |
-| 留空 | 客户端仓库的 Release | **插件仓库的 Release**（`releases/latest/download/plugin-manifest.json`） |
-| 填了（公司 GitLab / 内网静态目录） | 那个基址的 `manifest.json` | 同一个基址的 `plugin-manifest.json` |
+| 程序更新（`source`） | 客户端仓库的 Release | 从你填的基址取 `manifest.json` |
+| 插件（`pluginSource`） | **插件仓库的 Release**（`releases/latest/download/plugin-manifest.json`） | 从你填的基址取 `plugin-manifest.json` |
 
-所以内网部署只需要一个地址：把两份清单与它们的文件放进同一个静态目录
-（文件按内容哈希命名，两条线不会撞），客户端两条线都从那里取。
+两项互不影响（改插件那条不会动程序更新那条，反之亦然）；没配／配坏了都各自的默认
+（`lib/source.js` 的 `normalizeSource` 与 `pluginSourceOf`）。内网想一个地址取两边：把两份清单与它们的
+文件放进同一个静态目录（文件按内容哈希命名，两条线不会撞），两项都填那个目录。
 
 节拍（`lib/manifest-fetch.js` 的 `RECHECK_MS`，两条线共用）：启动时静默查一次，之后每 10 分钟复查一次；
 查到新版，插件页「客户端自带」那一行自己会亮「有新版」。装完立刻重新定位插件（有任务在跑时先拒绝装）。

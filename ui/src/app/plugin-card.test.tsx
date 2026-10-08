@@ -387,7 +387,14 @@ describe("PluginCard", () => {
 
   it("「更新来源」在自带那一行的管理面板里（页面顶层不再占一块），点「修改发布源」开的是插件这一半的弹窗", async () => {
     const asked: string[] = []
-    stub(view(), { onCheck: () => asked.push("check"), onRequest: (url) => asked.push("req:" + url) })
+    const bodies: { url: string; body: unknown }[] = []
+    stub(view(), {
+      onCheck: () => asked.push("check"),
+      onRequest: (url, body) => {
+        asked.push("req:" + url)
+        bodies.push({ url, body })
+      }
+    })
     render(<PluginCard />)
     // 顶层的那些动作（更新来源 / 检查更新）都收进了自带那一行的管理面板：页面上先找不到它们。
     await waitFor(() => expect(within(screen.getByRole("table")).getByText("客户端自带")).toBeTruthy())
@@ -409,6 +416,13 @@ describe("PluginCard", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "保存并检查" }))
     await waitFor(() => expect(asked).toContain("check"))
     expect(asked.some((item) => item.includes("/api/settings"))).toBe(true)
+    /*
+     * 存进的是**插件那一项**（pluginSource），不是程序更新那项（source）：
+     * 两条版本线各有各的源与默认，在插件页改源不该把客户端更新源带到插件仓库去。
+     */
+    const saved = bodies.find((item) => item.url.includes("/api/settings"))?.body as Record<string, unknown> | undefined
+    expect(saved && typeof saved === "object" && "pluginSource" in saved).toBe(true)
+    expect(saved && "source" in saved).toBe(false)
   })
 
   it("「检查更新」在自带那一行的管理面板里，打到插件那条接口", async () => {

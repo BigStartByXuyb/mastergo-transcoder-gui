@@ -22,6 +22,7 @@ function ok(body: unknown) {
 function dialogProps(value: UpdateStatus) {
   return {
     subject: "程序更新",
+    field: "source" as const,
     view: sourceViewFixture(value),
     onClose: () => undefined,
     reload: async () => sourceViewFixture((await api.updateStatus()).status),

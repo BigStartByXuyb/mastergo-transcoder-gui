@@ -102,18 +102,18 @@ function caseDescribe() {
 }
 
 /*
- * 插件那条线的源：没配＝插件自己的仓库（它有自己的版本线），配了＝跟着配的那个走
- * （内网两份清单放同一个基址）；坏配置一律回到插件仓库，不半换。
+ * 插件那条线的源是**自己那一项设置**：没配＝插件自己的仓库（它有自己的版本线），
+ * 配了＝用配的那个（内网可以两份清单放同一个基址）；坏配置一律回到插件仓库，不半换。
  */
 function casePluginSource() {
   assert.strictEqual(source.pluginSourceOf(null).base, source.PLUGIN_DEFAULT_BASE, "没配＝插件仓库");
   assert.strictEqual(
-    source.pluginSourceOf({ kind: "static", base: "http://10.0.0.9/updates" }).base,
-    "http://10.0.0.9/updates",
+    source.pluginSourceOf({ kind: "static", base: "http://10.0.0.8/plugin-updates" }).base,
+    "http://10.0.0.8/plugin-updates",
     "配了内网静态目录就跟着它"
   );
   assert.strictEqual(
-    source.pluginSourceOf({ kind: "nonsense", base: "http://10.0.0.9/updates" }).base,
+    source.pluginSourceOf({ kind: "nonsense", base: "http://10.0.0.8/plugin-updates" }).base,
     source.PLUGIN_DEFAULT_BASE,
     "类型认不出来就整体不用它"
   );

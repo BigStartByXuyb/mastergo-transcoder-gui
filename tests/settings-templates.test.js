@@ -79,7 +79,7 @@ function caseSource() {
   assert.strictEqual(initial.kind, "github");
   assert.strictEqual(initial.base, sourceDefaults.DEFAULT_BASE);
   assert.strictEqual(initial.hasToken, false);
-  // 插件那条线有自己的默认：没配发布源 → 插件仓库（不是客户端仓库那份默认）。
+  // 插件那条线有**自己那一项设置**：没配 → 插件仓库；改它不会动程序更新那条。
   assert.strictEqual(settings.pluginSource().base, sourceDefaults.PLUGIN_DEFAULT_BASE, "没配＝插件仓库");
 
   const saved = settings.write({
@@ -88,7 +88,11 @@ function caseSource() {
   assert.strictEqual(saved.kind, "gitlab");
   assert.strictEqual(saved.base, "https://git.example.com/team/repo", "末尾斜杠由 source.js 统一去掉");
   assert.strictEqual(saved.hasToken, true);
-  assert.strictEqual(settings.pluginSource().base, "https://git.example.com/team/repo", "配了公司源，插件线也跟着它");
+  assert.strictEqual(
+    settings.pluginSource().base,
+    sourceDefaults.PLUGIN_DEFAULT_BASE,
+    "改程序更新那条源，插件那条不动（两条线各有各的源）"
+  );
   assert.strictEqual(settings.readSourceToken(), "glpat-x", "token 解出来给更新模块用");
 
   // 不认识的类型 / 空基址：回落内置默认，不保留半份配置。
@@ -100,15 +104,19 @@ function caseSource() {
   settings.write({ source: { kind: "static", base: "http://10.0.0.9/updates", clearToken: true } }).source;
   assert.strictEqual(settings.read().source.hasToken, false, "清掉 token 后不再算有");
   assert.strictEqual(settings.readSourceToken(), "");
-  assert.strictEqual(settings.pluginSource().base, "http://10.0.0.9/updates", "内网静态目录：两条线都从那里取");
-
-  // 配回客户端官方仓库（没换源）时，插件仍回它自己的默认 —— 那个仓库里没有插件发布件。
-  settings.write({ source: { kind: "github", base: sourceDefaults.DEFAULT_BASE } });
+  // 插件那一项自己配：改动只落在它自己那一项上。
+  const pluginSaved = settings.write({ pluginSource: { kind: "static", base: "http://10.0.0.8/plugin-updates" } }).pluginSource;
+  assert.strictEqual(pluginSaved.base, "http://10.0.0.8/plugin-updates", "插件源能单独配");
+  assert.strictEqual(settings.pluginSource().base, "http://10.0.0.8/plugin-updates");
   assert.strictEqual(
-    settings.pluginSource().base,
-    sourceDefaults.PLUGIN_DEFAULT_BASE,
-    "配的就是客户端官方仓库＝没换源"
+    settings.read().source.base,
+    "http://10.0.0.9/updates",
+    "程序更新那条还是上一轮填的内网目录，没被插件那次改动带走"
   );
+
+  // 配坏了：插件那条回它自己的默认。
+  settings.write({ pluginSource: { kind: "svn", base: "https://x/y" } });
+  assert.strictEqual(settings.pluginSource().base, sourceDefaults.PLUGIN_DEFAULT_BASE, "插件源配坏了也回自己的默认");
   fs.rmSync(home, { recursive: true, force: true });
 }
 
