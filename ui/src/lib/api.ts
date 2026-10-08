@@ -19,10 +19,16 @@ export type PluginSummary = {
  * （前后端各一份实现，改 lib/plugin-root.js 的 id/kind 时要同步改这里 —— 加档/改名都得两处一起）。
  */
 export type PluginSource = {
-  id: "arg" | "env" | "codex-cache" | "codex-market" | "claude-cache" | "claude-market" | "install"
+  /**
+   * 档位 id 与 kind 都是**后端给的值**（`lib/plugin-root.js` 的 pluginSources() 一处产出）：
+   * 界面不维护一份词表，只按拿到的值渲染。界面唯一要认的那个 id 是 `install`
+   * （见 lib/plugin-sources.ts 的 INSTALL_SLOT_ID，自带的更新动作挂在那一行上）——
+   * 后端加档/改名时改那一处，界面这边只有它需要跟着动。
+   */
+  id: string
   label: string
   path: string
-  kind: "arg" | "env" | "agent" | "install"
+  kind: string
   exists: boolean
   pluginRoot: string
   version: string

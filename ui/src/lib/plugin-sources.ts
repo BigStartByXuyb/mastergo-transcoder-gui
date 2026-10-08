@@ -25,8 +25,9 @@ export type PluginSourceRow = PluginSource & {
 /**
  * 「客户端自带」那一档的 id（后端 lib/plugin-root.js 给的 id 就是它）。
  * 这一档在这一页有几处判断（这一行里有没有它、它自己是哪一档），都读这一处，不再各写一个 "install"。
+ * 界面不维护整份 id 词表（那是后端 pluginSources() 的事），只认这一个：它是唯一要分支的档位。
  */
-export const INSTALL_SLOT_ID: PluginSource["id"] = "install"
+export const INSTALL_SLOT_ID = "install"
 
 
 export type PluginSourceSlot = PluginSource & {
