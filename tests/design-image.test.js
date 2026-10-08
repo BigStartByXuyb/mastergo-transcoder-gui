@@ -65,13 +65,6 @@ function upload(projectRoot, buffer, name) {
   return designImage.save({ projectRoot: projectRoot, target: TARGET, name: name || "DemoPage.design.png", data: buffer.toString("base64") });
 }
 
-function casePixelSize() {
-  assert.deepStrictEqual(designImage.readPixelSize(png(1280, 1024)), { width: 1280, height: 1024, format: "png" });
-  assert.deepStrictEqual(designImage.readPixelSize(jpeg(800, 600)), { width: 800, height: 600, format: "jpeg" });
-  assert.strictEqual(designImage.readPixelSize(Buffer.from("not an image at all, really")), null, "不认识的内容要说不知道");
-  assert.strictEqual(designImage.readPixelSize(Buffer.alloc(4)), null, "太短也一样");
-}
-
 function caseSaveAndRead() {
   const root = sandbox();
   const before = designImage.read({ projectRoot: root, target: TARGET });
@@ -84,7 +77,20 @@ function caseSaveAndRead() {
   assert.strictEqual(saved.matches, true, "尺寸与画板一致");
   assert.strictEqual(saved.image.width, 1280);
   assert.strictEqual(saved.image.height, 1024);
+  // 认的是内容的真实格式：PNG 落成 .design.png（JPEG 落成 .design.jpg，见下面的换格式用例）。
+  assert.strictEqual(saved.image.name, "DemoPage.design.png");
   assert.ok(fs.existsSync(path.join(root, "Generated", "_inputs", "DemoPage.design.png")), "落在 _inputs 下、用约定名");
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
+/* 只接这两种：JPEG 也要认得出宽高（尺寸这一格与格式那一格都从同一份文件头来）。 */
+function caseJpeg() {
+  const root = sandbox();
+  const saved = upload(root, jpeg(1280, 1024), "shot.jpeg");
+  assert.strictEqual(saved.matches, true);
+  assert.strictEqual(saved.image.name, "DemoPage.design.jpg", "JPEG 落成 .design.jpg");
+  assert.strictEqual(saved.image.width, 1280);
+  assert.strictEqual(saved.image.height, 1024);
   fs.rmSync(root, { recursive: true, force: true });
 }
 
@@ -152,8 +158,8 @@ function caseGroups() {
 
 try {
   const cases = [
-    ["位图尺寸解析（PNG / JPEG）", casePixelSize],
-    ["存一张图并读回状态", caseSaveAndRead],
+    ["存一张 PNG 并读回状态", caseSaveAndRead],
+    ["JPEG 也认（尺寸与后缀都按内容）", caseJpeg],
     ["换格式只留一张", caseReplace],
     ["拒绝的几种", caseRejections],
     ["还没跑到第 2 步", caseNoSnapshot],
