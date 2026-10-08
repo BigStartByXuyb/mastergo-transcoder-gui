@@ -116,7 +116,7 @@ export type Health = {
   update: UpdateHint
 }
 
-/** /api/health 带回来的新版状态：state 与设置页的更新四态同一套口径。 */
+/** /api/health 带回来的新版状态：state 与设置页的更新五态同一套口径。 */
 export type UpdateHint = {
   state: string
   /** 正在跑的版本：确认弹窗要说清是升级还是回退。 */

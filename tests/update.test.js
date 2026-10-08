@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 
-// 更新器：四态流转、差分只下变化的内容、切换与回退、有任务在跑时拒绝、外壳下限。
+// 更新器：五态流转、差分只下变化的内容、切换与回退、有任务在跑时拒绝、外壳下限。
 // 远端用假 fetch 顶替（GitHub Releases 的两种地址），全程不联网。
 // 跑法：node tests/update.test.js
 

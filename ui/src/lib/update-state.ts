@@ -102,7 +102,7 @@ export function versionList(status: UpdateStatus): VersionRow[] {
 
 export type UpdateSummary = { label: string; tone: UpdateTone; note: string }
 
-/* 四态翻成用户看得懂的一句话。note 只留给失败原因，不复述状态名，也不解释怎么实现的。 */
+/* 五态翻成用户看得懂的一句话。note 只留给失败原因，不复述状态名，也不解释怎么实现的。 */
 export function describeUpdate(status: UpdateStatus | null): UpdateSummary {
   if (!status) return { label: "读取中…", tone: "outline", note: "" }
   if (status.state === "download_ready") {

@@ -83,7 +83,8 @@ function remote(pluginRoot, version, extra) {
     fetchImpl: async function (url, init) {
       urls.push({ url: url, headers: (init && init.headers) || null });
       if (url === BASE + "/releases/latest/download/" + PLUGIN_MANIFEST_NAME) return ok(JSON.stringify(manifest));
-      const hit = new RegExp("^" + BASE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "/releases/latest/download/([0-9a-f]{64})$").exec(url);
+      // 文件按这一版的 tag 取（与程序更新那条线一致）：latest 那一份只服务清单。
+      const hit = new RegExp("^" + BASE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "/releases/download/v[^/]+/([0-9a-f]{64})$").exec(url);
       if (hit) {
         if (hit[1] === corruptHash) return ok("坏内容");
         const buffer = byHash.get(hit[1]);

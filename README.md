@@ -238,7 +238,7 @@ node scripts/publish.js --no-fresh-run      # 声明这版不要求新开一次�
 
 | 接口 | 作用 |
 | --- | --- |
-| `GET /api/update/status` | 不联网，只读本地状态与上一次检查结果；四态 `up_to_date / update_available / download_ready / error` |
+| `GET /api/update/status` | 不联网，只读本地状态与上一次检查结果；五态 `unchecked / up_to_date / update_available / download_ready / error` |
 | `POST /api/update/check` | 拉远端清单并按 sha256 逐文件差分，结果缓存到 `update-cache/manifest.json`（离线也能显示「有新版 / 要换几个文件」） |
 | `POST /api/update/download` | 后台下载缺失内容并拼出 `versions/<版本>/`，进度在 `status().task` 里 |
 | `POST /api/update/apply` · `rollback` | 只写安装根的 `current.json` 指针，不抽走正在跑的目录，所以切完要重启客户端才生效 |

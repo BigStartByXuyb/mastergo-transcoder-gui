@@ -211,6 +211,11 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   补上 `unchecked`（只在拿到**本源**的缓存时才说 `up_to_date`），前端 `UpdateStatus.state` 联合类型与
   `describeUpdate` 同步扩一态，说法与插件线对齐（`ui/src/lib/plugin-install.ts` 的 unchecked 分支）。
   `lib/routes.js` 里「程序更新四态」的注释随之改成五态。
+- 再一轮复核收口（两条）：①插件线取文件原来不带版本（落到 Release 的「最新那一版」），缓存里的清单
+  比最新 Release 旧时就 404 → 改成按**这份清单自己的版本**取（与程序更新那条线一致；静态源那套文件与版本
+  无关，由 `lib/source.js` 的 `blobUrl` 认差别），插件那一半的假远端也照新地址收。②「四态」的现役表述
+  扫成五态（`README.md` 的接口表、`lib/update.js`、`lib/versions.js`、`ui/src/lib/api.ts`、
+  `ui/src/lib/update-state.ts`、用例标题）——`lib/plugin-update.js` 里那一处说的是插件线自己的四态，保持。
 
 ### 点过的东西
 

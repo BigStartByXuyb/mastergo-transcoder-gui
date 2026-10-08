@@ -90,7 +90,7 @@ describe("describeUpdate", () => {
     expect(describeUpdate(null)).toEqual({ label: "读取中…", tone: "outline", note: "" })
   })
 
-  it("四态各给人话", () => {
+  it("五态各给人话", () => {
     expect(describeUpdate(status()).label).toBe("已是最新 v0.1.0")
     expect(describeUpdate(status({ state: "update_available", available: available() })).label).toBe("有新版本 v0.2.0")
 
