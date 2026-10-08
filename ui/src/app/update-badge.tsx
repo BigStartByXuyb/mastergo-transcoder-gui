@@ -47,8 +47,7 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
       // 这条入口没有自己的状态可套：起来了或本来就有，都带去更新页；失败留在原地把原因说清。
       finishDownload(got, {
         setFailure,
-        // 「已经在下载了」不是失败（后端那条任务正在跑）：不发红字，把人带到更新页看进度。
-        onBusy: props.onOpenUpdatePage,
+        // 起来了或本来就有，都把人带到更新页；「已经在下载了」（busy）按同一处兜底也走这一条。
         onStarted: props.onOpenUpdatePage,
         onAlready: props.onOpenUpdatePage
       })
