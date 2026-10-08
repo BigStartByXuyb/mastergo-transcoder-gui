@@ -35,7 +35,8 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - 机械门禁 `tests/docs-consistency.test.js`：档位表与 `pluginPlaces()` 逐字一致、环境变量名只在真值源与
   权威文档里出现、一句话只有一个住处（「每 10 分钟」「有任务在跑时不给装」「同时来自」）、README 与
   `install.md` 不复述逐档清单、每份 `docs/*.md` 都进索引。
-- 去沿革与兼容：`lib/plugin-root.js` 的表头不再写「哪一档已去掉」、去掉 `resolvePluginRoot` 的旧签名兜底；
+- 去沿革与兼容：`lib/plugin-root.js` 的表头不再写「哪一档已去掉」、`resolvePluginRoot` 的入口只按入参
+  形状报一句可读错误（不再拿「旧签名」当由头）；
   `docs/release-and-update.md` 的「客户端这边不再有什么」「边界与兼容」两节改成陈述当前；
   `ui/src/app/plugin-card.tsx`、`ui/src/app/plugin-card.test.tsx`、`tests/plugin-sources.test.js`
   的注释同步。

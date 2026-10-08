@@ -28,8 +28,9 @@ function read(rel) {
 }
 
 /*
- * 扫描范围：仓库自己的源码与说明。用户状态、产物目录、第三方解压件都不是「说明」的一部分 ——
- * 跳过名单与 .gitignore 里的目录一一对应（跑这份用例的机器上拿到的是这棵树的副本，不一定有 .git）。
+ * 扫描范围：仓库自己的源码与说明。跳过的是「不是说明」的东西 —— 用户状态与运行目录
+ * （agents、plugins、runtime、work、logs… 这些），入库的构建产物 public/（说明在 ui/src，
+ * 产物由它构建出来），以及第三方解压件 vendor/。
  */
 const SCANNED_EXT = /\.(js|mjs|cjs|ts|tsx|md|json|ps1|cmd|yml|yaml|toml)$/;
 const SKIP_DIRS = [
