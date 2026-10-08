@@ -141,7 +141,8 @@ function caseDocRefsResolve() {
 const ONE_HOME_FACTS = [
   { phrase: "每 10 分钟", home: RELEASE_DOC, what: "两条版本线的复查节拍" },
   { phrase: "有任务在跑时不给装", home: RELEASE_DOC, what: "装插件的门禁" },
-  { phrase: "同时来自", home: TIERS_DOC, what: "同一份插件只列一行" }
+  { phrase: "同时来自", home: TIERS_DOC, what: "同一份插件只列一行" },
+  { phrase: "<安装根>\\plugins\\mastergo-wpf-transcoder", home: TIERS_DOC, what: "客户端自带那一份装在哪" }
 ];
 
 function caseFactsHaveOneHome() {
