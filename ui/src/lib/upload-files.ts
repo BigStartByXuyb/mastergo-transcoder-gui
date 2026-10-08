@@ -2,8 +2,7 @@ import { api, type UploadedFile } from "@/lib/api"
 
 /*
  * 选好的文件 → base64 → 后端落盘。三处入口（图片 / 文件 / 文件夹 / 拖拽）共用这一份，
- * 「太大」也在这里拦（fileToBase64 里那一道）—— 每个走这一份的入口都拿到同一个行为，
- * 不用各自记得先判一次。
+ * 判据（格式、大小上限）全在后端：这一侧只负责读字节与拼 base64，不自己再判一遍。
  */
 
 export type PickedFile = {
