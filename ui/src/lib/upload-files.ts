@@ -6,8 +6,13 @@ import { api, type UploadedFile } from "@/lib/api"
  * 不用各自记得先判一次。
  */
 
-// 与后端 lib/uploads.js 的 MAX_FILE_BYTES 同一档（前后端各一份实现，改一处要同步另一处）。
+// 与后端 lib/uploads.js 的 MAX_FILE_BYTES 同一档（前后端各一份实现，改一处要同步另一处）；
+// 这一侧的提示语也从这个常量算，别在别处再写一遍数字。
 const MAX_FILE_BYTES = 25 * 1024 * 1024
+
+function mb(bytes: number): string {
+  return Math.round(bytes / 1024 / 1024) + " MB"
+}
 
 export type PickedFile = {
   file: File
@@ -19,7 +24,7 @@ export type PickedFile = {
 export async function fileToBase64(file: File): Promise<string> {
   // 太大就别白读白传一趟：后端还会再挡一次（那边的上限是唯一的判据）。
   if (file.size > MAX_FILE_BYTES) {
-    throw new Error("这个文件超过 25 MB：" + file.name + "；先压缩或裁剪，再传它。")
+    throw new Error("这个文件超过 " + mb(MAX_FILE_BYTES) + "：" + file.name + "；先压缩或裁剪，再传它。")
   }
   const buffer = new Uint8Array(await file.arrayBuffer())
   let binary = ""
