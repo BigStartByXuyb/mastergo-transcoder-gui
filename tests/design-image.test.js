@@ -133,11 +133,11 @@ function caseNoSnapshot() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-nosnap-"));
   const state = designImage.read({ projectRoot: root, target: TARGET });
   assert.strictEqual(state.canvas, null);
-  assert.match(state.blocked, /先让流水线跑到第 2 步/, "不能传时把原因给界面照实显示");
+  assert.match(state.blocked, /先让流水线跑到「取数 \+ 固化快照」那一步/, "不能传时把原因给界面照实显示");
   assert.throws(() => upload(root, png(640, 480)), (error) => {
     assert.strictEqual(error.code, "NO_CANVAS");
     assert.match(error.message, /还不知道这一页的画板尺寸/);
-    assert.match(error.hint, /第 2 步/);
+    assert.match(error.hint, /取数 \+ 固化快照/);
     return true;
   });
   fs.rmSync(root, { recursive: true, force: true });

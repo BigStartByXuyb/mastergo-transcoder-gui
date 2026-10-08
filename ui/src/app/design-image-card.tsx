@@ -14,7 +14,7 @@ import { fileToBase64, humanSize } from "@/lib/upload-files"
  * 作业A 的设计稿位图：那条「读图」开关的输入。
  *
  * 这一块只说三件事，与后端 lib/design-image.js 一一对应：图在哪（那一处目录由后端给）／
- * 尺寸对不对（必须等于 DSL 画板尺寸）／分组表在不在（有图必须有表，否则第 8 步停下）。
+ * 尺寸对不对（必须等于 DSL 画板尺寸）／分组表在不在（有图必须有表，否则布局推导那一步停下）。
  * 目录、约定名、「尺寸不对 / 不是位图 / 画板尺寸还不知道」的原话都由后端给（判据都在它那一处），这里只渲染。
  */
 
@@ -42,7 +42,7 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
   }, [alive, projectRoot, target])
 
   /*
-   * 任务每往前走一步（看板在轮询）就重读一次：画板尺寸来自第 2 步的快照，
+   * 任务每往前走一步（看板在轮询）就重读一次：画板尺寸来自固化快照那一步的产物，
    * 挂载时那份快照可能还没有 —— 只读一次的话「DSL 画板」会一直是「还不知道」。
    */
   useEffect(() => {
@@ -86,7 +86,7 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
         </CardTitle>
         <CardDescription>
           作业A 读图是一个开关：按设计稿原始尺寸导出，位图尺寸必须等于 DSL 画板尺寸；有图就必须先有分组表，
-          否则第 8 步会停下报告。不传图就按纯机械判据推导，照常跑。分组表放在哪、叫什么，下面那一行照实显示。
+          否则布局推导那一步会停下报告。不传图就按纯机械判据推导，照常跑。分组表放在哪、叫什么，下面那一行照实显示。
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 text-sm">
@@ -94,7 +94,7 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
           <span className="text-muted-foreground text-xs">DSL 画板（图该有的尺寸）</span>
           <span>
             {sizeText(canvas)}
-            {!canvas && <span className="text-muted-foreground">（还没跑到第 2 步，取数之后才知道）</span>}
+            {!canvas && <span className="text-muted-foreground">（还没跑到取数并固化快照那一步）</span>}
           </span>
         </div>
 

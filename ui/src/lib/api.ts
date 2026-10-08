@@ -148,12 +148,12 @@ export type PluginInfo = {
 
 /**
  * 作业A 的设计稿位图：这一页「读图」那条开关的输入（口径见后端 lib/design-image.js）。
- * 图必须按设计稿原始尺寸导出 —— 尺寸要等于 DSL 画板尺寸；有图就必须先有分组表，否则第 8 步停下。
+ * 图必须按设计稿原始尺寸导出 —— 尺寸要等于 DSL 画板尺寸；有图就必须先有分组表，否则布局推导那一步停下。
  */
 export type DesignImage = {
   /** 图该放的那个目录（后端算好给出来；界面不自己拼这一段）。 */
   dir: string
-  /** DSL 画板尺寸（也就是「图该有的尺寸」）；还没跑到第 2 步时是 null。 */
+  /** DSL 画板尺寸（也就是「图该有的尺寸」）；固化快照那一步还没跑时是 null。 */
   canvas: { width: number; height: number } | null
   /** 现在放着的那一张；没放过就是 null。 */
   image: { path: string; name: string; bytes: number; width: number; height: number } | null
