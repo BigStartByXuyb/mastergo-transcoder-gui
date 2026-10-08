@@ -11,7 +11,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { createRunManager } = require("../lib/run.js");
+const { createRunManager, routesOfMode, MODE_LABEL } = require("../lib/run.js");
 const { UserError } = require("../lib/errors.js");
 
 const STEPS = [
@@ -64,6 +64,20 @@ function fakeChild() {
   child.emitLine = (line) => child.stdout.emit("data", Buffer.from(line + "\n", "utf8"));
   child.close = (code) => child.emit("close", code);
   return child;
+}
+
+/*
+ * 「一个 mode 跑哪几条路线」只有这一处判据：界面按路线显示输入入口（作业A 的设计稿位图）读的也是它，
+ * 所以 AB 一定要含 A —— 漏了就会出现「A 段照样跑、界面却不给它的输入入口」。
+ */
+function caseRoutesOfMode() {
+  assert.deepStrictEqual(routesOfMode("A"), ["mw-wpf"]);
+  assert.deepStrictEqual(routesOfMode("B"), ["mtslg-iocontrol"]);
+  assert.deepStrictEqual(routesOfMode("AB"), ["mw-wpf", "mtslg-iocontrol"], "AB 先 A 后 B，两条都在");
+  assert.deepStrictEqual(routesOfMode(" ab "), ["mw-wpf", "mtslg-iocontrol"], "大小写与空格照 normalizeMode 归一");
+  assert.throws(() => routesOfMode("C"), /路线只能是 A \/ B \/ AB/);
+  assert.strictEqual(MODE_LABEL["mw-wpf"], "A", "路线名与界面标签的对应也只有这一处");
+  assert.strictEqual(MODE_LABEL["mtslg-iocontrol"], "B");
 }
 
 function manager(options = {}) {
@@ -467,7 +481,8 @@ async function main() {
     ["行缓冲按流各一份", caseLineBufferPerStream],
     ["日志偏移与截断", caseLogOffsetAndTruncation],
     ["列表 / 反查 / 当前 job", caseListCurrentAndLookup],
-    ["步骤契约", caseContract]
+    ["步骤契约", caseContract],
+    ["mode 展开成哪几条路线", caseRoutesOfMode]
   ];
   for (const [name, run] of cases) {
     await run();

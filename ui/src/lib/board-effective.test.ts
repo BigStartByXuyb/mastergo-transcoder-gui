@@ -29,6 +29,7 @@ function task(
     },
     jobId: "",
     workDir: "",
+    routes: ["B"],
     autoMerge: true,
     progress: null,
     steps: [],

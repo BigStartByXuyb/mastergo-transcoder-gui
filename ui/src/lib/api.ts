@@ -480,6 +480,12 @@ export type BoardTask = {
   jobId: string
   /** 这个任务自己的工作目录（流水线的 -ProjectRoot）。 */
   workDir: string
+  /**
+   * 这个任务会跑哪几条路线（界面标签，按执行顺序）：A → [A]、B → [B]、AB → [A, B]。
+   * 判据是后端 lib/run.js 的 routesOfMode —— 与「实际跑哪几条」同源；界面按路线显示输入时读它，
+   * 别处不再自己解释 mode（AB 任务的 A 路线也要能拿到它的输入）。
+   */
+  routes: ("A" | "B")[]
   autoMerge: boolean
   progress: BoardProgress | null
   /** 这一页的流程：步骤来自插件自己的运行登记表，续跑会接着写同一份。 */

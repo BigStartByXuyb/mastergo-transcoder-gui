@@ -294,8 +294,8 @@ export function PipelinePage({
         />
       )}
 
-      {/* 作业A 才读图：这个任务的工程目录里那一张设计稿位图，就是第 8 步分组的输入。 */}
-      {task && task.request.mode === "A" && task.workDir && <DesignImageCard task={task} />}
+      {/* 走 A 路线（mw-wpf）的任务才读图：AB 的 A 段同样读，所以判据是「路线里有 A」而不是 mode 恰好是 A。 */}
+      {task && task.workDir && task.routes.includes("A") && <DesignImageCard task={task} />}
 
       {task && counts.total > 0 && (
         <TaskPendingCard

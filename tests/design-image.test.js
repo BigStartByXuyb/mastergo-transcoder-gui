@@ -39,6 +39,15 @@ function jpeg(width, height) {
   return buffer;
 }
 
+/* 一份 BMP 的文件头（只为了验「别的格式不接」）。 */
+function bmp(width, height) {
+  const buffer = Buffer.alloc(32);
+  buffer.write("BM", 0, "ascii");
+  buffer.writeUInt32LE(width, 18);
+  buffer.writeUInt32LE(height, 22);
+  return buffer;
+}
+
 /* 一份最小工程：DSL 快照（画板 1280×1024）+ _inputs 目录。 */
 function sandbox() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-"));
@@ -57,8 +66,8 @@ function upload(projectRoot, buffer, name) {
 }
 
 function casePixelSize() {
-  assert.deepStrictEqual(designImage.readPixelSize(png(1280, 1024)), { width: 1280, height: 1024 });
-  assert.deepStrictEqual(designImage.readPixelSize(jpeg(800, 600)), { width: 800, height: 600 });
+  assert.deepStrictEqual(designImage.readPixelSize(png(1280, 1024)), { width: 1280, height: 1024, format: "png" });
+  assert.deepStrictEqual(designImage.readPixelSize(jpeg(800, 600)), { width: 800, height: 600, format: "jpeg" });
   assert.strictEqual(designImage.readPixelSize(Buffer.from("not an image at all, really")), null, "不认识的内容要说不知道");
   assert.strictEqual(designImage.readPixelSize(Buffer.alloc(4)), null, "太短也一样");
 }
@@ -95,8 +104,13 @@ function caseReplace() {
 
 function caseRejections() {
   const root = sandbox();
-  assert.throws(() => upload(root, png(1280, 1024), "shot.bmp"), /只接 PNG \/ JPEG/);
-  assert.throws(() => upload(root, Buffer.from("这不是图")), /这不是一张能认出来的 PNG \/ JPEG 位图/, "只改后缀的混不进来");
+  // 认的是内容：名字写成 .bmp，内容真是 PNG，就按 PNG 落盘（不因为名字把它挡在外面，也不会落成 .bmp）。
+  const renamed = upload(root, png(1280, 1024), "shot.bmp");
+  assert.strictEqual(renamed.image.name, "DemoPage.design.png");
+  // 只清这一张（别把 DSL 快照一起删了：下面还要用它核「尺寸不一致」）。
+  fs.rmSync(renamed.image.path, { force: true });
+  assert.throws(() => upload(root, Buffer.from("这不是图")), /这一份两种都不是/, "内容不是位图的，改名字也进不来");
+  assert.throws(() => upload(root, bmp(1280, 1024)), /这一份两种都不是/, "别的格式（BMP）不接");
   assert.throws(() => upload(root, png(1280, 1023)), (error) => {
     assert.strictEqual(error.code, "SIZE_MISMATCH");
     assert.match(error.message, /图 1280×1023，画板 1280×1024/);

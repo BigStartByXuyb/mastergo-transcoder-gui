@@ -33,7 +33,7 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   `layoutStyle.width/height`（与插件 `layoutTree` 读的是同一处）。存图是整份替换（临时件 + 改名），
   后缀与文件头都要对得上，换格式时旧的那张删掉（插件按 png→jpg→jpeg 取，留着旧的会取错）。
 - `lib/routes.js`：`GET /api/design-image`（读状态）与 `POST /api/design-image`（存一张，bodyLimit 与对话附件同档）。
-- `ui/src/app/design-image-card.tsx`（新）+ `pipeline-page.tsx` 挂载：作业A 的任务详情里多一块
+- `ui/src/app/design-image-card.tsx`（新）+ `pipeline-page.tsx` 挂载：走 A 路线（`task.routes` 含 A）的任务详情里多一块
   「设计稿位图」——画板尺寸、这一页放着的图（名字 / 尺寸 / 大小）、分组表在不在，加上「选择位图…」。
   尺寸不一致、不是位图这些原话由后端给（那条判据在 `lib/design-image.js`），界面只渲染。
 - `ui/src/lib/upload-files.ts`：`toBase64` 改成导出的 `fileToBase64`，与对话附件共用一份（大图分块拼）。
@@ -51,6 +51,18 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | 全量门禁 | 后端 54 条 + 覆盖率、前端 59 文件 347 条、`tsc`、oxlint、`check-app-structure.mjs` | 通过 |
 
 截图：`output/playwright/design-image-card-062.png`。
+
+### 第一次跑 CI 后按审计复核改的两处（都是真问题）
+
+- **[REVIEW-001] AB 任务的 A 路线被漏掉**：挂载条件原来写 `mode === "A"`，把「A 路线会跑」等同于
+  「mode 恰好是 A」；而 `mode = AB` 时 A 段（mw-wpf）照样跑。改法不是就地放宽条件，而是把
+  「一个 mode 展开成哪几条路线」抽成**一处判据** —— `lib/run.js` 的 `routesOfMode()`（`start()` 用它展开、
+  看板任务快照用它算出 `routes: ["A"|"B"]` 给界面），界面按 `task.routes.includes("A")` 显示这一块。
+  `tests/run.test.js` 补了这条判据的用例（含 `AB` 必须含 A）。
+- **[REVIEW-002] 「后缀与文件头都要对得上」名不副实**：原来只校验了后缀合法、文件头能解析，
+  没校验两者**互相**对应 —— 一张 PNG 命名成 `shot.jpg` 会被当成 jpg 存下。改成**认内容的真实格式**：
+  `readPixelSize()` 同时返回 `format`，落盘后缀由它决定（PNG → `.png`，JPEG → `.jpg`），名字不再参与判定。
+  用例补了「内容真是 PNG 却叫 .bmp → 落到 `.design.png`」与「BMP 内容 → 拒」。
 
 ## 2026-10-08 插件页只留「客户端自带」那一份（删掉我指定的那一份 / 环境变量 / 两个缓存与市场）
 

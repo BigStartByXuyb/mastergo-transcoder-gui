@@ -24,6 +24,7 @@ function task(steps: BoardTask["steps"]): BoardTask {
     },
     jobId: "job-1",
     workDir: "",
+    routes: ["B"],
     autoMerge: true,
     progress: null,
     steps,
