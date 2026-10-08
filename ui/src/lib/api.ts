@@ -678,7 +678,10 @@ export type UpdateStatus = {
   available: UpdateAvailable | null
   error: UpdateFailure | null
   task: UpdateTask
-  /** 现在从哪儿取清单（与插件那一半是同一个类型、同一个来源）。 */
+  /**
+   * 程序更新这条线现在从哪儿取清单：与插件那一半是同一个类型、同一处拼法，
+   * 但各读自己那一项设置（本字段里的 field 就是这一项的名字）。
+   */
   source: UpdateSource
   /** 私有源存没存 token（值本身不出后端）。 */
   hasToken: boolean

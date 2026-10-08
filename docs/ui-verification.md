@@ -101,6 +101,10 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   用例统一注入一份廉价判断，缺了即抛有断言）；`lib/settings.js` 里「凭据文件存在且非空」的三处判断
   抽成 `nonEmptyText(file)` 一处。顺带：`lib/recheck.js` 的两个入参（`isBusy` / `check`）也改成必给
   —— 缺了会在每 10 分钟那次定时回调里抛未捕获的 `TypeError`。
+- 再一轮复核收口（两条注释 + 一条模块头）：`hasToken()` 上方的注释还留着旧的「或顺着 token 取值链问一次」
+  （与同文件「必给」的新口径打脸）、`ui/src/lib/api.ts` 的 `UpdateStatus.source` 还写着「与插件那一半
+  同一个来源」（两条线各有各的一项设置）、`lib/plugin-update.js` 的模块头还写着「客户端从自己的发布源取」
+  —— 三处按现口径改写。
 
 ### 点过的东西
 
