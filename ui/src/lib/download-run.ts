@@ -21,7 +21,7 @@ export type DownloadResult<TStatus> = {
  * （两个错误码依次来自 lib/update-task.js 与 lib/plugin-update.js 的 busyError）。
  * 它不该被写成红字——归到 busy，让各页按「正在进行中」说一句。
  */
-export function isBusyFailure(error: unknown): boolean {
+function isBusyFailure(error: unknown): boolean {
   return error instanceof ApiFailure && (error.code === "BUSY_DOWNLOAD" || error.code === "BUSY_INSTALL")
 }
 
