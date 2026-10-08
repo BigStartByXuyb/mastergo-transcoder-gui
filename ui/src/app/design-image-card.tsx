@@ -72,7 +72,9 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
 
   const image = state?.image ?? null
   const canvas = state?.canvas ?? null
-  const mismatch = Boolean(image && canvas && !state?.matches)
+  // 「一致 / 不一致」直接读后端给的 matches（那条判据只有一处），界面不再拿 image+canvas 重算一遍。
+  const matched = Boolean(state?.matches)
+  const mismatch = Boolean(image && canvas && !matched)
 
   return (
     <Card>
@@ -80,7 +82,7 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
         <CardTitle className="flex flex-wrap items-center gap-2">
           设计稿位图
           <Badge variant={image ? "secondary" : "outline"}>{image ? "有图" : "没有图"}</Badge>
-          {image && canvas && !mismatch && <Badge variant="outline">尺寸一致</Badge>}
+          {matched && <Badge variant="outline">尺寸一致</Badge>}
           {mismatch && <Badge variant="destructive">尺寸不一致</Badge>}
           {image && !state?.groups.exists && <Badge variant="destructive">缺分组表</Badge>}
         </CardTitle>

@@ -14,7 +14,7 @@ export type PickedFile = {
 /**
  * 文件读成 base64：对话附件与作业A 的设计稿位图共用这一份（大图分块拼，别爆栈）。
  *
- * 这里**不**判文件大小：上限（单文件与总量）只有后端 lib/uploads.js 一处判据，它按原话拒绝。
+ * 这里**不**判文件大小：上限（单文件与总量）只有后端 lib/limits.js 一处判据，它按原话拒绝。
  * 前端再存一份数字，改一处就会漂 —— 宁可让超限的传一趟被后端挡回来，也不要两处口径。
  */
 export async function fileToBase64(file: File): Promise<string> {

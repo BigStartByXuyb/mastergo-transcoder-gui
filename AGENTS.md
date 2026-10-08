@@ -9,8 +9,9 @@
   有就抽成共用件，再写新的那一条线。
 - 目录与文件名一律走具名 helper：`lib/workdir.js` 的 `productDir` / `inputsDir` / `runsRoot` / `runsDir`；
   消费方不许手拼 `Generated` / `_inputs` / `runs`。
-- 名字类判据走 `lib/uploads.js` 的 `hasIllegalNameChars` / `isPathLike`（Windows 非法字符、带路径分隔符或 `..`），
+- 名字类判据走 `lib/name-safety.js` 的 `hasIllegalNameChars` / `isPathLike`（Windows 非法字符、带路径分隔符或 `..`），
   要变成文件名的外部输入（页面 Target 等）先按它们归一。
+- 字节上限与换算走 `lib/limits.js`（`MAX_FILE_BYTES` / `bodyLimitFor` / `mb`）；要落盘的文件大小都按它判。
 - 组合取值（A / B / AB 这类）按「集合里有没有」判，不写 `mode === "A"`：展开规则只在一处
   （`lib/run.js` 的 `routesOfMode`），界面读后端给的 `routes`。
 - 前后端各有一份实现的地方（上传格式与上限等）必须写明「另一边在哪」，并让判据只有后端一处：

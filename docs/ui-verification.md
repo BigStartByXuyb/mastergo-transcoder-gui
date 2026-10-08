@@ -47,7 +47,7 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 | 3 | 再传一张 640×480 | 红字「图与画板尺寸不一致：图 640×480，画板 1280×1024：按设计稿原始尺寸导出……」；**上一张没被覆盖**（仍显示 1280×1024 / 尺寸一致） | 通过 |
 | 4 | 接口直读 | `GET /api/design-image` 回 `canvas 1280x1024`、`image`、`groups.exists`；落盘在 `<工作目录>\Generated\_inputs\` | 通过 |
 | 断点用例 | 后端 `tests/design-image.test.js`（PNG/JPEG 尺寸解析、换格式只留一张、拒绝的几种、还没跑到第 2 步、分组表在不在） | 6 组全过 | 通过 |
-| 界面用例 | 前端 `design-image-card.test.tsx`（无图 / 有图一致 / 不一致+缺表 / 上传 / 后端拒绝） | 5 条全过 | 通过 |
+| 界面用例 | 前端 `design-image-card.test.tsx`（无图 / 不能传 / 有图一致 / 不一致+缺表 / 上传 / 后端拒绝） | 6 条全过 | 通过 |
 | 全量门禁 | 后端 54 条 + 覆盖率、前端 59 文件 347 条、`tsc`、oxlint、`check-app-structure.mjs` | 通过 |
 
 截图：`output/playwright/design-image-card-062.png`。
@@ -66,8 +66,8 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 
 ### 第二次跑 CI 又收的四处（同样是审计挑出来的真问题）
 
-- **单文件 25 MB 与请求体换算各写两份**：`lib/uploads.js` 现在导出 `MAX_FILE_BYTES`、`bodyLimitFor()`、`mb()`，
-  `lib/design-image.js` 的 `MAX_BODY_BYTES` 与提示语都由它们算出来 —— 值与判据只在后端那一处，
+- **单文件 25 MB 与请求体换算各写两份**：这些通用件已经搬到 `lib/limits.js`（`MAX_FILE_BYTES` / `bodyLimitFor()` / `mb()`）
+  与 `lib/name-safety.js`（名字判据），两条线（对话附件、作业A 位图）都从它们取：值与判据各只有一处，
   前端不判大小（超限由后端按原话拒绝）。
 - **换格式时先删旧图再写新图**：改成 `stage → land → 删其它后缀`（`lib/atomic-write.js` 的三步）——
   换格式时写失败不会把这一页两张都弄没。
