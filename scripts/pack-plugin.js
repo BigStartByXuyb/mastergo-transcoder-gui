@@ -10,7 +10,7 @@
  * 客户端本体发布时不再打包插件，也不再钉「哪一版插件」（原来那份 plugin-pin.json 已删）。
  *
  * 用法：node scripts/pack-plugin.js --repo-dir <插件仓库的检出目录> --tag v1.0.377 \
- *                                   --dir plugins/mastergo-wpf-transcoder [--out dist/plugin] \
+ *                                   --dir plugins/mastergo-wpf-transcoder --out <发布件目录> \
  *                                   [--upload v1.0.377 [--notes <说明>]]
  *
  * 内容从那个 tag 取（git archive 摊成目录），逐文件算 sha256 写进清单；上传时先传文件、清单最后传。
