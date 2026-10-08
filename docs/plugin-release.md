@@ -8,8 +8,14 @@
 
 ```
 plugin-manifest.json          {name, version, tag, releasedAt, files:{相对路径: sha256}}
-<sha256>                      每个文件按内容哈希命名（同内容只存一份）
-v<版本>/plugin-manifest.json  历史版本的清单（静态源没有「某一版的 release」这种概念）
+<sha256>                      每个文件按内容哈希命名（同内容只存一份）：Release 的资产就挂在这一版下面
+```
+
+内网静态目录那一套（发布件用 `--out` 铺到目录里）多两层目录：
+
+```
+files/<sha256>                文件集中在 files/ 下，各版本共用一份（同内容不重复占地方）
+v<版本>/plugin-manifest.json  某一版的清单（静态源没有「某一版的 release」这种概念，按版本目录取）
 ```
 
 名字由 `lib/source.js` 的 `PLUGIN_MANIFEST_NAME` 一处给：打包写什么名，客户端就找什么名。

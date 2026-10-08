@@ -93,6 +93,9 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - 再一轮复核收口（一条）：`lib/source.js` 的 `manifestUrlOf` 在「某一版清单地址」收进取清单那一套之后
   已无生产调用者（且它写死客户端那份清单名，拿着插件线用会拼错）→ 连同导出一起删掉；
   `lib/manifest-fetch.js` 的注释按新的入参（`line`）改口径。
+- 再一轮复核收口（一条）：`docs/plugin-release.md` 的「发布件的形状」把 Release 资产与静态目录那套
+  混成一块（按 `files/<sha256>` 铺静态源会取不到文件）→ 拆成两块：Release 的资产挂在这一版下面、
+  静态目录那份集中在 `files/` 下并按 `v<版本>/` 取清单。
 
 ### 点过的东西
 
