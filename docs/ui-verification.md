@@ -35,13 +35,13 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - **插件有自己的版本线**：插件仓库打 tag 时由它的发布作业发同构发布件（`plugin-manifest.json` + 按 sha256 命名的
   文件）到自己的 Release；打包实现只有客户端那一份（`scripts/pack-plugin.js`，作业按 commit 钉住来调）。
 - 客户端插件线直接消费它：`lib/source.js` 新增 `PLUGIN_DEFAULT_BASE` 与 `pluginSourceOf`（没配／配坏了回插件仓库）；
-  `lib/settings.js` 增插件自己那一项设置与 `pluginSource()`（规则要的是存盘原值，
+  `lib/settings.js` 增插件自己那一项设置与按字段取源的那一个入口（`sourceOf(field)`，规则要的是存盘原值，
   只有这一层拿得到）；`lib/plugin-update.js` 用这条线自己的源。
 - 节拍统一：复查节拍从 `lib/update.js` 移到两条线共用的 `lib/recheck.js`，插件线新增 `startWatch()`
   （启动查一次 + 每 10 分钟复查）。
 - 清单缓存记来源：`createManifestCache` 写入时记下 `source`，读时对不上就当作「还没检查过」——
   换源之后不再拿旧源的结论说「已是最新」。
-- 不再随客户端发布插件：`plugin-pin.json` 删除、`scripts/pack-plugin.js` 入参改成 `--tag / --dir`（不再读 pin）、
+- 不再随客户端发布插件：`plugin-pin.json` 删除、`scripts/pack-plugin.js` 入参改成 `--repo-dir / --tag / --dir`（不再读 pin）、
   客户端发布流程删掉「Pack the plugin release」那一步。
 - 文档：新增 `docs/plugin-release.md`（插件侧发布流程 + 客户端消费规则）；`README.md`、`docs/install.md` 的
   「插件从哪来」与发布源规矩按新的写；发布源弹窗的说法改成「两条线各有各的这一项，留空＝各回各的官方仓库」。
@@ -54,7 +54,7 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   「填了＝两条线都从这里取」那句概括（填的恰好是某条线的官方仓库时并不等于换源）。
 - 又一轮复核收口（两条）：把还写着「与程序更新同一处设置 / 插件跟着客户端线走」的注释全部改成新设计
   （插件读自己那一项 `pluginSource`，没配／配坏回插件仓库）；`settings.write` 里两项发布源的写入抽成
-  `writeSource(field, patch)` 一处（归一、token、clearToken、清缓存不再两份逐字重复）。
+  `writeSources(patch, raw)` 一处（归一、token、clearToken、清缓存不再两份逐字重复）。
 - 再一轮复核收口（三条）：两条更新线的后台复查抽成 `lib/recheck.js` 的 `createRecheck` 一处
   （起过不再起、unref、忙时跳过都在那里）；界面夹具里插件的默认源改成插件仓库（清单名也换成插件那份）；
   `docs/plugin-release.md` 的示例命令补上 `--notes`（建 Release 必须有，否则打包脚本直接失败）。
@@ -1113,7 +1113,7 @@ winget 只会从它配置的源里找包；我们那三个 YAML 目前只是 Rel
 
 | 复核项 | 判断 | 处置 |
 | --- | --- | --- |
-| [REVIEW-001] `status()` 每次都解密发布源 token：解密是同步起一次 PowerShell，而状态每 15 秒（下载中 1.5 秒）轮询一次，下载时每个文件还要再拼一次请求头 —— 单线程被整段堵住 | 真问题（性能） | 两处分开：有没有 token 由 `hasToken` 廉价判断（`settings.read().source.hasToken`，只看文件在不在），值只在真发请求时解；解出来的值在 `settings` 内缓存，改/清 token 时置空重解 |
+| [REVIEW-001] `status()` 每次都解密发布源 token：解密是同步起一次 PowerShell，而状态每 15 秒（下载中 1.5 秒）轮询一次，下载时每个文件还要再拼一次请求头 —— 单线程被整段堵住 | 真问题（性能） | 两处分开：有没有 token 由 `settings.hasSourceToken(field)` 廉价判断（只看文件在不在），值只在真发请求时解；解出来的值在 `settings` 内缓存，改/清 token 时置空重解 |
 | [REVIEW-002] 默认仓库地址写了两份（`lib/source.js` 的 `DEFAULT_BASE` 与 `lib/update.js` 的 `owner`/`repo` 回退），且那条回退分支全仓无人调用 | 真问题（与「只改一处」矛盾 + 死分支） | 删掉 `owner`/`repo` 与那条回退；默认值只剩 `lib/source.js` 一处；入参只留测试注入用的固定值 |
 | [REVIEW-003] 源类型名单在后端 `KINDS` 与前端 `KIND_LABELS` 各有一份，后端加一种前端不跟、前端多列一种后端静默回落 | 真问题（同一规则两处表述） | 后端 `describeSource` 带上 `kinds`，前端下拉照它渲染；前端只留显示名（认不出的类型直接用原值当显示名），status 没到手时下拉与保存按钮禁用 |
 

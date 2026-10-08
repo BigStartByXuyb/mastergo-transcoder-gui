@@ -101,7 +101,7 @@ function caseSource() {
   assert.strictEqual(broken.base, sourceDefaults.DEFAULT_BASE);
   assert.strictEqual(settings.sourceOf("pluginSource").base, sourceDefaults.PLUGIN_DEFAULT_BASE, "坏配置＝没配，插件线回它自己的默认");
 
-  settings.write({ source: { kind: "static", base: "http://10.0.0.9/updates", clearToken: true } }).source;
+  settings.write({ source: { kind: "static", base: "http://10.0.0.9/updates", clearToken: true } });
   assert.strictEqual(settings.hasSourceToken("source"), false, "清掉 token 后不再算有");
   assert.strictEqual(settings.readSourceToken(), "");
   // 插件那一项自己配：改动只落在它自己那一项上。
@@ -131,6 +131,15 @@ function caseSource() {
   // 配坏了：插件那条回它自己的默认。
   settings.write({ pluginSource: { kind: "svn", base: "https://x/y" } });
   assert.strictEqual(settings.sourceOf("pluginSource").base, sourceDefaults.PLUGIN_DEFAULT_BASE, "插件源配坏了也回自己的默认");
+
+  /*
+   * 凭据文件名按字段名派生（设置层的落盘布局）：钉住这两个名字 ——
+   * 它们是已装机器上凭据的位置，改名等于把老凭据丢掉。
+   */
+  settings.write({ source: { kind: "static", base: "http://10.0.0.9/updates", token: "pin-t0ken" } });
+  settings.write({ pluginSource: { kind: "static", base: "http://10.0.0.8/plugin-updates", token: "pin-t0ken" } });
+  assert.strictEqual(fs.existsSync(path.join(home, "source-credentials")), true, "程序更新那条的凭据文件名不变");
+  assert.strictEqual(fs.existsSync(path.join(home, "plugin-source-credentials")), true, "插件那条的凭据文件名不变");
   fs.rmSync(home, { recursive: true, force: true });
 }
 
