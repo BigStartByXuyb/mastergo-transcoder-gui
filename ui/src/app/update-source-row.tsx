@@ -7,8 +7,9 @@ import { sourceKindLabel } from "@/lib/source-kind"
 /*
  * 「更新来源」那一行：现在从哪儿取（类型 / 地址）、有没有带 token、点一下改。
  *
- * 程序更新与插件（流水线）两半显示的是同一处设置、同一份拼法（后端 lib/source.js），
- * 所以这一行只有这一处实现：改口径只改这里，两半不会一处说「已带 token」、另一处忘了说。
+ * 程序更新与插件（流水线）各有一项设置（`source` 与 `pluginSource`，各有各的默认与凭据），
+ * 但这一行的形状与拼法一样（后端 lib/source.js 一处拼地址），所以只有这一处实现 ——
+ * 改口径只改这里，两半不会一处说「已带 token」、另一处忘了说。
  */
 
 export function UpdateSourceRow(props: {

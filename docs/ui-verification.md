@@ -58,6 +58,10 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 - 再一轮复核收口（三条）：两条更新线的后台复查抽成 `lib/manifest-fetch.js` 的 `createRecheck` 一处
   （起过不再起、unref、忙时跳过都在那里）；界面夹具里插件的默认源改成插件仓库（清单名也换成插件那份）；
   `docs/plugin-release.md` 的示例命令补上 `--notes`（建 Release 必须有，否则打包脚本直接失败）。
+- 再一轮复核收口（两条）：`update-source-row.tsx` / `source-check.ts` 里最后两处「两半同一处发布源」的注释
+  改成新口径；**凭据也跟着拆**——两条线各一份 token（`source-credentials` 与 `plugin-source-credentials`），
+  否则程序更新那条配的私有 GitLab token 会随插件线默认的另一个主机发出去，清一条也会清掉另一条
+  （用例钉住：两条 token 互不影响、清单条只清自己的）。
 
 ### 点过的东西
 
