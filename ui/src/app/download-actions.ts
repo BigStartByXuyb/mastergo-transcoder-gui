@@ -25,7 +25,8 @@ export function finishDownload<TStatus>(
   applyDownload(result, {
     setFailure: handlers.setFailure,
     onAlready: handlers.onAlready ?? ((message) => toast.info(message)),
-    onBusy: handlers.onBusy ?? handlers.onAlready ?? ((message) => toast.info(message)),
+    // busy 没说就按「已经有这一份」那一路走：那条兜底只在 applyDownload 一处，别在这儿再写一遍。
+    onBusy: handlers.onBusy,
     onStarted: handlers.onStarted
   })
 }
