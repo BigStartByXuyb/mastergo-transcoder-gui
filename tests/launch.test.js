@@ -9,7 +9,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { resolveLaunch, RESTART_CODE } = require("../lib/launch.js");
+const { resolveLaunch, RESTART_CODE, childArgs } = require("../lib/launch.js");
 
 function makeHome() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-launch-"));
@@ -54,5 +54,13 @@ fs.rmSync(home, { recursive: true, force: true });
 
 // 子进程的退出码就是监督进程的协议：换一份重跑用 75，其余码一律当作结束（两端同读这一份）。
 assert.strictEqual(RESTART_CODE, 75, "重启码是 75，改动它要两端一起改");
+
+/*
+ * 子进程的参数：本次会话第一次起的那一份按命令行原样（默认起完开界面）；
+ * 换版本/重启换来的那一份补上 --no-open —— 界面自己会 reload 回来，再开一次就多弹一个窗口。
+ */
+assert.deepStrictEqual(childArgs(["--port", "9000"], true), ["--port", "9000"], "第一次起：参数原样透传（该开界面）");
+assert.deepStrictEqual(childArgs(["--port", "9000"], false), ["--port", "9000", "--no-open"], "换来的那一份：补 --no-open");
+assert.deepStrictEqual(childArgs(["--port", "9000", "--no-open"], false), ["--port", "9000", "--no-open"], "本来就没让开界面：不重复补");
 
 process.stdout.write("launch ok\n");

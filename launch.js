@@ -16,7 +16,7 @@
 const { spawn } = require("child_process");
 const path = require("path");
 
-const { resolveLaunch, RESTART_CODE } = require("./lib/launch.js");
+const { resolveLaunch, RESTART_CODE, childArgs } = require("./lib/launch.js");
 const { createLog } = require("./lib/log.js");
 
 const HOME = __dirname;
@@ -28,9 +28,9 @@ function childEnv() {
   return Object.assign({}, process.env, { MASTERGO_HOME: HOME, MASTERGO_SUPERVISED: "1" });
 }
 
-function runOnce(target) {
+function runOnce(target, firstBoot) {
   return new Promise(function (resolve) {
-    const child = spawn(process.execPath, [path.join(target.dir, "server.js")].concat(process.argv.slice(2)), {
+    const child = spawn(process.execPath, [path.join(target.dir, "server.js")].concat(childArgs(process.argv.slice(2), firstBoot)), {
       cwd: HOME,
       env: childEnv(),
       stdio: "inherit"
@@ -50,12 +50,14 @@ function runOnce(target) {
 }
 
 async function main() {
+  // 只有本次会话第一次起的那一份自己开界面；之后都是换版本/重启换来的，界面会自己回来（见 lib/launch.js 的 childArgs）。
+  let firstBoot = true;
   for (;;) {
     const target = resolveLaunch(HOME);
     const which = target.fromPointer ? "v" + target.version + "（current.json）" : "本地这一份（无指针）";
     process.stdout.write("版本: " + which + "\n");
     log.write("boot", "监督进程起 " + which + " pid " + process.pid);
-    const ended = await runOnce(target);
+    const ended = await runOnce(target, firstBoot);
     if (ended.code !== RESTART_CODE) {
       log.write("exit", "子进程退出 code=" + ended.code
         + (ended.signal ? "（信号 " + ended.signal + "）" : "") + "，监督进程跟着退出");
@@ -63,6 +65,7 @@ async function main() {
     }
     log.write("switch", "按 current.json 换一份接着跑（子进程退出码 " + ended.code + "）");
     process.stdout.write("按 current.json 换一份接着跑\n");
+    firstBoot = false;
   }
 }
 

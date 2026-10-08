@@ -16,6 +16,49 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
 2. `goto "#另一页"` 只是 hash 变化，浏览器不会重新拉 index.html。前端重新构建后必须 `reload`，否则点到的是上一份构建。
 
+## 2026-10-08 更新/切版本不再另开一个窗口
+
+### 用户报的问题
+
+「我一更新，他就直接打开一个新的窗口。」「之前的版本，更新程序都不会重新又新开一个窗口。」
+
+### 查出来的
+
+- 更新 / 切版本 / 重启客户端是同一个动作：子进程按 `current.json` 退出（`lib/routes.js` 的 `RESTART_CODE`＝75），
+  监督进程 `launch.js` 再按新指针起一份。而每一份新起的 `server.js` 都按**命令行**决定要不要开界面
+  （`server.js` 的 `options.open` ＝参数里没有 `--no-open`），命令行又是从第一次启动原样透传下来的 ——
+  于是「换一份接着跑」就再开一次浏览器。
+- 这不是本次新引入：`dist\mastergo-transcoder-gui-0.6.21` 到 0.6.58 的 `launch.js` / `server.js` 这段完全一样。
+  以前不容易看见，是因为「再开一次」表现得像标签页还是窗口，由**默认浏览器**决定：本机默认浏览器是联想
+  SLBrowser（`HKLM\Software\Classes\SLBrowserHTML\shell\open\command` → `SLBrowser.exe --single-argument %1`），
+  它没在运行时被 `cmd /c start` 唤起就是一个新窗口；默认是已开着的 Edge/Chrome 时，多半只是多一张标签页。
+- 我们自己的验证命令一直带 `--no-open`（`npm run api`、`node launch.js --port 8799 --no-open`），
+  所以自测从来看不到这个现象。
+
+### 改了什么
+
+- `lib/launch.js` 新增 `childArgs(argv, open)`：命令行原样透传，只有**第一次起的那一份**按命令行开界面；
+  被换版本 / 重启换来的那些补 `--no-open`（命令行本来就有就不重复补）。`launch.js` 按第几次起打这个开关。
+- 用例 `tests/launch.test.js` 钉住三种参数形状（第一次原样、重起补 `--no-open`、本来没让开就不重复补）。
+
+### 点过的东西
+
+| # | 操作 | 预期 | 结果 |
+| --- | --- | --- | --- |
+| 1 | `node launch.js --port 8799`（本工作树）→ `POST /api/client/restart` | 第一次那份子进程参数是 `--port 8799`；重启换来的那份变成 `--port 8799 --no-open`，且不再弹浏览器 | 通过（按 WMI 读两次子进程命令行；8799 健康检查 200；测试实例已停，8787 那份不受影响） |
+| 2 | `node tests/launch.test.js`、`npm test` | 三种参数形状与全量用例 | 通过（51 条） |
+
+### 没做的 / 待续
+
+- **这条修复落在监督进程（安装根的 `launch.js` + `lib/launch.js`），而应用内更新只铺 `versions/<版本>/`
+  并改指针、不换安装根那份引导副本** —— 所以：
+  - 开发形态（安装根就是这个工作树）重启一次客户端就生效；
+  - 正规安装（winget / 解压即用包 / install-client.ps1）的机器，要**整包装到带这条修复的 0.6.59 及以后**
+    才生效，光靠应用内更新升到 0.6.59 不算（0.6.58 那次的「监督进程起 …」日志行同理，只在重装过引导副本的
+    机器上才看得到）。
+  - 想让应用内更新也能带上监督进程的修复，是另一件事（让切版本时同步引导副本，或让监督进程从
+    `current.json` 指向的那一份重起自己），没做。
+
 ## 2026-10-07 插件页：第 2 档不再单独占一块（②）+ 查找顺序立成单独一栏、按处境给亮/灰（③）
 
 ### 用户报的问题
