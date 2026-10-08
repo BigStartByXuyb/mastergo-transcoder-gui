@@ -18,8 +18,6 @@ const source = require("../lib/source.js");
 const { PLUGIN_MANIFEST_NAME, MANIFEST_NAME } = source;
 
 const BASE = source.DEFAULT_BASE;
-// 插件有自己的版本线：默认基址是插件仓库（见 lib/source.js 的 pluginSourceOf）。
-const PLUGIN_BASE = source.PLUGIN_DEFAULT_BASE;
 // 夹具里的相对路径一律用 / 拼（清单里的路径也是 / 分隔），免得平台差异混进用例。
 const MARKER = "skills/mastergo-to-wpf/SKILL.md";
 

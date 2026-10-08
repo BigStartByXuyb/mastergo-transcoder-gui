@@ -45,6 +45,8 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
   客户端发布流程删掉「Pack the plugin release」那一步。
 - 文档：新增 `docs/plugin-release.md`（插件侧发布流程 + 客户端消费规则）；`README.md`、`docs/install.md` 的
   「插件从哪来」与发布源规矩按新的写；发布源弹窗的说法改成「留空＝各回各的官方仓库，填了＝两条线都从这里取」。
+- 复核收口（三条）：插件线的后台复查也**避开正在跑的装**（与程序更新同一条判据）；清单缓存与取清单两处的
+  注入键名统一成 `source`（同一个概念不两个名）；测试里没人读的常量删掉。
 
 ### 点过的东西
 
