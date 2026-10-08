@@ -121,14 +121,17 @@ function caseRejections() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
-// 还没跑到第 2 步（没有快照）时：尺寸这一格没有真值可比，不拦上传，只说不出来。
+// 还没跑到第 2 步（没有快照）时：画板尺寸没有真值，判据没有基准 —— fail-closed，不收这张图。
 function caseNoSnapshot() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-nosnap-"));
   const state = designImage.read({ projectRoot: root, target: TARGET });
   assert.strictEqual(state.canvas, null);
-  const saved = upload(root, png(640, 480));
-  assert.strictEqual(saved.matches, false, "没有画板尺寸就不谈一致");
-  assert.strictEqual(saved.image.width, 640);
+  assert.throws(() => upload(root, png(640, 480)), (error) => {
+    assert.strictEqual(error.code, "NO_CANVAS");
+    assert.match(error.message, /还不知道这一页的画板尺寸/);
+    assert.match(error.hint, /第 2 步/);
+    return true;
+  });
   fs.rmSync(root, { recursive: true, force: true });
 }
 

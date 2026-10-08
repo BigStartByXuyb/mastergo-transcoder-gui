@@ -67,11 +67,12 @@ npx --yes --package @playwright/cli playwright-cli click <ref>
 ### 第二次跑 CI 又收的四处（同样是审计挑出来的真问题）
 
 - **单文件 25 MB 与请求体换算各写两份**：`lib/uploads.js` 现在导出 `MAX_FILE_BYTES`、`bodyLimitFor()`、`mb()`，
-  `lib/design-image.js` 的 `MAX_BODY_BYTES` 与提示语都由它们算出来（值只在那一处）；前端那一份保持一处、按常量拼提示。
+  `lib/design-image.js` 的 `MAX_BODY_BYTES` 与提示语都由它们算出来 —— 值与判据只在后端那一处，
+  前端不判大小（超限由后端按原话拒绝）。
 - **换格式时先删旧图再写新图**：改成 `stage → land → 删其它后缀`（`lib/atomic-write.js` 的三步）——
   换格式时写失败不会把这一页两张都弄没。
-- **前端「太大先拦」没走到共用入口**：判据挪进 `fileToBase64()`（每个走它的入口都拿到同一个行为），
-  `uploadAttachments` 里那份重复的预检删掉。
+- **前端「太大先拦」没走到共用入口**：直接删掉前端那道预检（`uploadAttachments` 里那份），
+  大小判据只剩后端一处 —— 前端再存一份数字，改一处就会漂。
 - **Target 直接拼进路径**：`requireTarget()` 现在拒路径分隔符、`..` 与 Windows 非法字符 ——
   这个 Target 会变成文件名（`<页面名>.design.png`），不归一的话图能落到 `_inputs` 之外。
   同一轮还收了两处：`mode` 归一化在 board 与 run 各写一份（改成 `lib/run.js` 的 `normalizeMode` 带 fallback，board 用它）、
