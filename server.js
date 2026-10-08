@@ -54,6 +54,7 @@ const { createUploads } = require("./lib/uploads.js");
 const { applyProxy } = require("./lib/proxy.js");
 const { createTokenSource, SOURCE_LABELS } = require("./lib/mcp-token.js");
 const { syncSupervisor } = require("./lib/bootstrap.js");
+const { readMark, beginRun, endRun } = require("./lib/run-mark.js");
 const { createLog } = require("./lib/log.js");
 
 const HERE = __dirname;
@@ -99,7 +100,19 @@ const settings = createSettings(HOME);
  */
 const log = createLog(HOME);
 log.write("boot", "启动 v" + VERSION + " port " + options.port + " pid " + process.pid
-  + (process.env.MASTERGO_SUPERVISED === "1" ? "（受监督）" : "") + " 安装根 " + HOME);
+  + (process.env.MASTERGO_SUPERVISED === "1" ? "（受监督，监督进程 pid " + process.ppid + "）" : "")
+  + " 安装根 " + HOME);
+/*
+ * 上一次是不是正常退出：这一份在 logs/run.json 里留个记号，正常退出（含换版本的退出码 75）时自己摘掉。
+ * 留着没摘就说明上一次被硬杀（控制台窗口被关、任务管理器结束进程）—— 它自己来不及写日志，而监督进程
+ * 那一侧只看到退出码、说不出是哪一版哪个 pid；这一行只有下一次启动补得上（lib/run-mark.js）。
+ */
+const previous = readMark(HOME);
+if (previous && Number(previous.pid) !== process.pid) {
+  log.write("crash", "上一次运行（v" + String(previous.version || "?") + " pid " + String(previous.pid || "?")
+    + "，起于 " + String(previous.startedAt || "?") + "）没有正常退出");
+}
+beginRun(HOME, { version: VERSION, startedAt: new Date().toISOString() });
 process.on("uncaughtException", function (error) {
   log.write("crash", "未捕获异常：" + (error && error.stack ? error.stack : String(error)));
   process.exit(1);
@@ -109,6 +122,7 @@ process.on("unhandledRejection", function (reason) {
   process.exit(1);
 });
 process.on("exit", function (code) {
+  endRun(HOME);
   log.write("exit", "进程退出 code=" + code);
 });
 
