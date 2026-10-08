@@ -166,7 +166,7 @@ const tokenOf = function () { return tokenSource.value(); };
 
 const resolver = createResolver({
   engine: PLUGIN.engine,
-  // 插件根每次现取：设置里换一份之后立刻生效，不用重启客户端。
+  // 插件根每次现取：装上新版之后立刻生效，不用重启客户端。
   pluginRoot: function () { return PLUGIN.root; },
   // pwsh 也现取：换了运行时、或改了「允许用系统那份」之后，下一次查询就按新的走。
   pwsh: function () { return resolvePwshExe(); },

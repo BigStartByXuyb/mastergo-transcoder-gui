@@ -37,7 +37,7 @@ export type PluginSources = {
 
 /**
  * 客户端自带的那一份插件：本地是哪一版、远端有没有新的。
- * 「装了哪几版、此刻用哪一份」由 /api/plugin/sources 那份来源表说（插件定位的判据在那边）。
+ * 「装在哪、装了哪几版、此刻用哪一份」由 /api/plugin/sources 说（插件定位的判据在那边）。
  *
  * 四种处境做成联合类型：后端 readState() 就是这么算的 —— 有新版与已是最新都一定带着远端清单，
  * 没查过是 null。于是「有新版就拿得到清单」这条判据只有类型这一处，读的地方不再各自判空。
@@ -47,7 +47,7 @@ export type PluginUpdateStatus = {
   local: { version: string; dir: string }
   error: UpdateFailure | null
   task: UpdateTask
-  /** 有任务在跑时不能装（装完就可能换掉生效的那一份）；空串＝空闲，界面据此提示并禁用。 */
+  /** 有任务在跑时不能装（装完就会换掉生效的那一份）；空串＝空闲，界面据此提示并禁用。 */
   busy: string
   /**
    * 这一份插件从哪儿取：插件自己那一项设置（没配＝插件仓库），拼法与程序更新同用后端 lib/source.js。
