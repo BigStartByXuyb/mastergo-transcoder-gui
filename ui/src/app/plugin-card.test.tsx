@@ -9,8 +9,8 @@ import { INSTALLED_ROOT, INSTALL_PARENT, PLUGIN_SOURCE_BASE, drive, pluginUpdate
  * 插件页：查找顺序（后端给的那七档，界面不重排）+ 一张表（来源 / 版本 / 状态 / 路径 / 操作）。
  * 这一页只读与查看 —— 没有任何「换用某一档」的动作；只有「客户端自带」那一档带管理面板
  * （检查更新 / 下载并安装 / 更新来源）。
- * 档位的名字与那句话都由后端给，界面只渲染：夹具一律用夹具名（真名与那句话由
- * tests/plugin-sources.test.js 比着 lib/plugin-root.js 的 pluginPlaces() 锁）。
+ * 档位的名字与那句话都由后端给，界面只渲染：夹具一律用夹具名（真名与那句话以 lib/plugin-root.js 的
+ * pluginPlaces() 为准，另有 tests/docs-consistency.test.js 比着 pluginSources() 逐字锁）。
  *
  * 夹具路径按段拼（drive 在 settings-fixtures 里）：源码里不出现「盘符 + 反斜杠」那种机器专属写法。
  */
@@ -47,7 +47,7 @@ function view(options: { activeId?: string; failure?: string; sameRoot?: boolean
     source("arg", { label: "启动参数（夹具）" }),
     source("env", {
       label: "环境变量（夹具）",
-      note: "系统环境变量给的那一份：在系统里设（或启动前设），客户端启动时继承。",
+      note: "（夹具的那句话）",
       path: ENV_DIR,
       exists: true,
       pluginRoot: ENV_ROOT,
@@ -198,7 +198,7 @@ describe("PluginCard", () => {
     const dialog = await openRow("环境变量（夹具）", "详情…")
 
     // 「这一档归谁管」那句话由后端随来源一起给，界面只渲染。
-    expect(within(dialog).getByText(/系统环境变量给的那一份/)).toBeTruthy()
+    expect(within(dialog).getByText(/（夹具的那句话）/)).toBeTruthy()
     expect(within(dialog).getByText(/解析到：/)).toBeTruthy()
     expect(within(dialog).queryByText("用这份")).toBeNull()
     expect(within(dialog).queryByText("检查更新")).toBeNull()

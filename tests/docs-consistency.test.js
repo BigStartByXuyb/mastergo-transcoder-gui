@@ -158,13 +158,13 @@ function caseFactsHaveOneHome() {
   }
 }
 
-// 逐档清单只在 docs/plugin-sources.md 里：别的说明只留一句 + 指向它。
+// 逐档清单只在 docs/plugin-sources.md 里：别处的说明与注释只留一句 + 指向它。
 // 「复述」的签名有三种 —— 一行里出现两个以上的档位名、一个档位的列表项（`1. 启动参数 …`）、
 // 档位表的表头（`| 第几档 | 来源 |`）。单个档位名本身不算（「客户端自带那份运行环境」这类正常说法）。
 function caseNoTierListCopy() {
   const labels = truth().map(function (source) { return source.label.replace(/`/g, ""); });
-  for (const rel of proseFiles()) {
-    if (rel === TIERS_DOC) continue;
+  for (const rel of scannedFiles()) {
+    if (rel === TIERS_DOC || rel === "tests/docs-consistency.test.js") continue;
     const copied = read(rel).split(/\r?\n/).filter(function (line) {
       if (/^\|\s*第几档\s*\|/.test(line.trim())) return true;
       const hits = labels.filter(function (label) { return line.includes(label); }).length;
