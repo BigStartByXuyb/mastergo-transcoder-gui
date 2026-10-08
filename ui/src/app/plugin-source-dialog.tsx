@@ -127,7 +127,8 @@ export function PluginSourceDialog(props: {
               有插件才给「打开目录」：「这一档解析到插件」就是「那个目录真的在」（定位只认这个），
               而没设 / 那里没有插件的那几档，点了只会报「这个目录不在了」。
             */}
-            {row.path && row.exists && (
+            {/* 「解析到插件」就是「那个目录真的在」（定位只认这个）：exists 已经蕴含 path 非空。 */}
+            {row.exists && (
               <Button size="sm" variant="outline" onClick={() => void openFolder()}>
                 <FolderOpen className="size-4" />
                 打开目录
