@@ -294,8 +294,11 @@ export function PipelinePage({
         />
       )}
 
-      {/* 走 A 路线（mw-wpf）的任务才读图：AB 的 A 段同样读，所以判据是「路线里有 A」而不是 mode 恰好是 A。 */}
-      {task && task.workDir && task.routes.includes("A") && <DesignImageCard task={task} />}
+      {/*
+        走 A 路线（mw-wpf）的任务才读图：AB 的 A 段同样读，所以判据是「路线里有 A」而不是 mode 恰好是 A。
+        图是按页面名放的，没有 Target 就无从谈起 —— 那种任务根本不显示这一块。
+      */}
+      {task && task.workDir && task.request.target && task.routes.includes("A") && <DesignImageCard task={task} />}
 
       {task && counts.total > 0 && (
         <TaskPendingCard

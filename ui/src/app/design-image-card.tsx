@@ -107,7 +107,9 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
               <span className="text-muted-foreground text-xs">{humanSize(image.bytes)}</span>
             </span>
           ) : (
-            <span className="text-muted-foreground">还没有。传上来的话放到 {state?.dir || "（工程目录）/Generated/_inputs"}</span>
+            <span className="text-muted-foreground">
+              {state ? "还没有。传上来的话放到 " + state.dir : "请稍等，正在读这一页的目录"}
+            </span>
           )}
         </div>
 
