@@ -119,31 +119,39 @@ function caseTierTableMatchesCode() {
  *
  * 只登记「整仓只有一处说」的值。通用字面量不进来 —— 例如 127.0.0.1：代理的免代理清单、
  * URL 兜底、用例夹具各自说的是不同的事，不是同一件事实的多个化身，登记进来只会拦正常的写法。
+ *
+ * kind 决定「算不算同一处」：name 认独立的一段（X 与 X_ENV 是两回事）；version / number
+ * 只忌前后再跟数字与点 —— 于是带 v 前缀、或嵌在文件名里（形如 node-v<版本>-win-x64.zip）的那一份也算命中。
  */
 const SINGLE_SOURCE = [
-  { value: PLUGIN_ENV_NAME, home: ["lib/plugin-root.js", TIERS_DOC], what: "插件根环境变量名" },
-  { value: TOKEN_ENV_KEY, home: ["lib/mcp-token.js", README], what: "MasterGo token 环境变量名" },
-  { value: String(DEFAULT_PORT), home: ["lib/config.js", README], what: "服务默认端口" },
-  { value: TOOLS.node.version, home: ["lib/runtime.js"], what: "钉死的 Node 版本" },
-  { value: TOOLS.pwsh.version, home: ["lib/runtime.js"], what: "钉死的 PowerShell 7 版本" },
-  { value: API_TARGET_ENV, home: ["lib/config.js", README], what: "开发代理换地址的那个变量名" }
+  { value: PLUGIN_ENV_NAME, kind: "name", home: ["lib/plugin-root.js", TIERS_DOC], what: "插件根环境变量名" },
+  { value: TOKEN_ENV_KEY, kind: "name", home: ["lib/mcp-token.js", README], what: "MasterGo token 环境变量名" },
+  { value: API_TARGET_ENV, kind: "name", home: ["lib/config.js", README], what: "开发代理换地址的那个变量名" },
+  { value: String(DEFAULT_PORT), kind: "number", home: ["lib/config.js", README], what: "服务默认端口" },
+  { value: TOOLS.node.version, kind: "version", home: ["lib/runtime.js"], what: "钉死的 Node 版本" },
+  { value: TOOLS.pwsh.version, kind: "version", home: ["lib/runtime.js"], what: "钉死的 PowerShell 7 版本" }
 ];
 
 function caseSingleSource() {
   const files = scannedFiles();
   const text = new Map(files.map(function (rel) { return [rel, read(rel)]; }));
-  // 按「独立的一段」找：同一个名字加后缀（如 X 与 X_ENV）不该被算成两处。
-  const mentions = function (body, value) {
-    const escaped = String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp("(?<![\\w])" + escaped + "(?![\\w])").test(body);
+  const boundary = {
+    name: ["(?<![A-Za-z0-9_])", "(?![A-Za-z0-9_])"],
+    version: ["(?<![\\d.])", "(?![\\d.])"],
+    number: ["(?<!\\d)", "(?!\\d)"]
+  };
+  const mentions = function (body, fact) {
+    const escaped = String(fact.value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const edges = boundary[fact.kind];
+    return new RegExp(edges[0] + escaped + edges[1]).test(body);
   };
   for (const fact of SINGLE_SOURCE) {
     assert.ok(
-      fact.home.some(function (rel) { return text.has(rel) && mentions(text.get(rel), fact.value); }),
+      fact.home.some(function (rel) { return text.has(rel) && mentions(text.get(rel), fact); }),
       fact.what + "（" + fact.value + "）在它该在的地方没有出现：" + fact.home.join("、")
     );
     const others = files.filter(function (rel) {
-      return !fact.home.includes(rel) && mentions(text.get(rel), fact.value);
+      return !fact.home.includes(rel) && mentions(text.get(rel), fact);
     });
     assert.deepStrictEqual(
       others,
