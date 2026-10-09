@@ -14,7 +14,7 @@
 
 ## 怎么点
 
-用根 [`README.md`](README.md)「开发」一节的命令起后端与前端，再用 `playwright-cli` 的
+用根 [`README.md`](../README.md)「开发」一节的命令起后端与前端，再用 `playwright-cli` 的
 `open / snapshot / click / screenshot` 点这次涉及的功能点。两条纪律：
 
 1. ref 只在当次 snapshot 内有效。点按钮后列表会重渲染，旧 ref 会指到别的元素 —— 改状态的操作一次 snapshot 配一次 click。
