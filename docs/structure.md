@@ -10,6 +10,7 @@
 | `server.js` | 服务入口：装配（设置、插件、运行时、代理、日志）并起 HTTP 服务 | 具体业务实现 |
 | `launch.js` + `lib/launch.js` | 启动壳与监督进程：按指针选版本、起子进程、换版本重启 | 服务里才有的模块 |
 | `lib/` | 服务端能力：一个模块一件事，文件头那句注释就是它的职责 | 界面代码；跨层的界面调用 |
+| `shared/` | 前后端共用的纯工具（版本比较这类两端都要用的），业务判据不放这里 | 业务判据；界面代码 |
 | `ui/` | 界面包（独立 npm 包，只经 HTTP 与后端打交道）：`src/app` 页面与视图件、`src/lib` 前端逻辑 | 后端源码；后端常量 |
 | `public/` | 界面构建产物（`npm run build:ui` 生成，入库） | 手写的源文件 |
 | `scripts/` + `scripts/lib/` | 工具链：打包、发布、winget、起前端等一次性任务 | 运行期会加载的逻辑 |
@@ -28,11 +29,11 @@
 ## 依赖方向
 
 ```
-server.js ──> lib/ ──> (node 标准库、第三方包)
+server.js ──> lib/ ──> shared/ ──> (node 标准库、第三方包)
    │            ↑
    │            └── scripts/（工具链可以读 lib/）
    │
-ui/  ──HTTP──> server.js          ui/ 不读仓库根任何源码
+ui/  ──HTTP──> server.js          ui/ 只读 shared/（公共库），不读 lib/ 或脚本
 tools/launcher（Go）  独立，不读 JavaScript
 tests/ ──> lib/、scripts/、ui/src（用例可以读任一侧）
 launch.js ──> lib/launch.js      壳只用自己拥有的两份文件

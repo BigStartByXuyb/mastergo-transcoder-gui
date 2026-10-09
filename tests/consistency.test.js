@@ -298,7 +298,7 @@ function hasAnyFile(dir) {
 }
 
 /* 每个模块的文件头都要有一句职责注释：一个模块的职责写在它自己那一处，别处不再复述。 */
-const MODULE_DIRS = ["lib", "scripts", path.join("scripts", "lib"), path.join("ui", "src", "app"), path.join("ui", "src", "lib")];
+const MODULE_DIRS = ["lib", "shared", "scripts", path.join("scripts", "lib"), path.join("ui", "src", "app"), path.join("ui", "src", "lib")];
 
 function caseModulesHaveHeaderComment() {
   const missing = [];

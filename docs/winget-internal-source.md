@@ -45,6 +45,7 @@ mastergo-winget/
   scripts/lib/winget-manifest.js      ← 仓库 scripts/lib/winget-manifest.js
   scripts/lib/winget-source-api.js    ← 仓库 scripts/lib/winget-source-api.js
   lib/versions.js                     ← 仓库 lib/versions.js
+  shared/versions.cjs                 ← 仓库 shared/versions.cjs（lib/versions.js 转发的真值源）
   data/winget-source.json             ← scripts/winget-source.js 生成
   data/files/<这一版的 zip>            ← 同一个生成器一起放进去的
 ```
