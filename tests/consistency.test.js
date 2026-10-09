@@ -38,7 +38,7 @@ function read(rel) {
  * （agents、plugins、runtime、work、logs… 这些），入库的构建产物 public/（说明在 ui/src，
  * 产物由它构建出来），第三方解压件 vendor/，以及由源码生成的 runtime-assets.json。
  */
-const SCANNED_EXT = /\.(js|mjs|cjs|ts|tsx|md|json|ps1|cmd|yml|yaml|toml)$/;
+const SCANNED_EXT = /\.(js|mjs|cjs|ts|tsx|md|json|ps1|cmd|yml|yaml|toml|go)$/;
 const SKIP_DIRS = [
   ".git", "node_modules", "coverage", "public",
   "agents", "blobs", "chats", "logs", "plugins", "runtime", "update-cache", "vendor", "versions", "work",
@@ -116,6 +116,9 @@ function caseTierTableMatchesCode() {
 /*
  * 字面量只有一个住处：值只在真值源定义一次，说明里写它的只有那一份权威文档，别处走常量。
  * 值本身从真值源读出来，不在这里另抄一遍；加一条 = 加一行；换了真值源 = 改 home。
+ *
+ * 只登记「整仓只有一处说」的值。通用字面量不进来 —— 例如 127.0.0.1：代理的免代理清单、
+ * URL 兜底、用例夹具各自说的是不同的事，不是同一件事实的多个化身，登记进来只会拦正常的写法。
  */
 const SINGLE_SOURCE = [
   { value: PLUGIN_ENV_NAME, home: ["lib/plugin-root.js", TIERS_DOC], what: "插件根环境变量名" },
