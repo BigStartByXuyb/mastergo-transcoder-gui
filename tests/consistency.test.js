@@ -21,7 +21,6 @@ const { TOKEN_ENV_KEY } = require("../lib/mcp-token.js");
 const { TOOLS } = require("../lib/runtime.js");
 
 const ROOT = path.join(__dirname, "..");
-const SELF = "tests/consistency.test.js";
 const README = "README.md";
 const DOCS = "docs";
 /* 验收记录记的是当次口径，不参与「当前口径」的比对。 */
