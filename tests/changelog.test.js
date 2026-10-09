@@ -9,7 +9,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { readChangelog, notesOf, notesText, missingFeatureLabels } = require("../lib/changelog.js");
+const { readChangelog, notesOf, notesText, missingForEveryVersion } = require("../lib/changelog.js");
 const { buildManifest } = require("../lib/app-manifest.js");
 
 const ROOT = path.join(__dirname, "..");
@@ -59,20 +59,17 @@ function caseRepoFeaturesComplete() {
   });
 }
 
-/* 回退缺什么：由 changelog 一处算，界面只渲染这份结果。 */
-function caseMissingFeatureLabels() {
+/* 回退缺什么：由 changelog 一处算（一趟），界面只渲染这份结果。 */
+function caseMissingForEveryVersion() {
   const history = [
     { version: "0.6.22", features: [{ id: "switch-confirm", label: "换版本先确认" }], drops: [] },
     { version: "0.6.12", features: [{ id: "auto-update", label: "自己发现新版" }], drops: [] },
     { version: "0.6.0", features: [{ id: "chat", label: "对话页" }], drops: [] }
   ];
-  assert.deepStrictEqual(
-    missingFeatureLabels(history, "0.6.11", "0.6.22"),
-    ["自己发现新版", "换版本先确认"],
-    "回退到旧版要列出缺了哪些"
-  );
-  assert.deepStrictEqual(missingFeatureLabels(history, "0.6.30", "0.6.22"), [], "升级不缺");
-  assert.deepStrictEqual(missingFeatureLabels(history, "0.6.12", "0.6.12"), [], "同版不缺");
+  const byVersion = missingForEveryVersion(history, "0.6.22");
+  assert.deepStrictEqual(byVersion.get("0.6.0"), ["自己发现新版", "换版本先确认"], "回退到旧版要列出缺了哪些");
+  assert.deepStrictEqual(byVersion.get("0.6.12"), ["换版本先确认"], "只缺目标版本之后加的那些");
+  assert.deepStrictEqual(byVersion.get("0.6.22"), [], "同版不缺");
 }
 
 function caseShapes() {
@@ -99,7 +96,7 @@ try {
   for (const [name, run] of [
     ["仓库里那份", caseRepoFile],
     ["能力项读端不丢", caseRepoFeaturesComplete],
-    ["回退缺什么由一处算", caseMissingFeatureLabels],
+    ["回退缺什么由一处算", caseMissingForEveryVersion],
     ["形状", caseShapes],
     ["坏输入", caseBadInput]
   ]) {

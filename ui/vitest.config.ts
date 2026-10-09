@@ -15,7 +15,10 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: { "@": path.resolve(here, "src") }
+    alias: [
+      { find: "@", replacement: path.resolve(here, "src") },
+      { find: "@shared/", replacement: path.resolve(here, "..", "shared") + "/" },
+    ]
   },
   test: {
     environment: "jsdom",

@@ -18,7 +18,7 @@ export type VersionRow = {
 }
 
 // 版本比法：真值源在 shared/versions.cjs（前后端共用的公共库），这里只转发。
-import { compareVersions, isNewer } from "../../../shared/versions.cjs"
+import { compareVersions, isNewer } from "@shared/versions.cjs"
 
 export { compareVersions, isNewer }
 
