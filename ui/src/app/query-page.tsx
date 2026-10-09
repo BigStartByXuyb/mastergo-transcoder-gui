@@ -1,3 +1,7 @@
+/*
+ * 控件 ID 查询页：贴页面链接或页面帧 → 取一次节点 → 按区域分组列出控件 ID、类型与路径。
+ * 取数在 lib/node-controls.js，分组与折叠的判据在 ui/src/lib/areas.ts。
+ */
 import { useEffect, useMemo, useState } from "react"
 import { Copy, Loader2, Search } from "lucide-react"
 

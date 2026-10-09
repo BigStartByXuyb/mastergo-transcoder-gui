@@ -1,3 +1,7 @@
+/*
+ * 对话页：起一次 Codex 会话、发消息与附件，把流式输出与工具调用画成时间线；
+ * 写盘开关与引擎状态在 codex-card，时间线在 chat-transcript。
+ */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { FileUp, FolderGit2, FolderUp, ImagePlus, Loader2, Lock, Plus, Paperclip, Send, Settings2, ShieldCheck, Square, Trash2, X } from "lucide-react"
 import { toast } from "sonner"

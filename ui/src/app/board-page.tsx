@@ -1,3 +1,7 @@
+/*
+ * 看板页：任务表（一页十条）+ 区域与筛选 + 行内动作（启动 / 停止 / 重跑 / 清空 / 删除）。
+ * 新建任务表单在 board-new-task-dialog，任务行在 board-task-table。
+ */
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { GitMerge, Loader2, Play, Plus } from "lucide-react"
 import { toast } from "sonner"

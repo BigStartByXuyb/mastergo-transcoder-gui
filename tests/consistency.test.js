@@ -30,6 +30,8 @@ const RECORD = DOCS + "/ui-verification.md";
 const INDEX = DOCS + "/README.md";
 const TIERS_DOC = DOCS + "/plugin-sources.md";
 const RELEASE_DOC = DOCS + "/release-and-update.md";
+const STRUCTURE_DOC = DOCS + "/structure.md";
+const GATES_DOC = DOCS + "/gates.md";
 
 function read(rel) {
   return fs.readFileSync(path.join(ROOT, rel), "utf8");
@@ -260,17 +262,90 @@ function caseDocsIndexed() {
   }
 }
 
+/*
+ * 仓库根的条目（目录与文件）都要登记在 docs/structure.md 的目录表里；空目录与本机运行留下的 *.log 不算结构。
+ */
+function caseRootEntriesRegistered() {
+  const doc = read(STRUCTURE_DOC);
+  const missing = fs.readdirSync(ROOT, { withFileTypes: true })
+    .filter(function (entry) { return !entry.name.startsWith(".") && !entry.name.endsWith(".log"); })
+    .filter(function (entry) { return !entry.isDirectory() || hasAnyFile(path.join(ROOT, entry.name)); })
+    .map(function (entry) { return entry.name; })
+    .filter(function (name) { return !doc.includes(name); });
+  assert.deepStrictEqual(missing, [], "仓库根这些条目没写进 " + STRUCTURE_DOC + "：「" + missing.join("、") + "」");
+}
+
+function hasAnyFile(dir) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isFile()) return true;
+    if (entry.isDirectory() && hasAnyFile(path.join(dir, entry.name))) return true;
+  }
+  return false;
+}
+
+/* 每个模块的文件头都要有一句职责注释：一个模块的职责写在它自己那一处，别处不再复述。 */
+const MODULE_DIRS = ["lib", "scripts", path.join("scripts", "lib"), path.join("ui", "src", "app"), path.join("ui", "src", "lib")];
+
+function caseModulesHaveHeaderComment() {
+  const missing = [];
+  for (const rel of MODULE_DIRS) {
+    for (const entry of fs.readdirSync(path.join(ROOT, rel), { withFileTypes: true })) {
+      if (!entry.isFile() || !/\.(js|mjs|cjs|ts|tsx)$/.test(entry.name) || entry.name.includes(".test.")) continue;
+      const head = fs.readFileSync(path.join(ROOT, rel, entry.name), "utf8").split(/\r?\n/).slice(0, 30).join("\n");
+      if (!hasHeaderComment(head)) {
+        missing.push(path.join(rel, entry.name).split(path.sep).join("/"));
+      }
+    }
+  }
+  assert.deepStrictEqual(missing, [], "这些模块缺少文件头职责注释：" + missing.join("、"));
+}
+
+/* 文件头那句职责：一段块注释，或一行够长的 `//` 注释（中文里带空格，所以按「去掉空白后的字数」判）。 */
+function hasHeaderComment(head) {
+  if (/\/\*[\s\S]*?\*\//.test(head)) return true;
+  return head.split(/\r?\n/).some(function (line) {
+    const trimmed = line.trim();
+    return trimmed.startsWith("//") && trimmed.replace(/\s/g, "").length >= 10;
+  });
+}
+
+/* 服务端不反向依赖上层：lib/ 里不许出现指向 ui/ 或 scripts/ 的引用。 */
+function caseLibDoesNotReachUp() {
+  const offenders = scannedFiles().filter(function (rel) {
+    return rel.startsWith("lib/") && /require\(["'](?:\.\.\/)+(ui|scripts)\//.test(read(rel));
+  });
+  assert.deepStrictEqual(offenders, [], "lib/ 里不许引用 ui/ 或 scripts/：" + offenders.join("、"));
+}
+
+// 门禁定义也只有一处：docs/gates.md 的表与这里注册的用例一一对应。
+const CASES = [
+  ["档位表与代码一一对应", caseTierTableMatchesCode],
+  ["字面量只在真值源", caseSingleSource],
+  ["引用的文档都存在", caseDocRefsResolve],
+  ["应用代码不跨包读后端源码", caseAppDoesNotReachBackendSource],
+  ["一句话只有一处说", caseFactsHaveOneHome],
+  ["逐档清单不在别处复述", caseNoTierListCopy],
+  ["每份文档都进索引", caseDocsIndexed],
+  ["顶层条目都在结构表里", caseRootEntriesRegistered],
+  ["每个模块都有职责头", caseModulesHaveHeaderComment],
+  ["lib 不反向读上层", caseLibDoesNotReachUp],
+  ["门禁定义与实际用例一致", caseGateListMatches]
+];
+
+function caseGateListMatches() {
+  const rows = read(GATES_DOC).split(/\r?\n/)
+    .filter(function (line) { return /^\|\s*\S/.test(line); })
+    .map(function (line) { return line.split("|")[1].trim(); })
+    .filter(function (name) { return name && name !== "用例" && !/^-+$/.test(name); });
+  assert.deepStrictEqual(
+    rows.slice().sort(),
+    CASES.map(function (item) { return item[0]; }).sort(),
+    GATES_DOC + " 的表要与这里注册的用例一一对应"
+  );
+}
+
 try {
-  const cases = [
-    ["档位表与代码一一对应", caseTierTableMatchesCode],
-    ["字面量只在真值源", caseSingleSource],
-    ["引用的文档都存在", caseDocRefsResolve],
-    ["应用代码不跨包读后端源码", caseAppDoesNotReachBackendSource],
-    ["一句话只有一处说", caseFactsHaveOneHome],
-    ["逐档清单不在别处复述", caseNoTierListCopy],
-    ["每份文档都进索引", caseDocsIndexed]
-  ];
-  for (const [name, run] of cases) {
+  for (const [name, run] of CASES) {
     run();
     console.log("  ok  " + name);
   }

@@ -1,3 +1,7 @@
+/*
+ * 插件来源那一行的弹窗：别的档位给只读详情（版本 / 路径 / 解析到哪一份 / 这一档归谁管）；
+ * 「客户端自带」那一档多一块更新（检查更新 / 下载并安装 / 更新来源），实现在 plugin-install-block。
+ */
 import { useState } from "react"
 import { Copy, FolderOpen } from "lucide-react"
 

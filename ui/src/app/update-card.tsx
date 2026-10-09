@@ -1,3 +1,7 @@
+/*
+ * 程序更新卡片：当前用的是什么（运行环境）+ 更新来源 + 检查 / 下载 / 切换（回退前先确认）。
+ * 状态与动作在 use-update / update-source-actions，切换确认在 confirm-switch-dialog。
+ */
 import { useCallback, useEffect, useState } from "react"
 import { ChevronRight, Download, RotateCcw } from "lucide-react"
 import { toast } from "sonner"

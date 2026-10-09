@@ -1,3 +1,7 @@
+/*
+ * 运行环境里的一份运行时：名称 / 版本 / 来源 / 动作（下载、重下、改用系统上那份）。
+ * 三行（Node.js、PowerShell 7、Claude Code）共用这一个视图件，状态判据在 ui/src/lib/runtime-state.ts。
+ */
 import { useState } from "react"
 import { Download, Loader2, Terminal } from "lucide-react"
 
