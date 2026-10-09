@@ -13,6 +13,6 @@
 | [`repo-workflow.md`](repo-workflow.md) | 仓库的日常流程（分支、提交、发版） | 开发流程 |
 | [`winget-publish.md`](winget-publish.md) | 往 winget 发一版（公网源） | 公网发布渠道 |
 | [`winget-internal-source.md`](winget-internal-source.md) | 内网 winget 源怎么用、怎么换版本 | 内网发布渠道 |
-| [`records/README.md`](records/README.md) | 界面的验收记录（按年月拆文件，每条是当次口径） | 验收记录（当次） |
+| [`records.md`](records.md) | 界面的验收记录（按年月拆文件，每条是当次口径） | 验收记录（当次） |
 
 规则：**新增一类说明就进这张表**；同一件事不要在两份文档里各写一遍。

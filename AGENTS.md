@@ -59,5 +59,5 @@
 2. 前端：`npm --prefix ui run build`、`npm --prefix ui run lint`、`npm --prefix ui run test:coverage`
 3. 结构检查（与 CI 同一份实现，路径指向 cicd 检出）：
    `node <cicd>/projects/desktop-app/scripts/ci/check-app-structure.mjs --root . --output <临时>/det.json --markdown <临时>/det.md`
-4. 真界面点一遍这次涉及的功能点，结论写进 `docs/records/<年月>.md`（含截图路径；索引见 `docs/records/README.md`）。
+4. 真界面点一遍这次涉及的功能点，结论写进 `docs/records/<年月>.md`（含截图路径；索引见 `docs/records.md`）。
 5. 自己按上面四节把本次 diff 逐文件过一遍 —— 这一步不替代 CI，是让 CI 复核只用来兜底。

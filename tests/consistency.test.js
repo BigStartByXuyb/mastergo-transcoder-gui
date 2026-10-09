@@ -34,6 +34,7 @@ const TIERS_DOC = DOCS + "/plugin-sources.md";
 const RELEASE_DOC = DOCS + "/release-and-update.md";
 const STRUCTURE_DOC = DOCS + "/structure.md";
 const GATES_DOC = DOCS + "/gates.md";
+const RECORD_INDEX = DOCS + "/records.md";
 
 function read(rel) {
   return fs.readFileSync(path.join(ROOT, rel), "utf8");
@@ -187,16 +188,18 @@ function caseDocRefsResolve() {
   for (const rel of scannedFiles()) {
     const text = read(rel);
     const names = new Set();
-    // 任何文件里写「docs/<文档名>.md」都算引用。
-    for (const match of text.matchAll(/docs\/([\w.-]+\.md)/g)) names.add(match[1]);
-    // docs 下的文档里，同目录的 Markdown 链接也算。
-    if (rel.startsWith(DOCS + "/")) {
-      for (const match of text.matchAll(/\]\(([\w.-]+\.md)\)/g)) names.add(match[1]);
+    // 任何文件里写「docs/<路径>.md」都算引用（含子目录）。
+    for (const match of text.matchAll(/(?<![\w./:])docs\/([\w./-]+\.md)/g)) names.add(DOCS + "/" + match[1]);
+    // Markdown 链接：按它所在文件那一层解析（docs 下的文档最常见，代码注释里也这样算）。
+    const baseDir = path.posix.dirname(rel);
+    for (const match of text.matchAll(/\]\(([^)#]+\.md)(?:#[^)]*)?\)/g)) {
+      if (/^[a-z][a-z0-9+.-]*:/i.test(match[1])) continue;
+      names.add(path.posix.normalize(path.posix.join(baseDir, match[1])));
     }
     for (const name of names) {
       assert.ok(
-        fs.existsSync(path.join(ROOT, DOCS, name)),
-        rel + " 引用的 " + DOCS + "/" + name + " 不存在（文档改名或删掉之后要全仓一次改齐）"
+        fs.existsSync(path.join(ROOT, name)),
+        rel + " 引用的 " + name + " 不存在（文档改名或删掉之后要全仓一次改齐）"
       );
     }
   }
@@ -251,6 +254,13 @@ function caseDocsIndexed() {
     .filter(function (name) { return name.endsWith(".md") && name !== "README.md"; });
   for (const name of files) {
     assert.ok(index.includes("(" + name + ")"), INDEX + " 里少了 " + name + " 这一行");
+  }
+  // 记录按月份拆在 docs/records/ 下，那份索引（docs/records.md）要把每个月份文件都列出来。
+  const recordIndex = read(RECORD_INDEX);
+  const months = fs.readdirSync(path.join(ROOT, DOCS, "records"))
+    .filter(function (name) { return /^\d{4}-\d{2}\.md$/.test(name); });
+  for (const name of months) {
+    assert.ok(recordIndex.includes(name), RECORD_INDEX + " 里少了 " + name + " 这一行");
   }
 }
 
