@@ -19,6 +19,6 @@
 
 除上面这些，CI 还有两类不属于本表的检查（它们各自由 CI 的实现定义，这里只说明位置）：
 
-- **确定性检查**（CI 的 `deterministic-validation`）：写死的机器路径、无人引用的导出、
-  **前后端分层（`ui/` 不读仓库根源码、`lib/` 不反向依赖 `ui/`、`scripts/`）**、CI 版本钉死。
+- **确定性检查**（CI 的 `deterministic-validation`）：写死的机器路径、无人引用的导出、**前后端分层**、CI 版本钉死。
+  分层允许的方向见 [`structure.md`](structure.md) 的「依赖方向」。
 - **语义审计**（CI 的 `semantic-audit`）：按规则读改动并给复核意见；它给的是一致性意见，不是门禁本身。

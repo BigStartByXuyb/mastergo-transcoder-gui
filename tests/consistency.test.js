@@ -275,6 +275,9 @@ function caseRootEntriesRegistered() {
   for (const match of rootList.matchAll(/`([^`]+)`/g)) tokens.add(match[1].replace(/\/$/, ""));
   const prefixes = [...tokens].filter(function (name) { return name.endsWith("*"); })
     .map(function (name) { return name.slice(0, -1); });
+  // 文档里用 `*-credentials` 这种通配表示一族名字：含 * 的登记名按通配匹配。
+  const globs = [...tokens].filter(function (name) { return name.includes("*"); })
+    .map(function (name) { return new RegExp("^" + name.split("*").map(function (part) { return part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }).join(".*") + "$"); });
   const missing = fs.readdirSync(ROOT, { withFileTypes: true })
     .filter(function (entry) { return !entry.name.startsWith(".") && !entry.name.endsWith(".log"); })
     .filter(function (entry) { return !entry.isDirectory() || hasAnyFile(path.join(ROOT, entry.name)); })
@@ -282,6 +285,7 @@ function caseRootEntriesRegistered() {
     .filter(function (name) {
       if (tokens.has(name)) return false;
       if (prefixes.some(function (prefix) { return name.startsWith(prefix); })) return false;
+      if (globs.some(function (pattern) { return pattern.test(name); })) return false;
       // 表里写成子路径（如 `tools/launcher/`）也算登记了顶层那一层。
       return ![...tokens].some(function (token) { return token.startsWith(name + "/"); });
     });
