@@ -15,6 +15,8 @@ export type VersionRow = {
   installed: boolean
   /** 远端清单里的那一版（可能就是有新版）。 */
   remote: boolean
+  /** 回退到这一版会缺掉的能力（后端算好，见 api.ts 的 UpdateStatus.history）。 */
+  missingFromCurrent: string[]
 }
 
 // 版本比法：真值源在 shared/versions.cjs（前后端共用的公共库），这里只转发。
@@ -38,7 +40,8 @@ export function versionList(status: UpdateStatus): VersionRow[] {
       current: entry.version === status.current,
       ready: false,
       installed: false,
-      remote: false
+      remote: false,
+      missingFromCurrent: entry.missingFromCurrent
     })
   }
   for (const item of status.staged) {
@@ -56,7 +59,8 @@ export function versionList(status: UpdateStatus): VersionRow[] {
       current: item.current,
       ready: item.ready,
       installed: true,
-      remote: false
+      remote: false,
+      missingFromCurrent: []
     })
   }
   if (status.available) {
@@ -76,7 +80,8 @@ export function versionList(status: UpdateStatus): VersionRow[] {
         current: false,
         ready: false,
         installed: false,
-        remote: newer
+        remote: newer,
+        missingFromCurrent: []
       })
     }
   }

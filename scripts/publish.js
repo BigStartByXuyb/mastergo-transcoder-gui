@@ -24,7 +24,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { buildManifest } = require("../lib/app-manifest.js");
-const { notesOf, notesText } = require("../lib/changelog.js");
+const { readChangelog, notesOfEntries, notesText } = require("../lib/changelog.js");
 const { MANIFEST_NAME } = require("../lib/source.js");
 const { argValue } = require("./lib/args.js");
 const { stageAssets, uploadRelease } = require("./lib/release-assets.js");
@@ -47,7 +47,7 @@ function main() {
   manifest.minClientVersion = argValue("min-client", "");
   manifest.freshRunRequired = process.argv.indexOf("--no-fresh-run") < 0;
   // 这一版改了什么跟着清单一起发：客户端检查更新时就能显示，不用再多打一次 GitHub API。
-  manifest.notes = notesOf(ROOT, pkg.version);
+  manifest.notes = notesOfEntries(readChangelog(ROOT), pkg.version);
 
   const staged = stageAssets({ root: ROOT, manifest: manifest, outDir: outDir, manifestName: MANIFEST_NAME });
   process.stdout.write(

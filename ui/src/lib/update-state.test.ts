@@ -22,7 +22,7 @@ describe("compareVersions", () => {
     expect(compareVersions("1.0", "1.0.0")).toBe(0)
   })
 
-  it("非数字段按字符串比兜底：与后端 lib/versions.js 同一口径", () => {
+  it("非数字段按字符串比兜底（真值源在 shared/versions.cjs）", () => {
     // 同一段里有非数字时，两边都退到整串比较：不会把 abc 与 abc 判成「不一样」。
     expect(compareVersions("abc", "abc")).toBe(0)
     expect(compareVersions("1.0.371-rc", "1.0.370")).toBe("1.0.371-rc".localeCompare("1.0.370"))

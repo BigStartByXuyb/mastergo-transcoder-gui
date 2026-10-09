@@ -265,7 +265,7 @@ export function UpdateCard() {
           busy={busy && status ? status.busy : ""}
           missing={
             status
-              ? status.history.find((entry) => entry.version === confirming)?.missingFromCurrent ?? []
+              ? rows.find((row) => row.version === confirming)?.missingFromCurrent ?? []
               : []
           }
           onCancel={() => setConfirming("")}
