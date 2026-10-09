@@ -258,8 +258,13 @@ function caseDocsIndexed() {
 function caseRootEntriesRegistered() {
   // 真值源就是文档里这两处：目录表的第一列 + 根条目清单那一段。别的章节里出现的反引号名不算。
   const text = read(STRUCTURE_DOC);
-  const catalog = text.slice(text.indexOf("## 目录"), text.indexOf("## 依赖方向"));
-  const rootList = text.slice(text.indexOf("根条目清单"), text.indexOf("## 依赖方向"));
+  const at = function (marker) {
+    const index = text.indexOf(marker);
+    assert.ok(index >= 0, STRUCTURE_DOC + " 里找不到「" + marker + "」—— 结构变了要同步改这条门禁");
+    return index;
+  };
+  const catalog = text.slice(at("## 目录"), at("## 依赖方向"));
+  const rootList = text.slice(at("根条目清单"), at("## 依赖方向"));
   const tokens = new Set();
   for (const line of catalog.split(/\r?\n/)) {
     if (!/^\|/.test(line.trim())) continue;
