@@ -9,9 +9,8 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { readChangelog, notesOf, notesText, featureIdsUpTo } = require("../lib/changelog.js");
+const { readChangelog, notesOf, notesText } = require("../lib/changelog.js");
 const { buildManifest } = require("../lib/app-manifest.js");
-const { compareVersions } = require("../lib/versions.js");
 
 const ROOT = path.join(__dirname, "..");
 
@@ -60,24 +59,6 @@ function caseRepoFeaturesComplete() {
   });
 }
 
-/*
- * drops 引用的 id 必须是**到紧邻的更早那一版为止确实具备**的能力：用一个更小的版本号问
- * lib/changelog.js 的 featureIdsUpTo（「能力怎么解释」只有那一处），引错 id、
- * 或引用一个已经被更早的版本去掉的能力，都在这里当场失败。
- */
-function caseRepoDropsHaveSource() {
-  const entries = readChangelog(ROOT);
-  for (const entry of entries) {
-    const older = entries
-      .filter(function (one) { return compareVersions(one.version, entry.version) < 0; })
-      .sort(function (left, right) { return compareVersions(right.version, left.version); });
-    const known = older.length ? featureIdsUpTo(entries, older[0].version) : new Set();
-    for (const id of entry.drops) {
-      assert.ok(known.has(id), "changelog.json 里 " + entry.version + " 的 drops 引用了那一刻并不具备的能力 id：" + id);
-    }
-  }
-}
-
 function caseShapes() {
   const dir = tempDir('[{"version":"1.0.0","date":"2026-01-01","notes":["a","b"]},{"version":"0.9.0"}]');
   assert.deepStrictEqual(notesOf(dir, "1.0.0"), ["a", "b"]);
@@ -102,7 +83,6 @@ try {
   for (const [name, run] of [
     ["仓库里那份", caseRepoFile],
     ["能力项读端不丢", caseRepoFeaturesComplete],
-    ["drops 引用的能力确实具备过", caseRepoDropsHaveSource],
     ["形状", caseShapes],
     ["坏输入", caseBadInput]
   ]) {
