@@ -47,10 +47,11 @@ npm run build:ui               # 构建前端 → public/
 
 | 子页 | 内容 |
 | --- | --- |
-| AI token | 厂商 / base_url / 模型名 / API key |
+| AI token | 厂商 · 地址 · 模型 · key |
 | MasterGo token | 设计稿取数凭证（取值链里的「本机保存」那一级） |
-| AI Agent | Agent 写盘开关、Codex 引擎版本、运行时（Node / PowerShell 7 / Claude Code 检测） |
-| 更新 | 程序更新（检查 / 下载 / 切换 / 回退）与运行环境明细 |
+| AI Agent | 引擎 · 写盘开关 |
+| 运行环境 | 组件 · 版本 · 补齐（Node / PowerShell 7 / Claude Code 检测） |
+| 更新 | 客户端 · 插件（流水线） |
 
 界面上的文案一律面向使用者（产品 / 功能 / 更新说明），不写「怎么实现的」。下面各节写实现，是给改代码的人看的。
 
