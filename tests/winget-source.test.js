@@ -85,7 +85,7 @@ function listedInDoc() {
     .slice(start, end)
     .split(/\r?\n/)
     .map((line) => line.trim().split(/\s+/)[0])
-    .filter((name) => name && name.endsWith(".js"));
+    .filter((name) => name && /\.(c?js|mjs)$/.test(name));
 }
 
 /*

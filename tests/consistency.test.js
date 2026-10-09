@@ -298,13 +298,13 @@ function hasAnyFile(dir) {
 }
 
 /* 每个模块的文件头都要有一句职责注释：一个模块的职责写在它自己那一处，别处不再复述。 */
-const MODULE_DIRS = ["lib", "scripts", path.join("scripts", "lib"), path.join("ui", "src", "app"), path.join("ui", "src", "lib")];
+const MODULE_DIRS = ["lib", "shared", "scripts", path.join("scripts", "lib"), path.join("ui", "src", "app"), path.join("ui", "src", "lib")];
 
 function caseModulesHaveHeaderComment() {
   const missing = [];
   for (const rel of MODULE_DIRS) {
     for (const entry of fs.readdirSync(path.join(ROOT, rel), { withFileTypes: true })) {
-      if (!entry.isFile() || !/\.(js|mjs|cjs|ts|tsx)$/.test(entry.name) || entry.name.includes(".test.")) continue;
+      if (!entry.isFile() || !/\.(js|mjs|cjs|cts|ts|tsx)$/.test(entry.name) || entry.name.includes(".test.")) continue;
       const head = fs.readFileSync(path.join(ROOT, rel, entry.name), "utf8").split(/\r?\n/).slice(0, 30).join("\n");
       if (!hasHeaderComment(head)) {
         missing.push(path.join(rel, entry.name).split(path.sep).join("/"));
@@ -347,7 +347,8 @@ const CASES = [
   ["每份文档都进索引", caseDocsIndexed],
   ["顶层条目都在结构表里", caseRootEntriesRegistered],
   ["每个模块都有职责头", caseModulesHaveHeaderComment],
-  ["门禁定义与实际用例一致", caseGateListMatches]
+  ["门禁定义与实际用例一致", caseGateListMatches],
+  ["共享模块类型与导出一致", caseSharedTypesMatchExports]
 ];
 
 function caseGateListMatches() {
@@ -360,6 +361,15 @@ function caseGateListMatches() {
     CASES.map(function (item) { return item[0]; }).sort(),
     GATES_DOC + " 的表要与这里注册的用例一一对应"
   );
+}
+
+/* shared/versions.cjs 的运行时导出，与它那份类型声明 shared/versions.d.cts 的导出名要一一对应。 */
+function caseSharedTypesMatchExports() {
+  const runtime = Object.keys(require("../shared/versions.cjs")).sort();
+  const declared = [...read("shared/versions.d.cts").matchAll(/^export function (\w+)/gm)]
+    .map(function (match) { return match[1]; })
+    .sort();
+  assert.deepStrictEqual(declared, runtime, "shared/versions.d.cts 的导出要与 shared/versions.cjs 一致");
 }
 
 try {

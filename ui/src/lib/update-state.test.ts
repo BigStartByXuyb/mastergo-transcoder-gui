@@ -22,7 +22,7 @@ describe("compareVersions", () => {
     expect(compareVersions("1.0", "1.0.0")).toBe(0)
   })
 
-  it("非数字段按字符串比兜底：与后端 lib/versions.js 同一口径", () => {
+  it("非数字段按字符串比兜底（真值源在 shared/versions.cjs）", () => {
     // 同一段里有非数字时，两边都退到整串比较：不会把 abc 与 abc 判成「不一样」。
     expect(compareVersions("abc", "abc")).toBe(0)
     expect(compareVersions("1.0.371-rc", "1.0.370")).toBe("1.0.371-rc".localeCompare("1.0.370"))
@@ -213,8 +213,8 @@ describe("versionList", () => {
         current: "0.2.1",
         currentNotes: ["代理兜底"],
         history: [
-          { version: "0.2.1", date: "2026-09-30", notes: ["代理兜底"] },
-          { version: "0.2.0", date: "2026-09-30", notes: ["第一个可分发版本"] }
+          { version: "0.2.1", date: "2026-09-30", notes: ["代理兜底"], missingFromCurrent: [] },
+          { version: "0.2.0", date: "2026-09-30", notes: ["第一个可分发版本"], missingFromCurrent: [] }
         ],
         staged: [
           { version: "0.2.1", current: true, ready: true, freshRunRequired: null },
@@ -234,8 +234,8 @@ describe("versionList", () => {
       status({
         current: "0.3.0",
         history: [
-          { version: "0.3.0", date: "2026-09-30", notes: ["本版"] },
-          { version: "0.2.1", date: "2026-09-30", notes: ["代理兜底"] }
+          { version: "0.3.0", date: "2026-09-30", notes: ["本版"], missingFromCurrent: [] },
+          { version: "0.2.1", date: "2026-09-30", notes: ["代理兜底"], missingFromCurrent: [] }
         ],
         staged: [{ version: "0.3.0", current: true, ready: true, freshRunRequired: null }],
         available: available({ version: "0.2.1", notes: ["代理兜底"] })
@@ -250,7 +250,7 @@ describe("versionList", () => {
     const rows = versionList(
       status({
         current: "0.3.0",
-        history: [{ version: "0.3.0", date: "2026-09-30", notes: ["设置页拆子页"] }],
+        history: [{ version: "0.3.0", date: "2026-09-30", notes: ["设置页拆子页"], missingFromCurrent: [] }],
         staged: [
           { version: "0.3.0", current: true, ready: true, freshRunRequired: null },
           { version: "0.9.9", current: false, ready: false, freshRunRequired: null }

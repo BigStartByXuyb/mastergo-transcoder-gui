@@ -9,7 +9,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { readChangelog, notesOf, notesText } = require("../lib/changelog.js");
+const { readChangelog, notesOfEntries, notesText, missingForEveryVersion } = require("../lib/changelog.js");
 const { buildManifest } = require("../lib/app-manifest.js");
 
 const ROOT = path.join(__dirname, "..");
@@ -27,7 +27,7 @@ function caseRepoFile() {
   assert.ok(Array.isArray(entries[0].notes));
   // 当前版本必须有一条，更新页要显示「这一版能做什么」。
   const version = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).version;
-  assert.ok(notesOf(ROOT, version).length > 0, "当前版本 " + version + " 要有说明");
+  assert.ok(notesOfEntries(readChangelog(ROOT), version).length > 0, "当前版本 " + version + " 要有说明");
   // 清单要带上这一版改了什么：客户端检查更新时就能显示。
   assert.ok(buildManifest(ROOT, version).files["changelog.json"], "changelog.json 要进运行树清单");
 }
@@ -59,11 +59,24 @@ function caseRepoFeaturesComplete() {
   });
 }
 
+/* 回退缺什么：由 changelog 一处算（一趟），界面只渲染这份结果。 */
+function caseMissingForEveryVersion() {
+  const history = [
+    { version: "0.6.22", features: [{ id: "switch-confirm", label: "换版本先确认" }], drops: [] },
+    { version: "0.6.12", features: [{ id: "auto-update", label: "自己发现新版" }], drops: [] },
+    { version: "0.6.0", features: [{ id: "chat", label: "对话页" }], drops: [] }
+  ];
+  const byVersion = missingForEveryVersion(history, "0.6.22");
+  assert.deepStrictEqual(byVersion.get("0.6.0"), ["自己发现新版", "换版本先确认"], "回退到旧版要列出缺了哪些");
+  assert.deepStrictEqual(byVersion.get("0.6.12"), ["换版本先确认"], "只缺目标版本之后加的那些");
+  assert.deepStrictEqual(byVersion.get("0.6.22"), [], "同版不缺");
+}
+
 function caseShapes() {
   const dir = tempDir('[{"version":"1.0.0","date":"2026-01-01","notes":["a","b"]},{"version":"0.9.0"}]');
-  assert.deepStrictEqual(notesOf(dir, "1.0.0"), ["a", "b"]);
-  assert.deepStrictEqual(notesOf(dir, "0.9.0"), [], "没有 notes 就是空表，不编");
-  assert.deepStrictEqual(notesOf(dir, "9.9.9"), [], "没这一版就是空表");
+  assert.deepStrictEqual(notesOfEntries(readChangelog(dir), "1.0.0"), ["a", "b"]);
+  assert.deepStrictEqual(notesOfEntries(readChangelog(dir), "0.9.0"), [], "没有 notes 就是空表，不编");
+  assert.deepStrictEqual(notesOfEntries(readChangelog(dir), "9.9.9"), [], "没这一版就是空表");
   assert.strictEqual(notesText(dir, "1.0.0"), "MasterGo 转码客户端 v1.0.0\n\n- a\n- b");
   assert.strictEqual(notesText(dir, "9.9.9"), "", "没条目就不给 release 说明");
   fs.rmSync(dir, { recursive: true, force: true });
@@ -83,6 +96,7 @@ try {
   for (const [name, run] of [
     ["仓库里那份", caseRepoFile],
     ["能力项读端不丢", caseRepoFeaturesComplete],
+    ["回退缺什么由一处算", caseMissingForEveryVersion],
     ["形状", caseShapes],
     ["坏输入", caseBadInput]
   ]) {

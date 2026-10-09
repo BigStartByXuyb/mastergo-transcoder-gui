@@ -15,29 +15,14 @@ export type VersionRow = {
   installed: boolean
   /** 远端清单里的那一版（可能就是有新版）。 */
   remote: boolean
+  /** 回退到这一版会缺掉的能力（后端算好，见 api.ts 的 UpdateStatus.history）。 */
+  missingFromCurrent: string[]
 }
 
-/*
- * 版本号只按数字段比大小，段数不齐时短的补 0；非数字段（dev、1.0.371-rc 这种）按字符串比兜底 ——
- * 与后端 lib/versions.js 同一口径（前后端不能互相引代码，各自一份，比法保持一致）。
- */
-export function compareVersions(a: string, b: string): number {
-  const left = a.split(".")
-  const right = b.split(".")
-  const length = Math.max(left.length, right.length)
-  for (let index = 0; index < length; index += 1) {
-    const x = Number(left[index] ?? 0)
-    const y = Number(right[index] ?? 0)
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return a.localeCompare(b)
-    if (x !== y) return x < y ? -1 : 1
-  }
-  return 0
-}
+// 版本比法：真值源在 shared/versions.cjs（前后端共用的公共库），这里只转发。
+import { compareVersions, isNewer } from "@shared/versions.cjs"
 
-/** candidate 比 current 新。远端清单可能是上一次检查留下的旧数据，比较只认这一处。 */
-export function isNewer(candidate: string, current: string): boolean {
-  return compareVersions(candidate, current) > 0
-}
+export { compareVersions, isNewer }
 
 /*
  * 一张版本表，三个来源合成：本地版本历史（changelog）、已下载的那几份、远端清单里的那一版。
@@ -55,7 +40,8 @@ export function versionList(status: UpdateStatus): VersionRow[] {
       current: entry.version === status.current,
       ready: false,
       installed: false,
-      remote: false
+      remote: false,
+      missingFromCurrent: entry.missingFromCurrent
     })
   }
   for (const item of status.staged) {
@@ -73,7 +59,8 @@ export function versionList(status: UpdateStatus): VersionRow[] {
       current: item.current,
       ready: item.ready,
       installed: true,
-      remote: false
+      remote: false,
+      missingFromCurrent: []
     })
   }
   if (status.available) {
@@ -93,7 +80,8 @@ export function versionList(status: UpdateStatus): VersionRow[] {
         current: false,
         ready: false,
         installed: false,
-        remote: newer
+        remote: newer,
+        missingFromCurrent: []
       })
     }
   }

@@ -18,7 +18,8 @@
 
     /* 路径别名（与 vite.config.ts 的 resolve.alias 保持一致） */
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@shared/*": ["../shared/*"]
     },
 
     /* Linting */
