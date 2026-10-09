@@ -299,13 +299,27 @@ function caseModulesHaveHeaderComment() {
   assert.deepStrictEqual(missing, [], "这些模块缺少文件头职责注释：" + missing.join("、"));
 }
 
-/* 文件头那句职责：一段块注释，或一行够长的 `//` 注释（中文里带空格，所以按「去掉空白后的字数」判）。 */
+/*
+ * 文件头那句职责：头 30 行里**第一段注释**就是它，整段要有实质内容（去掉空白 ≥ 30 字）。
+ * 一段可以是 `/* … *\/`，也可以是连续的若干 `//` 行；随便一句短注释蒙不过去。
+ */
 function hasHeaderComment(head) {
-  if (/\/\*[\s\S]*?\*\//.test(head)) return true;
-  return head.split(/\r?\n/).some(function (line) {
-    const trimmed = line.trim();
-    return trimmed.startsWith("//") && trimmed.replace(/\s/g, "").length >= 10;
-  });
+  const lines = head.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (trimmed.startsWith("/*")) {
+      const rest = lines.slice(i).join("\n");
+      const end = rest.indexOf("*/");
+      const block = end < 0 ? rest : rest.slice(0, end + 2);
+      return block.replace(/\s/g, "").length >= 30;
+    }
+    if (trimmed.startsWith("//")) {
+      let block = "";
+      for (let j = i; j < lines.length && lines[j].trim().startsWith("//"); j++) block += lines[j];
+      return block.replace(/\s/g, "").length >= 30;
+    }
+  }
+  return false;
 }
 
 // 门禁定义也只有一处：docs/gates.md 的表与这里注册的用例一一对应。

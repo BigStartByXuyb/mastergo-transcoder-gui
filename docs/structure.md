@@ -19,7 +19,7 @@
 | `vendor/` | 模型依赖的压缩件（由 `scripts/vendor-openai.js` 生成） | 手写源码 |
 | 运行目录（`versions/`、`agents/`、`plugins/`、`runtime/`、`blobs/`、`logs/`、`work/`、`chats/`、`update-cache/`、`dist/`、`output/`、`.playwright-cli/`） | 本机状态与产物（`.gitignore` 里那些） | 仓库源码 |
 
-仓库根只允许出现上表与 `node_modules/`、[`README.md`](README.md)、[`AGENTS.md`](../AGENTS.md)、`package.json`、`package-lock.json`、`changelog.json`、`start.cmd`、
+仓库根只允许出现上表与 `node_modules/`、[`README.md`](../README.md)、[`AGENTS.md`](../AGENTS.md)、`package.json`、`package-lock.json`、`changelog.json`、`start.cmd`、
 `mastergo-transcoder.exe`、`runtime-assets.json`、`local.json`、`credentials*`、`board.json`、`chats.json`、`current.json` 与 `ui/` 自己的配置文件。
 新加顶层条目要同一次写进上表。
 
