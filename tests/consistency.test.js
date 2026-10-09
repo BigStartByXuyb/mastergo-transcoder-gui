@@ -256,9 +256,18 @@ function caseDocsIndexed() {
  * 仓库根的条目（目录与文件）都要登记在 docs/structure.md 的目录表里；空目录与本机运行留下的 *.log 不算结构。
  */
 function caseRootEntriesRegistered() {
-  // 只认文档里用反引号标出来的名字（结构表与根条目清单都这么写），不做整篇子串匹配。
+  // 真值源就是文档里这两处：目录表的第一列 + 根条目清单那一段。别的章节里出现的反引号名不算。
+  const text = read(STRUCTURE_DOC);
+  const catalog = text.slice(text.indexOf("## 目录"), text.indexOf("## 依赖方向"));
+  const rootList = text.slice(text.indexOf("根条目清单"), text.indexOf("## 依赖方向"));
   const tokens = new Set();
-  for (const match of read(STRUCTURE_DOC).matchAll(/`([^`]+)`/g)) tokens.add(match[1].replace(/\/$/, ""));
+  for (const line of catalog.split(/\r?\n/)) {
+    if (!/^\|/.test(line.trim())) continue;
+    // 只取这一行的第一列（「位置」那格），里面可能用顿号列了好几个名字。
+    const firstCell = line.split("|")[1] || "";
+    for (const match of firstCell.matchAll(/`([^`]+)`/g)) tokens.add(match[1].replace(/\/$/, ""));
+  }
+  for (const match of rootList.matchAll(/`([^`]+)`/g)) tokens.add(match[1].replace(/\/$/, ""));
   const prefixes = [...tokens].filter(function (name) { return name.endsWith("*"); })
     .map(function (name) { return name.slice(0, -1); });
   const missing = fs.readdirSync(ROOT, { withFileTypes: true })

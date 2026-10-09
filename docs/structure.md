@@ -37,7 +37,7 @@ tests/ ──> lib/、scripts/、ui/src（用例可以读任一侧）
 launch.js ──> lib/launch.js      壳只用自己拥有的两份文件
 ```
 
-上面这些方向由谁守、怎么守：见 [`gates.md`](gates.md)（分层那两条在它「别处已有的门禁」一节里）。
+上面这些方向的守门人列在 [`gates.md`](gates.md)。
 
 ## 一次操作怎么走
 
