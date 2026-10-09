@@ -41,7 +41,8 @@ npm run build:ui               # 构建前端 → public/
 
 ## 设置页
 
-左侧二级菜单四项，当前子页写在 hash 里（`#settings?tab=ai|mastergo|agent|update`），复制链接可以直接进对应子页。
+左侧二级菜单五项（AI token / MasterGo token / AI Agent / 运行环境 / 更新），当前子页写在 hash 里
+（`#settings?tab=ai|mastergo|agent|runtime|update`），复制链接可以直接进对应子页。
 两栏都撑满一屏：菜单栏高度固定、右栏自己滚，页面本身不往下拖。
 
 | 子页 | 内容 |
