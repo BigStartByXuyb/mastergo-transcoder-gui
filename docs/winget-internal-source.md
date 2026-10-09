@@ -57,6 +57,7 @@ mastergo-winget/
 scp -O scripts/winget-source-server.js ctyun@10.101.0.62:/home/ctyun/mastergo-winget/scripts/
 scp -O scripts/lib/args.js scripts/lib/winget-manifest.js scripts/lib/winget-source-api.js ctyun@10.101.0.62:/home/ctyun/mastergo-winget/scripts/lib/
 scp -O lib/versions.js ctyun@10.101.0.62:/home/ctyun/mastergo-winget/lib/
+scp -O shared/versions.cjs ctyun@10.101.0.62:/home/ctyun/mastergo-winget/shared/
 ```
 
 证书（一次性）：自签一张带 SAN 的，私钥留在 `certs/`（**不进 `data/files/`**，那里是要对外发的）：
