@@ -90,7 +90,7 @@ describe("顶上一行", () => {
     const summary = describeRuntime(
       status({
         tools: [
-          tool({ id: "node", label: "Node.js", installed: false, source: "system", version: "24.14.0" }),
+          tool({ id: "node", label: "Node.js", installed: false, source: "system", version: "1.2.2" }),
           tool({ id: "pwsh", label: "PowerShell 7" })
         ]
       })

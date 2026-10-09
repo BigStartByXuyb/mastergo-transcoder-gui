@@ -110,7 +110,7 @@ function caseDecorationLines() {
     "+ CategoryInfo          : OperationStopped", "FullyQualifiedErrorId : RuntimeException",
     "CategoryInfo          : OperationStopped: (:) [], RuntimeException",
     "FullyQualifiedErrorId : RuntimeException",
-    "    at Module.load (node:internal/x.js:1:1)", "Node.js v24.14.0", "        ^"]) {
+    "    at Module.load (node:internal/x.js:1:1)", "Node.js v9.9.9", "        ^"]) {
     assert.ok(isDecorationLine(line), "要认得出来：" + JSON.stringify(line));
   }
   for (const line of ["缺少 MasterGo token：设置环境变量", "     | 这才是原因", "过程日志 12", ""]) {
@@ -155,7 +155,7 @@ function caseLongOutputKeepsTheReason() {
     "Error: 这条路才是真正的原因：读不到插件文件",
     "    at Module._compile (node:internal/modules/cjs/loader:1943:10)",
     "    at Module.load (node:internal/modules/cjs/loader:1533:32)",
-    "Node.js v24.14.0"
+    "Node.js v9.9.9"
   ].join("\n");
   const nodeDetail = childOutputDetail({ stderr: nodeLike }, 200);
   assert.ok(nodeDetail.includes("这条路才是真正的原因"), "Node 输出的原因要留住：" + JSON.stringify(nodeDetail));

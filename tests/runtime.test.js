@@ -388,7 +388,7 @@ async function main() {
   for (const name of ["node", "node.exe"]) fs.writeFileSync(path.join(sysDir, name), "");
   const shadowed = createRuntime({
     home: shadowHome,
-    spawnSyncImpl: fakeSpawn([{ match: "node", result: { status: 0, stdout: "v24.14.0", stderr: "" } }]),
+    spawnSyncImpl: fakeSpawn([{ match: "node", result: { status: 0, stdout: "v9.9.9", stderr: "" } }]),
     env: { PATH: [oursDir, sysDir].join(path.delimiter) }
   });
   const shadowFound = shadowed.status().tools[0].system;
@@ -404,12 +404,12 @@ async function main() {
   fs.writeFileSync(path.join(systemRoot, "nodejs", "node.exe"), "");
   const byLocation = createRuntime({
     home: makeHome(),
-    spawnSyncImpl: fakeSpawn([{ match: "node", result: { status: 0, stdout: "v24.14.0", stderr: "" } }]),
+    spawnSyncImpl: fakeSpawn([{ match: "node", result: { status: 0, stdout: "v9.9.9", stderr: "" } }]),
     env: { ProgramFiles: systemRoot }
   });
   const byLocationRow = byLocation.status().tools[0];
   assert.strictEqual(byLocationRow.system.ok, true, "PATH 上没有时按官方安装位置找");
-  assert.strictEqual(byLocationRow.system.version, "24.14.0");
+  assert.strictEqual(byLocationRow.system.version, "9.9.9");
   assert.strictEqual(byLocationRow.system.path, path.join(systemRoot, "nodejs", "node.exe"));
 
   // 自带那份在，但自检出来的版本不对：不许当它是好的，且提示重下。
