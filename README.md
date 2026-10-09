@@ -36,43 +36,8 @@ npm run build:ui               # 构建前端 → public/
 
 ## 目录
 
-```
-ui/            前端源码（shadcn CLI 生成 components/ui/，源码入库）
-public/        前端构建产物（vite build --outDir ../public），不手工编辑
-ui/public/favicon.svg  那只像素小狐狸（浏览器标签图标，与加载动画同一张图）
-changelog.json 每个版本改了什么（进运行树）：客户端更新页显示，发布清单与 Release 说明也读它
-launch.js      启动入口 + 监督进程：按 current.json 选版本，拉起那一份的 server.js，换版本时自己重起
-server.js      入口：命令行、装配、监听
-scripts/       发布工具（不进运行树）
-lib/           后端实现（见下）
-```
-
-```
-lib/http.js         JSON / 请求体 / 静态文件
-lib/routes.js       路由表与分发
-lib/plugin-root.js  插件定位
-lib/plugin.js       插件信息与步骤契约
-lib/plugin-update.js 插件那一半：按发布件里的插件清单装一份到客户端自带的位置
-lib/resolve.js      控件查询
-lib/mcp-token.js    MasterGo 取数凭证的取值链（命令行 / 环境变量 / 本机保存 / config.toml）
-lib/node-controls.js 控件查询引擎（客户端编排，ID 与控件代码取插件的实现）
-lib/xml-chunk.js    从整页 XML 里取单个控件片段
-lib/run.js          流水线运行管理（进度、日志、失败契约）
-lib/board.js        看板：任务的唯一登记（工作目录、并发、AI 补输入、自动合并）
-lib/pending.js      待确认清单的读写
-lib/chat.js         对话存档：chats.json 的建 / 取 / 删与一轮的起止
-lib/changelog.js    版本更新内容：读 changelog.json，客户端与发布共用一份
-lib/artifacts.js    产物台账（读插件运行登记表的 outputs，供「已完成」看板用）
-lib/settings.js     用户设置与模型凭据
-lib/dpapi.ps1       凭据加解密（PowerShell + Windows DPAPI）
-lib/ai.js           模型调用（只出候选，从不写盘）
-lib/app-manifest.js 运行树清单（哪些文件、每个的 sha256；发布与更新共用这一份算法）
-lib/bundle-store.js 内容寻址库：blobs/ 与 versions/<版本>/ 的落盘、校验、指针
-lib/download.js     带重试与超时的取件
-lib/proxy.js        出网代理：环境里没有就用 Windows 系统设置补上
-lib/update.js       差分更新：拉清单 → 只下变了的 → 落版本目录 → 切指针
-lib/launch.js       读 current.json，判断那一份能不能跑
-```
+目录各管什么、谁可以读谁、一次操作怎么走：见 [`docs/structure.md`](docs/structure.md)。
+每个模块干什么写在它自己文件头那句注释里（`lib/*.js`、`ui/src/{app,lib}/*`）。
 
 ## 设置页
 

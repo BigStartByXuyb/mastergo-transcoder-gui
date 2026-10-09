@@ -1,6 +1,15 @@
 /*
- * 对话页：起一次 Codex 会话、发消息与附件，把流式输出与工具调用画成时间线；
- * 写盘开关与引擎状态在 codex-card，时间线在 chat-transcript。
+ * 对话页：左边是对话记录，右边是这一条的消息区与输入框。
+ *
+ * 一次提问就是一次 codex exec；每一条对话在安装根的 chats.json 里，重开页面还在，
+ * 续跑认 thread id（codex exec resume），所以在同一条对话里接着说就是接着上次的上下文。
+ *
+ * 写盘默认关：关着时 Codex 只读；开着且这里也勾了，才允许它直接改工程文件。
+ * 开写盘还要再确认一遍改的是哪个目录 —— 范围就这一次的工程目录，后端拿到确认串才放行。
+ * 引擎日志按轮收尾：正常跑完的 stderr 有「Reading additional input from stdin」这类噪音，
+ * 默认收着；收尾不干净（收到失败事件或退出码非 0）才自动铺开。
+ *
+ * 一红就是真没跑完：只有传输失败、turn.failed、退出码非 0、退出码 0 却没收尾（且不是人点停下）才出红卡。
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { FileUp, FolderGit2, FolderUp, ImagePlus, Loader2, Lock, Plus, Paperclip, Send, Settings2, ShieldCheck, Square, Trash2, X } from "lucide-react"
@@ -26,19 +35,6 @@ import { rememberProject } from "@/lib/recent-projects"
 import { attachmentUrl, humanSize, uploadAttachments, type PickedFile } from "@/lib/upload-files"
 import { cn } from "@/lib/utils"
 
-/*
- * 对话页：左边是对话记录，右边是这一条的消息区与输入框。
- *
- * 一次提问就是一次 codex exec；每一条对话在安装根的 chats.json 里，重开页面还在，
- * 续跑认 thread id（codex exec resume），所以在同一条对话里接着说就是接着上次的上下文。
- *
- * 写盘默认关：关着时 Codex 只读；开着且这里也勾了，才允许它直接改工程文件。
- * 开写盘还要再确认一遍改的是哪个目录 —— 范围就这一次的工程目录，后端拿到确认串才放行。
- * 引擎日志按轮收尾：正常跑完的 stderr 有「Reading additional input from stdin」这类噪音，
- * 默认收着；收尾不干净（收到失败事件或退出码非 0）才自动铺开。
- *
- * 一红就是真没跑完：只有传输失败、turn.failed、退出码非 0、退出码 0 却没收尾（且不是人点停下）才出红卡。
- */
 export function ChatPage() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [conversations, setConversations] = useState<ChatSummary[]>([])

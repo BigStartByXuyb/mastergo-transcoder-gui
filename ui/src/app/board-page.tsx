@@ -1,6 +1,8 @@
 /*
- * 看板页：任务表（一页十条）+ 区域与筛选 + 行内动作（启动 / 停止 / 重跑 / 清空 / 删除）。
- * 新建任务表单在 board-new-task-dialog，任务行在 board-task-table。
+ * 看板：一屏同时跑多个页面。
+ *
+ * 这一页的主体是任务表；工程、模式、链接只在要加任务时填，收进「创建任务」弹窗。
+ * 上面一排筛选（工作区 / 区域 / 状态），列表按页给，一页十条，页面本身不往下拖。
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { GitMerge, Loader2, Play, Plus } from "lucide-react"
@@ -28,13 +30,6 @@ import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
 import { FINISHED_STATES, POLL_MS } from "@/lib/task-state"
 import { useSettings } from "@/lib/use-settings"
-
-/*
- * 看板：一屏同时跑多个页面。
- *
- * 这一页的主体是任务表；工程、模式、链接只在要加任务时填，收进「创建任务」弹窗。
- * 上面一排筛选（工作区 / 区域 / 状态），列表按页给，一页十条，页面本身不往下拖。
- */
 
 // 一页十条：一屏放得下，多出来的翻页。
 const PAGE_SIZE = 10

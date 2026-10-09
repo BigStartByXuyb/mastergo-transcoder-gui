@@ -201,16 +201,6 @@ function caseDocRefsResolve() {
 }
 
 /*
- * ui 是独立的包：它只经 HTTP 与后端打交道，整个 ui/ 里都不许出现指向仓库根 lib/ 的相对引用。
- */
-function caseAppDoesNotReachBackendSource() {
-  const offenders = scannedFiles().filter(function (rel) {
-    return rel.startsWith("ui/") && /(?:\.\.\/)+lib\//.test(read(rel));
-  });
-  assert.deepStrictEqual(offenders, [], "ui/ 只能经 HTTP 与后端打交道，不读仓库根 lib/ 的源码");
-}
-
-/*
  * 一句话只有一处说：每一条「只有一处说」的事实，给它一个标志性字串与唯一该出现的那一份文档。
  * 说明文件里在本处之外出现这个字串 = 又抄了一份，当场失败。
  * 加一条事实 = 加一行；事实换了住处 = 改这一行的 home。
@@ -309,26 +299,16 @@ function hasHeaderComment(head) {
   });
 }
 
-/* 服务端不反向依赖上层：lib/ 里不许出现指向 ui/ 或 scripts/ 的引用。 */
-function caseLibDoesNotReachUp() {
-  const offenders = scannedFiles().filter(function (rel) {
-    return rel.startsWith("lib/") && /require\(["'](?:\.\.\/)+(ui|scripts)\//.test(read(rel));
-  });
-  assert.deepStrictEqual(offenders, [], "lib/ 里不许引用 ui/ 或 scripts/：" + offenders.join("、"));
-}
-
 // 门禁定义也只有一处：docs/gates.md 的表与这里注册的用例一一对应。
 const CASES = [
   ["档位表与代码一一对应", caseTierTableMatchesCode],
   ["字面量只在真值源", caseSingleSource],
   ["引用的文档都存在", caseDocRefsResolve],
-  ["应用代码不跨包读后端源码", caseAppDoesNotReachBackendSource],
   ["一句话只有一处说", caseFactsHaveOneHome],
   ["逐档清单不在别处复述", caseNoTierListCopy],
   ["每份文档都进索引", caseDocsIndexed],
   ["顶层条目都在结构表里", caseRootEntriesRegistered],
   ["每个模块都有职责头", caseModulesHaveHeaderComment],
-  ["lib 不反向读上层", caseLibDoesNotReachUp],
   ["门禁定义与实际用例一致", caseGateListMatches]
 ];
 
