@@ -694,14 +694,11 @@ export type UpdateStatus = {
   current: string
   /** 现在这一版能做什么。 */
   currentNotes: string[]
-  /** 这一份运行树自带的版本历史：按版本号找「改了什么」。 */
-  /** 版本历史：features / drops 是「从这一版起具备的能力」与「去掉了哪些能力」，回退前列缺什么靠它。 */
+  /** 这一份运行树自带的版本历史：按版本号找「改了什么」、回退会缺哪些能力（后端算好）。 */
   history: {
     version: string
     date: string
     notes: string[]
-    features?: { id: string; label: string }[]
-    drops?: string[]
     /** 回退到这一版会缺掉的能力（后端按 changelog 一处算好，界面只渲染）。 */
     missingFromCurrent: string[]
   }[]
