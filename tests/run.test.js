@@ -15,7 +15,7 @@ const { createRunManager, routesOfMode, MODE_LABEL } = require("../lib/run.js");
 const { UserError } = require("../lib/errors.js");
 // token 的环境变量名只有一处（lib/mcp-token.js）：用例照它设与读。
 const { TOKEN_ENV_KEY } = require("../lib/mcp-token.js");
-const { HOME_ENV } = require("../lib/runtime.js");
+const { HOME_ENV } = require("../lib/launch.js");
 
 const STEPS = [
   { Id: 1, Name: "fetch", Title: "取数" },
