@@ -36,8 +36,6 @@ function caseRepoFile() {
 /*
  * 源里写的与读端认出来的一致：形状不全的能力项（缺 id 或 label）会被读端静默丢掉，
  * 于是「这一版加了什么」在回退弹窗里凭空少一条 —— 按「源里几条 = 读出来几条」当场挡。
- * drops 引用的必须是**版本号更小**的某一版给过的能力（与 ui/src/lib/version-features.ts 同一口径：
- * 按版本号比，不看文件里的书写顺序），否则那条能力永远不会被标成「回退后没有」。
  */
 function caseRepoFeaturesComplete() {
   const raw = JSON.parse(fs.readFileSync(path.join(ROOT, "changelog.json"), "utf8"));
@@ -59,16 +57,26 @@ function caseRepoFeaturesComplete() {
       "changelog.json 里 " + entry.version + " 写了 " + want + " 条能力，读出来只有 " + entry.features.length +
         " 条（每条能力要有 id 与 label）"
     );
-    const older = new Set();
-    parsed
-      .filter(function (one) { return compareVersions(one.version, entry.version) < 0; })
-      .forEach(function (one) {
-        one.features.forEach(function (item) { older.add(item.id); });
-      });
-    for (const id of entry.drops) {
-      assert.ok(older.has(id), "changelog.json 里 " + entry.version + " 的 drops 引用了更早版本没给过的能力 id：" + id);
-    }
   });
+}
+
+/*
+ * drops 引用的 id 必须是**到那一版之前确实具备**的能力：按版本号升序重放「先加 features、
+ * 再按 drops 删除」（与 ui/src/lib/version-features.ts 的 featuresUpTo 同一口径），
+ * 引错 id、或引用一个已经被更早的版本去掉的能力，都在这里当场失败。
+ */
+function caseRepoDropsHaveSource() {
+  const entries = readChangelog(ROOT).sort(function (left, right) {
+    return compareVersions(left.version, right.version);
+  });
+  const known = new Set();
+  for (const entry of entries) {
+    for (const id of entry.drops) {
+      assert.ok(known.has(id), "changelog.json 里 " + entry.version + " 的 drops 引用了那一刻并不具备的能力 id：" + id);
+    }
+    entry.features.forEach(function (item) { known.add(item.id); });
+    entry.drops.forEach(function (id) { known.delete(id); });
+  }
 }
 
 function caseShapes() {
@@ -94,7 +102,8 @@ function caseBadInput() {
 try {
   for (const [name, run] of [
     ["仓库里那份", caseRepoFile],
-    ["能力项与 drops 都对得上", caseRepoFeaturesComplete],
+    ["能力项读端不丢", caseRepoFeaturesComplete],
+    ["drops 引用的能力确实具备过", caseRepoDropsHaveSource],
     ["形状", caseShapes],
     ["坏输入", caseBadInput]
   ]) {
