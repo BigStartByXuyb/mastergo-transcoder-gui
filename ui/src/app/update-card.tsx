@@ -31,7 +31,6 @@ import { useFailureMemory } from "@/app/use-failure-memory"
 import { useStatusPoll } from "@/app/use-status-poll"
 import { startUpdateDownload } from "@/lib/update-download"
 import { runSwitch } from "@/lib/update-switch"
-import { missingFeatures } from "@/lib/version-features"
 import { requireStatus, sourceCheckOutcomeOf, sourceViewOf } from "@/lib/source-check"
 import {
   blockedNote,
@@ -266,7 +265,7 @@ export function UpdateCard() {
           busy={busy && status ? status.busy : ""}
           missing={
             status
-              ? missingFeatures(status.history, confirming, status.current).map((feature) => feature.label)
+              ? status.history.find((entry) => entry.version === confirming)?.missingFromCurrent ?? []
               : []
           }
           onCancel={() => setConfirming("")}

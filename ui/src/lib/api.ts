@@ -702,6 +702,8 @@ export type UpdateStatus = {
     notes: string[]
     features?: { id: string; label: string }[]
     drops?: string[]
+    /** 回退到这一版会缺掉的能力（后端按 changelog 一处算好，界面只渲染）。 */
+    missingFromCurrent: string[]
   }[]
   root: string
   pointer: { version?: string; previous?: string; switchedAt?: string } | null
