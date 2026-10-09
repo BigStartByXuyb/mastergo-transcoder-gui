@@ -20,7 +20,7 @@ const { DEFAULT_PORT, API_TARGET_ENV } = require("../lib/config.js");
 const { TOKEN_ENV_KEY } = require("../lib/mcp-token.js");
 const { TOOLS, PWSH_ENV } = require("../lib/runtime.js");
 const { SUPERVISED_ENV, HOME_ENV } = require("../lib/launch.js");
-const { KEY_ENV } = require("../lib/codex.js");
+const { KEY_ENV, PINNED_VERSION } = require("../lib/codex.js");
 
 const ROOT = path.join(__dirname, "..");
 const README = "README.md";
@@ -145,7 +145,8 @@ const SINGLE_SOURCE = [
   { value: HOME_ENV, kind: "name", home: ["lib/launch.js", "tools/launcher/main.go"], what: "安装根环境变量名" },
   { value: PWSH_ENV, kind: "name", home: ["lib/runtime.js"], what: "「用哪一份 pwsh」的环境变量名" },
   { value: SUPERVISED_ENV, kind: "name", home: ["lib/launch.js", README], what: "「被监督进程拉起」的环境变量名" },
-  { value: KEY_ENV, kind: "name", home: ["lib/codex.js"], what: "Codex 子进程的 key 环境变量名" }
+  { value: KEY_ENV, kind: "name", home: ["lib/codex.js"], what: "Codex 子进程的 key 环境变量名" },
+  { value: PINNED_VERSION, kind: "version", home: ["lib/codex.js", DOCS + "/install.md"], what: "钉死的 Codex 版本" }
 ];
 
 function caseSingleSource() {

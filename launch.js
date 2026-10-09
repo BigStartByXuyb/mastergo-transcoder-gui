@@ -29,8 +29,8 @@ const HOME = __dirname;
 
 function childEnv() {
   /*
-   * 壳只用自己拥有的两份文件（本文件 + lib/launch.js）：两个名字都从 lib/launch.js 取，
-   * 只有启动器那一侧（tools/launcher/main.go，另一个语言）按同一个名字再写一次。
+   * 壳只用自己拥有的两份文件（本文件 + lib/launch.js）：两个名字都从 lib/launch.js 取；
+   * 启动器那一侧（tools/launcher/main.go，另一个语言）只按同一个名字再写一次安装根那一个。
    */
   return Object.assign({}, process.env, { [HOME_ENV]: HOME, [SUPERVISED_ENV]: "1" });
 }

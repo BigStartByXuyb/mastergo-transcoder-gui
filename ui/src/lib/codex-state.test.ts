@@ -13,17 +13,17 @@ import {
 
 function status(overrides: Partial<CodexStatus> = {}): CodexStatus {
   return {
-    pinned: "0.159.0",
-    engine: { version: "0.159.0", source: "managed", path: at("app", "codex.exe"), state: "verified" },
+    pinned: "1.2.3",
+    engine: { version: "1.2.3", source: "managed", path: at("app", "codex.exe"), state: "verified" },
     versions: [
-      { version: "0.159.0", path: at("app", "0.159.0", "codex.exe"), state: "verified", note: "0.159.0", active: true, ready: true },
+      { version: "1.2.3", path: at("app", "1.2.3", "codex.exe"), state: "verified", note: "1.2.3", active: true, ready: true },
       { version: "0.158.0", path: at("app", "0.158.0", "codex.exe"), state: "untested", note: "", active: false, ready: true },
       { version: "0.157.0", path: at("app", "0.157.0", "codex.exe"), state: "broken", note: "起不来", active: false, ready: false }
     ],
     system: [],
     isolated: { codexHome: at("app", "agents", "codex", "home"), exists: true, keyEnv: "（夹具）KEY_ENV" },
     pointer: null,
-    release: { version: "0.159.0", tag: "rust-v0.159.0", checkedAt: "2026-09-30T00:00:00.000Z", missing: [], newer: false },
+    release: { version: "1.2.3", tag: "rust-v1.2.3", checkedAt: "2026-09-30T00:00:00.000Z", missing: [], newer: false },
     busy: "",
     error: null,
     task: { phase: "idle", done: 0, total: 0, downloaded: 0, error: null },
@@ -49,7 +49,7 @@ describe("现在用的是哪一份", () => {
   })
 
   it("下载版说「客户端下载的」，本机版说「本机装的」", () => {
-    expect(describeEngine(status()).label).toBe("客户端下载的 v0.159.0")
+    expect(describeEngine(status()).label).toBe("客户端下载的 v1.2.3")
     expect(
       describeEngine(status({ engine: { version: "0.158.0", source: "system", path: at("x.exe"), state: "untested" } })).label
     ).toBe("本机装的 v0.158.0")
@@ -75,7 +75,7 @@ describe("远端那一版", () => {
   })
 
   it("同号就说已是最新，高一版就提示有新版", () => {
-    expect(describeRelease(status())).toBe("已是最新 v0.159.0。")
+    expect(describeRelease(status())).toBe("已是最新 v1.2.3。")
     expect(
       describeRelease(
         status({ release: { version: "0.160.0", tag: "rust-v0.160.0", checkedAt: "", missing: [], newer: true } })
@@ -100,11 +100,11 @@ describe("远端那一版", () => {
 describe("能不能切", () => {
   it("有任务在跑就都不给切", () => {
     expect(canSwitchTo(status({ busy: "转码中" }), "0.158.0")).toBe(false)
-    expect(canRollback(status({ busy: "转码中", pointer: { version: "", previous: "0.159.0" } }))).toBe(false)
+    expect(canRollback(status({ busy: "转码中", pointer: { version: "", previous: "1.2.3" } }))).toBe(false)
   })
 
   it("当前这一版、没下载完的、没有的都不给切", () => {
-    expect(canSwitchTo(status(), "0.159.0")).toBe(false)
+    expect(canSwitchTo(status(), "1.2.3")).toBe(false)
     expect(canSwitchTo(status(), "0.157.0")).toBe(false)
     expect(canSwitchTo(status(), "9.9.9")).toBe(false)
     expect(canSwitchTo(status(), "0.158.0")).toBe(true)
@@ -127,12 +127,12 @@ describe("能不能切", () => {
 
   it("回退只认指针里的上一份", () => {
     expect(canRollback(status())).toBe(false)
-    expect(canRollback(status({ pointer: { version: "0.158.0", previous: "0.159.0" } }))).toBe(true)
+    expect(canRollback(status({ pointer: { version: "0.158.0", previous: "1.2.3" } }))).toBe(true)
     expect(canRollback(status({ pointer: { version: "0.158.0", previous: "" } }))).toBe(false)
   })
 
   it("版本行带上验证状态", () => {
-    expect(describeVersion(status().versions[0])).toBe("v0.159.0（自检通过）")
+    expect(describeVersion(status().versions[0])).toBe("v1.2.3（自检通过）")
     expect(describeVersion(status().versions[2])).toBe("v0.157.0（起不来）")
   })
 })

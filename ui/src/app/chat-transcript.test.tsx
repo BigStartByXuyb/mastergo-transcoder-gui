@@ -5,7 +5,7 @@ import { ChatTranscript, type Turn } from "@/app/chat-transcript"
 import type { AgentItem } from "@/lib/agent-stream"
 
 function show(turns: Turn[]) {
-  render(<ChatTranscript turns={turns} agentName="Codex v0.159.0" />)
+  render(<ChatTranscript turns={turns} agentName="Codex v1.2.3" />)
 }
 
 function agent(item: AgentItem): Turn {
@@ -29,7 +29,7 @@ describe("ChatTranscript", () => {
       agent({ kind: "message", itemId: "item_1", text: "看完了" })
     ])
     expect(screen.getByText("调用过程 1 步")).toBeTruthy()
-    expect(screen.getByLabelText("Codex v0.159.0")).toBeTruthy()
+    expect(screen.getByLabelText("Codex v1.2.3")).toBeTruthy()
   })
 
   it("标识只出现在第一次开口那条上", () => {
@@ -37,7 +37,7 @@ describe("ChatTranscript", () => {
       agent({ kind: "message", itemId: "item_0", text: "第一句" }),
       agent({ kind: "message", itemId: "item_1", text: "第二句" })
     ])
-    expect(screen.getAllByLabelText("Codex v0.159.0")).toHaveLength(1)
+    expect(screen.getAllByLabelText("Codex v1.2.3")).toHaveLength(1)
   })
 
   // 头像按轮给：每一轮回复都露一次，不是整段对话只有最开头那一个。
@@ -48,7 +48,7 @@ describe("ChatTranscript", () => {
       { kind: "you", text: "第二问" },
       agent({ kind: "message", itemId: "item_1", text: "第二答" })
     ])
-    expect(screen.getAllByLabelText("Codex v0.159.0")).toHaveLength(2)
+    expect(screen.getAllByLabelText("Codex v1.2.3")).toHaveLength(2)
   })
 
   it("非致命提示按浅色一行给，不弹报错卡片", () => {
