@@ -128,7 +128,14 @@ function caseTierTableMatchesCode() {
 const SINGLE_SOURCE = [
   { value: PLUGIN_ENV_NAME, kind: "name", home: ["lib/plugin-root.js", TIERS_DOC], what: "插件根环境变量名" },
   { value: TOKEN_ENV_KEY, kind: "name", home: ["lib/mcp-token.js", README], what: "MasterGo token 环境变量名" },
-  { value: API_TARGET_ENV, kind: "name", home: ["lib/config.js", README], what: "开发代理换地址的那个变量名" },
+  // 开发代理的地址变量名是两端的契约：真值源定义它，起前端那一侧与 Vite 配置各写一次，说明写一次；
+  // 别处再出现就是又抄了一份。
+  {
+    value: API_TARGET_ENV,
+    kind: "name",
+    home: ["lib/config.js", "scripts/dev-ui.js", "ui/vite.config.ts", README],
+    what: "开发代理的地址变量名"
+  },
   { value: String(DEFAULT_PORT), kind: "number", home: ["lib/config.js", README], what: "服务默认端口" },
   { value: TOOLS.node.version, kind: "version", home: ["lib/runtime.js", DOCS + "/install.md"], what: "钉死的 Node 版本" },
   { value: TOOLS.pwsh.version, kind: "version", home: ["lib/runtime.js", DOCS + "/install.md"], what: "钉死的 PowerShell 7 版本" }
@@ -184,14 +191,13 @@ function caseDocRefsResolve() {
 }
 
 /*
- * 跨包读后端源码只准开发工具链那一处（AGENTS.md 的例外：ui/vite.config.ts 读 lib/config.js 的地址）：
- * 应用代码（ui/src）只经 HTTP 与后端打交道，不许出现指向仓库根 lib/ 的相对引用。
+ * ui 是独立的包：它只经 HTTP 与后端打交道，整个 ui/ 里都不许出现指向仓库根 lib/ 的相对引用。
  */
 function caseAppDoesNotReachBackendSource() {
   const offenders = scannedFiles().filter(function (rel) {
-    return rel.startsWith("ui/src/") && /(?:\.\.\/)+lib\//.test(read(rel));
+    return rel.startsWith("ui/") && /(?:\.\.\/)+lib\//.test(read(rel));
   });
-  assert.deepStrictEqual(offenders, [], "ui/src 只能经 HTTP 与后端打交道（跨包读后端源码只准 ui/vite.config.ts）");
+  assert.deepStrictEqual(offenders, [], "ui/ 只能经 HTTP 与后端打交道，不读仓库根 lib/ 的源码");
 }
 
 /*

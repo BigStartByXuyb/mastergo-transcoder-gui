@@ -1,5 +1,4 @@
 import { fileURLToPath } from "node:url"
-import { createRequire } from "node:module"
 import path from "node:path"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
@@ -7,12 +6,9 @@ import { defineConfig } from "vite"
 import type { ProxyOptions } from "vite"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-// 后端地址与「换地址」那个变量名只有一处（仓库根的 lib/config.js）。这里读它是开发工具链的配置
-// （不进包、不改分层），应用代码仍然只经 HTTP 与后端打交道。
-const { DEFAULT_HOST, DEFAULT_PORT, API_TARGET_ENV, baseUrl } =
-  createRequire(import.meta.url)(path.resolve(here, "..", "lib", "config.js"))
 
-// 开发时前端跑在 5173，/api 代理到后端（默认地址见 lib/config.js）。
+// 开发时前端跑在 5173，/api 代理到后端。后端地址由起服务那一侧给（仓库根的 npm run dev:ui
+// 会把地址设进下面那个环境变量），ui 这个包不读后端源码。
 // 生产构建直接输出到仓库根的 public/，由 server.js 提供，不再需要 Vite。
 export default defineConfig(({ command }) => ({
   plugins: [react(), tailwindcss()],
@@ -28,10 +24,15 @@ export default defineConfig(({ command }) => ({
 }))
 
 /*
- * /api 代理到哪一份后端：默认就是 lib/config.js 的地址；后端起在别处时用那个环境变量覆盖。
+ * /api 代理到哪一份后端：环境变量给，值只有一处定义（仓库根的 lib/config.js）。
+ * 没给就不代理（只影响开发时的 /api，构建与测试都不需要它），并说清怎么拿到这个值。
  */
 function apiProxy(): Record<string, ProxyOptions> {
-  const target = process.env[API_TARGET_ENV] || baseUrl(DEFAULT_HOST, DEFAULT_PORT)
+  const target = process.env["API_TARGET"]
+  if (!target) {
+    console.warn("[vite] 没有 API_TARGET：/api 不代理。从仓库根跑 npm run dev:ui（它按 lib/config.js 的地址设好）。")
+    return {}
+  }
   return {
     "/api": { target, changeOrigin: false },
   }
