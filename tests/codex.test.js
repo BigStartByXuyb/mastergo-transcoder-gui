@@ -13,7 +13,7 @@ const path = require("path");
 const { PassThrough } = require("stream");
 const zlib = require("zlib");
 
-const { createCodex } = require("../lib/codex.js");
+const { createCodex, KEY_ENV } = require("../lib/codex.js");
 const { describeRelease, fetchRelease, versionOfTag } = require("../lib/codex-release.js");
 const { createPluginHomes, PLUGIN_ENV_NAME } = require("../lib/plugin-root.js");
 
@@ -188,7 +188,7 @@ async function main() {
   assert.strictEqual(empty.release, null);
   assert.strictEqual(empty.busy, "");
   assert.strictEqual(empty.error, null);
-  assert.strictEqual(empty.isolated.keyEnv, "MASTERGO_CODEX_KEY");
+  assert.strictEqual(empty.isolated.keyEnv, KEY_ENV);
   assert.throws(function () { codex.startDownload(); }, /还没有检查过/);
 
   const checked = await codex.check();
@@ -450,10 +450,10 @@ async function main() {
   assert.ok(prepared.args.includes("model_providers.deepseek.name=deepseek"));
   assert.ok(prepared.args.includes("model_providers.deepseek.base_url=https://api.deepseek.com"));
   assert.ok(prepared.args.includes("model_providers.deepseek.wire_api=responses"));
-  assert.ok(prepared.args.includes("model_providers.deepseek.env_key=MASTERGO_CODEX_KEY"));
+  assert.ok(prepared.args.includes("model_providers.deepseek.env_key=" + KEY_ENV));
   assert.ok(prepared.args.includes("model=deepseek-chat"));
   assert.ok(prepared.args[prepared.args.length - 1].endsWith("你好"));
-  assert.strictEqual(prepared.env.MASTERGO_CODEX_KEY, "sk-test");
+  assert.strictEqual(prepared.env[KEY_ENV], "sk-test");
   assert.ok(prepared.args.includes("danger-full-access"));
   assert.match(prepared.args[prepared.args.length - 1], /^\[只读\]/);
 
@@ -599,7 +599,7 @@ async function main() {
   assert.strictEqual(spawns[0].options.cwd, home);
   assert.strictEqual(spawns[0].options.env.CODEX_HOME, path.join(home, "agents", "codex", "home"));
   assert.strictEqual(spawns[0].options.env.RUST_LOG, "error");
-  assert.strictEqual(spawns[0].options.env.MASTERGO_CODEX_KEY, "sk-test");
+  assert.strictEqual(spawns[0].options.env[KEY_ENV], "sk-test");
   assert.ok(fs.existsSync(path.join(home, "agents", "codex", "home")), "自己的 CODEX_HOME 要真的建出来");
 
   assert.throws(function () { runner.run(job.args, { cwd: path.join(home, "没有这个目录") }); }, /工程目录不存在/);

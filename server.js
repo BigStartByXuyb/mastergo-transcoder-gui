@@ -50,6 +50,7 @@ const { createUpdate } = require("./lib/update.js");
 const { createPluginUpdate } = require("./lib/plugin-update.js");
 const { createCodex } = require("./lib/codex.js");
 const { createRuntime, installRoot, resolvePwshExe } = require("./lib/runtime.js");
+const { SUPERVISED_ENV } = require("./lib/launch.js");
 const runtimePolicy = require("./lib/runtime-policy.js");
 const { createChats } = require("./lib/chat.js");
 const { createUploads } = require("./lib/uploads.js");
@@ -102,7 +103,7 @@ const settings = createSettings(HOME);
  */
 const log = createLog(HOME);
 log.write("boot", "启动 v" + VERSION + " port " + options.port + " pid " + process.pid
-  + (process.env.MASTERGO_SUPERVISED === "1" ? "（受监督，监督进程 pid " + process.ppid + "）" : "")
+  + (process.env[SUPERVISED_ENV] === "1" ? "（受监督，监督进程 pid " + process.ppid + "）" : "")
   + " 安装根 " + HOME);
 /*
  * 上一次是不是正常退出：这一份在 logs/run.json 里留个记号，正常退出（含换版本的退出码 75）时自己摘掉。
@@ -272,7 +273,7 @@ const routes = createRoutes({
   uploads: uploads,
   token: tokenOf,
   tokenSource: tokenSource,
-  supervised: process.env.MASTERGO_SUPERVISED === "1",
+  supervised: process.env[SUPERVISED_ENV] === "1",
   isBusy: busyReason,
   version: VERSION,
   runs: runs,

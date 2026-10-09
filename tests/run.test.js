@@ -15,6 +15,7 @@ const { createRunManager, routesOfMode, MODE_LABEL } = require("../lib/run.js");
 const { UserError } = require("../lib/errors.js");
 // token 的环境变量名只有一处（lib/mcp-token.js）：用例照它设与读。
 const { TOKEN_ENV_KEY } = require("../lib/mcp-token.js");
+const { HOME_ENV } = require("../lib/runtime.js");
 
 const STEPS = [
   { Id: 1, Name: "fetch", Title: "取数" },
@@ -177,10 +178,10 @@ async function caseValidation() {
    * 运行时没备齐（没自带、也没允许用系统那份）：开跑前就拒绝，界面直接显示这句话 ——
    * 丢进 startRun 的 Promise 里抛的话，rejection 没人接，用户什么都看不到。
    */
-  const savedHome = process.env.MASTERGO_HOME;
+  const savedHome = process.env[HOME_ENV];
   const emptyHome = fs.mkdtempSync(path.join(os.tmpdir(), "gui-run-noruntime-"));
   try {
-    process.env.MASTERGO_HOME = emptyHome;
+    process.env[HOME_ENV] = emptyHome;
     const bare = manager({ node: "", pwsh: "" });
     assert.throws(
       () => bare.manager.start({ projectRoot: "D:/p", mode: "B" }),
@@ -195,8 +196,8 @@ async function caseValidation() {
     );
   }
   finally {
-    if (savedHome === undefined) delete process.env.MASTERGO_HOME;
-    else process.env.MASTERGO_HOME = savedHome;
+    if (savedHome === undefined) delete process.env[HOME_ENV];
+    else process.env[HOME_ENV] = savedHome;
     fs.rmSync(emptyHome, { recursive: true, force: true });
   }
 }

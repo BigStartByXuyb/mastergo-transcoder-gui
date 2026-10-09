@@ -21,7 +21,7 @@ function status(overrides: Partial<CodexStatus> = {}): CodexStatus {
       { version: "0.157.0", path: at("app", "0.157.0", "codex.exe"), state: "broken", note: "起不来", active: false, ready: false }
     ],
     system: [],
-    isolated: { codexHome: at("app", "agents", "codex", "home"), exists: true, keyEnv: "MASTERGO_CODEX_KEY" },
+    isolated: { codexHome: at("app", "agents", "codex", "home"), exists: true, keyEnv: "（夹具）KEY_ENV" },
     pointer: null,
     release: { version: "0.159.0", tag: "rust-v0.159.0", checkedAt: "2026-09-30T00:00:00.000Z", missing: [], newer: false },
     busy: "",
