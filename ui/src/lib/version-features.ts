@@ -5,7 +5,7 @@ import { compareVersions } from "@/lib/update-state"
  * 回退前拿它比对：目标版本缺了当前版本有的哪些能力，就在确认弹窗里一条条列出来。
  *
  * 规则：能力是累加的（0.6.12 加的能力，0.6.13 也有）；某一版去掉了某个能力就在 drops 里写 id。
- * 同一口径在后端还有一份实现（tests/changelog.test.js 的 drops 回放，按它校验 changelog.json）：
+ * 同一口径在后端还有一份实现：lib/changelog.js 的 featureIdsUpTo（门禁按它校验 changelog.json）。
  * 改这里的算法必须同时改那一份。
  */
 

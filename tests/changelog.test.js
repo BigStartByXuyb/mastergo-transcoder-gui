@@ -9,7 +9,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { readChangelog, notesOf, notesText } = require("../lib/changelog.js");
+const { readChangelog, notesOf, notesText, featureIdsUpTo } = require("../lib/changelog.js");
 const { buildManifest } = require("../lib/app-manifest.js");
 const { compareVersions } = require("../lib/versions.js");
 
@@ -61,23 +61,20 @@ function caseRepoFeaturesComplete() {
 }
 
 /*
- * drops 引用的 id 必须是**到那一版之前确实具备**的能力：按版本号升序重放「先加 features、
- * 再按 drops 删除」，引错 id、或引用一个已经被更早的版本去掉的能力，都在这里当场失败。
- *
- * 这段回放与界面那份是同一口径的**两份实现**（界面在 ui/src/lib/version-features.ts 的
- * featuresUpTo，回退弹窗按它算「回去之后没有的能力」）：改其中一份必须同时改另一份。
+ * drops 引用的 id 必须是**到紧邻的更早那一版为止确实具备**的能力：用一个更小的版本号问
+ * lib/changelog.js 的 featureIdsUpTo（「能力怎么解释」只有那一处），引错 id、
+ * 或引用一个已经被更早的版本去掉的能力，都在这里当场失败。
  */
 function caseRepoDropsHaveSource() {
-  const entries = readChangelog(ROOT).sort(function (left, right) {
-    return compareVersions(left.version, right.version);
-  });
-  const known = new Set();
+  const entries = readChangelog(ROOT);
   for (const entry of entries) {
+    const older = entries
+      .filter(function (one) { return compareVersions(one.version, entry.version) < 0; })
+      .sort(function (left, right) { return compareVersions(right.version, left.version); });
+    const known = older.length ? featureIdsUpTo(entries, older[0].version) : new Set();
     for (const id of entry.drops) {
       assert.ok(known.has(id), "changelog.json 里 " + entry.version + " 的 drops 引用了那一刻并不具备的能力 id：" + id);
     }
-    entry.features.forEach(function (item) { known.add(item.id); });
-    entry.drops.forEach(function (id) { known.delete(id); });
   }
 }
 
