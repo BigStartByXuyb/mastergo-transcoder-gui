@@ -25,8 +25,10 @@ const { KEY_ENV, PINNED_VERSION } = require("../lib/codex.js");
 const ROOT = path.join(__dirname, "..");
 const README = "README.md";
 const DOCS = "docs";
-/* 验收记录记的是当次口径，不参与「当前口径」的比对。 */
-const RECORD = DOCS + "/ui-verification.md";
+/* 验收记录记的是当次口径，不参与「当前口径」的比对；按月份拆在 docs/records/ 下。 */
+function isRecord(rel) {
+  return rel.startsWith(DOCS + "/records/");
+}
 const INDEX = DOCS + "/README.md";
 const TIERS_DOC = DOCS + "/plugin-sources.md";
 const RELEASE_DOC = DOCS + "/release-and-update.md";
@@ -67,7 +69,7 @@ function scannedFiles() {
       if (!SCANNED_EXT.test(entry.name)) continue;
       const rel = path.relative(ROOT, full).split(path.sep).join("/");
       // 发布说明与验收记录记的是当次实况，不参与「当前口径」的比对。
-      if (rel === RECORD || SKIP_FILES.includes(path.basename(rel))) continue;
+      if (isRecord(rel) || SKIP_FILES.includes(path.basename(rel))) continue;
       found.push(rel);
     }
   };
@@ -78,7 +80,7 @@ function scannedFiles() {
 /* 说明文件：仓库里的 Markdown（验收记录除外）。 */
 function proseFiles() {
   return scannedFiles().filter(function (rel) {
-    return rel.endsWith(".md") && rel !== RECORD;
+    return rel.endsWith(".md") && !isRecord(rel);
   });
 }
 

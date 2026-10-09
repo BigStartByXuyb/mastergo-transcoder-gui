@@ -36,7 +36,7 @@ const root = makeTree({
   "public/index.html": "html",
   "ui/src/App.tsx": "前端源码不进运行树",
   "tests/foo.test.js": "测试不进运行树",
-  "docs/ui-verification.md": "文档不进运行树",
+  "docs/records/2026-10.md": "文档不进运行树",
   "node_modules/openai/index.js": "依赖不进运行树",
   "scripts/publish.js": "发布工具不进运行树",
   "local.json": "用户状态不进运行树"
