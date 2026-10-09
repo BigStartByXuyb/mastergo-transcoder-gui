@@ -19,9 +19,10 @@
 | `vendor/` | 模型依赖的压缩件（由 `scripts/vendor-openai.js` 生成） | 手写源码 |
 | 运行目录（`versions/`、`agents/`、`plugins/`、`runtime/`、`blobs/`、`logs/`、`work/`、`chats/`、`update-cache/`、`dist/`、`output/`、`.playwright-cli/`） | 本机状态与产物（`.gitignore` 里那些） | 仓库源码 |
 
-仓库根只允许出现上表与 `node_modules/`、[`README.md`](../README.md)、[`AGENTS.md`](../AGENTS.md)、`package.json`、`package-lock.json`、`changelog.json`、`start.cmd`、
+根条目清单（与上表合起来，就是允许出现在仓库顶层的全部条目）：
+`node_modules/`、[`README.md`](../README.md)、[`AGENTS.md`](../AGENTS.md)、`package.json`、`package-lock.json`、`changelog.json`、`start.cmd`、
 `mastergo-transcoder.exe`、`runtime-assets.json`、`local.json`、`credentials*`、`board.json`、`chats.json`、`current.json` 与 `ui/` 自己的配置文件。
-新加顶层条目要同一次写进上表。
+新加顶层条目要同一次写进这两处之一。
 
 ## 依赖方向
 
@@ -36,12 +37,7 @@ tests/ ──> lib/、scripts/、ui/src（用例可以读任一侧）
 launch.js ──> lib/launch.js      壳只用自己拥有的两份文件
 ```
 
-两条硬规矩：
-
-1. `ui/` 里不出现指向仓库根 `lib/` 的引用；`lib/` 里不出现指向 `ui/` 或 `scripts/` 的引用
-   —— 这两条由 CI 的**确定性检查**（`deterministic-validation` 的分层校验）守；
-2. 每个模块（`lib/`、`scripts/`、`scripts/lib/`、`ui/src/app`、`ui/src/lib`）都要有文件头注释，
-   职责写在里面 —— 由 [`gates.md`](gates.md) 的「每个模块都有职责头」守。
+上面这些方向由谁守、怎么守：见 [`gates.md`](gates.md)（分层那两条在它「别处已有的门禁」一节里）。
 
 ## 一次操作怎么走
 
