@@ -347,7 +347,8 @@ const CASES = [
   ["每份文档都进索引", caseDocsIndexed],
   ["顶层条目都在结构表里", caseRootEntriesRegistered],
   ["每个模块都有职责头", caseModulesHaveHeaderComment],
-  ["门禁定义与实际用例一致", caseGateListMatches]
+  ["门禁定义与实际用例一致", caseGateListMatches],
+  ["共享模块类型与导出一致", caseSharedTypesMatchExports]
 ];
 
 function caseGateListMatches() {
@@ -360,6 +361,15 @@ function caseGateListMatches() {
     CASES.map(function (item) { return item[0]; }).sort(),
     GATES_DOC + " 的表要与这里注册的用例一一对应"
   );
+}
+
+/* shared/versions.cjs 的运行时导出，与它那份类型声明 shared/versions.d.cts 的导出名要一一对应。 */
+function caseSharedTypesMatchExports() {
+  const runtime = Object.keys(require("../shared/versions.cjs")).sort();
+  const declared = [...read("shared/versions.d.cts").matchAll(/^export function (\w+)/gm)]
+    .map(function (match) { return match[1]; })
+    .sort();
+  assert.deepStrictEqual(declared, runtime, "shared/versions.d.cts 的导出要与 shared/versions.cjs 一致");
 }
 
 try {

@@ -14,6 +14,7 @@
 | 顶层条目都在结构表里 | 仓库根新增/改名要同一次写进结构表 | [`structure.md`](structure.md) 里用反引号标出的名字（目录表 + 根条目清单）↔ 仓库根实际条目 |
 | 每个模块都有职责头 | 一个模块的职责写在它自己文件头，只有一处 | `lib/`、`shared/`、`scripts/`、`scripts/lib/`、`ui/src/app`、`ui/src/lib` 每个文件：头 30 行里第一段注释（块注释或连续 `//`）去掉空白后 ≥ 30 字 |
 | 门禁定义与实际用例一致 | 门禁本身也只有一处说明 | 本文的表 ↔ `tests/consistency.test.js` 注册的用例名 |
+| 共享模块类型与导出一致 | 共享库的类型声明不跟运行时导出走样 | `shared/versions.cjs` 的导出 ↔ `shared/versions.d.cts` 声明的导出名 |
 
 ## 别处已有的门禁
 
