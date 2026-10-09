@@ -5,6 +5,8 @@
 
 | 文档 | 说的是什么 | 权威范围 |
 | --- | --- | --- |
+| [`structure.md`](structure.md) | 目录各管什么、谁可以读谁、一次操作怎么走、子系统↔模块 | 项目结构与依赖方向 |
+| [`gates.md`](gates.md) | 每条门禁守什么、读哪处真值源 | 门禁定义 |
 | [`install.md`](install.md) | 装与配：四样前提、winget / 解压即用、内网镜像、出问题先看哪三处 | 安装与首次运行 |
 | [`plugin-sources.md`](plugin-sources.md) | 客户端从哪儿找插件（七档查找顺序、界面怎么显示、哪一档归谁管） | 插件来源与查找顺序 |
 | [`release-and-update.md`](release-and-update.md) | 两条版本线的更新来源与复查节拍；插件发布件的形状与怎么发一版 | 发布与更新 |

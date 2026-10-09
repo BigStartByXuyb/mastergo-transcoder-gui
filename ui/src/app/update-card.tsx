@@ -1,3 +1,12 @@
+/*
+ * 客户端自身的版本：检查 → 下载 → 切换 → 回退。
+ *
+ * 「从哪儿取」也在这张卡里：更新来源那一行显示现在的源，点「修改发布源」开弹窗改 ——
+ * 检查更新与下载都走它，两件事本来就是一体的。
+ *
+ * 版本是一张表：版本 / 状态 / 日期 / 说明 / 版本切换，每一行右边就是切到那一版的按钮；
+ * 更新内容点开才看，一页五条，页面不长高。
+ */
 import { useCallback, useEffect, useState } from "react"
 import { ChevronRight, Download, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
@@ -41,15 +50,6 @@ import { cn } from "@/lib/utils"
 // 一页五版：一屏放得下，多出来的翻页。
 const PAGE_SIZE = 5
 
-/*
- * 客户端自身的版本：检查 → 下载 → 切换 → 回退。
- *
- * 「从哪儿取」也在这张卡里：更新来源那一行显示现在的源，点「修改发布源」开弹窗改 ——
- * 检查更新与下载都走它，两件事本来就是一体的。
- *
- * 版本是一张表：版本 / 状态 / 日期 / 说明 / 版本切换，每一行右边就是切到那一版的按钮；
- * 更新内容点开才看，一页五条，页面不长高。
- */
 export function UpdateCard() {
   const [status, setStatus] = useState<UpdateStatus | null>(null)
   const [probe, setProbe] = useState("")

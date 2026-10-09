@@ -1,3 +1,11 @@
+/*
+ * 运行时这一段（挂在「运行环境」页那张卡里）：跑插件的 Node.js 与 PowerShell 7 各钉死一份放进
+ * 安装根的 runtime\<版本>\，默认只用我们自带的那一份（客户机上装了什么不该决定我们跑哪一版）；
+ * 版本目录并存、指针指向生效那一版；claude 只检测。
+ *
+ * 一张表回答「现在用的是什么」：名称 / 版本（钉的与生效的）/ 来源（自带·系统）/ 操作；
+ * 「来源」按钮开弹窗选那一份用哪个（自带的包从哪儿下也在那个弹窗里，见 runtime-source-dialog）。
+ */
 import { useState } from "react"
 import { Download, Loader2, Terminal } from "lucide-react"
 
@@ -24,14 +32,6 @@ import { failureText } from "@/lib/describe-failure"
 import { useStatusPoll } from "@/app/use-status-poll"
 import { useActionRunner } from "@/app/use-action-runner"
 
-/*
- * 运行时这一段（挂在「运行环境」页那张卡里）：跑插件的 Node.js 与 PowerShell 7 各钉死一份放进
- * 安装根的 runtime\<版本>\，默认只用我们自带的那一份（客户机上装了什么不该决定我们跑哪一版）；
- * 版本目录并存、指针指向生效那一版；claude 只检测。
- *
- * 一张表回答「现在用的是什么」：名称 / 版本（钉的与生效的）/ 来源（自带·系统）/ 操作；
- * 「来源」按钮开弹窗选那一份用哪个（自带的包从哪儿下也在那个弹窗里，见 runtime-source-dialog）。
- */
 export function RuntimePanel() {
   const [status, setStatus] = useState<RuntimeStatus | null>(null)
   const [probe, setProbe] = useState("")

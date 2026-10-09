@@ -804,7 +804,7 @@ export type RuntimeTool = {
   installed: boolean
   /** bundled = 用客户端自带那份 / system = 用系统上那份 / "" = 没有可用的。 */
   source: "bundled" | "system" | ""
-  /** 自带那份装在版本目录里的哪几版（旧布局下是空的）。 */
+  /** 自带那份装在版本目录里的哪几版。 */
   versions: string[]
   /** 当前生效的版本（自带那份的目录名）。 */
   active: string

@@ -5,15 +5,14 @@ import { readOnlyEffective } from "@/lib/only-effective"
 import { useOnlyEffective } from "@/lib/use-only-effective"
 
 const KEY = "mastergo-transcoder-gui.onlyEffective"
-const LEGACY_KEY = "mastergo-transcoder-gui.board"
 
 beforeEach(() => {
   localStorage.clear()
 })
 
 describe("useOnlyEffective", () => {
-  it("初次渲染读的是记着的那一份（含旧键回落）", () => {
-    localStorage.setItem(LEGACY_KEY, JSON.stringify({ onlyEffective: false }))
+  it("初次渲染读的是记着的那一份", () => {
+    localStorage.setItem(KEY, JSON.stringify({ value: false }))
     const { result } = renderHook(() => useOnlyEffective())
     expect(result.current.onlyEffective).toBe(false)
   })

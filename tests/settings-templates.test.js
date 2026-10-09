@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 
-// 参考源：默认有一份、旧版平铺字段能迁过来、默认参考源 id 跟着实际存在的那份走。
+// 参考源：默认有一份、只认 templates 这一种形态、默认参考源 id 跟着实际存在的那份走。
 // 跑法：node tests/settings-templates.test.js
 
 const assert = require("assert");
@@ -29,23 +29,18 @@ function caseFresh() {
   fs.rmSync(home, { recursive: true, force: true });
 }
 
-function caseLegacy() {
+/* 文件里不是 `templates` 形态时一律当没有：不做旧形态迁移。 */
+function caseFlatShapeIgnored() {
   const home = tempHome({
-    agent: { allowWrite: true, systemPrompt: "旧提示词" },
-    codebases: [{ path: "D:\\old", name: "旧库" }]
+    agent: { allowWrite: true, systemPrompt: "不认的旧字段" },
+    codebases: [{ path: "D:\\old", name: "不认的旧字段" }]
   });
   const settings = createSettings(home);
   const read = settings.read();
-  assert.strictEqual(read.templates.length, 1, "旧的两个平铺字段合成一份参考源");
-  assert.strictEqual(read.templates[0].systemPrompt, "旧提示词");
-  assert.strictEqual(read.templates[0].codebases[0].path, "D:\\old");
-  assert.strictEqual(read.agent.allowWrite, true, "写盘开关不受影响");
-  // 存一次以后，平铺字段就该消失，只剩参考源。
-  settings.write({ templates: read.templates });
-  const raw = JSON.parse(fs.readFileSync(path.join(home, "local.json"), "utf8"));
-  assert.strictEqual(raw.codebases, undefined);
-  assert.strictEqual(raw.agent.systemPrompt, undefined);
-  assert.strictEqual(raw.agent.allowWrite, true);
+  assert.strictEqual(read.templates.length, 1, "也只有一份空的默认参考源");
+  assert.strictEqual(read.templates[0].systemPrompt, "");
+  assert.deepStrictEqual(read.templates[0].codebases, []);
+  assert.strictEqual(read.agent.allowWrite, true, "写盘开关照读");
   fs.rmSync(home, { recursive: true, force: true });
 }
 
@@ -172,7 +167,7 @@ function caseRuntimeMirror() {
 try {
   const cases = [
     ["新机器", caseFresh],
-    ["旧配置迁移", caseLegacy],
+    ["不认的旧形态当没有", caseFlatShapeIgnored],
     ["默认参考源", caseActive],
     ["发布源", caseSource],
     ["运行时安装包来源", caseRuntimeMirror]

@@ -1,3 +1,9 @@
+/*
+ * 看板：一屏同时跑多个页面。
+ *
+ * 这一页的主体是任务表；工程、模式、链接只在要加任务时填，收进「创建任务」弹窗。
+ * 上面一排筛选（工作区 / 区域 / 状态），列表按页给，一页十条，页面本身不往下拖。
+ */
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { GitMerge, Loader2, Play, Plus } from "lucide-react"
 import { toast } from "sonner"
@@ -16,7 +22,6 @@ import { useIdentityFill } from "@/app/use-identity-fill"
 import { api, type Board } from "@/lib/api"
 import { fillTargets, parseBoardItems } from "@/lib/board-items"
 import { filterTasks, hasFilters, readBoardFilters, writeBoardFilters, type BoardFilters } from "@/lib/board-filters"
-import { migrateOnlyEffective } from "@/lib/only-effective"
 import { useOnlyEffective } from "@/lib/use-only-effective"
 import { coverageOf, visibleByCoverage, type Coverage } from "@/lib/board-effective"
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
@@ -24,13 +29,6 @@ import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
 import { FINISHED_STATES, POLL_MS } from "@/lib/task-state"
 import { useSettings } from "@/lib/use-settings"
-
-/*
- * 看板：一屏同时跑多个页面。
- *
- * 这一页的主体是任务表；工程、模式、链接只在要加任务时填，收进「创建任务」弹窗。
- * 上面一排筛选（工作区 / 区域 / 状态），列表按页给，一页十条，页面本身不往下拖。
- */
 
 // 一页十条：一屏放得下，多出来的翻页。
 const PAGE_SIZE = 10
@@ -56,8 +54,6 @@ export function BoardPage() {
   })
 
   useEffect(() => {
-    // 先搬旧值再落盘：下面这句会把同一个键整条覆写，搬晚了旧偏好就丢了。
-    migrateOnlyEffective()
     writeBoardForm(form)
   }, [form])
 

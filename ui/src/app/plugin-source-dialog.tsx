@@ -1,3 +1,11 @@
+/*
+ * 插件页某一行点开后的面板 —— 按这一档是「谁在管」分两种：
+ *   客户端自带：检查更新 / 下载并安装 / 进度（客户端自己装并维护的那一份）
+ *   其余各档：只读展示 —— 它们的增删改归各自的来源管
+ *   （启动参数、系统环境变量、两个 agent 的缓存）。这一页不给「换用某一档」。
+ *
+ * 版本、路径、这一处几份、「正在用」这些事实都来自同一份来源清单（后端 pluginSources()）。
+ */
 import { useState } from "react"
 import { Copy, FolderOpen } from "lucide-react"
 
@@ -22,14 +30,6 @@ import {
 } from "@/lib/plugin-sources"
 
 
-/*
- * 插件页某一行点开后的面板 —— 按这一档是「谁在管」分两种：
- *   客户端自带：检查更新 / 下载并安装 / 进度（客户端自己装并维护的那一份）
- *   其余各档：只读展示 —— 它们的增删改归各自的来源管
- *   （启动参数、系统环境变量、两个 agent 的缓存）。这一页不给「换用某一档」。
- *
- * 版本、路径、这一处几份、「正在用」这些事实都来自同一份来源清单（后端 pluginSources()）。
- */
 
 export function PluginSourceDialog(props: {
   row: PluginSourceRow
