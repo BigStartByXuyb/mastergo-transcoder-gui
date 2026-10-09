@@ -304,7 +304,7 @@ function caseModulesHaveHeaderComment() {
   const missing = [];
   for (const rel of MODULE_DIRS) {
     for (const entry of fs.readdirSync(path.join(ROOT, rel), { withFileTypes: true })) {
-      if (!entry.isFile() || !/\.(js|mjs|cjs|ts|tsx)$/.test(entry.name) || entry.name.includes(".test.")) continue;
+      if (!entry.isFile() || !/\.(js|mjs|cjs|cts|ts|tsx)$/.test(entry.name) || entry.name.includes(".test.")) continue;
       const head = fs.readFileSync(path.join(ROOT, rel, entry.name), "utf8").split(/\r?\n/).slice(0, 30).join("\n");
       if (!hasHeaderComment(head)) {
         missing.push(path.join(rel, entry.name).split(path.sep).join("/"));
