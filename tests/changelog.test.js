@@ -62,8 +62,10 @@ function caseRepoFeaturesComplete() {
 
 /*
  * drops 引用的 id 必须是**到那一版之前确实具备**的能力：按版本号升序重放「先加 features、
- * 再按 drops 删除」（与 ui/src/lib/version-features.ts 的 featuresUpTo 同一口径），
- * 引错 id、或引用一个已经被更早的版本去掉的能力，都在这里当场失败。
+ * 再按 drops 删除」，引错 id、或引用一个已经被更早的版本去掉的能力，都在这里当场失败。
+ *
+ * 这段回放与界面那份是同一口径的**两份实现**（界面在 ui/src/lib/version-features.ts 的
+ * featuresUpTo，回退弹窗按它算「回去之后没有的能力」）：改其中一份必须同时改另一份。
  */
 function caseRepoDropsHaveSource() {
   const entries = readChangelog(ROOT).sort(function (left, right) {
