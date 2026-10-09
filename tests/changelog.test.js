@@ -32,6 +32,37 @@ function caseRepoFile() {
   assert.ok(buildManifest(ROOT, version).files["changelog.json"], "changelog.json 要进运行树清单");
 }
 
+/*
+ * 源里写的与读端认出来的一致：形状不全的能力项（缺 id 或 label）会被读端静默丢掉，
+ * 于是「这一版加了什么」在回退弹窗里凭空少一条 —— 按「源里几条 = 读出来几条」当场挡。
+ * drops 引用的 id 也得是某一版真的给过，否则那条能力永远不会被标成「回退后没有」。
+ */
+function caseRepoFeaturesComplete() {
+  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, "changelog.json"), "utf8"));
+  const parsed = readChangelog(ROOT);
+  assert.strictEqual(parsed.length, raw.length, "changelog.json 每条都要能读出来");
+  parsed.forEach(function (entry, index) {
+    const got = entry;
+    const source = raw[index];
+    assert.strictEqual(got.version, source.version, "读出来的顺序要与源一致");
+    const want = Array.isArray(source.features) ? source.features.length : 0;
+    assert.strictEqual(
+      got.features.length,
+      want,
+      "changelog.json 里 " + got.version + " 写了 " + want + " 条能力，读出来只有 " + got.features.length +
+        " 条（每条能力要有 id 与 label）"
+    );
+    // drops 引用的必须是更早的某一版真的给过的能力（列表由新到旧）。 
+    const older = new Set();
+    parsed.slice(index + 1).forEach(function (one) {
+      one.features.forEach(function (item) { older.add(item.id); });
+    });
+    for (const id of got.drops) {
+      assert.ok(older.has(id), "changelog.json 里 " + got.version + " 的 drops 引用了更早版本没给过的能力 id：" + id);
+    }
+  });
+}
+
 function caseShapes() {
   const dir = tempDir('[{"version":"1.0.0","date":"2026-01-01","notes":["a","b"]},{"version":"0.9.0"}]');
   assert.deepStrictEqual(notesOf(dir, "1.0.0"), ["a", "b"]);
@@ -53,7 +84,12 @@ function caseBadInput() {
 }
 
 try {
-  for (const [name, run] of [["仓库里那份", caseRepoFile], ["形状", caseShapes], ["坏输入", caseBadInput]]) {
+  for (const [name, run] of [
+    ["仓库里那份", caseRepoFile],
+    ["能力项与 drops 都对得上", caseRepoFeaturesComplete],
+    ["形状", caseShapes],
+    ["坏输入", caseBadInput]
+  ]) {
     run();
     console.log("  ok  " + name);
   }

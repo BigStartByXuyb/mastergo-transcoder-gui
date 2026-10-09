@@ -9,6 +9,7 @@
     ],
     "features": [
       {
+        "id": "docs-single-source",
         "label": "说明收敛成一处权威 + 文档索引 + npm test 里的一致性门禁"
       }
     ]
