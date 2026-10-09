@@ -8,6 +8,8 @@ const assert = require("assert");
 const {
   stripText, createStripper, childOutputText, childOutputDetail, isDecorationLine, isUnderlineLine, DETAIL_LIMITS
 } = require("../lib/ansi.js");
+// token 的环境变量名只有一处（lib/mcp-token.js）：夹具照它拼，不另抄字面量。
+const { TOKEN_ENV_KEY } = require("../lib/mcp-token.js");
 
 /*
  * 两条正则（完整序列 / 没写完的前缀）必须覆盖同一套控制序列：只改一处就会让流式那条漏出残渣。
@@ -120,7 +122,7 @@ function caseDecorationLines() {
   assert.ok(!isUnderlineLine("     | 这才是原因") && !isUnderlineLine("~ 混着文字"), "正文不算分隔线");
   /*
    * 头行是装饰行（取因不能报它），但不是框线：摘录要留着它 ——
-   * 管道里「Exception: 缺少 MasterGo token…MASTERGO_MCP_TOKEN…」整行就是原因。
+   * 管道里「Exception: 缺少 MasterGo token…」整行就是原因。
    * 摘录的口径只经 childOutputDetail 断言（isFrameLine 不外露）。
    */
   assert.ok(isDecorationLine("Exception: D:\\plugin\\run-all.ps1:286"), "取因时不算原因");
@@ -131,10 +133,10 @@ function caseDecorationLines() {
   );
   const longBox = [
     Array.from({ length: 60 }, (_, i) => "过程日志 " + i + " ：" + "x".repeat(30)).join("\n"),
-    "Exception: 缺少 MasterGo token：设置环境变量 MASTERGO_MCP_TOKEN，或用 -ConfigPath / CODEX_CONFIG"
+    "Exception: 缺少 MasterGo token：设置环境变量 " + TOKEN_ENV_KEY + "，或用 -ConfigPath / CODEX_CONFIG"
   ].join("\n");
   const kept = childOutputDetail({ stderr: longBox }, 200);
-  assert.ok(kept.includes("MASTERGO_MCP_TOKEN"), "超长时也要留住带标记的那行：" + JSON.stringify(kept));
+  assert.ok(kept.includes(TOKEN_ENV_KEY), "超长时也要留住带标记的那行：" + JSON.stringify(kept));
   // 长度档位只有一份：三档都在 lib/ansi.js 里。
   assert.deepStrictEqual(Object.keys(DETAIL_LIMITS).sort(), ["hint", "layout", "step"]);
 }
@@ -166,12 +168,12 @@ function caseLongOutputKeepsTheReason() {
     "Line |",
     " 286 |      throw \"缺少 MasterGo token\"",
     "     |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~",
-    "     | 缺少 MasterGo token：设置环境变量 MASTERGO_MCP_TOKEN",
+    "     | 缺少 MasterGo token：设置环境变量 " + TOKEN_ENV_KEY,
     "+ CategoryInfo          : OperationStopped: (:) [], RuntimeException",
     "+ FullyQualifiedErrorId : RuntimeException"
   ].join("\n");
   const pwshDetail = childOutputDetail({ stderr: pwshLike }, 200);
-  assert.ok(pwshDetail.includes("MASTERGO_MCP_TOKEN"), "pwsh 错误框的原因要留住：" + JSON.stringify(pwshDetail));
+  assert.ok(pwshDetail.includes(TOKEN_ENV_KEY), "pwsh 错误框的原因要留住：" + JSON.stringify(pwshDetail));
   assert.ok(pwshDetail.indexOf("CategoryInfo") < 0, "框线丢掉");
   assert.ok(pwshDetail.indexOf("~~~~") < 0, "竖线开头的那种下划线也要丢掉");
 

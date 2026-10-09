@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 "use strict";
 
-// 文档与实现的一致性：某一件事的说明只在它那一份权威文档里写，且必须与真值源一一对应。
-// 跑法：node tests/docs-consistency.test.js
+// 一致性门禁：说明只有一处、字面量只有一处，且说明与实现必须对得上。
+// 跑法：node tests/consistency.test.js
 //
-// 这一条是「同一件事只有一处」的机械门禁：说明漂移（文档没跟着实现改、别处又抄了一份、
-// 改名之后引用没跟上）在这里当场失败，不用等人逐轮审。
+// 两半：
+//   一、说明一致性 —— 一件事的完整说明只在它那一份权威文档里（索引 docs/README.md），
+//       别处只留一句 + 指向；文档引用的文件要真的在。
+//   二、字面量单源 —— 值只在真值源定义一次（端口、钉死版本、环境变量名），别处走常量。
+// 漂移在这里当场失败，不用等人逐轮审。
 
 const assert = require("assert");
 const fs = require("fs");
@@ -15,6 +18,7 @@ const path = require("path");
 const { pluginSources, PLUGIN_ENV_NAME } = require("../lib/plugin-root.js");
 
 const ROOT = path.join(__dirname, "..");
+const SELF = "tests/consistency.test.js";
 const README = "README.md";
 const DOCS = "docs";
 /* 验收记录记的是当次口径，不参与「当前口径」的比对。 */
@@ -30,13 +34,18 @@ function read(rel) {
 /*
  * 扫描范围：仓库自己的源码与说明。跳过的是「不是说明」的东西 —— 用户状态与运行目录
  * （agents、plugins、runtime、work、logs… 这些），入库的构建产物 public/（说明在 ui/src，
- * 产物由它构建出来），以及第三方解压件 vendor/。
+ * 产物由它构建出来），第三方解压件 vendor/，以及由源码生成的 runtime-assets.json。
  */
 const SCANNED_EXT = /\.(js|mjs|cjs|ts|tsx|md|json|ps1|cmd|yml|yaml|toml)$/;
 const SKIP_DIRS = [
   ".git", "node_modules", "coverage", "public",
   "agents", "blobs", "chats", "logs", "plugins", "runtime", "update-cache", "vendor", "versions", "work",
   "dist", "output", ".playwright-cli"
+];
+const SKIP_FILES = [
+  "changelog.json", "runtime-assets.json", "package-lock.json",
+  // 安装根下的用户状态（.gitignore 里那些）：本机跑的时候会在仓库根出现。
+  "local.json", "board.json", "chats.json", "current.json"
 ];
 
 function scannedFiles() {
@@ -52,7 +61,7 @@ function scannedFiles() {
       if (!SCANNED_EXT.test(entry.name)) continue;
       const rel = path.relative(ROOT, full).split(path.sep).join("/");
       // 发布说明与验收记录记的是当次实况，不参与「当前口径」的比对。
-      if (rel === RECORD || path.basename(rel) === "changelog.json") continue;
+      if (rel === RECORD || SKIP_FILES.includes(path.basename(rel))) continue;
       found.push(rel);
     }
   };
@@ -60,7 +69,7 @@ function scannedFiles() {
   return found;
 }
 
-/* 说明书：仓库里的 Markdown（验收记录除外）。 */
+/* 说明文件：仓库里的 Markdown（验收记录除外）。 */
 function proseFiles() {
   return scannedFiles().filter(function (rel) {
     return rel.endsWith(".md") && rel !== RECORD;
@@ -70,9 +79,9 @@ function proseFiles() {
 /* 真值源：七档的 id 与名字（顺序就是查找顺序）。 */
 function truth() {
   return pluginSources({
-    installRoot: path.join(os.tmpdir(), "docs-consistency-install"),
+    installRoot: path.join(os.tmpdir(), "consistency-install"),
     env: {},
-    home: path.join(os.tmpdir(), "docs-consistency-home")
+    home: path.join(os.tmpdir(), "consistency-home")
   });
 }
 
@@ -102,16 +111,35 @@ function caseTierTableMatchesCode() {
   });
 }
 
-// 环境变量名只在真值源与它的权威文档里出现；别处写它必须走常量或链接到那一份文档。
-function caseEnvNameNotScattered() {
-  const allowed = new Set([
-    "lib/plugin-root.js",
-    TIERS_DOC
-  ]);
-  const hits = scannedFiles().filter(function (rel) {
-    return !allowed.has(rel) && read(rel).includes(PLUGIN_ENV_NAME);
-  });
-  assert.deepStrictEqual(hits, [], "环境变量名只能在真值源与 " + TIERS_DOC + " 里出现（别处请走常量或指向那份文档）");
+/*
+ * 字面量只有一个住处：值只在真值源定义一次，说明里写它的只有那一份权威文档，别处走常量。
+ * 加一条 = 加一行；换了真值源 = 改 home。（本文件自己要写这些字面量来比对，所以跳过自己。）
+ */
+const SINGLE_SOURCE = [
+  { value: PLUGIN_ENV_NAME, home: ["lib/plugin-root.js", TIERS_DOC], what: "插件根环境变量名" },
+  { value: "MASTERGO_MCP_TOKEN", home: ["lib/mcp-token.js", README], what: "MasterGo token 环境变量名" },
+  { value: "8787", home: ["lib/config.js", README], what: "服务默认端口" },
+  { value: "24.21.0", home: ["lib/runtime.js"], what: "钉死的 Node 版本" },
+  { value: "7.6.6", home: ["lib/runtime.js"], what: "钉死的 PowerShell 7 版本" }
+];
+
+function caseSingleSource() {
+  const files = scannedFiles().filter(function (rel) { return rel !== SELF; });
+  const text = new Map(files.map(function (rel) { return [rel, read(rel)]; }));
+  for (const fact of SINGLE_SOURCE) {
+    assert.ok(
+      fact.home.some(function (rel) { return text.has(rel) && text.get(rel).includes(fact.value); }),
+      fact.what + "（" + fact.value + "）在它该在的地方没有出现：" + fact.home.join("、")
+    );
+    const others = files.filter(function (rel) {
+      return !fact.home.includes(rel) && text.get(rel).includes(fact.value);
+    });
+    assert.deepStrictEqual(
+      others,
+      [],
+      "「" + fact.what + "」（" + fact.value + "）只住在 " + fact.home.join("、") + "；别处又写了一遍：" + others.join("、")
+    );
+  }
 }
 
 // 引用的文档要真的在：文档改名或删掉之后，别处那条引用就是失效的（代码注释与文档里都算引用）。
@@ -164,7 +192,7 @@ function caseFactsHaveOneHome() {
 function caseNoTierListCopy() {
   const labels = truth().map(function (source) { return source.label.replace(/`/g, ""); });
   for (const rel of scannedFiles()) {
-    if (rel === TIERS_DOC || rel === "tests/docs-consistency.test.js") continue;
+    if (rel === TIERS_DOC || rel === SELF) continue;
     const copied = read(rel).split(/\r?\n/).filter(function (line) {
       if (/^\|\s*第几档\s*\|/.test(line.trim())) return true;
       const hits = labels.filter(function (label) { return line.includes(label); }).length;
@@ -189,7 +217,7 @@ function caseDocsIndexed() {
 try {
   const cases = [
     ["档位表与代码一一对应", caseTierTableMatchesCode],
-    ["环境变量名不散落", caseEnvNameNotScattered],
+    ["字面量只在真值源", caseSingleSource],
     ["引用的文档都存在", caseDocRefsResolve],
     ["一句话只有一处说", caseFactsHaveOneHome],
     ["逐档清单不在别处复述", caseNoTierListCopy],
@@ -199,7 +227,7 @@ try {
     run();
     console.log("  ok  " + name);
   }
-  console.log("docs-consistency.test.js 全部通过");
+  console.log("consistency.test.js 全部通过");
 }
 catch (error) {
   console.error(error);

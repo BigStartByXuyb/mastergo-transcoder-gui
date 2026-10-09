@@ -18,6 +18,8 @@ const {
 } = require("../lib/resolve-target.js");
 // 档位只有一份（lib/ansi.js）：用例按档位断言，不写死数字。
 const { DETAIL_LIMITS } = require("../lib/ansi.js");
+// token 的环境变量名只有一处（lib/mcp-token.js）：夹具照它拼。
+const { TOKEN_ENV_KEY } = require("../lib/mcp-token.js");
 
 function write(file, text) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -61,8 +63,8 @@ function caseDescribeCaptureFailure() {
   assert.match(empty.message, /1872:60904/);
   assert.match(empty.hint, /页面.*链接/);
 
-  // 「插件没拿到 token」那句（会教你 MASTERGO_MCP_TOKEN / -ConfigPath 怎么给）换成客户端说法。
-  const missing = describeCaptureFailure("Exception: 缺少 MasterGo token：设置环境变量 MASTERGO_MCP_TOKEN", "1:1");
+  // 「插件没拿到 token」那句（会教你环境变量 / -ConfigPath 怎么给）换成客户端说法。
+  const missing = describeCaptureFailure("Exception: 缺少 MasterGo token：设置环境变量 " + TOKEN_ENV_KEY, "1:1");
   assert.strictEqual(missing.code, "NEED_TOKEN");
   assert.match(missing.hint, /设置 → MasterGo token/);
   assert.ok(missing.hint.indexOf("ConfigPath") < 0, "不复述命令行用法");

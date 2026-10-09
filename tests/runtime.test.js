@@ -363,12 +363,12 @@ async function main() {
     for (const name of ["pwsh", "pwsh.exe"]) fs.writeFileSync(path.join(pathDir, name), "");
     const sysPwsh = createRuntime({
       home: makeHome(),
-      spawnSyncImpl: fakeSpawn([{ match: "pwsh", result: { status: 0, stdout: "7.6.6", stderr: "" } }]),
+      spawnSyncImpl: fakeSpawn([{ match: "pwsh", result: { status: 0, stdout: "9.9.9", stderr: "" } }]),
       env: { PATH: pathDir }
     });
     const sysPwshRow = sysPwsh.status().tools[1];
     assert.strictEqual(sysPwshRow.source, "system");
-    assert.strictEqual(sysPwshRow.version, "7.6.6");
+    assert.strictEqual(sysPwshRow.version, "9.9.9");
     assert.strictEqual(sysPwshRow.ready, true);
     // 报出来的必须是 PATH 上那一个（目录对、名字是 pwsh）：不在断言里另抄一份平台命名规则。
     assert.strictEqual(path.dirname(sysPwshRow.system.path), pathDir, "系统那份要报出它到底是哪一个");

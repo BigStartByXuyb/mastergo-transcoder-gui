@@ -10,7 +10,7 @@ import { startUpdateDownload } from "@/lib/update-download"
 import { runSwitch } from "@/lib/update-switch"
 
 /*
- * 顶上的新版标注：后台每 10 分钟查一次，查到新版就在这儿挂个红点。
+ * 顶上的新版标注：后台按 lib/recheck.js 的节拍复查，查到新版就在这儿挂个红点。
  * 点它：还没下载就先开始下载（后台跑，进度在设置页看），已经下载好就直接切过去 —— 切完界面自己回来。
  */
 

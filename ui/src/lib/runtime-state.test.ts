@@ -25,17 +25,17 @@ function task(overrides: Partial<RuntimeTask> & Pick<RuntimeTask, "phase" | "too
 
 function tool(overrides: Partial<RuntimeTool> & Pick<RuntimeTool, "id" | "label">): RuntimeTool {
   return {
-    pinned: "24.21.0",
-    path: at("app", "runtime", "node", "24.21.0", "node.exe"),
+    pinned: "1.2.3",
+    path: at("app", "runtime", "node", "1.2.3", "node.exe"),
     installed: true,
     source: "bundled",
-    versions: ["24.21.0"],
-    active: "24.21.0",
+    versions: ["1.2.3"],
+    active: "1.2.3",
     system: { ok: false, version: "", path: "" },
-    downloadUrl: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
-    officialUrl: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
-    fileName: "node-v24.21.0-win-x64.zip",
-    version: "24.21.0",
+    downloadUrl: "https://example.test/node-v1.2.3-win-x64.zip",
+    officialUrl: "https://example.test/node-v1.2.3-win-x64.zip",
+    fileName: "node-v1.2.3-win-x64.zip",
+    version: "1.2.3",
     ready: true,
     switchable: false,
     note: "",
@@ -52,9 +52,9 @@ function status(overrides: Partial<RuntimeStatus> = {}): RuntimeStatus {
       tool({
         id: "pwsh",
         label: "PowerShell 7",
-        pinned: "7.6.6",
-        version: "7.6.6",
-        path: at("app", "runtime", "pwsh", "7.6.6", "pwsh.exe")
+        pinned: "4.5.6",
+        version: "4.5.6",
+        path: at("app", "runtime", "pwsh", "4.5.6", "pwsh.exe")
       }),
       tool({
         id: "claude",
@@ -139,8 +139,8 @@ describe("每一行", () => {
   })
 
   it("按钮字面：没装过是下载，坏了是重下", () => {
-    expect(downloadLabel(tool({ id: "node", label: "Node.js", installed: false }))).toBe("下载 v24.21.0")
-    expect(downloadLabel(tool({ id: "pwsh", label: "PowerShell 7", version: "0.0.0", ready: false }))).toBe("重下 v24.21.0")
+    expect(downloadLabel(tool({ id: "node", label: "Node.js", installed: false }))).toBe("下载 v1.2.3")
+    expect(downloadLabel(tool({ id: "pwsh", label: "PowerShell 7", pinned: "4.5.6", version: "0.0.0", ready: false }))).toBe("重下 v4.5.6")
     expect(downloadLabel(tool({ id: "claude", label: "Claude Code", pinned: "", installed: false }))).toBe("下载")
   })
 })
@@ -155,16 +155,16 @@ describe("给不给下载入口", () => {
   })
 
   it("还在用系统那份、以及自带那份坏了，都给下载", () => {
-    const systemCopy = tool({ id: "node", label: "Node.js", installed: false, source: "system", version: "24.14.0" })
+    const systemCopy = tool({ id: "node", label: "Node.js", installed: false, source: "system", version: "1.2.2" })
     expect(downloadableId(status(), systemCopy)).toBe("node")
     const broken = tool({ id: "pwsh", label: "PowerShell 7", version: "0.0.0", ready: false })
     expect(downloadableId(status(), broken)).toBe("pwsh")
   })
 
   it("有任务在跑、或正在下载时都不给", () => {
-    const systemCopy = tool({ id: "node", label: "Node.js", installed: false, source: "system", version: "24.14.0" })
+    const systemCopy = tool({ id: "node", label: "Node.js", installed: false, source: "system", version: "1.2.2" })
     expect(downloadableId(status({ busy: "转码中" }), systemCopy)).toBe("")
-    const running = task({ phase: "extracting", tool: "node", version: "24.21.0" })
+    const running = task({ phase: "extracting", tool: "node", version: "1.2.3" })
     expect(downloadableId(status({ task: running }), systemCopy)).toBe("")
     expect(downloadableId(null, systemCopy)).toBe("")
   })

@@ -4,7 +4,7 @@
 界面文案、注释）只留一句并指向本文，不复述逐档细节 —— 逐档清单一变，只有这一份要改。
 
 真值源是代码：`lib/plugin-root.js` 的 `pluginPlaces()`（顺序、id、名字、「这一档归谁管」那句话都在那儿）。
-下面那张表由用例锁定（`tests/docs-consistency.test.js`）：**表与 `pluginPlaces()` 不一致就是测试失败**。
+下面那张表由用例锁定（`tests/consistency.test.js`）：**表与 `pluginPlaces()` 不一致就是测试失败**。
 
 ## 查找顺序（先命中先用）
 
@@ -50,6 +50,6 @@
 2. 本文的表格（与上面一一对应，改完跑测试会核对）；
 3. 界面若新增分支，只加它必须认的那一个 id（取值见 `ui/src/lib/plugin-sources.ts` 的 `INSTALL_SLOT_ID`）。
 
-别的文档都不复述逐档清单 —— 它们只指向本文：`tests/docs-consistency.test.js` 挡住三种复述写法
+别的文档都不复述逐档清单 —— 它们只指向本文：`tests/consistency.test.js` 挡住三种复述写法
 （一行里两个以上档位名、某个档位的列表项、档位表表头）。环境变量名只在 `lib/plugin-root.js` 定义一次；
 界面与界面用例不写这个字面量，标签一律用后端给的原话。
