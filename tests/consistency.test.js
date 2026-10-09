@@ -256,12 +256,21 @@ function caseDocsIndexed() {
  * 仓库根的条目（目录与文件）都要登记在 docs/structure.md 的目录表里；空目录与本机运行留下的 *.log 不算结构。
  */
 function caseRootEntriesRegistered() {
-  const doc = read(STRUCTURE_DOC);
+  // 只认文档里用反引号标出来的名字（结构表与根条目清单都这么写），不做整篇子串匹配。
+  const tokens = new Set();
+  for (const match of read(STRUCTURE_DOC).matchAll(/`([^`]+)`/g)) tokens.add(match[1].replace(/\/$/, ""));
+  const prefixes = [...tokens].filter(function (name) { return name.endsWith("*"); })
+    .map(function (name) { return name.slice(0, -1); });
   const missing = fs.readdirSync(ROOT, { withFileTypes: true })
     .filter(function (entry) { return !entry.name.startsWith(".") && !entry.name.endsWith(".log"); })
     .filter(function (entry) { return !entry.isDirectory() || hasAnyFile(path.join(ROOT, entry.name)); })
     .map(function (entry) { return entry.name; })
-    .filter(function (name) { return !doc.includes(name); });
+    .filter(function (name) {
+      if (tokens.has(name)) return false;
+      if (prefixes.some(function (prefix) { return name.startsWith(prefix); })) return false;
+      // 表里写成子路径（如 `tools/launcher/`）也算登记了顶层那一层。
+      return ![...tokens].some(function (token) { return token.startsWith(name + "/"); });
+    });
   assert.deepStrictEqual(missing, [], "仓库根这些条目没写进 " + STRUCTURE_DOC + "：「" + missing.join("、") + "」");
 }
 

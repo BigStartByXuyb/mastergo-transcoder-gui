@@ -36,12 +36,12 @@ tests/ ──> lib/、scripts/、ui/src（用例可以读任一侧）
 launch.js ──> lib/launch.js      壳只用自己拥有的两份文件
 ```
 
-三条硬规矩：
+两条硬规矩：
 
 1. `ui/` 里不出现指向仓库根 `lib/` 的引用；`lib/` 里不出现指向 `ui/` 或 `scripts/` 的引用
    —— 这两条由 CI 的**确定性检查**（`deterministic-validation` 的分层校验）守；
-2. 每个模块（`lib/`、`scripts/`、`scripts/lib/`、`ui/src/app`、`ui/src/lib`）都有文件头注释，
-   第一句就是它的职责 —— 由 [`gates.md`](gates.md) 的「每个模块都有职责头」守。
+2. 每个模块（`lib/`、`scripts/`、`scripts/lib/`、`ui/src/app`、`ui/src/lib`）都要有文件头注释，
+   职责写在里面 —— 由 [`gates.md`](gates.md) 的「每个模块都有职责头」守。
 
 ## 一次操作怎么走
 

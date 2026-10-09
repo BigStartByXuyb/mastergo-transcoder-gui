@@ -413,10 +413,10 @@ async function main() {
   assert.strictEqual(byLocationRow.system.version, "9.9.9");
   assert.strictEqual(byLocationRow.system.path, path.join(systemRoot, "nodejs", "node.exe"));
 
-  // 自带那份在，但自检出来的版本不对：不许当它是好的，且提示重下。
+  // 自带那份在版本目录里，但自检出来的版本不对：不许当它是好的，且提示重下。
   const badBundledHome = makeHome();
-  fs.mkdirSync(path.join(badBundledHome, "runtime", "node"), { recursive: true });
-  fs.writeFileSync(path.join(badBundledHome, "runtime", "node", "node.exe"), "");
+  fs.mkdirSync(path.join(badBundledHome, "runtime", "node", "1.2.3"), { recursive: true });
+  fs.writeFileSync(path.join(badBundledHome, "runtime", "node", "1.2.3", "node.exe"), "");
   const badBundled = createRuntime({
     home: badBundledHome,
     spawnSyncImpl: fakeSpawn([{ match: "node.exe", result: { status: 0, stdout: "v9.9.9", stderr: "" } }]),
@@ -430,8 +430,8 @@ async function main() {
 
   // 自带那份在且版本对得上：这一行没有任何提示。
   const goodBundledHome = makeHome();
-  fs.mkdirSync(path.join(goodBundledHome, "runtime", "node"), { recursive: true });
-  fs.writeFileSync(path.join(goodBundledHome, "runtime", "node", "node.exe"), "");
+  fs.mkdirSync(path.join(goodBundledHome, "runtime", "node", TOOLS.node.version), { recursive: true });
+  fs.writeFileSync(path.join(goodBundledHome, "runtime", "node", TOOLS.node.version, "node.exe"), "");
   // 系统那份摆在一个独立的目录里（放在我们自己安装根里会被正确排除）。
   const systemPathDir = makeHome();
   for (const name of ["node", "node.exe"]) fs.writeFileSync(path.join(systemPathDir, name), "");
@@ -552,21 +552,19 @@ async function main() {
     "current 链接换到新的那一版"
   );
 
-  // ---- 旧布局（0.6.34 及以前直接铺在 runtime/node/ 下）第一次启动认一次：整份搬进版本目录 ----
-  const legacyHome = makeHome();
-  fs.mkdirSync(path.join(runtimeRoot(legacyHome), "node"), { recursive: true });
-  fs.writeFileSync(path.join(runtimeRoot(legacyHome), "node", "node.exe"), "");
-  const legacyRt = createRuntime({
-    home: legacyHome,
+  // ---- 只认版本目录：直接铺在 runtime/node/ 下的那份不算（没有版本目录就是没装）----
+  const flatHome = makeHome();
+  fs.mkdirSync(path.join(runtimeRoot(flatHome), "node"), { recursive: true });
+  fs.writeFileSync(path.join(runtimeRoot(flatHome), "node", "node.exe"), "");
+  const flatRt = createRuntime({
+    home: flatHome,
     tools: { node: specOf() },
     spawnSyncImpl: spawnFor("1.2.3"),
     env: {}
   });
-  const legacyRow = legacyRt.status().tools[0];
-  assert.strictEqual(legacyRow.source, "bundled", "旧布局那份照用，不为了目录重下上百兆");
-  assert.strictEqual(legacyRow.active, "1.2.3", "搬家之后认得出是哪一版");
-  assert.ok(fs.existsSync(path.join(runtimeRoot(legacyHome), "node", "1.2.3", "node.exe")), "搬进版本目录");
-  assert.strictEqual(fs.existsSync(path.join(runtimeRoot(legacyHome), "node", "node.exe")), false, "旧的铺法不再留着");
+  const flatRow = flatRt.status().tools[0];
+  assert.strictEqual(flatRow.source, "", "没铺成版本目录就不算自带那份");
+  assert.strictEqual(flatRow.installed, false);
 
   // ---- 有活干的时候不许动运行时：这是唯一会互相踩的并发 ----
   const busyHome = makeHome();
