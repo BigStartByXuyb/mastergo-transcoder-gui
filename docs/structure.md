@@ -76,4 +76,4 @@ launch.js ──> lib/launch.js      壳只用自己拥有的两份文件
 
 - **约束**写在 [`../AGENTS.md`](../AGENTS.md)：改代码时按它做。
 - **门禁**（哪条用例守哪条规矩、读哪处真值源）写在 [`gates.md`](gates.md)。
-- 两边都只有一份；新增门禁要同一次写进 `gates.md`，否则 `tests/consistency.test.js` 直接失败。
+- 新增门禁的登记规矩见 `gates.md`（那里是门禁的唯一权威）。

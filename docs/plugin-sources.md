@@ -39,7 +39,7 @@
 ## 与别的概念的关系
 
 - **两条版本线的更新来源与复查节拍**、**插件发布件怎么发**：见 [`release-and-update.md`](release-and-update.md)。
-- **界面上那一页的验收记录**（每次改动点过什么）见 [`ui-verification.md`](ui-verification.md)；
+- **界面上那一页的验收记录**（每次改动点过什么）见 [`records.md`](records.md)；
   记录里的条目是**当次**口径。
 
 ## 改动须知
