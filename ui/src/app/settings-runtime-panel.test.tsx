@@ -15,17 +15,17 @@ function runtime(): RuntimeStatus {
   const tool = (id: "node" | "pwsh" | "claude", patch: Partial<RuntimeStatus["tools"][number]>) => ({
     id: id,
     label: id === "node" ? "Node.js" : (id === "pwsh" ? "PowerShell 7" : "Claude Code"),
-    pinned: id === "claude" ? "" : (id === "node" ? "24.21.0" : "7.6.6"),
+    pinned: id === "claude" ? "" : (id === "node" ? "1.2.3" : "4.5.6"),
     path: drive("D", "app", "runtime", id, "node.exe"),
     installed: id !== "claude",
     source: (id === "claude" ? "system" : "bundled") as RuntimeStatus["tools"][number]["source"],
-    versions: id === "claude" ? [] : [id === "node" ? "24.21.0" : "7.6.6"],
-    active: id === "claude" ? "" : (id === "node" ? "24.21.0" : "7.6.6"),
+    versions: id === "claude" ? [] : [id === "node" ? "1.2.3" : "4.5.6"],
+    active: id === "claude" ? "" : (id === "node" ? "1.2.3" : "4.5.6"),
     system: { ok: id === "claude", version: id === "claude" ? "2.1.278" : "", path: "" },
-    downloadUrl: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
-    officialUrl: "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
-    fileName: "node-v24.21.0-win-x64.zip",
-    version: id === "claude" ? "2.1.278" : (id === "node" ? "24.21.0" : "7.6.6"),
+    downloadUrl: "https://example.test/node-v1.2.3-win-x64.zip",
+    officialUrl: "https://example.test/node-v1.2.3-win-x64.zip",
+    fileName: "node-v1.2.3-win-x64.zip",
+    version: id === "claude" ? "2.1.278" : (id === "node" ? "1.2.3" : "4.5.6"),
     ready: true,
     switchable: false,
     note: id === "claude" ? "检测到就用；不代下载。" : "",
@@ -42,8 +42,8 @@ function runtime(): RuntimeStatus {
 }
 
 const PROBE: RuntimeProbeResult[] = [
-  { id: "node", label: "Node.js", fileName: "node-v24.21.0-win-x64.zip", url: "http://10.0.0.9/runtime/node-v24.21.0-win-x64.zip", ok: true, status: 200, note: "" },
-  { id: "pwsh", label: "PowerShell 7", fileName: "PowerShell-7.6.6-win-x64.zip", url: "http://10.0.0.9/runtime/PowerShell-7.6.6-win-x64.zip", ok: false, status: 404, note: "HTTP 404" }
+  { id: "node", label: "Node.js", fileName: "node-v1.2.3-win-x64.zip", url: "http://10.0.0.9/runtime/node-v1.2.3-win-x64.zip", ok: true, status: 200, note: "" },
+  { id: "pwsh", label: "PowerShell 7", fileName: "PowerShell-4.5.6-win-x64.zip", url: "http://10.0.0.9/runtime/PowerShell-4.5.6-win-x64.zip", ok: false, status: 404, note: "HTTP 404" }
 ]
 
 function stub() {
@@ -115,7 +115,7 @@ describe("SettingsRuntimePanel", () => {
     expect(screen.getByText("Claude Code")).toBeTruthy()
     expect(screen.getAllByText("客户端自带")).toHaveLength(2)
     expect(screen.getByText("系统检测")).toBeTruthy()
-    expect(screen.getByText("钉 v24.21.0")).toBeTruthy()
+    expect(screen.getByText("钉 v1.2.3")).toBeTruthy()
 
     // claude 没有「来源」可选（不是我们带的），另外两行有
     expect(screen.getAllByRole("button", { name: "来源" })).toHaveLength(2)
@@ -126,7 +126,7 @@ describe("SettingsRuntimePanel", () => {
     expect(within(dialog).getByText("Node.js 的来源")).toBeTruthy()
     expect(within(dialog).getByRole("button", { name: /客户端自带/ }).getAttribute("aria-current")).toBe("true")
     expect(within(dialog).getByRole("button", { name: /系统上那一份/ })).toBeTruthy()
-    expect(within(dialog).getByText(/nodejs\.org\/dist\/v24\.21\.0/)).toBeTruthy()
+    expect(within(dialog).getByText(/example\.test\/node-v1\.2\.3/)).toBeTruthy()
 
     // 选「系统上那一份」：下面只显示那一块的配置（检测到哪一版），保存只改 node 这一份
     fireEvent.click(within(dialog).getByRole("button", { name: /系统上那一份/ }))

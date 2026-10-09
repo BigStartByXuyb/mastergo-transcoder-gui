@@ -13,6 +13,9 @@ const path = require("path");
 
 const { createRunManager, routesOfMode, MODE_LABEL } = require("../lib/run.js");
 const { UserError } = require("../lib/errors.js");
+// token 的环境变量名只有一处（lib/mcp-token.js）：用例照它设与读。
+const { TOKEN_ENV_KEY } = require("../lib/mcp-token.js");
+const { HOME_ENV } = require("../lib/launch.js");
 
 const STEPS = [
   { Id: 1, Name: "fetch", Title: "取数" },
@@ -175,10 +178,10 @@ async function caseValidation() {
    * 运行时没备齐（没自带、也没允许用系统那份）：开跑前就拒绝，界面直接显示这句话 ——
    * 丢进 startRun 的 Promise 里抛的话，rejection 没人接，用户什么都看不到。
    */
-  const savedHome = process.env.MASTERGO_HOME;
+  const savedHome = process.env[HOME_ENV];
   const emptyHome = fs.mkdtempSync(path.join(os.tmpdir(), "gui-run-noruntime-"));
   try {
-    process.env.MASTERGO_HOME = emptyHome;
+    process.env[HOME_ENV] = emptyHome;
     const bare = manager({ node: "", pwsh: "" });
     assert.throws(
       () => bare.manager.start({ projectRoot: "D:/p", mode: "B" }),
@@ -193,8 +196,8 @@ async function caseValidation() {
     );
   }
   finally {
-    if (savedHome === undefined) delete process.env.MASTERGO_HOME;
-    else process.env.MASTERGO_HOME = savedHome;
+    if (savedHome === undefined) delete process.env[HOME_ENV];
+    else process.env[HOME_ENV] = savedHome;
     fs.rmSync(emptyHome, { recursive: true, force: true });
   }
 }
@@ -303,12 +306,12 @@ async function caseStop() {
  */
 async function caseTokenAndAnsi() {
   // 宿主机上可能就设着这个变量：先摘掉，这条用例才只验「我们交给子进程的是什么」。
-  const savedToken = process.env.MASTERGO_MCP_TOKEN;
-  delete process.env.MASTERGO_MCP_TOKEN;
+  const savedToken = process.env[TOKEN_ENV_KEY];
+  delete process.env[TOKEN_ENV_KEY];
   try {
     const fx = manager({ token: "mg_用例_token" });
     const job = fx.manager.start({ projectRoot: "D:/proj", mode: "B", target: "T1", ui: "F1" });
-    assert.strictEqual(fx.calls[0].spawnOptions.env.MASTERGO_MCP_TOKEN, "mg_用例_token", "token 要交给子进程");
+    assert.strictEqual(fx.calls[0].spawnOptions.env[TOKEN_ENV_KEY], "mg_用例_token", "token 要交给子进程");
 
     const child = fx.children[0];
     child.emitLine("\u001b[31;1m     | \u001b[31;1m缺少区域前缀：中文测试\u001b[0m");
@@ -327,11 +330,11 @@ async function caseTokenAndAnsi() {
     // 没有 token 时不塞空值：让插件按它自己的 config.toml 兜底去。
     const plain = manager();
     plain.manager.start({ projectRoot: "D:/proj2", mode: "B", target: "T2", ui: "F1" });
-    assert.strictEqual(plain.calls[0].spawnOptions.env.MASTERGO_MCP_TOKEN, undefined, "没解析出 token 就不设这个变量");
+    assert.strictEqual(plain.calls[0].spawnOptions.env[TOKEN_ENV_KEY], undefined, "没解析出 token 就不设这个变量");
   }
   finally {
-    if (savedToken === undefined) delete process.env.MASTERGO_MCP_TOKEN;
-    else process.env.MASTERGO_MCP_TOKEN = savedToken;
+    if (savedToken === undefined) delete process.env[TOKEN_ENV_KEY];
+    else process.env[TOKEN_ENV_KEY] = savedToken;
   }
 }
 
@@ -347,7 +350,7 @@ async function caseAnsiChunkSplitAndTokenWording() {
   const child = fx.children[0];
   child.stdout.emit("data", Buffer.from("     | \u001b", "utf8"));
   child.stdout.emit("data", Buffer.from(
-    "[31;1m缺少 MasterGo token：设置环境变量 MASTERGO_MCP_TOKEN，或指向 config.toml"
+    "[31;1m缺少 MasterGo token：设置环境变量 " + TOKEN_ENV_KEY + "，或指向 config.toml"
     + "（当前尝试: <config.toml 路径>；token 不会写入任何产物）\u001b[0m\n",
     "utf8"
   ));

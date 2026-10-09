@@ -13,7 +13,7 @@
  *   lib/bootstrap.js   启动时把安装根的壳按当前生效这一版对齐（应用内更新不会换壳，见那里的说明）
  *
  * 用法：
- *   node server.js                                  # 起服务并打开浏览器（默认 127.0.0.1:8787）
+ *   node server.js                                  # 起服务并打开浏览器（默认地址见 lib/config.js）
  *   node server.js --port 9000 --no-open
  *   node server.js --project D:\SomeProject         # 从工程目录自动发现页面帧（离线优先）
  *   node server.js --snapshot <dsl.snapshot.json>    # 完全离线：只用一份快照
@@ -29,6 +29,7 @@ const http = require("http");
 const os = require("os");
 const path = require("path");
 const { openUrl } = require("./lib/system-open.js");
+const { DEFAULT_HOST, DEFAULT_PORT, baseUrl } = require("./lib/config.js");
 
 const { createResolver } = require("./lib/resolve.js");
 const { readPipelineSteps, createPluginRuntime } = require("./lib/plugin.js");
@@ -49,6 +50,7 @@ const { createUpdate } = require("./lib/update.js");
 const { createPluginUpdate } = require("./lib/plugin-update.js");
 const { createCodex } = require("./lib/codex.js");
 const { createRuntime, installRoot, resolvePwshExe } = require("./lib/runtime.js");
+const { SUPERVISED_ENV } = require("./lib/launch.js");
 const runtimePolicy = require("./lib/runtime-policy.js");
 const { createChats } = require("./lib/chat.js");
 const { createUploads } = require("./lib/uploads.js");
@@ -80,9 +82,9 @@ function argValue(name, fallback) {
   return value === undefined || value.startsWith("--") ? fallback : value;
 }
 const options = {
-  port: Number(argValue("port", "8787")),
+  port: Number(argValue("port", String(DEFAULT_PORT))),
   portExplicit: argv.indexOf("--port") >= 0,
-  host: argValue("host", "127.0.0.1"),
+  host: argValue("host", DEFAULT_HOST),
   token: argValue("token", ""),
   project: argValue("project", ""),
   snapshot: argValue("snapshot", ""),
@@ -101,7 +103,7 @@ const settings = createSettings(HOME);
  */
 const log = createLog(HOME);
 log.write("boot", "启动 v" + VERSION + " port " + options.port + " pid " + process.pid
-  + (process.env.MASTERGO_SUPERVISED === "1" ? "（受监督，监督进程 pid " + process.ppid + "）" : "")
+  + (process.env[SUPERVISED_ENV] === "1" ? "（受监督，监督进程 pid " + process.ppid + "）" : "")
   + " 安装根 " + HOME);
 /*
  * 上一次是不是正常退出：这一份在 logs/run.json 里留个记号，正常退出（含换版本的退出码 75）时自己摘掉。
@@ -271,7 +273,7 @@ const routes = createRoutes({
   uploads: uploads,
   token: tokenOf,
   tokenSource: tokenSource,
-  supervised: process.env.MASTERGO_SUPERVISED === "1",
+  supervised: process.env[SUPERVISED_ENV] === "1",
   isBusy: busyReason,
   version: VERSION,
   runs: runs,
@@ -318,7 +320,7 @@ server.on("error", function (error) {
 
 server.listen(options.port, options.host, function () {
   const actualPort = server.address().port;
-  const url = "http://" + options.host + ":" + actualPort + "/";
+  const url = baseUrl(options.host, actualPort) + "/";
   process.stdout.write("listening " + actualPort + "\n");
   process.stdout.write("MasterGo 转码客户端 v" + VERSION + ": " + url + "\n");
   process.stdout.write("插件: " + (PLUGIN.root || "（没找到）") + (PLUGIN.version ? "（v" + PLUGIN.version + "）" : "") + "\n");
@@ -341,9 +343,9 @@ server.listen(options.port, options.host, function () {
     + (frames.length ? " → " + frames.map((frame) => frame.fileId + "/" + frame.layerId + "(" + frame.from + ")").join(", ") : "") + "\n");
   // 后台自动检测新版：失败不出声，设置页自己按离线状态显示。
   void update.check({ silent: true });
-  // 之后每 10 分钟再查一次：界面顶上的「有新版」标注靠它保持新鲜。
+  // 之后按 lib/recheck.js 的节拍复查：界面顶上的「有新版」标注靠它保持新鲜。
   update.startWatch();
-  // 插件那一半启动时静默查一次，之后与程序更新同一节拍复查：插件页那一行会自己亮「有新版」。
+  // 插件那一半启动时静默查一次，之后与程序更新同一节拍复查（lib/recheck.js）：插件页那一行会自己亮「有新版」。
   void pluginUpdate.check({ silent: true });
   pluginUpdate.startWatch();
   void codex.check({ silent: true });

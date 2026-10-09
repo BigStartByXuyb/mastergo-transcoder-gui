@@ -147,7 +147,7 @@ func TestFetchZipUsesBlobFirst(t *testing.T) {
 }
 
 func TestMajorVersion(t *testing.T) {
-	if majorVersion("v24.21.0\n") != 24 {
+	if majorVersion("v1.2.3\n") != 1 {
 		t.Fatal("带 v 与前导空白的版本号要认出来")
 	}
 	if majorVersion("nonsense") != 0 {

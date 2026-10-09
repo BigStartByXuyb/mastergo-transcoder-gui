@@ -10,10 +10,10 @@ const os = require("os");
 const path = require("path");
 
 const {
-  createTokenSource, readConfigToken, tokenTrouble, tokenTroubleText
+  createTokenSource, readConfigToken, tokenTrouble, tokenTroubleText, TOKEN_ENV_KEY
 } = require("../lib/mcp-token.js");
 
-const ENV_KEY = "MASTERGO_MCP_TOKEN";
+const ENV_KEY = TOKEN_ENV_KEY;
 const ORIGINAL = process.env[ENV_KEY];
 
 const saved = (value) => ({ readMastergoToken: () => value });
@@ -80,14 +80,14 @@ function caseConfig() {
  * 流水线失败与控件查询都来这儿问（缺一份 / 被拒 / 与 token 无关）。
  */
 function caseTokenWording() {
-  const pluginWords = "缺少 MasterGo token：设置环境变量 MASTERGO_MCP_TOKEN，或用 -ConfigPath / CODEX_CONFIG 指向含 mastergo 配置的 config.toml（当前尝试: <config.toml 路径>；token 不会写入任何产物）";
+  const pluginWords = "缺少 MasterGo token：设置环境变量 " + ENV_KEY + "，或用 -ConfigPath / CODEX_CONFIG 指向含 mastergo 配置的 config.toml（当前尝试: <config.toml 路径>；token 不会写入任何产物）";
   const missing = tokenTrouble(pluginWords);
   assert.strictEqual(missing.code, "NEED_TOKEN");
   assert.match(missing.message, /缺少 MasterGo token/);
   assert.match(missing.hint, /设置 → MasterGo token/, "要说清去哪填");
 
   // 中文被控制台编码弄乱也不影响判据：认的是 ASCII 标记。
-  assert.strictEqual(tokenTrouble("??MasterGo token??MASTERGO_MCP_TOKEN??").code, "NEED_TOKEN");
+  assert.strictEqual(tokenTrouble("??MasterGo token??" + ENV_KEY + "??").code, "NEED_TOKEN");
 
   // 只提到配置文件、不关 token 的报错不许被认成这件事；两个标记都要。
   assert.strictEqual(tokenTrouble("config.toml 读不了：-ConfigPath 指向的文件不存在"), null);

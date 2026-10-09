@@ -9,9 +9,9 @@ describe("传输报文", () => {
       id: "c1",
       title: "看一下 F1"
     })
-    expect(parseAgentStreamLine('{"ok":true,"engine":{"version":"0.159.0","source":"managed","state":"verified"}}')).toEqual({
+    expect(parseAgentStreamLine('{"ok":true,"engine":{"version":"1.2.3","source":"managed","state":"verified"}}')).toEqual({
       kind: "engine",
-      version: "0.159.0",
+      version: "1.2.3",
       source: "managed",
       state: "verified"
     })

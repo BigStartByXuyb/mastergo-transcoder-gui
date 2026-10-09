@@ -13,7 +13,7 @@ const path = require("path");
 const { PassThrough } = require("stream");
 const zlib = require("zlib");
 
-const { createCodex } = require("../lib/codex.js");
+const { createCodex, KEY_ENV, PINNED_VERSION } = require("../lib/codex.js");
 const { describeRelease, fetchRelease, versionOfTag } = require("../lib/codex-release.js");
 const { createPluginHomes, PLUGIN_ENV_NAME } = require("../lib/plugin-root.js");
 
@@ -104,7 +104,7 @@ function fakeSettings(overrides) {
 // 本机那份 codex 的探测结果；默认这台机器上什么都没有。
 function probe(stdout, extra) {
   return function () {
-    return Object.assign({ status: 0, stdout: stdout || "codex-cli 0.159.0\n", stderr: "" }, extra || {});
+    return Object.assign({ status: 0, stdout: stdout || "codex-cli 1.2.3\n", stderr: "" }, extra || {});
   };
 }
 
@@ -129,26 +129,26 @@ async function main() {
   }
 
   // ---- 发行版折算 ----
-  assert.strictEqual(versionOfTag("rust-v0.159.0"), "0.159.0");
-  assert.throws(function () { versionOfTag("v0.159.0"); }, /rust-v/);
+  assert.strictEqual(versionOfTag("rust-v1.2.3"), "1.2.3");
+  assert.throws(function () { versionOfTag("v1.2.3"); }, /rust-v/);
 
-  const full = makeRelease("0.159.0", BINARIES);
+  const full = makeRelease("1.2.3", BINARIES);
   const described = describeRelease(full.json);
-  assert.strictEqual(described.version, "0.159.0");
-  assert.strictEqual(described.tag, "rust-v0.159.0");
+  assert.strictEqual(described.version, "1.2.3");
+  assert.strictEqual(described.tag, "rust-v1.2.3");
   assert.deepStrictEqual(Object.keys(described.files).sort(), BINARIES.map((name) => name + ".exe").sort());
   assert.deepStrictEqual(described.missing, []);
   assert.strictEqual(described.files["codex.exe"], sha256(full.exes.get("codex")), "清单里记的是解压后的哈希");
   assert.strictEqual(described.sources["codex.exe"].sha256, sha256(full.packed.get("codex-" + CHANNEL + ".exe.zst")));
-  assert.match(described.sources["codex.exe"].url, /releases\/download\/rust-v0\.159\.0\/codex-x86_64-pc-windows-msvc\.exe\.zst$/);
+  assert.match(described.sources["codex.exe"].url, /releases\/download\/rust-v1\.2\.3\/codex-x86_64-pc-windows-msvc\.exe\.zst$/);
   assert.match(described.sources["codex.exe"].asset, /\.exe\.zst$/);
 
-  const partial = describeRelease(makeRelease("0.159.0", ["codex"]).json);
+  const partial = describeRelease(makeRelease("1.2.3", ["codex"]).json);
   assert.deepStrictEqual(partial.missing.sort(), BINARIES.filter((name) => name !== "codex").sort());
   assert.throws(function () {
-    describeRelease(makeRelease("0.159.0", ["codex-command-runner"]).json);
+    describeRelease(makeRelease("1.2.3", ["codex-command-runner"]).json);
   }, /没有 Windows x64 的 codex 程序/);
-  assert.throws(function () { describeRelease({ tag_name: "rust-v0.159.0", assets: [] }); }, /没有 Windows x64 的 codex 程序/);
+  assert.throws(function () { describeRelease({ tag_name: "rust-v1.2.3", assets: [] }); }, /没有 Windows x64 的 codex 程序/);
 
   let askedHeaders = null;
   let askedUrl = "";
@@ -159,41 +159,43 @@ async function main() {
       return full.json;
     }
   });
-  assert.strictEqual(fetched.version, "0.159.0");
+  assert.strictEqual(fetched.version, "1.2.3");
   assert.match(askedUrl, /repos\/openai\/codex\/releases\/latest$/);
   assert.strictEqual(askedHeaders.accept, "application/vnd.github+json");
   assert.strictEqual(askedHeaders["user-agent"], "mastergo-transcoder-gui");
 
   let taggedUrl = "";
-  await fetchRelease({ fetchJson: async function (url) { taggedUrl = url; return full.json; }, tag: "rust-v0.159.0" });
-  assert.match(taggedUrl, /releases\/tags\/rust-v0\.159\.0$/);
+  await fetchRelease({ fetchJson: async function (url) { taggedUrl = url; return full.json; }, tag: "rust-v1.2.3" });
+  assert.match(taggedUrl, /releases\/tags\/rust-v1\.2\.3$/);
 
-  // ---- 检查版本 ----
+  // ---- 检查版本（远端给的就是钉死那一版：这一段的判据是「同号不算新」）----
   const home = makeHome();
-  const remote = fakeRemote([full]);
+  const pinnedRelease = makeRelease(PINNED_VERSION, BINARIES);
+  const remote = fakeRemote([pinnedRelease]);
   const codex = makeCodex({
     home: home,
     settings: fakeSettings(),
     fetchImpl: remote.fetchImpl,
-    spawnSyncImpl: probe(),
+    // 远端那份就是钉死那一版：自检探测到的版本也要与它一致。
+    spawnSyncImpl: probe("codex-cli " + PINNED_VERSION + "\n"),
     env: cleanEnv(home),
     now: function () { return "2026-09-30T00:00:00.000Z"; }
   });
 
   const empty = codex.status();
-  assert.strictEqual(empty.pinned, "0.159.0");
+  assert.strictEqual(empty.pinned, PINNED_VERSION, "报给界面的钉死版本来自真值源");
   assert.strictEqual(empty.engine, null);
   assert.deepStrictEqual(empty.versions, []);
   assert.deepStrictEqual(empty.system, []);
   assert.strictEqual(empty.release, null);
   assert.strictEqual(empty.busy, "");
   assert.strictEqual(empty.error, null);
-  assert.strictEqual(empty.isolated.keyEnv, "MASTERGO_CODEX_KEY");
+  assert.strictEqual(empty.isolated.keyEnv, KEY_ENV);
   assert.throws(function () { codex.startDownload(); }, /还没有检查过/);
 
   const checked = await codex.check();
-  assert.strictEqual(checked.release.version, "0.159.0");
-  assert.strictEqual(checked.release.tag, "rust-v0.159.0");
+  assert.strictEqual(checked.release.version, PINNED_VERSION);
+  assert.strictEqual(checked.release.tag, "rust-v" + PINNED_VERSION);
   assert.strictEqual(checked.release.checkedAt, "2026-09-30T00:00:00.000Z");
   assert.strictEqual(checked.release.newer, false, "和钉死的这一版同号就不算新");
   assert.deepStrictEqual(checked.release.missing, []);
@@ -201,7 +203,7 @@ async function main() {
   // ---- 按需下载 ----
   const started = codex.startDownload();
   assert.strictEqual(started.started, true);
-  assert.strictEqual(started.version, "0.159.0");
+  assert.strictEqual(started.version, PINNED_VERSION);
   assert.throws(function () { codex.startDownload(); }, /已经在下载了/, "同一时刻只跑一次下载");
 
   let after = await settle(codex);
@@ -210,18 +212,18 @@ async function main() {
   assert.strictEqual(after.task.downloaded, 4, "四个程序都要下");
   assert.strictEqual(after.task.error, null);
   assert.strictEqual(after.versions.length, 1);
-  assert.strictEqual(after.versions[0].version, "0.159.0");
+  assert.strictEqual(after.versions[0].version, PINNED_VERSION);
   assert.strictEqual(after.versions[0].ready, true);
   assert.strictEqual(after.versions[0].state, "verified", "下载完自检通过就记 verified");
-  assert.strictEqual(after.versions[0].note, "0.159.0", "自检记下的是探测到的版本号");
+  assert.strictEqual(after.versions[0].note, PINNED_VERSION, "自检记下的是探测到的版本号");
   assert.strictEqual(after.versions[0].active, true);
   assert.strictEqual(after.engine.source, "managed");
-  assert.strictEqual(after.engine.version, "0.159.0");
+  assert.strictEqual(after.engine.version, PINNED_VERSION);
   assert.strictEqual(after.engine.state, "verified");
 
-  const exePath = path.join(home, "agents", "codex", "versions", "0.159.0", "codex.exe");
+  const exePath = path.join(home, "agents", "codex", "versions", PINNED_VERSION, "codex.exe");
   assert.ok(fs.existsSync(exePath), "解压后的程序要落在版本目录里");
-  assert.strictEqual(fs.readFileSync(exePath, "utf8"), "codex@0.159.0");
+  assert.strictEqual(fs.readFileSync(exePath, "utf8"), "codex@" + PINNED_VERSION);
   assert.ok(fs.existsSync(path.join(home, "agents", "codex", "release.json")));
   assert.ok(fs.existsSync(path.join(home, "agents", "codex", "known.json")));
 
@@ -230,7 +232,7 @@ async function main() {
   assert.strictEqual(again.note, "本地已经有这一版");
 
   // ---- 切换与回退 ----
-  assert.throws(function () { codex.switchTo("0.159.0"); }, /已经在用 0\.159\.0/);
+  assert.throws(function () { codex.switchTo(PINNED_VERSION); }, new RegExp("已经在用 " + PINNED_VERSION.replace(/\./g, "\\.")));
   assert.throws(function () { codex.switchTo("9.9.9"); }, /本地没有 Codex 9\.9\.9/);
   assert.throws(function () { codex.switchTo(""); }, /本机没有检测到 Codex/);
 
@@ -256,17 +258,17 @@ async function main() {
   const toSystem = withSystem.switchTo("");
   assert.strictEqual(toSystem.ok, true);
   assert.strictEqual(toSystem.version, "");
-  assert.strictEqual(toSystem.previous, "0.159.0", "记下切走之前用的那一份，供回退");
+  assert.strictEqual(toSystem.previous, PINNED_VERSION, "记下切走之前用的那一份，供回退");
   assert.strictEqual(withSystem.status().engine.source, "system");
   assert.throws(function () { withSystem.switchTo(""); }, /已经在用本机那份/);
 
   const rolled = withSystem.rollback();
-  assert.strictEqual(rolled.version, "0.159.0", "回退 = 回到切走之前的那一份");
+  assert.strictEqual(rolled.version, PINNED_VERSION, "回退 = 回到切走之前的那一份");
   assert.strictEqual(withSystem.status().engine.source, "managed");
   assert.throws(function () { withSystem.rollback(); }, /没有可回退/, "退完一次就把指针清掉");
 
   withSystem.switchTo("");
-  assert.strictEqual(withSystem.switchTo("0.159.0").previous, "", "从本机版切回下载版时没有上一份下载版可记");
+  assert.strictEqual(withSystem.switchTo(PINNED_VERSION).previous, "", "从本机版切回下载版时没有上一份下载版可记");
 
   // 探测失败：拿不到版本号的本机程序不算候选。
   const brokenProbeHome = makeHome();
@@ -314,7 +316,7 @@ async function main() {
   });
   const busyStatus = busyCodex.status();
   assert.strictEqual(busyStatus.busy, "1 次流水线正在跑");
-  assert.throws(function () { busyCodex.switchTo("0.159.0"); }, /有任务在跑/);
+  assert.throws(function () { busyCodex.switchTo("1.2.3"); }, /有任务在跑/);
   assert.throws(function () { busyCodex.rollback(); }, /有任务在跑/);
 
   // ---- 下载失败与坏档 ----
@@ -335,7 +337,7 @@ async function main() {
   assert.strictEqual(failed.task.phase, "error");
   assert.strictEqual(failed.task.error.code, "HTTP_404");
   assert.strictEqual(failed.versions.length, 0);
-  assert.throws(function () { failCodex.switchTo("0.159.0"); }, /本地没有 Codex 0\.159\.0/);
+  assert.throws(function () { failCodex.switchTo("1.2.3"); }, /本地没有 Codex 1\.2\.3/);
 
   // 压缩包与发布页摘要不符：拒收，不落盘。
   const badHome = makeHome();
@@ -368,7 +370,7 @@ async function main() {
   fs.mkdirSync(path.join(oddHome, "agents", "codex"), { recursive: true });
   fs.writeFileSync(
     path.join(oddHome, "agents", "codex", "release.json"),
-    JSON.stringify({ release: { version: "0.159.0", tag: "rust-v0.159.0", files: { "codex.exe": sha256(Buffer.from("x")) }, sources: {} }, checkedAt: "x" }),
+    JSON.stringify({ release: { version: "1.2.3", tag: "rust-v1.2.3", files: { "codex.exe": sha256(Buffer.from("x")) }, sources: {} }, checkedAt: "x" }),
     "utf8"
   );
   oddCodex.startDownload();
@@ -414,8 +416,8 @@ async function main() {
 
   // 目录里混进没有主程序的版本、和拼到一半的目录：都不算版本。
   fs.mkdirSync(path.join(home, "agents", "codex", "versions", "0.0.1"), { recursive: true });
-  fs.mkdirSync(path.join(home, "agents", "codex", "versions", ".building-0.159.0-1"), { recursive: true });
-  assert.deepStrictEqual(codex.status().versions.map((item) => item.version), ["0.159.0"]);
+  fs.mkdirSync(path.join(home, "agents", "codex", "versions", ".building-" + PINNED_VERSION + "-1"), { recursive: true });
+  assert.deepStrictEqual(codex.status().versions.map((item) => item.version), [PINNED_VERSION]);
 
   // 缓存写歪（release.json / known.json / current.json 都不是合法 JSON）：照常出状态，不炸。
   fs.writeFileSync(path.join(home, "agents", "codex", "release.json"), "{不是 JSON", "utf8");
@@ -450,10 +452,10 @@ async function main() {
   assert.ok(prepared.args.includes("model_providers.deepseek.name=deepseek"));
   assert.ok(prepared.args.includes("model_providers.deepseek.base_url=https://api.deepseek.com"));
   assert.ok(prepared.args.includes("model_providers.deepseek.wire_api=responses"));
-  assert.ok(prepared.args.includes("model_providers.deepseek.env_key=MASTERGO_CODEX_KEY"));
+  assert.ok(prepared.args.includes("model_providers.deepseek.env_key=" + KEY_ENV));
   assert.ok(prepared.args.includes("model=deepseek-chat"));
   assert.ok(prepared.args[prepared.args.length - 1].endsWith("你好"));
-  assert.strictEqual(prepared.env.MASTERGO_CODEX_KEY, "sk-test");
+  assert.strictEqual(prepared.env[KEY_ENV], "sk-test");
   assert.ok(prepared.args.includes("danger-full-access"));
   assert.match(prepared.args[prepared.args.length - 1], /^\[只读\]/);
 
@@ -599,7 +601,7 @@ async function main() {
   assert.strictEqual(spawns[0].options.cwd, home);
   assert.strictEqual(spawns[0].options.env.CODEX_HOME, path.join(home, "agents", "codex", "home"));
   assert.strictEqual(spawns[0].options.env.RUST_LOG, "error");
-  assert.strictEqual(spawns[0].options.env.MASTERGO_CODEX_KEY, "sk-test");
+  assert.strictEqual(spawns[0].options.env[KEY_ENV], "sk-test");
   assert.ok(fs.existsSync(path.join(home, "agents", "codex", "home")), "自己的 CODEX_HOME 要真的建出来");
 
   assert.throws(function () { runner.run(job.args, { cwd: path.join(home, "没有这个目录") }); }, /工程目录不存在/);

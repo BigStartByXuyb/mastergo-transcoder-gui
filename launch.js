@@ -9,14 +9,14 @@
  * 所以子进程收到切换请求就以 RESTART_CODE 退出，这里按新指针重新起一份 —— 用户不必自己去重启。
  * 子进程正常结束（关窗口、Ctrl+C、出错）时，这里原样退出。
  *
- * 谁在用：start.cmd 调它。子进程的 MASTERGO_HOME 始终指向安装根，
+ * 谁在用：start.cmd 调它。子进程的安装根环境变量（HOME_ENV）始终指向安装根，
  * 所以 local.json / credentials / board.json / chats.json / versions 永远是同一份。
  */
 
 const { spawn } = require("child_process");
 const path = require("path");
 
-const { resolveLaunch, RESTART_CODE, childArgs } = require("./lib/launch.js");
+const { resolveLaunch, RESTART_CODE, childArgs, SUPERVISED_ENV, HOME_ENV } = require("./lib/launch.js");
 
 const HOME = __dirname;
 /*
@@ -28,7 +28,11 @@ const HOME = __dirname;
  */
 
 function childEnv() {
-  return Object.assign({}, process.env, { MASTERGO_HOME: HOME, MASTERGO_SUPERVISED: "1" });
+  /*
+   * 壳只用自己拥有的两份文件（本文件 + lib/launch.js）：两个名字都从 lib/launch.js 取；
+   * 启动器那一侧（tools/launcher/main.go，另一个语言）只按同一个名字再写一次安装根那一个。
+   */
+  return Object.assign({}, process.env, { [HOME_ENV]: HOME, [SUPERVISED_ENV]: "1" });
 }
 
 function runOnce(target, firstBoot) {

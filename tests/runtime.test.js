@@ -20,6 +20,7 @@ const {
   resolvePwshExe,
   requireNodeExe,
   requirePwshExe,
+  PWSH_ENV,
   assetUrl,
   childEnv,
   TOOLS
@@ -282,19 +283,19 @@ async function main() {
 
   // ---- 跑插件脚本用哪一份 pwsh：环境变量 > 自带 > 允许时系统 PATH ----
   const pwshHome = makeHome();
-  const savedCustom = process.env.MASTERGO_PWSH;
+  const savedCustom = process.env[PWSH_ENV];
   try {
-    process.env.MASTERGO_PWSH = "C:\\custom\\pwsh.exe";
+    process.env[PWSH_ENV] = "C:\\custom\\pwsh.exe";
     assert.strictEqual(resolvePwshExe(pwshHome), "C:\\custom\\pwsh.exe", "环境变量最优先（显式指定）");
-    delete process.env.MASTERGO_PWSH;
+    delete process.env[PWSH_ENV];
     const realPwsh = path.join(pwshHome, "runtime", "pwsh", TOOLS.pwsh.version);
     fs.mkdirSync(realPwsh, { recursive: true });
     fs.writeFileSync(path.join(realPwsh, "pwsh.exe"), "");
     assert.strictEqual(resolvePwshExe(pwshHome), path.join(realPwsh, "pwsh.exe"), "有自带就用自带的");
   }
   finally {
-    if (savedCustom === undefined) delete process.env.MASTERGO_PWSH;
-    else process.env.MASTERGO_PWSH = savedCustom;
+    if (savedCustom === undefined) delete process.env[PWSH_ENV];
+    else process.env[PWSH_ENV] = savedCustom;
   }
 
   /*
@@ -318,7 +319,7 @@ async function main() {
   assert.strictEqual(explicitPath[0], path.dirname(givenNode), "显式给的那份排最前");
   assert.strictEqual(explicitPath[1], path.dirname(givenPwsh), "第二份紧随其后");
 
-  // 裸命令名（环境变量 MASTERGO_PWSH 可以这么写）：绝不能用 dirname 得到 "." 塞进 PATH。
+  // 裸命令名（那个环境变量可以这么写）：绝不能用 dirname 得到 "." 塞进 PATH。
   const barePathEnv = childEnv(null, makeHome(), { node: "node", pwsh: "pwsh" });
   assert.strictEqual(pathOf(barePathEnv), process.env.PATH, "裸命令名不往 PATH 里加任何东西");
   assert.ok(childPath.length > 1, "系统 PATH 原样接在自带的两份后面");
@@ -363,12 +364,12 @@ async function main() {
     for (const name of ["pwsh", "pwsh.exe"]) fs.writeFileSync(path.join(pathDir, name), "");
     const sysPwsh = createRuntime({
       home: makeHome(),
-      spawnSyncImpl: fakeSpawn([{ match: "pwsh", result: { status: 0, stdout: "7.6.6", stderr: "" } }]),
+      spawnSyncImpl: fakeSpawn([{ match: "pwsh", result: { status: 0, stdout: "9.9.9", stderr: "" } }]),
       env: { PATH: pathDir }
     });
     const sysPwshRow = sysPwsh.status().tools[1];
     assert.strictEqual(sysPwshRow.source, "system");
-    assert.strictEqual(sysPwshRow.version, "7.6.6");
+    assert.strictEqual(sysPwshRow.version, "9.9.9");
     assert.strictEqual(sysPwshRow.ready, true);
     // 报出来的必须是 PATH 上那一个（目录对、名字是 pwsh）：不在断言里另抄一份平台命名规则。
     assert.strictEqual(path.dirname(sysPwshRow.system.path), pathDir, "系统那份要报出它到底是哪一个");
@@ -388,7 +389,7 @@ async function main() {
   for (const name of ["node", "node.exe"]) fs.writeFileSync(path.join(sysDir, name), "");
   const shadowed = createRuntime({
     home: shadowHome,
-    spawnSyncImpl: fakeSpawn([{ match: "node", result: { status: 0, stdout: "v24.14.0", stderr: "" } }]),
+    spawnSyncImpl: fakeSpawn([{ match: "node", result: { status: 0, stdout: "v9.9.9", stderr: "" } }]),
     env: { PATH: [oursDir, sysDir].join(path.delimiter) }
   });
   const shadowFound = shadowed.status().tools[0].system;
@@ -404,12 +405,12 @@ async function main() {
   fs.writeFileSync(path.join(systemRoot, "nodejs", "node.exe"), "");
   const byLocation = createRuntime({
     home: makeHome(),
-    spawnSyncImpl: fakeSpawn([{ match: "node", result: { status: 0, stdout: "v24.14.0", stderr: "" } }]),
+    spawnSyncImpl: fakeSpawn([{ match: "node", result: { status: 0, stdout: "v9.9.9", stderr: "" } }]),
     env: { ProgramFiles: systemRoot }
   });
   const byLocationRow = byLocation.status().tools[0];
   assert.strictEqual(byLocationRow.system.ok, true, "PATH 上没有时按官方安装位置找");
-  assert.strictEqual(byLocationRow.system.version, "24.14.0");
+  assert.strictEqual(byLocationRow.system.version, "9.9.9");
   assert.strictEqual(byLocationRow.system.path, path.join(systemRoot, "nodejs", "node.exe"));
 
   // 自带那份在，但自检出来的版本不对：不许当它是好的，且提示重下。

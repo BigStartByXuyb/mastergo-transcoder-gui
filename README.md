@@ -30,7 +30,7 @@ node server.js --token mg_xxx                  # 覆盖取值链第一级；不�
 npm install                    # 首次：后端依赖
 npm --prefix ui install        # 首次：前端依赖
 npm run api                    # 起后端（8787，不打开浏览器）
-npm run dev:ui                 # 另开一个窗口：Vite dev server（5173），/api 代理到 8787
+npm run dev:ui                 # 另开一个窗口：Vite dev server（端口看它打印的地址），/api 代理到 8787（换后端地址设 API_TARGET）
 npm run build:ui               # 构建前端 → public/
 ```
 

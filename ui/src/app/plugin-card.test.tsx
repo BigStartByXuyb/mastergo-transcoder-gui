@@ -10,7 +10,7 @@ import { INSTALLED_ROOT, INSTALL_PARENT, PLUGIN_SOURCE_BASE, drive, pluginUpdate
  * 这一页只读与查看 —— 没有任何「换用某一档」的动作；只有「客户端自带」那一档带管理面板
  * （检查更新 / 下载并安装 / 更新来源）。
  * 档位的名字与那句话都由后端给，界面只渲染：夹具一律用夹具名（真名与那句话以 lib/plugin-root.js 的
- * pluginPlaces() 为准，另有 tests/docs-consistency.test.js 比着 pluginSources() 逐字锁）。
+ * pluginPlaces() 为准，另有 tests/consistency.test.js 比着 pluginSources() 逐字锁）。
  *
  * 夹具路径按段拼（drive 在 settings-fixtures 里）：源码里不出现「盘符 + 反斜杠」那种机器专属写法。
  */

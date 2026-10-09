@@ -73,7 +73,7 @@ async function main() {
    * 网址走同一处映射：Windows 上换的是 cmd 的 start（URL 交给默认浏览器，explorer 不干这件事），
    * 另两个平台与打开目录同一条命令 —— 「哪个平台用哪条命令」只写一份，就是这里。
    */
-  const page = "http://127.0.0.1:8787/";
+  const page = "http://example.test/";
   const browsed = fakeSpawn();
   assert.deepStrictEqual(await openUrl(page, { platform: "win32", spawnImpl: browsed.spawnImpl }), { ok: true, reason: "" });
   assert.strictEqual(browsed.calls[0].command, "cmd");
