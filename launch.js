@@ -16,7 +16,7 @@
 const { spawn } = require("child_process");
 const path = require("path");
 
-const { resolveLaunch, RESTART_CODE, childArgs, SUPERVISED_ENV } = require("./lib/launch.js");
+const { resolveLaunch, RESTART_CODE, childArgs, SUPERVISED_ENV, HOME_ENV } = require("./lib/launch.js");
 
 const HOME = __dirname;
 /*
@@ -29,10 +29,10 @@ const HOME = __dirname;
 
 function childEnv() {
   /*
-   * 壳只用自己拥有的两份文件：安装根那个变量名（HOME_ENV）由启动器那一侧（tools/launcher/main.go）
-   * 与本文件各写一次；「受监督」那个名字从 lib/launch.js 取（launch.js 与 server.js 都读它）。
+   * 壳只用自己拥有的两份文件（本文件 + lib/launch.js）：两个名字都从 lib/launch.js 取，
+   * 只有启动器那一侧（tools/launcher/main.go，另一个语言）按同一个名字再写一次。
    */
-  return Object.assign({}, process.env, { MASTERGO_HOME: HOME, [SUPERVISED_ENV]: "1" });
+  return Object.assign({}, process.env, { [HOME_ENV]: HOME, [SUPERVISED_ENV]: "1" });
 }
 
 function runOnce(target, firstBoot) {

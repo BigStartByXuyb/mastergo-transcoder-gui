@@ -7,8 +7,8 @@ import type { ProxyOptions } from "vite"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
-// 开发时前端跑在 5173，/api 代理到后端。后端地址由起服务那一侧给（仓库根的 npm run dev:ui
-// 会把地址设进下面那个环境变量），ui 这个包不读后端源码。
+// 开发时前端由 Vite 起（端口用它的默认值，看它打印的地址），/api 代理到后端。
+// 后端地址由起服务那一侧给（仓库根的 npm run dev:ui 会把地址设进下面那个环境变量），ui 这个包不读后端源码。
 // 生产构建直接输出到仓库根的 public/，由 server.js 提供，不再需要 Vite。
 export default defineConfig(({ command }) => ({
   plugins: [react(), tailwindcss()],
