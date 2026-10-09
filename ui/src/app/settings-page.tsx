@@ -12,7 +12,6 @@ import { TabButton } from "@/app/tab-button"
  * 子页挂在 `#settings?tab=<key>` 上，切页、刷新、从别处链接进来都落在同一页。
  *
  * 插件与更新是同一件事的两段（谁在更新、更新谁），合并进「更新」一页：`&part=client|plugin`。
- * `tab=plugin` 这个深链也认（不废已经发出去的链接），落到同一页的插件那一段。
  */
 
 const TABS = [
