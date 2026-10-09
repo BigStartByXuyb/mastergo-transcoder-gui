@@ -16,6 +16,9 @@ const os = require("os");
 const path = require("path");
 
 const { pluginSources, PLUGIN_ENV_NAME } = require("../lib/plugin-root.js");
+const { DEFAULT_PORT } = require("../lib/config.js");
+const { TOKEN_ENV_KEY } = require("../lib/mcp-token.js");
+const { TOOLS } = require("../lib/runtime.js");
 
 const ROOT = path.join(__dirname, "..");
 const SELF = "tests/consistency.test.js";
@@ -113,18 +116,18 @@ function caseTierTableMatchesCode() {
 
 /*
  * 字面量只有一个住处：值只在真值源定义一次，说明里写它的只有那一份权威文档，别处走常量。
- * 加一条 = 加一行；换了真值源 = 改 home。（本文件自己要写这些字面量来比对，所以跳过自己。）
+ * 值本身从真值源读出来，不在这里另抄一遍；加一条 = 加一行；换了真值源 = 改 home。
  */
 const SINGLE_SOURCE = [
   { value: PLUGIN_ENV_NAME, home: ["lib/plugin-root.js", TIERS_DOC], what: "插件根环境变量名" },
-  { value: "MASTERGO_MCP_TOKEN", home: ["lib/mcp-token.js", README], what: "MasterGo token 环境变量名" },
-  { value: "8787", home: ["lib/config.js", README], what: "服务默认端口" },
-  { value: "24.21.0", home: ["lib/runtime.js"], what: "钉死的 Node 版本" },
-  { value: "7.6.6", home: ["lib/runtime.js"], what: "钉死的 PowerShell 7 版本" }
+  { value: TOKEN_ENV_KEY, home: ["lib/mcp-token.js", README], what: "MasterGo token 环境变量名" },
+  { value: String(DEFAULT_PORT), home: ["lib/config.js", README], what: "服务默认端口" },
+  { value: TOOLS.node.version, home: ["lib/runtime.js"], what: "钉死的 Node 版本" },
+  { value: TOOLS.pwsh.version, home: ["lib/runtime.js"], what: "钉死的 PowerShell 7 版本" }
 ];
 
 function caseSingleSource() {
-  const files = scannedFiles().filter(function (rel) { return rel !== SELF; });
+  const files = scannedFiles();
   const text = new Map(files.map(function (rel) { return [rel, read(rel)]; }));
   for (const fact of SINGLE_SOURCE) {
     assert.ok(
@@ -192,7 +195,7 @@ function caseFactsHaveOneHome() {
 function caseNoTierListCopy() {
   const labels = truth().map(function (source) { return source.label.replace(/`/g, ""); });
   for (const rel of scannedFiles()) {
-    if (rel === TIERS_DOC || rel === SELF) continue;
+    if (rel === TIERS_DOC) continue;
     const copied = read(rel).split(/\r?\n/).filter(function (line) {
       if (/^\|\s*第几档\s*\|/.test(line.trim())) return true;
       const hits = labels.filter(function (label) { return line.includes(label); }).length;
