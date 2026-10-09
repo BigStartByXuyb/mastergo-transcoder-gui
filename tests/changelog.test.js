@@ -32,6 +32,33 @@ function caseRepoFile() {
   assert.ok(buildManifest(ROOT, version).files["changelog.json"], "changelog.json 要进运行树清单");
 }
 
+/*
+ * 源里写的与读端认出来的一致：形状不全的能力项（缺 id 或 label）会被读端静默丢掉，
+ * 于是「这一版加了什么」在回退弹窗里凭空少一条 —— 按「源里几条 = 读出来几条」当场挡。
+ */
+function caseRepoFeaturesComplete() {
+  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, "changelog.json"), "utf8"));
+  const parsed = readChangelog(ROOT);
+  assert.strictEqual(parsed.length, raw.length, "changelog.json 每条都要能读出来");
+  parsed.forEach(function (entry, index) {
+    const source = raw[index];
+    // features / drops 只认数组；写成别的形状读端会当空表，这里当场挡。
+    for (const field of ["features", "drops"]) {
+      assert.ok(
+        source[field] === undefined || Array.isArray(source[field]),
+        "changelog.json 里 " + entry.version + " 的 " + field + " 要写成数组"
+      );
+    }
+    const want = Array.isArray(source.features) ? source.features.length : 0;
+    assert.strictEqual(
+      entry.features.length,
+      want,
+      "changelog.json 里 " + entry.version + " 写了 " + want + " 条能力，读出来只有 " + entry.features.length +
+        " 条（每条能力要有 id 与 label）"
+    );
+  });
+}
+
 function caseShapes() {
   const dir = tempDir('[{"version":"1.0.0","date":"2026-01-01","notes":["a","b"]},{"version":"0.9.0"}]');
   assert.deepStrictEqual(notesOf(dir, "1.0.0"), ["a", "b"]);
@@ -53,7 +80,12 @@ function caseBadInput() {
 }
 
 try {
-  for (const [name, run] of [["仓库里那份", caseRepoFile], ["形状", caseShapes], ["坏输入", caseBadInput]]) {
+  for (const [name, run] of [
+    ["仓库里那份", caseRepoFile],
+    ["能力项读端不丢", caseRepoFeaturesComplete],
+    ["形状", caseShapes],
+    ["坏输入", caseBadInput]
+  ]) {
     run();
     console.log("  ok  " + name);
   }
