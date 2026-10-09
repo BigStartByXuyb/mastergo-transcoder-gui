@@ -133,7 +133,7 @@ const SINGLE_SOURCE = [
   {
     value: API_TARGET_ENV,
     kind: "name",
-    home: ["lib/config.js", "scripts/dev-ui.js", "ui/vite.config.ts", README],
+    home: ["lib/config.js", "ui/vite.config.ts", README],
     what: "开发代理的地址变量名"
   },
   { value: String(DEFAULT_PORT), kind: "number", home: ["lib/config.js", README], what: "服务默认端口" },
@@ -147,7 +147,7 @@ function caseSingleSource() {
   const boundary = {
     name: ["(?<![A-Za-z0-9_])", "(?![A-Za-z0-9_])"],
     version: ["(?<![\\d.])", "(?![\\d.])"],
-    number: ["(?<!\\d)", "(?!\\d)"]
+    number: ["(?<![\\d.])", "(?![\\d.])"]
   };
   const mentions = function (body, fact) {
     const escaped = String(fact.value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
