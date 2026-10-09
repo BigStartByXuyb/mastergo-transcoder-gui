@@ -21,7 +21,8 @@
 
 根条目清单（与上表合起来，就是允许出现在仓库顶层的全部条目）：
 `node_modules/`、[`README.md`](../README.md)、[`AGENTS.md`](../AGENTS.md)、`package.json`、`package-lock.json`、`changelog.json`、`start.cmd`、
-`mastergo-transcoder.exe`、`runtime-assets.json`、`local.json`、`credentials*`、`board.json`、`chats.json`、`current.json` 与 `ui/` 自己的配置文件。
+`mastergo-transcoder.exe`、`runtime-assets.json`、`local.json`、`credentials`、`mastergo-credentials`、
+按发布源派生的 `*-credentials`、`board.json`、`chats.json`、`current.json` 与 `ui/` 自己的配置文件。
 新加顶层条目要同一次写进这两处之一。
 
 ## 依赖方向
