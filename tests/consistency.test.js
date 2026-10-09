@@ -16,7 +16,7 @@ const os = require("os");
 const path = require("path");
 
 const { pluginSources, PLUGIN_ENV_NAME } = require("../lib/plugin-root.js");
-const { DEFAULT_PORT } = require("../lib/config.js");
+const { DEFAULT_PORT, API_TARGET_ENV } = require("../lib/config.js");
 const { TOKEN_ENV_KEY } = require("../lib/mcp-token.js");
 const { TOOLS } = require("../lib/runtime.js");
 
@@ -122,19 +122,25 @@ const SINGLE_SOURCE = [
   { value: TOKEN_ENV_KEY, home: ["lib/mcp-token.js", README], what: "MasterGo token 环境变量名" },
   { value: String(DEFAULT_PORT), home: ["lib/config.js", README], what: "服务默认端口" },
   { value: TOOLS.node.version, home: ["lib/runtime.js"], what: "钉死的 Node 版本" },
-  { value: TOOLS.pwsh.version, home: ["lib/runtime.js"], what: "钉死的 PowerShell 7 版本" }
+  { value: TOOLS.pwsh.version, home: ["lib/runtime.js"], what: "钉死的 PowerShell 7 版本" },
+  { value: API_TARGET_ENV, home: ["lib/config.js", README], what: "开发代理换地址的那个变量名" }
 ];
 
 function caseSingleSource() {
   const files = scannedFiles();
   const text = new Map(files.map(function (rel) { return [rel, read(rel)]; }));
+  // 按「独立的一段」找：同一个名字加后缀（如 X 与 X_ENV）不该被算成两处。
+  const mentions = function (body, value) {
+    const escaped = String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp("(?<![\\w])" + escaped + "(?![\\w])").test(body);
+  };
   for (const fact of SINGLE_SOURCE) {
     assert.ok(
-      fact.home.some(function (rel) { return text.has(rel) && text.get(rel).includes(fact.value); }),
+      fact.home.some(function (rel) { return text.has(rel) && mentions(text.get(rel), fact.value); }),
       fact.what + "（" + fact.value + "）在它该在的地方没有出现：" + fact.home.join("、")
     );
     const others = files.filter(function (rel) {
-      return !fact.home.includes(rel) && text.get(rel).includes(fact.value);
+      return !fact.home.includes(rel) && mentions(text.get(rel), fact.value);
     });
     assert.deepStrictEqual(
       others,
