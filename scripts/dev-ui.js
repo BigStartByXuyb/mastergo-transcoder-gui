@@ -18,7 +18,11 @@ const { DEFAULT_HOST, DEFAULT_PORT, API_TARGET_ENV, baseUrl } = require("../lib/
 const env = Object.assign({}, process.env);
 env[API_TARGET_ENV] = env[API_TARGET_ENV] || baseUrl(DEFAULT_HOST, DEFAULT_PORT);
 
-const child = spawn("npm", ["--prefix", "ui", "run", "dev"], {
+/*
+ * 直接调 ui 包里那份 Vite（`npm --prefix ui exec -- vite`）：起前端只有这一个入口，
+ * ui 那个包不再自带一条不带代理的 dev 脚本。
+ */
+const child = spawn("npm", ["--prefix", "ui", "exec", "--", "vite"], {
   cwd: path.join(__dirname, ".."),
   stdio: "inherit",
   shell: true,
