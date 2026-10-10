@@ -148,37 +148,51 @@ export function usePendingInputs(input: {
     })
   }, [runAi, pending, namingItemsOf])
 
+  /*
+   * 译文与术语同形：问模型「每条文本 → 一个值」，落进对应的那张草稿，再交回填了的那些（空的不算人填过）。
+   * 两类共用这一个实现，只是取哪个字段、写哪张草稿不同。
+   */
+  const fillTextMap = useCallback(
+    async (
+      key: string,
+      list: { text: string }[],
+      ask: (texts: string[]) => Promise<{ text: string; value: string }[]>,
+      apply: (patch: Record<string, string>) => void
+    ): Promise<Filled<Record<string, string>> | null> =>
+      await runAi(key, async () => {
+        const items = await ask(list.map((item) => item.text))
+        const patch: Record<string, string> = {}
+        for (const item of items) patch[item.text] = item.value
+        apply(patch)
+        const out: Record<string, string> = {}
+        for (const item of list) {
+          const value = patch[item.text]
+          if (value && value.trim()) out[item.text] = value.trim()
+        }
+        return { value: out, count: items.length }
+      }),
+    [runAi]
+  )
+
   const fillTranslations = useCallback(async (): Promise<Filled<Record<string, string>> | null> => {
     const list = pending?.translations.pendingTranslations ?? []
-    return await runAi("ai-lang", async () => {
-      const payload = await api.aiTranslations(list.map((item) => item.text))
-      const patch: Record<string, string> = {}
-      for (const item of payload.items) patch[item.text] = item.translation
-      setTexts((current) => ({ ...current, ...patch }))
-      const out: Record<string, string> = {}
-      for (const item of list) {
-        const value = patch[item.text]
-        if (value && value.trim()) out[item.text] = value.trim()
-      }
-      return { value: out, count: payload.items.length }
-    })
-  }, [runAi, pending])
+    return await fillTextMap(
+      "ai-lang",
+      list,
+      async (texts) => (await api.aiTranslations(texts)).items.map((item) => ({ text: item.text, value: item.translation })),
+      (patch) => setTexts((current) => ({ ...current, ...patch }))
+    )
+  }, [fillTextMap, pending])
 
   const fillGlossary = useCallback(async (): Promise<Filled<Record<string, string>> | null> => {
     const list = pending?.translations.glossaryRequired ?? []
-    return await runAi("ai", async () => {
-      const payload = await api.aiGlossary(list.map((item) => item.text))
-      const patch: Record<string, string> = {}
-      for (const item of payload.items) patch[item.text] = item.identifier
-      setGlossary((current) => ({ ...current, ...patch }))
-      const out: Record<string, string> = {}
-      for (const item of list) {
-        const value = patch[item.text]
-        if (value && value.trim()) out[item.text] = value.trim()
-      }
-      return { value: out, count: payload.items.length }
-    })
-  }, [runAi, pending])
+    return await fillTextMap(
+      "ai",
+      list,
+      async (texts) => (await api.aiGlossary(texts)).items.map((item) => ({ text: item.text, value: item.identifier })),
+      (patch) => setGlossary((current) => ({ ...current, ...patch }))
+    )
+  }, [fillTextMap, pending])
 
   return {
     pending,
