@@ -82,7 +82,7 @@ export function PendingPanel({
    * 面板这里只留「提交并续跑」这条动作的忙位与失败 —— 两处合起来是界面要显示的那一份。
    */
   const inputs = usePendingInputs({ projectRoot, target, taskId, runId, state })
-  const { pending, names, setNames, texts, setTexts, glossary, setGlossary, aiReady } = inputs
+  const { pending, names, texts, glossary, setName, setText, setGlossaryOf, aiReady } = inputs
   const {
     namingPayload,
     translationsPayload,
@@ -379,23 +379,13 @@ export function PendingPanel({
                             spellCheck={false}
                             placeholder="SetGeometry"
                             value={names[item.index]?.name ?? ""}
-                            onChange={(event) =>
-                              setNames((current) => ({
-                                ...current,
-                                [item.index]: { name: event.target.value, comment: current[item.index]?.comment ?? "" }
-                              }))
-                            }
+                            onChange={(event) => setName(item.index, { name: event.target.value })}
                           />
                         </TableCell>
                         <TableCell>
                           <Input
                             value={names[item.index]?.comment ?? ""}
-                            onChange={(event) =>
-                              setNames((current) => ({
-                                ...current,
-                                [item.index]: { name: current[item.index]?.name ?? "", comment: event.target.value }
-                              }))
-                            }
+                            onChange={(event) => setName(item.index, { comment: event.target.value })}
                           />
                         </TableCell>
                       </TableRow>
@@ -430,7 +420,7 @@ export function PendingPanel({
                       spellCheck={false}
                       placeholder="AxisX"
                       value={glossary[item.text] ?? ""}
-                      onChange={(event) => setGlossary((current) => ({ ...current, [item.text]: event.target.value }))}
+                      onChange={(event) => setGlossaryOf(item.text, event.target.value)}
                     />
                   </div>
                 ))}
@@ -464,7 +454,7 @@ export function PendingPanel({
                       spellCheck={false}
                       placeholder="English"
                       value={texts[item.text] ?? ""}
-                      onChange={(event) => setTexts((current) => ({ ...current, [item.text]: event.target.value }))}
+                      onChange={(event) => setText(item.text, event.target.value)}
                     />
                   </div>
                 ))}

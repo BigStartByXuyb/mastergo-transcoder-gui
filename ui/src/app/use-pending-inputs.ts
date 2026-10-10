@@ -109,26 +109,55 @@ export function usePendingInputs(input: {
     [pending]
   )
 
-  /* 三张表的载荷：只有填了的格子进提交（空名字、空译文不算人填过）。 */
+  /*
+   * 改一张草稿只有这几个落点（面板不直接改内部记录的形状）：
+   *   setName        命名表某一条的名字 / 备注；
+   *   setText        译文某一条；
+   *   setGlossaryOf  术语表某一条。
+   */
+  const setName = useCallback((index: number, patch: { name?: string; comment?: string }) => {
+    setNames((current) => ({
+      ...current,
+      [index]: {
+        name: patch.name ?? current[index]?.name ?? "",
+        comment: patch.comment ?? current[index]?.comment ?? ""
+      }
+    }))
+  }, [])
+
+  const setText = useCallback((text: string, value: string) => {
+    setTexts((current) => ({ ...current, [text]: value }))
+  }, [])
+
+  const setGlossaryOf = useCallback((text: string, value: string) => {
+    setGlossary((current) => ({ ...current, [text]: value }))
+  }, [])
+
+  /*
+   * 三张表的载荷：只有填了的格子进提交（空名字、空译文不算人填过）。
+   * 「按这份清单取、只收非空的」两处共用同一个拼法（稿子不同、清单不同）。
+   */
+  const textMapPayload = useCallback(
+    (list: { text: string }[], draft: Record<string, string>) => {
+      const out: Record<string, string> = {}
+      for (const item of list) {
+        const value = draft[item.text]
+        if (value && value.trim()) out[item.text] = value.trim()
+      }
+      return out
+    },
+    []
+  )
+
   const namingPayload = useCallback((): NamingItem[] => namingItemsOf((index) => names[index]), [names, namingItemsOf])
-
-  const translationsPayload = useCallback(() => {
-    const out: Record<string, string> = {}
-    for (const item of pending?.translations.pendingTranslations ?? []) {
-      const value = texts[item.text]
-      if (value && value.trim()) out[item.text] = value.trim()
-    }
-    return out
-  }, [pending, texts])
-
-  const glossaryPayload = useCallback(() => {
-    const out: Record<string, string> = {}
-    for (const item of pending?.translations.glossaryRequired ?? []) {
-      const value = glossary[item.text]
-      if (value && value.trim()) out[item.text] = value.trim()
-    }
-    return out
-  }, [pending, glossary])
+  const translationsPayload = useCallback(
+    () => textMapPayload(pending?.translations.pendingTranslations ?? [], texts),
+    [pending, texts, textMapPayload]
+  )
+  const glossaryPayload = useCallback(
+    () => textMapPayload(pending?.translations.glossaryRequired ?? [], glossary),
+    [pending, glossary, textMapPayload]
+  )
 
   /*
    * 叫 AI 出候选 → 预填草稿 → 交回 {这次要提交的那份, 模型给了几条}。
@@ -197,11 +226,11 @@ export function usePendingInputs(input: {
   return {
     pending,
     names,
-    setNames,
     texts,
-    setTexts,
     glossary,
-    setGlossary,
+    setName,
+    setText,
+    setGlossaryOf,
     aiReady,
     busy,
     failure,
