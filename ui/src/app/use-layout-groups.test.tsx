@@ -22,6 +22,11 @@ function stub(hooks: { onConfirm?: (body: unknown) => void } = {}) {
     if (url.includes("/api/settings")) {
       return Promise.resolve(new Response(JSON.stringify({ ok: true, settings: { layoutAutoPass: false } }), { status: 200 }))
     }
+    if (url.includes("/api/ai/suggest")) {
+      return Promise.resolve(
+        new Response(JSON.stringify({ ok: true, groups: [{ id: "FromAi", kind: "row", members: ["1:9", "1:10"] }] }), { status: 200 })
+      )
+    }
     return Promise.resolve(
       new Response(
         JSON.stringify({
@@ -83,5 +88,24 @@ describe("useLayoutGroups", () => {
     expect(confirmed.groups).toEqual(LOCAL_GROUPS)
     rerender({ updatedAt: "3" })
     await waitFor(() => expect(result.current.groups[0].id).toBe("RightTools"))
+  })
+
+  it("AI 出的候选也算「改过」：任务推进时同样不被覆盖", async () => {
+    stub()
+    const { result, rerender } = renderHook(
+      (props: { updatedAt: string }) =>
+        useLayoutGroups({ taskId: "t", runId: "j", projectRoot: WORK_DIR, target: "DemoPage", updatedAt: props.updatedAt }),
+      { initialProps: { updatedAt: "1" } }
+    )
+    await waitFor(() => expect(result.current.groups.length).toBe(1))
+
+    await act(async () => {
+      await result.current.suggest()
+    })
+    expect(result.current.groups[0].id).toBe("FromAi")
+
+    rerender({ updatedAt: "2" })
+    await waitFor(() => expect(result.current.controls.length).toBe(2))
+    expect(result.current.groups[0].id).toBe("FromAi")
   })
 })

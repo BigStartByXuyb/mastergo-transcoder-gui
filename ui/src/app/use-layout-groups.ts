@@ -38,6 +38,14 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
    * （面板就是让人「先改好、等停点再确认」的）。保存成功之后表就是服务端那一份，回到不脏。
    */
   const dirty = useRef(false)
+  /*
+   * 改分组只有这一个落点（人拖、AI 出候选都走它）：一次「人/AI 改过」就该被记住 ——
+   * 否则任务在跑的时候下一次刷新会把刚改好的分组盖回服务端那一份。
+   */
+  const applyGroups = useCallback((next: LayoutGroup[]) => {
+    dirty.current = true
+    setGroups(next)
+  }, [])
   const { taskId, runId, projectRoot, target, updatedAt, progressDone } = input
 
   const load = useCallback(async () => {
@@ -85,7 +93,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
       const payload = await api.aiLayoutGroups(controls)
       if (!alive.current) return
       if (payload.groups.length > 0) {
-        setGroups(payload.groups)
+        applyGroups(payload.groups)
         return
       }
       // 模型一组都没给也是结论：说一句，别让人以为「点了没反应」（空表就是「本页没有要声明的分组」）。
@@ -120,10 +128,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
     reason,
     controls,
     groups,
-    setGroups: (next: LayoutGroup[]) => {
-      dirty.current = true
-      setGroups(next)
-    },
+    setGroups: applyGroups,
     canSuggest,
     autoPass,
     toggleAutoPass,
