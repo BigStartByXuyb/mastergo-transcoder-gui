@@ -16,6 +16,7 @@ const os = require("os");
 const path = require("path");
 
 const { createPending } = require("../lib/pending.js");
+const designImage = require("../lib/design-image.js");
 
 const TARGET = "DemoPage";
 /* 译文那一节要插件自己的派生实现：这里只验布局一节，给它一份最小替身（别让别的节把用例拖住）。 */
@@ -139,6 +140,42 @@ function caseBrokenGroupsAsksAgain() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+/*
+ * 同一份分组表在一次请求里只读一次：待确认那一节要「有没有表」、布局确认那一节要「表里有什么」，
+ * 两者共用同一次读。这条性质按**读盘次数**验（数 readFileSync），不靠读代码看有没有读两遍。
+ */
+function caseGroupsReadOnce() {
+  const root = sandbox();
+  writeControls(root);
+  writeImage(root);
+  writeGroups(root, []);
+  const original = fs.readFileSync;
+  let reads = 0;
+  let snapshots = 0;
+  fs.readFileSync = function (file) {
+    if (String(file).endsWith(".layout-groups.json")) reads += 1;
+    if (String(file).endsWith("dsl.snapshot.json")) snapshots += 1;
+    return original.apply(fs, arguments);
+  };
+  try {
+    layoutOf(root, pendingFor(root));
+    assert.strictEqual(reads, 1, "一次 pending.inspect（要「有没有表」+「表里有什么」）只读一次分组表");
+    assert.strictEqual(snapshots, 1, "一次 pending.inspect 只读一次 DSL 快照（控件文本那一处）");
+
+    // 设计稿位图那一份读视图自己读一次；「有没有图」只看文件在不在，不读表。
+    reads = 0;
+    designImage.read({ projectRoot: root, target: TARGET });
+    assert.strictEqual(reads, 1, "一次 /api/design-image 的读视图读一次分组表");
+    reads = 0;
+    designImage.hasImage({ projectRoot: root, target: TARGET });
+    assert.strictEqual(reads, 0, "「有没有图」不读分组表");
+  }
+  finally {
+    fs.readFileSync = original;
+  }
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 try {
   const cases = [
     ["还没跑到取数那一步", caseNothingYet],
@@ -146,7 +183,8 @@ try {
     ["有图没有表 = 要人确认", caseImageWithoutGroups],
     ["空分组表也算有表", caseImageWithEmptyGroups],
     ["只有图、还没有控件清单", caseImageBeforeControls],
-    ["分组表损坏 = 按没有表处理，让人重写一次", caseBrokenGroupsAsksAgain]
+    ["分组表损坏 = 按没有表处理，让人重写一次", caseBrokenGroupsAsksAgain],
+    ["同一份分组表一次请求只读一次", caseGroupsReadOnce]
   ];
   for (const [name, run] of cases) {
     run();
