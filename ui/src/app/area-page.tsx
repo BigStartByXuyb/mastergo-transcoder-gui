@@ -158,8 +158,12 @@ export function AreaPage(props: Props) {
                   )}
                 </div>
                 <span className="min-w-0 font-medium break-all">{task.request.target || "（未定 Target）"}</span>
+                {/*
+                  步数分母只取现成来源：后端给的进度分母（契约步数，lib/board.js 的 progressOf）没有时
+                  退回这一页登记表的步数 —— 界面不另写一个数。
+                */}
                 <span className="text-muted-foreground text-xs tabular-nums">
-                  {task.request.mode} · {done}/{task.steps.length || 12}
+                  {task.request.mode} · {done}/{task.progress?.total || task.steps.length}
                 </span>
                 <span className="text-muted-foreground text-xs tabular-nums">{task.updatedAt.slice(11, 19)}</span>
                 <Button size="sm" variant="outline" onClick={() => props.onOpenTask(task.id)}>
