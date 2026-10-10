@@ -205,7 +205,6 @@ function caseStagedKeepsExisting() {
   fs.rmSync(workDir, { recursive: true, force: true });
 }
 
-/* 任务被移除时把还没轮到的暂存件一起收掉：暂存件不在看板上，留着没人认领。 */
 /*
  * 暂存件落盘之后坏掉（截断 / 内容变了）：不编一个 0×0 当「尺寸不符」报出去，
  * 就回一句「读不出来」，暂存件留着等人重新传一张。
@@ -228,6 +227,7 @@ function caseStagedUnreadable() {
   fs.rmSync(workDir, { recursive: true, force: true });
 }
 
+/* 任务被移除时把还没轮到的暂存件一起收掉：暂存件不在看板上，留着没人认领。 */
 function caseDiscardStaged() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-home-"));
   const staged = designImage.stage({ home: home, taskId: TASK, data: png(1280, 1024).toString("base64") });

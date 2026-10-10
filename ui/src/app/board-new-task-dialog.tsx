@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import type { BoardTaskForm } from "@/lib/board-form"
-import { parseBoardRows } from "@/lib/board-items"
+import { parseBoardRows, pickedForLink } from "@/lib/board-items"
 import { AUTOMATION_LABEL, READ_IMAGE_HINT, modeTakesRoute } from "@/lib/task-form"
 
 /* 行上只给能认出是哪一页的那一段：链接太长，整条铺出来会把这一行挤成一团。 */
@@ -155,7 +155,7 @@ export function BoardNewTaskDialog(props: {
                   {row.target && <Badge variant="secondary">{row.target}</Badge>}
                   <DesignImagePicker
                     id={"board-image-" + row.line}
-                    file={props.images[row.link] ?? null}
+                    file={pickedForLink(props.images, row.link)}
                     onPick={(file) => props.onPickImage(row.link, file)}
                   />
                 </div>
