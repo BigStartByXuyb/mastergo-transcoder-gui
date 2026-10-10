@@ -294,6 +294,26 @@ async function caseAutoFillLimitAndRealFailure() {
   assert.strictEqual(after2.state, "failed");
   assert.strictEqual(after2.failure.kind, "error");
   fs.rmSync(fx2.home, { recursive: true, force: true });
+
+  /*
+   * 清单读不到时退回契约：失败的那一步在契约里吃人/AI 写的输入文件（这里是第 7 步 ledger），
+   * 就按「等语义输入」算，交回给人去那一步补 —— 不走「真失败」那条路。
+   */
+  const fx3 = makeBoard({ pendingThrows: true });
+  const added3 = fx3.board.add({ projectRoot: fx3.project, items: [{ link: LINK, target: "T1", mode: "B" }] });
+  fx3.board.start(added3.created[0]);
+  const task3 = await waitForTask(fx3.board, added3.created[0], hasJob, "启动完成");
+  fx3.runs.seed(task3.jobId, {
+    id: task3.jobId,
+    state: "failed",
+    request: {},
+    runs: [{ mode: "mtslg-iocontrol", label: "B", state: "failed", failure: { stepId: 7, stepName: "ledger", message: "台账不合格", resume: "", detail: "" }, steps: {} }]
+  }, task3.workDir);
+  await sleep(TICK + 300);
+  const after3 = fx3.board.snapshot().tasks.find((item) => item.id === added3.created[0]);
+  assert.strictEqual(after3.state, "waiting", "吃人/AI 输入的那一步失败＝停点，不是真失败");
+  assert.strictEqual(after3.failure.kind, "semantic");
+  fs.rmSync(fx3.home, { recursive: true, force: true });
 }
 
 /*
