@@ -98,7 +98,6 @@ export function NewTaskCard(props: Props) {
                   </SelectContent>
                 </Select>
                 <p className="text-muted-foreground text-xs">{MODE_HINT[form.mode] ?? ""}</p>
-                {modeTakesRoute(form.mode, "A") && <p className="text-muted-foreground text-xs">{READ_IMAGE_HINT}</p>}
               </div>
             </FieldGroup>
 
@@ -135,10 +134,7 @@ export function NewTaskCard(props: Props) {
                       </>
                     )}
                   </div>
-                  <p className="text-muted-foreground text-xs">
-                    按设计稿原始尺寸导出（位图尺寸要等于 DSL 画板尺寸）。现在可以先选：任务跑到「取数 + 固化快照」
-                    之后自动核对尺寸——对就装上，不对会告诉你两边的尺寸，再按原尺寸导出一张。
-                  </p>
+                  <p className="text-muted-foreground text-xs">{READ_IMAGE_HINT}</p>
                 </div>
               )}
             </FieldGroup>
