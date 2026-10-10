@@ -56,4 +56,6 @@
 | 2026-10-10 第 13 遍 | REVIEW-002 | 「画板尺寸还不知道」在同一张位图卡片里说了两遍，本地那句还绕过了真值源 | 已收 | 去掉本地改写，只说后端给的原话（`ui/src/app/design-image-card.tsx`） |
 | 2026-10-10 第 13 遍 | 非阻断 | 位图卡片自己手写了一遍动作骨架 | 已收 | 两个动作都改走 `useValueRunner`；`docs/facts.md` 的读者名单补上它 |
 | 2026-10-10 第 13 遍 | 非阻断 | `lib/ai.js` 的候选只去重成员不重组名，同名组要等写回时才被拒 | 不修 | 「组名唯一」这条判据只在写回校验一处（`lib/layout-groups.js`）；提前在候选里删重等于把同一判据再写一遍，且会让「模型给了什么」与「界面看到什么」不一致。现状是 fail-closed，只多一次往返 |
+| 2026-10-10 第 14 遍（合并后） | REVIEW-001 | 读画板尺寸时内联重写了「容错读 JSON」，绕开了 `lib/workdir.js` 的单源 | 已收 | `readCanvas` 改调 `workdir.readJsonIfExists`（`lib/design-image.js`） |
+| 2026-10-10 第 14 遍（合并后） | REVIEW-001 | `waitingCounts` 返回值里的 `layout` / `total` 在生产代码里没有读取方 | 已收 | 只留面板真正用的两节（`ui/src/lib/task-state.ts`），用例同步 |
 
