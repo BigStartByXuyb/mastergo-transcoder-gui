@@ -109,6 +109,20 @@ function main() {
       },
       /members 至少 2 个/
     );
+    // 组名唯一：两个组同名就是不合法的表（判据在后端，界面只渲染这句话）。
+    assert.throws(
+      function () {
+        layout.save({
+          projectRoot: root,
+          target: TARGET,
+          groups: [
+            { id: "g1", kind: "column", members: ["a", "b"] },
+            { id: "g1", kind: "row", members: ["b", "c"] }
+          ]
+        });
+      },
+      /组名重复/
+    );
     // 一个 ref 只能进一个分组（写回校验与 AI 候选去重用同一份判据）。
     assert.throws(
       function () {

@@ -45,10 +45,13 @@ export function removeMember(groups: LayoutGroup[], groupId: string, ref: string
   return groups.map((group) => (group.id === groupId ? { ...group, members: group.members.filter((item) => item !== ref) } : group))
 }
 
-/** 加一个新组（空组）；组名已在用则原样返回，调用方据此提示重名。 */
+/*
+ * 加一个新组（空组）：只挡住「名字是空的」这一次无意义点击 —— 组名唯一、成员够不够这类
+ * 「表合不合法」往后端判（写回时会按原话拒收），这里不各判一遍。
+ */
 export function addGroup(groups: LayoutGroup[], id: string, kind: "column" | "row"): LayoutGroup[] {
   const name = id.trim()
-  if (!name || groups.some((group) => group.id === name)) return groups
+  if (!name) return groups
   return [...groups, { id: name, kind: kind, members: [] }]
 }
 

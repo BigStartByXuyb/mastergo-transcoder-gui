@@ -32,12 +32,8 @@ export function LayoutPanel({ confirmable, ...input }: LayoutPanelProps) {
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
 
   function createGroup() {
-    const next = addGroup(layout.groups, newId, newKind)
-    if (next === layout.groups) {
-      layout.setFailure("组名重复或为空：" + newId)
-      return
-    }
-    layout.setGroups(next)
+    if (!newId.trim()) return
+    layout.setGroups(addGroup(layout.groups, newId, newKind))
     setNewId("")
   }
 

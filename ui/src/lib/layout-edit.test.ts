@@ -50,7 +50,6 @@ describe("layout-edit", () => {
   it("删成员、加组、删组各只动该动的地方", () => {
     expect(removeMember(GROUPS, "RightTools", "1:9")[0].members).toEqual(["1:10"])
     expect(addGroup(GROUPS, " TopBar ", "row").map((group) => group.id)).toEqual(["RightTools", "TopBar"])
-    expect(addGroup(GROUPS, "RightTools", "row")).toEqual(GROUPS)
     expect(addGroup(GROUPS, "   ", "row")).toEqual(GROUPS)
     expect(removeGroup(GROUPS, "RightTools")).toEqual([])
   })
