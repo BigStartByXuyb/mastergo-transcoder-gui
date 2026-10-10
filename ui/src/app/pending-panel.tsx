@@ -137,6 +137,8 @@ export function PendingPanel({
       glossaryMap: Record<string, string>
     ) => {
       if (!pending) return
+      // 先清掉这条数据线上的旧失败：两处失败合成一句显示，旧的不清会盖住这一次提交的失败。
+      inputs.clearFailure()
       setSubmitBusy(SUBMIT_BUSY)
       setSubmitFailure("")
       try {
@@ -164,7 +166,7 @@ export function PendingPanel({
         setSubmitBusy("")
       }
     },
-    [pending, taskId, runId, allowEmptyLedger, load, onResumed]
+    [pending, taskId, runId, allowEmptyLedger, load, onResumed, inputs]
   )
 
   const submit = useCallback(

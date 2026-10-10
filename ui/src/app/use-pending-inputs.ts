@@ -241,6 +241,8 @@ export function usePendingInputs(input: {
     aiReady,
     busy,
     failure,
+    /** 面板那条提交动作开始时调它：把这条数据线的旧失败清掉，别让它盖住刚发生的提交失败。 */
+    clearFailure: () => setFailure(""),
     reload,
     namingPayload,
     translationsPayload,
