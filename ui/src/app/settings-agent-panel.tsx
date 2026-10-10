@@ -4,13 +4,13 @@ import { toast } from "sonner"
 
 import { ClampText } from "@/app/clamp-text"
 import { CodexCard } from "@/app/codex-card"
+import { useValueRunner } from "@/app/use-action-runner"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { AUTOMATION_LABEL } from "@/lib/task-form"
-import { describeFailure } from "@/lib/describe-failure"
 import { useSettings } from "@/lib/use-settings"
 
 /*
@@ -19,35 +19,24 @@ import { useSettings } from "@/lib/use-settings"
  */
 export function SettingsAgentPanel() {
   const { settings, failure, save } = useSettings()
-  const [writing, setWriting] = useState(false)
-  const [savingAutomation, setSavingAutomation] = useState(false)
+  /*
+   * 两个即时保存动作各自有个忙位（写盘 / 自动化层级），但骨架只有一份
+   *（ui/src/app/use-action-runner.ts 的 useValueRunner）：置忙 → 清旧错 → 跑 → 收尾，
+   * 失败转成可读那句话也由它一处管。
+   */
+  const [saving, setSaving] = useState("")
   const [saveFailure, setSaveFailure] = useState("")
+  const run = useValueRunner({ setWorking: setSaving, setFailure: setSaveFailure })
 
   /* 写盘开关是即时生效的单个布尔，不走「保存」按钮。 */
   async function toggleWrite(checked: boolean) {
-    setWriting(true)
-    setSaveFailure("")
-    try {
-      await save({ agent: { allowWrite: checked } })
-      toast.success(checked ? "已允许 agent 改工程文件" : "已恢复只读")
-    } catch (error) {
-      setSaveFailure(describeFailure(error))
-    } finally {
-      setWriting(false)
-    }
+    const payload = await run("write", () => save({ agent: { allowWrite: checked } }))
+    if (payload) toast.success(checked ? "已允许 agent 改工程文件" : "已恢复只读")
   }
 
   /* 自动化层级同样是即时生效的单个值，不走「保存」按钮。它是全局的：所有页与所有任务的停点都按它走。 */
   async function changeAutomation(value: string) {
-    setSavingAutomation(true)
-    setSaveFailure("")
-    try {
-      await save({ automation: value })
-    } catch (error) {
-      setSaveFailure(describeFailure(error))
-    } finally {
-      setSavingAutomation(false)
-    }
+    await run("automation", () => save({ automation: value }))
   }
 
   return (
@@ -65,7 +54,7 @@ export function SettingsAgentPanel() {
             <Select
               value={settings?.automation ?? "assist"}
               onValueChange={(value) => void changeAutomation(value)}
-              disabled={savingAutomation}
+              disabled={saving !== ""}
             >
               <SelectTrigger id="automation" className="w-64">
                 <SelectValue />
@@ -76,7 +65,7 @@ export function SettingsAgentPanel() {
                 <SelectItem value="auto">{AUTOMATION_LABEL.auto}</SelectItem>
               </SelectContent>
             </Select>
-            {savingAutomation && <Loader2 className="size-3 animate-spin" />}
+            {saving === "automation" && <Loader2 className="size-3 animate-spin" />}
           </div>
           <p className="text-muted-foreground text-xs">
             「辅助」自动出候选、你确认后继续；「自动」出完候选直接续跑（看板任务由客户端自己补，不必开着这个页面）。
@@ -93,7 +82,7 @@ export function SettingsAgentPanel() {
           <label className="flex items-center gap-2 text-sm">
             <Switch checked={Boolean(settings?.agent.allowWrite)} onCheckedChange={(checked) => void toggleWrite(checked)} />
             允许 agent 直接改工程文件
-            {writing && <Loader2 className="size-3 animate-spin" />}
+            {saving === "write" && <Loader2 className="size-3 animate-spin" />}
           </label>
           <p className="text-muted-foreground text-xs">
             关着时它也能帮你读代码、看日志、给方案，只是不去改文件。
