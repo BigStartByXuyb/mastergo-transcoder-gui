@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { useAlive } from "@/app/use-alive"
 import { api, type LayoutControl, type LayoutGroup, type LayoutGroups } from "@/lib/api"
@@ -170,7 +171,7 @@ export function LayoutPanel({ taskId, projectRoot, target, updatedAt, progressDo
                   <Sparkles className="mr-1 h-4 w-4" />
                   AI 辅助
                 </Button>
-                <Button size="sm" onClick={save} disabled={busy || groups.some((group) => group.members.length < 2)}>
+                <Button size="sm" onClick={save} disabled={busy}>
                   <Save className="mr-1 h-4 w-4" />
                   确认并继续
                 </Button>
@@ -249,15 +250,15 @@ export function LayoutPanel({ taskId, projectRoot, target, updatedAt, progressDo
               </div>
               <div className="space-y-1">
                 <Label htmlFor="layout-group-kind">方向</Label>
-                <select
-                  id="layout-group-kind"
-                  className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                  value={newKind}
-                  onChange={(event) => setNewKind(event.target.value as "column" | "row")}
-                >
-                  <option value="column">列（竖直排）</option>
-                  <option value="row">行（水平排）</option>
-                </select>
+                <Select value={newKind} onValueChange={(value) => setNewKind(value as "column" | "row")}>
+                  <SelectTrigger id="layout-group-kind" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="column">列（竖直排）</SelectItem>
+                    <SelectItem value="row">行（水平排）</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <Button variant="outline" onClick={addGroup} disabled={!newId.trim()}>
                 <Plus className="mr-1 h-4 w-4" />
