@@ -13,7 +13,12 @@ import type { BoardTask, PipelineStep } from "@/lib/api"
  * 以及这一步要你补的输入（由调用方作为 children 挂进来 —— 每步的输入面板各不相同）。
  */
 
-export function StepCard(props: {
+export function StepCard({
+  row,
+  contractStep,
+  failure,
+  children
+}: {
   row: StepRow
   /** 这一步的契约（可能还没读到契约，那就只显示登记表里有的）。 */
   contractStep: PipelineStep | null
@@ -21,7 +26,6 @@ export function StepCard(props: {
   failure: BoardTask["failure"]
   children?: ReactNode
 }) {
-  const row = props.row
   const failed = row.status === "failed"
   return (
     <Card>
@@ -36,9 +40,9 @@ export function StepCard(props: {
           {row.seconds > 0 && <span className="text-muted-foreground text-xs tabular-nums">{row.seconds}s</span>}
           {row.humanInput && <Badge variant="outline">人/AI 语义输入</Badge>}
         </CardTitle>
-        {props.contractStep && (
+        {contractStep && (
           <CardDescription className="text-xs">
-            输入：{props.contractStep.Inputs.join("；")}
+            输入：{contractStep.Inputs.join("；")}
           </CardDescription>
         )}
       </CardHeader>
@@ -46,9 +50,9 @@ export function StepCard(props: {
         {row.aiFill.length > 0 && <AiFillLine filled={row.aiFill} note={row.aiFillNote || undefined} />}
         {row.note && <ClampText text={row.note} className="text-muted-foreground text-xs" />}
 
-        <FailureNote failure={props.failure} contractStep={props.contractStep} stopStepNumber={row.id} inStepView />
+        <FailureNote failure={failure} contractStep={contractStep} stopStepNumber={row.id} inStepView />
 
-        {props.children ?? (
+        {children ?? (
           <p className="text-muted-foreground text-sm">
             这一步没有要你补的输入：它的产物由流水线自己产出，看下面的日志与产物即可。
           </p>

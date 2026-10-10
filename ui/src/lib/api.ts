@@ -616,7 +616,10 @@ export type PendingQueueEntry = {
   target: string
   runId: string
   taskId: string
+  /** 来源那一刻的状态（看板任务的状态或运行的状态），原样给出来备用。 */
   runState: string
+  /** 上面那个状态的中文名，后端一处映射好，界面直接用。 */
+  stateLabel: string
   /** 看板任务已经被移除，但工作目录与产物还在。 */
   orphan: boolean
   /** 三节的待办条数，与看板 / 流水线详情同一份口径（图标一节、文案一节、布局一节）。 */

@@ -40,8 +40,6 @@ function labelOfWritten(item: { path: string; count: number }) {
   return (hit ? WRITTEN_LABEL[hit] : file) + " " + item.count + " 条"
 }
 
-export type PendingPanelHandle = { reload: () => void }
-
 /** 刚补进去的东西，交给调用方显示在流程里：补了什么、从哪一步续跑。 */
 export type PendingFilled = { filled: string[]; resumedFrom: string }
 
@@ -61,8 +59,7 @@ export function PendingPanel({
   state,
   reloadKey,
   automation,
-  onResumed,
-  onState
+  onResumed
 }: {
   projectRoot: string
   target: string
@@ -76,7 +73,6 @@ export function PendingPanel({
   reloadKey?: string
   automation: string
   onResumed?: (info: PendingFilled) => void
-  onState?: (state: { waiting: number; phase: string }) => void
 }) {
   const [pending, setPending] = useState<Pending | null>(null)
   const [names, setNames] = useState<Record<number, { name: string; comment: string }>>({})
@@ -162,10 +158,6 @@ export function PendingPanel({
    * 待确认清单不按运行状态过滤，正在跑的任务照样会列在这里 —— 两个入口的口径必须一样。
    */
   const inFlight = isInFlight(state)
-
-  useEffect(() => {
-    onState?.({ waiting, phase: busy })
-  }, [waiting, busy, onState])
 
   const namingPayload = useCallback(
     () =>

@@ -392,6 +392,11 @@ async function caseLayoutStepComesFromContract() {
   assert.strictEqual(byName.get("ledger").humanInput, true, "吃命名表那一步仍标「人/AI 语义输入」");
   assert.strictEqual(byName.get("layoutManifest").humanInput, true, "吃分组表那一步同样是人/AI 语义输入");
   assert.strictEqual(byName.get("layout").humanInput, false, "不吃这些输入的那一步不标");
+
+  // 插件来源可以在运行中被换掉（换一份契约）：看板这份事实跟着契约走，不在自己这边留一份缓存。
+  steps[2] = contractStep({ Id: 8, Name: "renamedLayout", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] });
+  const after = fx.board.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(after.layoutStep, "renamedLayout", "换了契约之后按新的那一份算");
   fs.rmSync(fx.home, { recursive: true, force: true });
 }
 

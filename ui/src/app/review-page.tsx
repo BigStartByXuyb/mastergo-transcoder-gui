@@ -24,21 +24,6 @@ import { REVIEW_POLL_MS } from "@/lib/task-state"
  * 按「工程目录 + Target」去重。这里只负责选一条、把面板挂上去；判断什么要填仍然由插件产物决定。
  */
 
-const RUN_STATE_TEXT: Record<string, string> = {
-  queued: "排队中",
-  preparing: "建工作目录",
-  running: "运行中",
-  waiting: "待确认",
-  ready: "待合并",
-  merging: "合并中",
-  merged: "已合并",
-  conflict: "合并冲突",
-  failed: "失败",
-  stopped: "已停止",
-  done: "已跑完",
-  stopping: "正在停止"
-}
-
 function keyOf(entry: { source: string; projectRoot: string; target: string }) {
   return entry.source + "|" + entry.projectRoot + "|" + entry.target
 }
@@ -96,6 +81,8 @@ export function ReviewPage() {
         runId: "",
         taskId: "",
         runState: "",
+        // 手填的条目没有来源运行，因而没有状态可显示。
+        stateLabel: "",
         orphan: false,
         counts: { icons: 0, translations: 0, layout: 0 },
         total: 0,
@@ -166,7 +153,8 @@ export function ReviewPage() {
                         {entry.target || "（未指定）"}
                       </TableCell>
                       <TableCell className="align-top text-xs whitespace-normal">
-                        {RUN_STATE_TEXT[entry.runState] ?? entry.runState ?? "—"}
+                        {/* 状态名由后端一处映射（lib/board.js 的 stateLabelOf），界面不自己抄一份文案表。 */}
+                        {entry.stateLabel || "—"}
                       </TableCell>
                       <TableCell className="align-top text-xs whitespace-normal">
                         {/* 三节各自的条数：间距由这一层的 gap 一处给，不在每一项上各写一遍边距。 */}
@@ -237,7 +225,7 @@ export function ReviewPage() {
               onResumed={() => void load()}
             />
             {/* 手填的条目（列表里没有它）也把布局确认挂上：没有来源运行就只写盘、不续跑。 */}
-            {active && (active.manual || active.counts.layout > 0) && (
+            {(active.manual || active.counts.layout > 0) && (
               <LayoutPanel
                 taskId={active.taskId}
                 runId={active.runId}
