@@ -5,14 +5,17 @@ import { DoneBoard } from "@/app/done-board"
 import { DesignImageCard } from "@/app/design-image-card"
 import { LayoutPanel } from "@/app/layout-panel"
 import { NewTaskCard } from "@/app/new-task-card"
+import { PendingPanel } from "@/app/pending-panel"
+import { StepCard } from "@/app/step-card"
 import { TaskDetailCard } from "@/app/task-detail-card"
 import { TaskLogCard } from "@/app/task-log-card"
-import { TaskPendingCard } from "@/app/task-pending-card"
+import { StepRail, type StepRow } from "@/app/task-steps"
 import { useIdentity } from "@/app/use-identity"
 import { useRunLog } from "@/app/use-run-log"
+import { Button } from "@/components/ui/button"
 import { ApiFailure, api, type Board, type Pending, type PipelineStep, type PluginSummary } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
-import { adoptsIdentityWithoutConfirm, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
+import { AUTOMATION_LABEL, adoptsIdentityWithoutConfirm, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
 import { POLL_MS, canStop, hasProducts, isBusyState, isInFlight, pendingInputCount, waitingCounts } from "@/lib/task-state"
 
 /*
@@ -21,7 +24,7 @@ import { POLL_MS, canStop, hasProducts, isBusyState, isInFlight, pendingInputCou
  * 任务只有一套登记（看板）：这里「开始」等于「加入看板并启动」，看板的「详情」跳到这里，
  * 两边看的是同一个任务的同一份步骤登记。执行引擎、工作目录、并发与合并都在后端做。
  *
- * 本文件只做编排：表单在 NewTaskCard，详情 / 待确认 / 日志各一张卡，
+ * 本文件只做编排：表单在 NewTaskCard；任务详情按「步骤条 + 当前那一步的界面」摆，每步的界面见 StepCard；
  * 身份补全在 useIdentity，运行日志在 useRunLog，判定逻辑在 src/lib。
  */
 
@@ -42,6 +45,13 @@ export function PipelinePage({
   const [busy, setBusy] = useState("")
   const [automation, setAutomation] = useState("assist")
   const [form, setForm] = useState<TaskForm>(() => readTaskForm())
+  /** 详情区现在看哪一步（空串 = 任务总览）。 */
+  const [step, setStep] = useState("")
+  /*
+   * 两屏：带 `task=<id>` 进来（从看板点「详情」、或刚「加入看板并开始」）就是看那个任务；
+   * 点「新建任务」回到表单。两屏不再同屏堆着，详情里也只有左边选中的那一步。
+   */
+  const [formOpen, setFormOpen] = useState(!taskId)
 
   // 区域模板：工程与区域是团队/项目约定，不来自设计稿，所以可以整条回填（Target 与链接不回填）。
   useEffect(() => {
@@ -67,15 +77,59 @@ export function PipelinePage({
     () => (board?.tasks ?? []).find((item) => item.id === currentId) ?? null,
     [board, currentId]
   )
-  const stepTitles = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const step of contract) map.set(step.Name, step.Title)
-    return map
-  }, [contract])
   const running = task !== null && isBusyState(task.state)
   const showProducts = task !== null && hasProducts(task.state)
-  const contractStep = task?.failure ? contract.find((step) => step.Name === task.failure?.stepName) ?? null : null
   const counts = waitingCounts(pending)
+  /** 这次运行停在哪一步（补输入与合并都会写 failure，空串 = 没停）。 */
+  const stopStep = task?.failure?.stepName ?? ""
+  /*
+   * 步骤条的数据：顺序与标题取插件的步骤契约，状态/耗时取这一次运行的登记表 —— 两份并一份，
+   * 没跑到的那几步照样列出来（标「未开始」）。
+   */
+  const stepRows: StepRow[] = useMemo(() => {
+    if (!task) return []
+    return contract.map((item) => {
+      const run = task.steps.find((item2) => item2.name === item.Name) ?? null
+      return {
+        id: item.Id,
+        name: item.Name,
+        title: item.Title,
+        status: run ? run.status : "pending",
+        seconds: run ? run.seconds : 0,
+        humanInput: run ? run.humanInput : false,
+        aiFill: run && run.aiFill ? run.aiFill.filled : [],
+        aiFillNote:
+          run && run.aiFill && run.aiFill.stoppedAt && run.aiFill.stoppedAt !== item.Name
+            ? "（当时停在第 " + (contract.find((step) => step.Name === run.aiFill?.stoppedAt)?.Id ?? "?") + " 步）"
+            : "",
+        note: run ? run.note : ""
+      }
+    })
+  }, [contract, task])
+  // 任务推进到新的停点时自动切到那一步；人自己点过别的步骤就停在人点的那一步。
+  useEffect(() => {
+    if (stopStep) setStep(stopStep)
+  }, [stopStep, task?.jobId])
+  /*
+   * 现在显示的这一步：契约里有就用它；契约还没读到（或那一步不在契约里）就用登记表造一行，
+   * 保证点哪一步都不会变成空白。
+   */
+  const currentRow: StepRow =
+    stepRows.find((item) => item.name === step) ??
+    (() => {
+      const run = task?.steps.find((item) => item.name === step) ?? null
+      return {
+        id: run ? run.id : 0,
+        name: step,
+        title: step,
+        status: run ? run.status : "pending",
+        seconds: run ? run.seconds : 0,
+        humanInput: run ? run.humanInput : false,
+        aiFill: run && run.aiFill ? run.aiFill.filled : [],
+        aiFillNote: "",
+        note: run ? run.note : ""
+      }
+    })()
 
   const { job, setJob, logText, logRef, reset } = useRunLog(task?.jobId ?? "")
 
@@ -111,7 +165,9 @@ export function PipelinePage({
 
   // 从看板点「详情」进来时 URL 带 task=<id>：跟着它切换当前任务。
   useEffect(() => {
-    if (taskId) setCurrentId(taskId)
+    if (!taskId) return
+    setCurrentId(taskId)
+    setFormOpen(false)
   }, [taskId])
 
   /*
@@ -263,71 +319,136 @@ export function PipelinePage({
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <NewTaskCard
-        form={form}
-        onForm={patchForm}
-        plugin={plugin}
-        contract={contract}
-        identity={identity}
-        busy={busy}
-        failure={failure}
-        canStop={task !== null && canStop(task.state)}
-        onStart={() => void start()}
-        onStop={() => void stop()}
-        onReloadContract={() => void reloadContract()}
-      />
+      {/* 表单与详情是两屏；没有选中任务时（任务被移除 / 只是进来看看）一定给表单。 */}
+      {(formOpen || !task) && (
+        <NewTaskCard
+          form={form}
+          onForm={patchForm}
+          plugin={plugin}
+          contract={contract}
+          identity={identity}
+          busy={busy}
+          failure={failure}
+          canStop={task !== null && canStop(task.state)}
+          onStart={() => void start()}
+          onStop={() => void stop()}
+          onReloadContract={() => void reloadContract()}
+        />
+      )}
 
-      {!task && (
+      {(formOpen || !task) && task && (
         <p className="text-muted-foreground text-sm">
-          还没有选中的任务。上面填好点「加入看板并开始」，或在看板点某个任务的「详情」。
+          上面填好点「加入看板并开始」，或在看板点某个任务的「详情」——那是另一屏，按步骤看。
         </p>
       )}
 
-      {task && (
-        <TaskDetailCard
-          task={task}
-          contractStep={contractStep}
-          stepTitles={stepTitles}
-          busy={busy}
-          onResume={() => void resume()}
-          onMerge={merge}
-          onResolve={resolveConflict}
-        />
+      {!formOpen && task && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-muted-foreground text-sm">任务详情</span>
+          <Button size="sm" variant="outline" onClick={() => setFormOpen(true)}>
+            新建任务
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              window.location.hash = "board"
+            }}
+          >
+            在看板里看
+          </Button>
+        </div>
       )}
 
       {/*
-        走 A 路线（mw-wpf）的任务才读图：AB 的 A 段同样读，所以判据是「路线里有 A」而不是 mode 恰好是 A。
-        图是按页面名放的，没有 Target 就无从谈起 —— 那种任务根本不显示这一块。
+        详情按「步骤条 + 当前那一步的界面」摆：左边一条 12 步（点一步切过去），右边只显示那一步的东西，
+        不再把每步的输入挤在一屏里。停在哪一步就自动切到那一步。
       */}
-      {task && task.workDir && task.request.target && task.routes.includes("A") && <DesignImageCard task={task} />}
+      {task && (
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+          <StepRail
+            rows={stepRows}
+            current={step}
+            stopStep={stopStep}
+            onPick={setStep}
+            onPickOverview={() => setStep("")}
+          />
 
-      {task && task.workDir && task.request.target && task.routes.includes("A") && (
-        <LayoutPanel
-          taskId={task.id}
-          runId={task.jobId}
-          projectRoot={task.workDir}
-          target={task.request.target}
-          updatedAt={task.updatedAt}
-          progressDone={task.progress?.done}
-          confirmable={!isInFlight(task.state)}
-        />
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
+            {step === "" ? (
+              <TaskDetailCard
+                task={task}
+                busy={busy}
+                onResume={() => void resume()}
+                onMerge={merge}
+                onResolve={resolveConflict}
+              />
+            ) : (
+              <StepCard
+                row={currentRow}
+                contractStep={contract.find((item) => item.Name === step) ?? null}
+                logPath={task.failure?.stepName === step ? task.failure.logPath : ""}
+                failureMessage={task.failure?.stepName === step ? task.failure.message : ""}
+              >
+                {/*
+                  走 A 路线（mw-wpf）的任务才读图：AB 的 A 段同样读，所以判据是「路线里有 A」。
+                  图与分组表都属于「布局」那一步的输入，所以它们挂在这一步的界面里。
+                */}
+                {step === "layout" && task.workDir && task.request.target && task.routes.includes("A") && (
+                  <div className="flex flex-col gap-3">
+                    <DesignImageCard task={task} />
+                    <LayoutPanel
+                      taskId={task.id}
+                      runId={task.jobId}
+                      resume
+                      projectRoot={task.workDir}
+                      target={task.request.target}
+                      updatedAt={task.updatedAt}
+                      progressDone={task.progress?.done}
+                      confirmable={!isInFlight(task.state)}
+                    />
+                  </div>
+                )}
+
+                {/* 图标与文案要人补时，面板挂在「停在这里」的那一步上（补完就从这一步继续）。 */}
+                {step === stopStep && pendingInputCount(counts) > 0 && task.workDir && (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-muted-foreground text-xs">
+                        当前自动化层级：{AUTOMATION_LABEL[automation] ?? automation}
+                        {automation === "assist" ? "（AI 自动出候选，你确认后继续）" : ""}
+                        {automation === "auto" ? "（AI 自动出候选并直接继续）" : ""}
+                        {automation === "off" ? "（不叫模型，全人工填）" : ""}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          window.location.hash = "review"
+                        }}
+                      >
+                        在独立页面打开
+                      </Button>
+                    </div>
+                    <PendingPanel
+                      projectRoot={task.workDir}
+                      target={task.request.target}
+                      taskId={task.id}
+                      runId={task.jobId}
+                      reloadKey={task.id + ":" + task.updatedAt}
+                      automation={automation}
+                      onResumed={() => void loadBoard()}
+                    />
+                  </div>
+                )}
+              </StepCard>
+            )}
+
+            {task && job && <TaskLogCard logText={logText} logRef={logRef} />}
+            {task && showProducts && task.workDir && <DoneBoard projectRoot={task.workDir} target={task.request.target} />}
+          </div>
+        </div>
       )}
-
-      {/* 待确认卡只管图标与文案两节（布局那一节由上面的布局确认面板负责）。 */}
-      {task && pendingInputCount(counts) > 0 && (
-        <TaskPendingCard
-          task={task}
-          automation={automation}
-          counts={counts}
-          onResumed={() => {
-            void loadBoard()
-          }}
-        />
-      )}
-
-      {task && showProducts && task.workDir && <DoneBoard projectRoot={task.workDir} target={task.request.target} />}
-
-      {task && job && <TaskLogCard logText={logText} logRef={logRef} />}
     </div>
   )
 }

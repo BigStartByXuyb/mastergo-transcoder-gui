@@ -4,23 +4,19 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { StepFlow } from "@/app/task-steps"
-import { ClampText } from "@/app/clamp-text"
-import { IdentifierText } from "@/app/identifier-text"
 import { MergeConflicts } from "@/app/merge-conflicts"
-import type { BoardTask, PipelineStep } from "@/lib/api"
+import type { BoardTask } from "@/lib/api"
 import { boardStateVariant } from "@/lib/board-state"
 import { canResume } from "@/lib/task-state"
 
 /*
- * 任务详情卡片：状态、工作目录、可做的动作（续跑 / 合并）、失败原因与 12 步进度。
- * 失败原因优先给契约里的「可能的原因 / 修好后怎么继续」——那两句是插件自己的口径。
+ * 任务总览卡片：状态、工作目录、可做的动作（续跑 / 合并 / 冲突裁决）。
+ * 每一步的进度、失败原因与那一步要补的输入都在左边的步骤条与步骤界面里（app/step-card.tsx），
+ * 这里不复述一遍。
  */
 
 type Props = {
   task: BoardTask
-  contractStep: PipelineStep | null
-  stepTitles: Map<string, string>
   busy: string
   onResume: () => void
   onMerge: () => void
@@ -28,7 +24,7 @@ type Props = {
 }
 
 export function TaskDetailCard(props: Props) {
-  const { task, contractStep, stepTitles, busy } = props
+  const { task, busy } = props
   return (
     <Card>
       <CardHeader>
@@ -57,15 +53,6 @@ export function TaskDetailCard(props: Props) {
               {task.state === "conflict" ? "重新合并" : "合并回工程"}
             </Button>
           )}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              window.location.hash = "board"
-            }}
-          >
-            在看板里看
-          </Button>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -81,40 +68,14 @@ export function TaskDetailCard(props: Props) {
           <Alert variant={task.failure.kind === "error" ? "destructive" : "default"}>
             <AlertTitle>
               {task.failure.kind === "error"
-                ? "失败：" + (task.failure.title || task.failure.stepName)
+                ? "这一步失败了：" + (task.failure.title || task.failure.stepName)
                 : "停在语义判断点，不是错误：" + (task.failure.title || task.failure.stepName)}
             </AlertTitle>
-            <AlertDescription className="flex flex-col gap-2">
-              {task.failure.message && <ClampText text={task.failure.message} />}
-              {task.failure.logPath && (
-                <span className="text-muted-foreground text-xs">
-                  这一步的日志：<IdentifierText text={task.failure.logPath} />
-                </span>
-              )}
-              {contractStep && (
-                <>
-                  <div>
-                    <div className="text-xs font-medium">可能的原因</div>
-                    <ul className="list-disc pl-5 text-xs">
-                      {contractStep.Failures.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <div className="text-xs font-medium">修好后怎么继续</div>
-                    <ul className="list-disc pl-5 text-xs">
-                      {contractStep.Recovery.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </>
-              )}
+            <AlertDescription className="text-xs">
+              原因、可能的原因与修法在左边那一步的界面里（点左侧「停这里」的那一步）。
             </AlertDescription>
           </Alert>
         )}
-        <StepFlow task={task} stepTitles={stepTitles} />
       </CardContent>
     </Card>
   )

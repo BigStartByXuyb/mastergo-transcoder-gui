@@ -14,6 +14,11 @@ export type LayoutGroupsInput = {
   taskId: string
   /** 流水线直跑 / 孤儿条目没有 taskId，靠 runId 续跑。 */
   runId: string
+  /**
+   * 有没有可续跑的来源运行：看板任务 / 流水线直跑的条目有（写入后从布局那一步续跑）；
+   * 待确认页「手填工程目录」那种没有来源运行，只能把表写进工程（resume=false）。
+   */
+  resume: boolean
   projectRoot: string
   target: string
   /** 用于在任务推进时重读；看板任务给它 updatedAt，待确认页给空串（不轮询）。 */
@@ -46,7 +51,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
     dirty.current = true
     setGroups(next)
   }, [])
-  const { taskId, runId, projectRoot, target, updatedAt, progressDone } = input
+  const { taskId, runId, resume, projectRoot, target, updatedAt, progressDone } = input
 
   const load = useCallback(async () => {
     if (!projectRoot || !target) return
@@ -107,13 +112,16 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
     }
   }
 
-  // 写回分组表并从 layout 续跑（写入只有 confirm 这一条路）。空数组也照写：本页没有要声明的分组。
+  /*
+   * 写回分组表（写入只有 confirm 这一条路）；有来源运行时从 layout 那一步接着跑。
+   * 空数组也照写：那是「本页没有要声明的分组」。
+   */
   async function save() {
     setBusy(true)
     setFailure("")
     setSaved(false)
     try {
-      await api.confirm({ projectRoot, target, taskId, runId, groups, resume: true })
+      await api.confirm({ projectRoot, target, taskId, runId, groups, resume })
       if (alive.current) {
         dirty.current = false
         setSaved(true)

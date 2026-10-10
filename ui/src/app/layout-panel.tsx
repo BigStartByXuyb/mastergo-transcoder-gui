@@ -21,7 +21,7 @@ import { useState } from "react"
  */
 
 type LayoutPanelProps = LayoutGroupsInput & {
-  /** 现在能不能写回并续跑：任务已经停下来才给（跑着的时候续跑会起第二次运行）。 */
+  /** 现在能不能写回：任务已经停下来才给（跑着的时候续跑会起第二次运行）。 */
   confirmable: boolean
 }
 
@@ -70,17 +70,22 @@ export function LayoutPanel({ confirmable, ...input }: LayoutPanelProps) {
                 </Button>
                 <Button size="sm" onClick={() => void layout.save()} disabled={layout.busy || !confirmable}>
                   <Save className="mr-1 h-4 w-4" />
-                  写入分组表并继续
+                  {input.resume ? "写入分组表并继续" : "写入分组表"}
                 </Button>
               </div>
             </div>
 
             {layout.failure ? <p className="text-sm text-destructive">{layout.failure}</p> : null}
             {layout.note ? <p className="text-sm text-muted-foreground">{layout.note}</p> : null}
-            {layout.saved ? <p className="text-sm text-muted-foreground">已确认，正在从布局推导继续。</p> : null}
+            {layout.saved ? (
+              <p className="text-sm text-muted-foreground">
+                {input.resume ? "已确认，正在从布局推导继续。" : "已写入分组表（这条没有来源运行，不续跑）。"}
+              </p>
+            ) : null}
             {!confirmable ? (
               <p className="text-sm text-muted-foreground">
-                任务正在跑：先在下面改好分组，等它停在布局确认（或停下来之后）再点「写入分组表并继续」。
+                任务正在跑：先在下面改好分组，等它停在布局确认（或停下来之后）再点
+                {input.resume ? "「写入分组表并继续」" : "「写入分组表」"}。
               </p>
             ) : null}
             {layout.groups.length === 0 ? (

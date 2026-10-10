@@ -58,7 +58,7 @@ const LOCAL_GROUPS = [{ id: "Mine", kind: "row" as const, members: ["1:9", "1:10
 describe("useLayoutGroups", () => {
   it("读过一次就有了控件清单与分组", async () => {
     stub()
-    const { result } = renderHook(() => useLayoutGroups({ taskId: "t", runId: "j", projectRoot: WORK_DIR, target: "DemoPage", updatedAt: "" }))
+    const { result } = renderHook(() => useLayoutGroups({ taskId: "t", runId: "j", resume: true, projectRoot: WORK_DIR, target: "DemoPage", updatedAt: "" }))
     await waitFor(() => expect(result.current.groups.length).toBe(1))
     expect(result.current.controls.length).toBe(2)
   })
@@ -68,7 +68,7 @@ describe("useLayoutGroups", () => {
     stub({ onConfirm: (body) => (confirmed = body as { groups: unknown }) })
     const { result, rerender } = renderHook(
       (props: { updatedAt: string }) =>
-        useLayoutGroups({ taskId: "t", runId: "j", projectRoot: WORK_DIR, target: "DemoPage", updatedAt: props.updatedAt }),
+        useLayoutGroups({ taskId: "t", runId: "j", resume: true, projectRoot: WORK_DIR, target: "DemoPage", updatedAt: props.updatedAt }),
       { initialProps: { updatedAt: "1" } }
     )
     await waitFor(() => expect(result.current.groups.length).toBe(1))
@@ -94,7 +94,7 @@ describe("useLayoutGroups", () => {
     stub()
     const { result, rerender } = renderHook(
       (props: { updatedAt: string }) =>
-        useLayoutGroups({ taskId: "t", runId: "j", projectRoot: WORK_DIR, target: "DemoPage", updatedAt: props.updatedAt }),
+        useLayoutGroups({ taskId: "t", runId: "j", resume: true, projectRoot: WORK_DIR, target: "DemoPage", updatedAt: props.updatedAt }),
       { initialProps: { updatedAt: "1" } }
     )
     await waitFor(() => expect(result.current.groups.length).toBe(1))
@@ -128,7 +128,7 @@ describe("useLayoutGroups", () => {
     })
     const { result, rerender } = renderHook(
       (props: { updatedAt: string }) =>
-        useLayoutGroups({ taskId: "t", runId: "j", projectRoot: WORK_DIR, target: "DemoPage", updatedAt: props.updatedAt }),
+        useLayoutGroups({ taskId: "t", runId: "j", resume: true, projectRoot: WORK_DIR, target: "DemoPage", updatedAt: props.updatedAt }),
       { initialProps: { updatedAt: "1" } }
     )
     await waitFor(() => expect(result.current.failure).not.toBe(""))

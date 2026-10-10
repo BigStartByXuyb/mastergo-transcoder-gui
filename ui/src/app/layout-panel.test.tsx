@@ -84,7 +84,9 @@ afterEach(() => {
 })
 
 function panel() {
-  return <LayoutPanel taskId="task-1" runId="job-1" projectRoot={WORK_DIR} target="DemoPage" updatedAt="" confirmable={true} />
+  return (
+    <LayoutPanel taskId="task-1" runId="job-1" resume projectRoot={WORK_DIR} target="DemoPage" updatedAt="" confirmable={true} />
+  )
 }
 
 describe("LayoutPanel", () => {
@@ -170,6 +172,7 @@ describe("LayoutPanel", () => {
       <LayoutPanel
         taskId="task-1"
         runId="job-1"
+        resume
         projectRoot={WORK_DIR}
         target="DemoPage"
         updatedAt=""

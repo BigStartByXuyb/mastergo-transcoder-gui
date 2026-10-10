@@ -43,6 +43,9 @@ function keyOf(entry: { source: string; projectRoot: string; target: string }) {
   return entry.source + "|" + entry.projectRoot + "|" + entry.target
 }
 
+/** 一屏里的当前条目：待确认队列里的那条，或人手动填的工程目录 + Target（后者没有待办条数）。 */
+type ActiveEntry = PendingQueueEntry & { manual?: boolean }
+
 export function ReviewPage() {
   const [queue, setQueue] = useState<PendingQueueEntry[]>([])
   const [problem, setProblem] = useState("")
@@ -77,8 +80,12 @@ export function ReviewPage() {
       .catch(() => undefined)
   }, [])
 
-  // 选中的那条已经从列表里消失（填完了 / 任务被移除），面板继续留着看结果，但会提示一下。
-  const active = useMemo(() => {
+  /*
+   * 选中的那条已经从列表里消失（填完了 / 任务被移除），面板继续留着看结果，但会提示一下。
+   * 手填的条目（列表里没有这个工程目录）没有可以读的待办条数 —— 它的条数给 0，面板一律挂上去：
+   * 布局确认那一块自己会照后端的读结论说「可编辑 / 还没有控件清单」，没有来源运行就只写盘不续跑。
+   */
+  const active = useMemo<ActiveEntry | null>(() => {
     const hit = queue.find((item) => keyOf(item) === selected)
     if (hit) return hit
     if (manualRoot.trim() && manualTarget.trim()) {
@@ -89,8 +96,10 @@ export function ReviewPage() {
         runId: "",
         taskId: "",
         runState: "",
+        orphan: false,
         counts: { icons: 0, translations: 0, layout: 0 },
-        total: 0
+        total: 0,
+        manual: true
       }
     }
     return null
@@ -226,10 +235,12 @@ export function ReviewPage() {
               automation={automation}
               onResumed={() => void load()}
             />
-            {active.counts.layout > 0 && (active.taskId || active.runId) && (
+            {/* 手填的条目（列表里没有它）也把布局确认挂上：没有来源运行就只写盘、不续跑。 */}
+            {active && (active.manual || active.counts.layout > 0) && (
               <LayoutPanel
                 taskId={active.taskId}
                 runId={active.runId}
+                resume={Boolean(active.taskId || active.runId)}
                 projectRoot={active.projectRoot}
                 target={active.target}
                 updatedAt=""
