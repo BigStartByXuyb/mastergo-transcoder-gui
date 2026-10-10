@@ -133,12 +133,20 @@ export function UpdateCard() {
   /*
    * 切版本：写指针 → 让这一份退出 → 等监督进程把新的拉起来 → 刷新页面。
    * 整个过程铺遮罩（用户点不了别处）；连不上的那几秒是预期的，不算失败。
-   * 没有监督进程（直接 node server.js 起的）时退回老做法：下次启动生效。
+   * 没有监督进程（直接 node server.js 起的）时只能下次启动生效。
    */
   async function switchTo(version: string) {
     setFailure("")
     if (!supervised) {
-      await act(UPDATE_BUSY.switch(version), () => api.updateApply(version), "已切到 v" + version + "，下次启动生效")
+      /*
+       * 写指针之后没人会把新的一份拉起来，所以只能下次启动生效 —— 这一句要说清「为什么」，
+       * 别和客户端里的「点一下就切」混起来。
+       */
+      await act(
+        UPDATE_BUSY.switch(version),
+        () => api.updateApply(version),
+        "已写入指针指向 v" + version + "：这一份是直接起的（没有监督进程），重启客户端之后生效"
+      )
       return
     }
     setSwitching(version)
