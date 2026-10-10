@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { RefreshCw } from "lucide-react"
 
 import { PendingPanel } from "@/app/pending-panel"
+import { LayoutPanel } from "@/app/layout-panel"
 import { ClampText } from "@/app/clamp-text"
 import { PixelLoader } from "@/app/pixel-loader"
 import { IdentifierText } from "@/app/identifier-text"
@@ -12,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { api, type PendingQueueEntry } from "@/lib/api"
+import { api, type BoardTask, type PendingQueueEntry } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { REVIEW_POLL_MS } from "@/lib/task-state"
 
@@ -222,6 +223,19 @@ export function ReviewPage() {
               automation={automation}
               onResumed={() => void load()}
             />
+            {active.counts.layout > 0 && active.taskId && (
+              <LayoutPanel
+                task={
+                  {
+                    id: active.taskId,
+                    workDir: active.projectRoot,
+                    request: { target: active.target },
+                    updatedAt: "",
+                    progress: undefined
+                  } as unknown as BoardTask
+                }
+              />
+            )}
           </CardContent>
         </Card>
       )}
