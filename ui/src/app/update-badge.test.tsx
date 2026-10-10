@@ -81,6 +81,28 @@ describe("UpdateBadge", () => {
     expect(screen.getByText("可切到 v0.6.12")).toBeTruthy()
   })
 
+  it("本地有旧一点的下载件、远端更新：目标是远端那一版，点一下是下载它", async () => {
+    const staged: string[] = []
+    vi.stubGlobal("fetch", (url: RequestInfo | URL, init?: RequestInit) => {
+      const target = String(url)
+      if (target.includes("/api/update/stage")) staged.push(String((init && init.body) || ""))
+      return ok({ ok: true, started: true, version: "0.6.12", status: {} })
+    })
+    const onOpenUpdatePage = vi.fn()
+    render(
+      <UpdateBadge
+        update={hint({ state: "download_ready", ready: "0.6.11", availableVersion: "0.6.12" })}
+        supervised
+        onOpenUpdatePage={onOpenUpdatePage}
+      />
+    )
+    expect(screen.getByText("有新版 v0.6.12")).toBeTruthy()
+    fireEvent.click(screen.getByRole("button"))
+    await waitFor(() => expect(onOpenUpdatePage).toHaveBeenCalled())
+    // 点的是「下载远端那一版」，不是「切到手上这份旧的」。
+    expect(staged.join("\n")).toContain("0.6.12")
+  })
+
   it("没有监督进程时不在标注里切换，而是把人带到更新页", async () => {
     const mock = stub()
     const onOpenUpdatePage = vi.fn()

@@ -19,7 +19,12 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
   const [failure, setFailure] = useState("")
   const [confirming, setConfirming] = useState(false)
   const hint = props.update
-  const target = hint ? hint.ready || hint.availableVersion : ""
+  /*
+   * 目标只有一个：远端最新那一版（不知道远端时才用已下载好的那一版）。
+   * 「下没下好」必须问**这一个版本**自己 —— 以前问的是全局状态（只要有任意一版下好了就算「已下载」），
+   * 于是没下过的远端新版会被当成「可切」，点下去切的是另一版，或者干脆被后端拒（和清单对不上）。
+   */
+  const target = hint ? hint.availableVersion || hint.ready : ""
 
   /*
    * 状态一变（下载好、切成新版）就把上一次那句收掉：它说的是上一刻的事，留着会让人以为现在还坏着
@@ -29,12 +34,12 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
     function () {
       setFailure("")
     },
-    [hint ? hint.state : "", hint ? hint.ready : ""]
+    [hint ? hint.state : "", hint ? hint.ready : "", hint ? hint.availableVersion : ""]
   )
 
   if (!hint || !target || hint.state === "up_to_date" || hint.state === "error") return null
 
-  const downloaded = hint.state === "download_ready"
+  const downloaded = hint.ready === target
 
   async function open() {
     if (!hint) return

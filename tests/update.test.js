@@ -311,8 +311,23 @@ async function main() {
   assert.strictEqual(rootUpdate.hint().state, "download_ready", "探活快照也要认安装根那一份");
   assert.strictEqual(rootUpdate.hint().ready, "0.2.0");
 
-  // 安装根那一份（就是「本地这一版」）同样要按清单校验：被改过就不许切过去。
+  /*
+   * 安装根那一份（就是「本地这一版」）同样要按清单校验 —— 而且「算不算可切」当场就知道，
+   * 不必等到点「切换」那一刻才报错（发布件里那份 exe 是 CI 现编的、本地这份是本机编的，
+   * 光比版本号会把这种树当成那一版）。
+   */
   fs.writeFileSync(path.join(rootNewer, "lib", "a.js"), "被人改过", "utf8");
+  // 核过的结论是缓存着的（探活每 5 秒问一次，不能每次读整棵树）；检查一次就重算。
+  await rootUpdate.check();
+  const dirty = rootUpdate.status();
+  assert.strictEqual(dirty.staged.find(function (item) { return item.version === "0.2.0"; }).ready, false, "改过的安装根那一份不算可切");
+  assert.strictEqual(dirty.ready, "", "所以「可切到哪一版」也不指着它");
+  // 改回来、再检查一次：结论跟着重新算，又是可切的。
+  fs.writeFileSync(path.join(rootNewer, "lib", "a.js"), "a", "utf8");
+  await rootUpdate.check();
+  assert.strictEqual(rootUpdate.status().ready, "0.2.0", "改回来之后重新算，又是可切的了");
+  // 切换前那一刻照样逐文件校验（挡住「先报可切、点之前又被改」）：改过就拒。
+  fs.writeFileSync(path.join(rootNewer, "lib", "a.js"), "又被改过", "utf8");
   assert.throws(function () { rootUpdate.apply("0.2.0"); }, /和清单对不上/, "安装根那一份也要校验");
   fs.writeFileSync(path.join(rootNewer, "lib", "a.js"), "a", "utf8");
 
