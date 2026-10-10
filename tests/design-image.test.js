@@ -10,43 +10,9 @@ const os = require("os");
 const path = require("path");
 
 const designImage = require("../lib/design-image.js");
+const { png, jpeg, bmp } = require("./image-fixtures.js");
 
 const TARGET = "DemoPage";
-
-/* 最小 PNG：签名 + IHDR（宽高在 16 / 20）。解析器只看这两处。 */
-function png(width, height) {
-  const buffer = Buffer.alloc(24);
-  buffer.writeUInt32BE(0x89504e47, 0);
-  buffer.writeUInt32BE(0x0d0a1a0a, 4);
-  buffer.writeUInt32BE(13, 8);
-  buffer.write("IHDR", 12, "ascii");
-  buffer.writeUInt32BE(width, 16);
-  buffer.writeUInt32BE(height, 20);
-  return buffer;
-}
-
-/* 最小 JPEG：SOI + SOF0（精度 / 高 / 宽跟在段长后面）。 */
-function jpeg(width, height) {
-  const buffer = Buffer.alloc(12);
-  buffer[0] = 0xff;
-  buffer[1] = 0xd8;
-  buffer[2] = 0xff;
-  buffer[3] = 0xc0;
-  buffer.writeUInt16BE(17, 4);
-  buffer[6] = 8;
-  buffer.writeUInt16BE(height, 7);
-  buffer.writeUInt16BE(width, 9);
-  return buffer;
-}
-
-/* 一份 BMP 的文件头（只为了验「别的格式不接」）。 */
-function bmp(width, height) {
-  const buffer = Buffer.alloc(32);
-  buffer.write("BM", 0, "ascii");
-  buffer.writeUInt32LE(width, 18);
-  buffer.writeUInt32LE(height, 22);
-  return buffer;
-}
 
 /* 一份最小工程：DSL 快照（画板 1280×1024）+ _inputs 目录。 */
 function sandbox() {

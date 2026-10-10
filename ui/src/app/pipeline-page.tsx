@@ -35,7 +35,7 @@ import { candidatesForLink } from "@/lib/identity-flow"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
 import { AUTOMATION_LABEL, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
 import { decideStartIdentity } from "@/lib/task-start"
-import { canStop, hasProducts, isBusyState, isInFlight, pendingInputCount, waitingCounts } from "@/lib/task-state"
+import { canStop, hasProducts, isBusyState, pendingInputCount, waitingCounts } from "@/lib/task-state"
 import { fileToBase64 } from "@/lib/upload-files"
 
 export function PipelinePage({
@@ -293,9 +293,10 @@ export function PipelinePage({
               >
                 {/*
                   走 A 路线（mw-wpf）的任务才读图：AB 的 A 段同样读，所以判据是「路线里有 A」。
-                  图与分组表都属于「布局」那一步的输入，所以它们挂在这一步的界面里。
+                  图与分组表都属于「布局」那一步的输入；那一步叫什么由后端按插件契约的 Inputs 算出来
+                  （task.layoutStep），界面不认步骤名。它们就挂在这一步的界面里。
                 */}
-                {step === "layout" && task.workDir && task.request.target && task.routes.includes("A") && (
+                {step !== "" && step === task.layoutStep && task.workDir && task.request.target && task.routes.includes("A") && (
                   <div className="flex flex-col gap-3">
                     <DesignImageCard task={task} />
                     <LayoutPanel
@@ -306,7 +307,7 @@ export function PipelinePage({
                       target={task.request.target}
                       updatedAt={task.updatedAt}
                       progressDone={task.progress?.done}
-                      confirmable={!isInFlight(task.state)}
+                      state={task.state}
                     />
                   </div>
                 )}
@@ -336,6 +337,7 @@ export function PipelinePage({
                       target={task.request.target}
                       taskId={task.id}
                       runId={task.jobId}
+                      state={task.state}
                       reloadKey={task.id + ":" + task.updatedAt}
                       automation={automation}
                       onResumed={() => void reload()}

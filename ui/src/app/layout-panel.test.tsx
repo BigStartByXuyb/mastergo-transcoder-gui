@@ -85,7 +85,7 @@ afterEach(() => {
 
 function panel() {
   return (
-    <LayoutPanel taskId="task-1" runId="job-1" resume projectRoot={WORK_DIR} target="DemoPage" updatedAt="" confirmable={true} />
+    <LayoutPanel taskId="task-1" runId="job-1" resume projectRoot={WORK_DIR} target="DemoPage" updatedAt="" state="waiting" />
   )
 }
 
@@ -176,13 +176,13 @@ describe("LayoutPanel", () => {
         projectRoot={WORK_DIR}
         target="DemoPage"
         updatedAt=""
-        confirmable={false}
+        state="running"
       />
     )
 
     await screen.findByText("RightTools")
     expect(screen.getByRole("button", { name: /写入分组表并继续/ }).hasAttribute("disabled")).toBe(true)
     // 提示里说的按钮名要与本面板那个按钮一致（别指向待补全面板的「确认并继续」）。
-    expect(screen.getByText(/等它停在布局确认（或停下来之后）再点「写入分组表并继续」/)).toBeTruthy()
+    expect(screen.getByText(/流水线正在跑：等它停下来再点「写入分组表并继续」/)).toBeTruthy()
   })
 })

@@ -60,6 +60,14 @@ export function isInFlight(state: string): boolean {
   return occupiesSlot(state) && state !== "waiting"
 }
 
+/*
+ * 「运行中不给续跑」这句说法的唯一一处：布局确认与待确认面板的「写入并续跑」都挂它。
+ * 判据是上面的 isInFlight；说法只写一处，两个入口不会一个拦一个不拦、也不会各说各的。
+ */
+export function inFlightNote(action: string): string {
+  return "流水线正在跑：等它停下来再点「" + action + "」。"
+}
+
 /* 正在合并：产物已写完、正在回写主工程，这时不给「停止」（停也停不了一半）。 */
 export function isMerging(state: string): boolean {
   return state === "merging"
@@ -92,7 +100,8 @@ export function canResume(task: { state: string; workDir: string }): boolean {
 
 /*
  * 待确认条目计数：三节各自的 waiting 由后端 lib/pending.js 算一次（图标那节还含
- * 命名表写歪的旧下标与重名组），这里只取数、不再按 needsXxx 重算一遍。
+ * 命名表写歪的旧下标与重名组），这里只取数、不再按 needsXxx 重算一遍；
+ * 合计数这一端各加一次（跨语言没法共用这一步），三个加数本身只有那一处算。
  */
 export function waitingCounts(pending: Pending | null): {
   icons: number

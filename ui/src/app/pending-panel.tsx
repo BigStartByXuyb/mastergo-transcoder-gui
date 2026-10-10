@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { api, type Pending } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
-import { pendingInputCount, waitingCounts } from "@/lib/task-state"
+import { inFlightNote, isInFlight, pendingInputCount, waitingCounts } from "@/lib/task-state"
 
 const BASIS_LABEL: Record<string, string> = {
   "host-shell": "宿主外壳自带",
@@ -58,6 +58,7 @@ export function PendingPanel({
   target,
   taskId,
   runId,
+  state,
   reloadKey,
   automation,
   onResumed,
@@ -69,6 +70,8 @@ export function PendingPanel({
   taskId: string
   /** 来源运行 id：非看板来源（流水线直跑、任务已移除）没有 taskId，续跑只有它能用。 */
   runId: string
+  /** 来源运行/任务的状态：跑着的时候不给续跑（判据见 ui/src/lib/task-state.ts 的 isInFlight）。 */
+  state: string
   /** 运行状态指纹（如 `<jobId>:<state>`）。状态变化要重读清单——否则「跑着 → 停下」后看不见新出现的待办。 */
   reloadKey?: string
   automation: string
@@ -154,6 +157,11 @@ export function PendingPanel({
   const noIconSlots = Boolean(pending?.icons.available) && (pending?.icons.mustName.length ?? 0) === 0
   // 有待办才让提交；没有图标槽位时靠「按空台账继续」这一个显式声明兜底。
   const canSubmit = Boolean(pending) && (waiting > 0 || (noIconSlots && allowEmptyLedger))
+  /*
+   * 跑着的时候不给续跑：这条判据与布局确认面板同一处（ui/src/lib/task-state.ts 的 isInFlight）。
+   * 待确认清单不按运行状态过滤，正在跑的任务照样会列在这里 —— 两个入口的口径必须一样。
+   */
+  const inFlight = isInFlight(state)
 
   useEffect(() => {
     onState?.({ waiting, phase: busy })
@@ -240,6 +248,8 @@ export function PendingPanel({
    */
   useEffect(() => {
     if (!pending || automation === "off") return
+    // 跑着的时候连自动那条路也不续跑：那会与人工点「确认并继续」一样起第二次运行。
+    if (inFlight) return
     if (waiting === 0) return
     if (aiReady !== true) return
     const key =
@@ -301,6 +311,7 @@ export function PendingPanel({
   }, [
     pending,
     automation,
+    inFlight,
     waiting,
     iconCount,
     langCount,
@@ -580,7 +591,7 @@ export function PendingPanel({
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button disabled={busy === "submit" || !canSubmit} onClick={() => void submit(true)}>
+        <Button disabled={busy === "submit" || !canSubmit || inFlight} onClick={() => void submit(true)}>
           {busy === "submit" ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           确认并继续
         </Button>
@@ -588,9 +599,10 @@ export function PendingPanel({
           <RefreshCw className="size-4" />
           重新读取
         </Button>
-        <Button variant="ghost" disabled={busy === "submit" || !canSubmit} onClick={() => void submit(false)}>
+        <Button variant="ghost" disabled={busy === "submit" || !canSubmit || inFlight} onClick={() => void submit(false)}>
           只写入，不继续
         </Button>
+        {inFlight && canSubmit && <span className="text-muted-foreground text-xs">{inFlightNote("确认并继续")}</span>}
         {!canSubmit && pending && (
           <span className="text-muted-foreground text-xs">这个页面当前没有要填的东西。</span>
         )}

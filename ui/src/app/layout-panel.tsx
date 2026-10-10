@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { useLayoutGroups, type LayoutGroupsInput } from "@/app/use-layout-groups"
 import { addGroup, labelOf, moveMember, removeGroup, removeMember, ungroupedControls } from "@/lib/layout-edit"
+import { inFlightNote, isInFlight } from "@/lib/task-state"
 import { useState } from "react"
 
 /*
@@ -21,12 +22,13 @@ import { useState } from "react"
  */
 
 type LayoutPanelProps = LayoutGroupsInput & {
-  /** 现在能不能写回：任务已经停下来才给（跑着的时候续跑会起第二次运行）。 */
-  confirmable: boolean
+  /** 来源运行/任务的状态：跑着的时候不给写回（判据见 ui/src/lib/task-state.ts 的 isInFlight）。 */
+  state: string
 }
 
-export function LayoutPanel({ confirmable, ...input }: LayoutPanelProps) {
+export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   const layout = useLayoutGroups(input)
+  const confirmable = !isInFlight(state)
   const [newId, setNewId] = useState("")
   const [newKind, setNewKind] = useState<"column" | "row">("column")
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
@@ -84,8 +86,7 @@ export function LayoutPanel({ confirmable, ...input }: LayoutPanelProps) {
             ) : null}
             {!confirmable ? (
               <p className="text-sm text-muted-foreground">
-                任务正在跑：先在下面改好分组，等它停在布局确认（或停下来之后）再点
-                {input.resume ? "「写入分组表并继续」" : "「写入分组表」"}。
+                {inFlightNote(input.resume ? "写入分组表并继续" : "写入分组表")}
               </p>
             ) : null}
             {layout.groups.length === 0 ? (

@@ -15,7 +15,7 @@
 | `public/` | 界面构建产物（`npm run build:ui` 生成，入库） | 手写的源文件 |
 | `scripts/` + `scripts/lib/` | 工具链：打包、发布、winget、起前端等一次性任务 | 运行期会加载的逻辑 |
 | `tools/launcher/` | 不依赖 Node 的启动器（Go） | 任何 JavaScript |
-| `tests/` | 一条链路/一个模块一份用例；命名 `<主题>.test.js` | 生产代码 |
+| `tests/` | 一条链路/一个模块一份用例；命名 `<主题>.test.js`；用例共用的小夹具（`image-fixtures.js`） | 生产代码 |
 | `docs/` | 说明：一份文档一类事，索引见 [`README.md`](README.md) | 与实现重复的清单 |
 | `vendor/` | 模型依赖的压缩件（由 `scripts/vendor-openai.js` 生成） | 手写源码 |
 | 运行目录（`versions/`、`agents/`、`plugins/`、`runtime/`、`blobs/`、`logs/`、`work/`、`chats/`、`update-cache/`、`dist/`、`output/`、`.playwright-cli/`） | 本机状态与产物（`.gitignore` 里那些） | 仓库源码 |

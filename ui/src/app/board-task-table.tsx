@@ -154,6 +154,9 @@ function TaskRow({
             className="text-muted-foreground font-mono text-xs"
           />
           {task.error && <ClampText text={task.error} lines={2} className="text-destructive text-xs" />}
+          {task.designImage && (
+            <ClampText text={task.designImage} lines={2} className="text-muted-foreground text-xs" />
+          )}
           {task.failure && task.failure.kind !== "semantic" && (
             <span className="text-destructive text-xs">
               <ClampText

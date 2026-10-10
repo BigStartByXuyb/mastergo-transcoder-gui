@@ -550,6 +550,8 @@ export type BoardTask = {
   progress: BoardProgress | null
   /** 这一页的流程：步骤来自插件自己的运行登记表，续跑会接着写同一份。 */
   steps: BoardTaskStep[]
+  /** 吃布局输入（设计稿位图 / 分组表）的那一步叫什么：任务详情把位图卡片与布局确认挂在这一步上。 */
+  layoutStep: string
   aiFills: BoardAiFill[]
   failure: {
     /** semantic = 停在语义判断点（不是错误）；error = 真的失败。 */
@@ -563,6 +565,8 @@ export type BoardTask = {
   /** 冲突处已做的选择（相对路径 → mine / main），合并成功后清空。 */
   resolutions: Record<string, "mine" | "main">
   error: string
+  /** 新建时先选的设计稿位图没能落地时的那句话（不是任务的失败原因）；空串表示没有要说的。 */
+  designImage: string
 }
 
 export type BoardAiFill = {

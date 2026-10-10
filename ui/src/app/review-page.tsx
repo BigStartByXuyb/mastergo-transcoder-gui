@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { api, type PendingQueueEntry } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
-import { REVIEW_POLL_MS, isInFlight } from "@/lib/task-state"
+import { REVIEW_POLL_MS } from "@/lib/task-state"
 
 /*
  * 待确认页：列出**所有**还缺语义输入的页面。
@@ -232,6 +232,7 @@ export function ReviewPage() {
               target={active.target}
               taskId={active.taskId}
               runId={active.runId}
+              state={active.runState}
               automation={automation}
               onResumed={() => void load()}
             />
@@ -244,7 +245,7 @@ export function ReviewPage() {
                 projectRoot={active.projectRoot}
                 target={active.target}
                 updatedAt=""
-                confirmable={!isInFlight(active.runState)}
+                state={active.runState}
               />
             )}
           </CardContent>
