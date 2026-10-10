@@ -48,14 +48,14 @@ export function fillTargets(text: string, targets: Map<string, string>): string 
 /*
  * 选好的位图按链接记：链接行没了，那一份图跟着走 —— 暂存件是任务的一部分，不留没人认领的文件。
  * 「哪几行有链接」与解析同一处（lineParts），所以行怎么改都不会算岔。
+ * 空链接那一格是「选的时候还没填链接」（见 pickedForLink）：它还没认领到哪一页，不算行没了。
  */
 export function keepPickedImages<T>(images: Record<string, T>, text: string): Record<string, T> {
-  const live = new Set(
-    text
-      .split(/\r?\n/)
-      .map((raw) => lineParts(raw).link)
-      .filter(Boolean)
-  )
+  const live = new Set<string>([UNCLAIMED])
+  for (const raw of text.split(/\r?\n/)) {
+    const link = lineParts(raw).link
+    if (link) live.add(link)
+  }
   return Object.fromEntries(Object.entries(images).filter(([link]) => live.has(link)))
 }
 
@@ -68,4 +68,15 @@ export function withPickedImage<T>(images: Record<string, T>, link: string, file
   if (file) next[link] = file
   else delete next[link]
   return next
+}
+
+/* 还没填链接时选的那一份记在这一格（键是空串）。 */
+const UNCLAIMED = ""
+
+/*
+ * 这一页现在的图：按链接取；还没填链接时给「待认领」那一格 —— 链接一填上就归这一页。
+ * 看板每一行都有链接，所以那边总是直接命中自己那一格。
+ */
+export function pickedForLink<T>(images: Record<string, T>, link: string): T | null {
+  return images[link] ?? images[UNCLAIMED] ?? null
 }

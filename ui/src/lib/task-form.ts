@@ -54,19 +54,6 @@ export const AUTOMATION_LABEL: Record<string, string> = {
   auto: "自动"
 }
 
-/** 先选好的那张图 + 它当时属于哪一页（空串＝选的时候还没填链接）。 */
-export type PickedImage = { link: string; file: File }
-
-/*
- * 这一份图还算不算「当前这一页」的：选的时候还没填链接就算（链接一填就归它），
- * 链接一致也算；换成另一页了就不算 —— 图跟着页面走，与看板按行裁图同一口径
- * （那边一行一个页面，规则在 ui/src/lib/board-items.ts 的 keepPickedImages）。
- */
-export function pickedImageFor(picked: PickedImage | null, link: string): File | null {
-  if (!picked) return null
-  return picked.link === "" || picked.link === link ? picked.file : null
-}
-
 /* 「自动」这一层级的含义：身份候选不人工确认，直接采用。按钮入口与启动前共用这条规则。 */
 export function adoptsIdentityWithoutConfirm(automation: string): boolean {
   return automation === "auto"

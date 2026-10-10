@@ -5,7 +5,6 @@ import {
   MODE_HINT,
   adoptsIdentityWithoutConfirm,
   modeTakesRoute,
-  pickedImageFor,
   readTaskForm,
   writeTaskForm
 } from "@/lib/task-form"
@@ -76,11 +75,4 @@ describe("task-form", () => {
     expect(modeTakesRoute("", "A")).toBe(false)
   })
 
-  it("先选好的图跟着页面走：还没填链接算，换了一页不算", () => {
-    const file = new File(["x"], "a.png", { type: "image/png" })
-    expect(pickedImageFor(null, "https://a")).toBeNull()
-    expect(pickedImageFor({ link: "", file: file }, "https://a")).toBe(file)
-    expect(pickedImageFor({ link: "https://a", file: file }, "https://a")).toBe(file)
-    expect(pickedImageFor({ link: "https://a", file: file }, "https://b")).toBeNull()
-  })
 })

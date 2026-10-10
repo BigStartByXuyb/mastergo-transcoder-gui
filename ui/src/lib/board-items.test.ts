@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest"
 
-import { fillTargets, keepPickedImages, parseBoardItems, parseBoardRows, withPickedImage } from "@/lib/board-items"
+import {
+  fillTargets,
+  keepPickedImages,
+  parseBoardItems,
+  parseBoardRows,
+  pickedForLink,
+  withPickedImage
+} from "@/lib/board-items"
 
 const LINK = "https://mastergo.com/goto/x?file=1&layer_id=2:3"
 
@@ -48,6 +55,10 @@ describe("keepPickedImages", () => {
     const picked = { [LINK]: "a.png", [other]: "b.png" }
     expect(keepPickedImages(picked, LINK)).toEqual({ [LINK]: "a.png" })
   })
+
+  it("还没填链接时选的那一份不算行没了", () => {
+    expect(keepPickedImages({ "": "a.png" }, LINK)).toEqual({ "": "a.png" })
+  })
 })
 
 describe("parseBoardRows", () => {
@@ -71,5 +82,22 @@ describe("withPickedImage", () => {
 
   it("同一个链接再选一张就是换那一张", () => {
     expect(withPickedImage({ [LINK]: "a.png" }, LINK, "b.png")).toEqual({ [LINK]: "b.png" })
+  })
+})
+
+describe("pickedForLink", () => {
+  const other = "https://mastergo.com/goto/y?file=1&layer_id=4:5"
+
+  it("按链接取那一格；没有就空", () => {
+    expect(pickedForLink({ [LINK]: "a.png" }, LINK)).toBe("a.png")
+    expect(pickedForLink({ [LINK]: "a.png" }, other)).toBeNull()
+  })
+
+  it("还没填链接时给「待认领」那一格：链接一填就归这一页", () => {
+    expect(pickedForLink({ "": "a.png" }, LINK)).toBe("a.png")
+  })
+
+  it("这一页自己那一格优先于待认领的那一份", () => {
+    expect(pickedForLink({ "": "unclaimed.png", [LINK]: "mine.png" }, LINK)).toBe("mine.png")
   })
 })
