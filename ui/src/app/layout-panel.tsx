@@ -43,10 +43,11 @@ export function LayoutPanel({ task }: { task: BoardTask }) {
   const load = useCallback(async () => {
     if (!projectRoot || !target) return
     try {
-      const payload = await api.layoutGroups(projectRoot, target)
+      const [payload, settings] = await Promise.all([api.layoutGroups(projectRoot, target), api.settingsGet()])
       if (alive.current) {
         setLayout(payload.layout)
         setGroups(payload.layout.groups)
+        setAutoPass(Boolean(settings.settings.layoutAutoPass))
       }
     } catch (error) {
       if (alive.current) setFailure(describeFailure(error))
@@ -56,20 +57,6 @@ export function LayoutPanel({ task }: { task: BoardTask }) {
   useEffect(() => {
     void load()
   }, [load, task.updatedAt, task.progress?.done])
-
-  // 布局自动通过是设置里的独立开关：挂载时读一次，切换时写回。
-  useEffect(() => {
-    let cancelled = false
-    api
-      .settingsGet()
-      .then((payload) => {
-        if (!cancelled && alive.current) setAutoPass(Boolean(payload.settings.layoutAutoPass))
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [alive])
 
   function toggleAutoPass(value: boolean) {
     setAutoPass(value)
@@ -129,16 +116,8 @@ export function LayoutPanel({ task }: { task: BoardTask }) {
     setBusy(true)
     setFailure("")
     try {
-      // 看板任务：写回分组表并从 layout 续跑；没有来源运行（手填）时只写回。
-      if (task.id) {
-        await api.confirm({ projectRoot, target, taskId: task.id, groups, resume: true })
-      } else {
-        const payload = await api.saveLayoutGroups({ projectRoot, target, groups })
-        if (alive.current) {
-          setLayout(payload.layout)
-          setGroups(payload.layout.groups)
-        }
-      }
+      // 写回分组表并从 layout 续跑（写入只有 confirm 这一条路）。
+      await api.confirm({ projectRoot, target, taskId: task.id, groups, resume: true })
     } catch (error) {
       if (alive.current) setFailure(describeFailure(error))
     } finally {

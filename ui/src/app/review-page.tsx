@@ -88,7 +88,7 @@ export function ReviewPage() {
         runId: "",
         taskId: "",
         runState: "",
-        counts: { icons: 0, translations: 0 },
+        counts: { icons: 0, translations: 0, layout: 0 },
         total: 0
       }
     }
@@ -161,6 +161,7 @@ export function ReviewPage() {
                       <TableCell className="align-top text-xs whitespace-normal">
                         {entry.counts.icons > 0 && <span className="mr-2">图标 {entry.counts.icons}</span>}
                         {entry.counts.translations > 0 && <span>文案 {entry.counts.translations}</span>}
+                        {entry.counts.layout > 0 && <span className="mr-2">布局</span>}
                       </TableCell>
                       <TableCell
                         className="text-muted-foreground truncate font-mono text-xs"

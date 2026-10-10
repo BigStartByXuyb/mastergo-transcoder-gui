@@ -957,9 +957,6 @@ export const api = {
     request<{ ok: true; layout: LayoutGroups }>(
       "/api/layout-groups?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
     ),
-  /** 写回分组表（整份替换）：人/AI 调好分组后落盘，再由流水线 -Progress layout 消费。 */
-  saveLayoutGroups: (body: { projectRoot: string; target: string; groups: LayoutGroup[] }) =>
-    post<{ ok: true; layout: LayoutGroups }>("/api/layout-groups", body),
   /** 在文件管理器里打开一个目录（插件页各行的「打开目录」）。打不开时 ok=false，reason 是原话。 */
   openFolder: (path: string) => post<{ ok: boolean; reason: string }>("/api/system/open-folder", { path }),
   pluginUpdateStatus: () => request<{ ok: true; status: PluginUpdateStatus }>("/api/plugin/update/status"),
