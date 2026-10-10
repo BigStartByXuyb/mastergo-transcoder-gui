@@ -65,6 +65,8 @@ export function pluginLookup(sources: PluginSource[]): PluginLookup {
     if (keeper) {
       keeper.alsoFrom.push(item.label)
       keeper.members.push(item.id)
+      // 并进去的档可能被 override 标成 active：把它归到留下的那一行，避免「正在用」徽章消失。
+      if (item.active) keeper.active = true
       // 并进去的：处境按留下那一行说，顺序条与表不会各说一套。
       slots.push({
         ...item,
