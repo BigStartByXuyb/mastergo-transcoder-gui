@@ -135,7 +135,8 @@ describe("useLayoutGroups", () => {
 
     fail = false
     rerender({ updatedAt: "2" })
-    await waitFor(() => expect(result.current.failure).toBe(""))
-    expect(result.current.groups.length).toBe(1)
+    // 等这一次读真的落地（failure 是在读之前清的，单独等它会抢在请求前面通过）。
+    await waitFor(() => expect(result.current.groups.length).toBe(1))
+    expect(result.current.failure).toBe("")
   })
 })
