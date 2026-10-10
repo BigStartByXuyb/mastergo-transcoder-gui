@@ -76,7 +76,7 @@ function main() {
       target: TARGET,
       groups: [{ id: "g1", kind: "column", members: ["a", "b"] }]
     });
-    assert.strictEqual(saved.groups.length, 1);
+    assert.strictEqual(saved.count, 1);
     const file = JSON.parse(
       fs.readFileSync(path.join(root, "Generated", "_inputs", TARGET + ".layout-groups.json"), "utf8")
     );
