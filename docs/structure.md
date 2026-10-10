@@ -72,7 +72,7 @@ launch.js ──> lib/launch.js      壳只用自己拥有的两份文件
 
 | 子系统 | 服务端 | 界面 | 用例 |
 | --- | --- | --- | --- |
-| 看板与任务 | `board.js`、`concurrency.js`、`idle.js` | `board-page.tsx`、`board-task-table.tsx`、`done-board.tsx`、`new-task-card.tsx`、`board-new-task-dialog.tsx`、`design-image-picker.tsx`、`use-file-pick.ts`、`stage-design-images.ts`、`board-filter-row.tsx`、`area-page.tsx`、`task-detail-card.tsx`、`effective-toggle.tsx`、`use-areas.ts`、`use-board-tasks.ts` | `board.test.js`、`board-flow.test.js`、`use-board-tasks.test.tsx` |
+| 看板与任务 | `board.js`、`concurrency.js`、`idle.js` | `board-page.tsx`、`board-task-table.tsx`、`done-board.tsx`、`new-task-card.tsx`、`board-new-task-dialog.tsx`、`design-image-picker.tsx`、`stage-design-images.ts`、`board-filter-row.tsx`、`area-page.tsx`、`task-detail-card.tsx`、`effective-toggle.tsx`、`use-areas.ts`、`use-board-tasks.ts` | `board.test.js`、`board-flow.test.js`、`use-board-tasks.test.tsx` |
 | 流水线 | `run.js`、`page-progress.js`、`run-mark.js` | `pipeline-page.tsx`、`task-steps.tsx`、`step-card.tsx`、`failure-note.tsx`、`task-log-card.tsx`、`ai-fill-line.tsx`、`use-run-log.ts`、`use-task-actions.ts`、`ui/src/lib/step-rows.ts` | `run.test.js`、`run-failure.test.js`、`resume-after-restart.test.js`、`task-steps.test.tsx`、`step-rows.test.ts`、`use-task-actions.test.tsx` |
 | 待确认与语义补全 | `pending.js`、`pending-queue.js`、`confirm.js`、`identity.js`、`autofill.js`、`ai.js`、`layout-groups.js` | `pending-panel.tsx`、`use-pending-inputs.ts`、`identity-fill-panel.tsx`、`review-page.tsx`、`layout-panel.tsx`、`use-identity.ts`、`use-identity-fill.ts`、`use-layout-groups.ts`、`ui/src/lib/layout-edit.ts` | `identity.test.js`、`confirm-source.test.js`、`layout-groups.test.js`、`pending-layout.test.js`、`pending-queue.test.js`、`autofill-layout.test.js` |
 | 对话 | `chat.js`、`codex.js`、`codex-release.js`、`agent-context.js` | `chat-page.tsx`、`chat-transcript.tsx`、`codex-card.tsx`、`agent-avatar.tsx`、`chat-engine-log.tsx`、`chat-new-dialog.tsx`、`template-dialog.tsx` | `chat.test.js`、`codex.test.js`、`agent-context.test.js` |
@@ -83,7 +83,7 @@ launch.js ──> lib/launch.js      壳只用自己拥有的两份文件
 | 设置与凭据 | `settings.js`、`config.js`、`source.js`、`mcp-token.js`、`proxy.js`、`getter.js` | `settings-page.tsx`、`settings-ai-panel.tsx`、`settings-mastergo-panel.tsx`、`settings-agent-panel.tsx`、`source-dialog.tsx`、`tab-button.tsx` | `settings-templates.test.js`、`mastergo-token.test.js`、`source.test.js`、`proxy.test.js` |
 | 上传与合并 | `uploads.js`、`merge.js`、`limits.js` | `chat-write-dialog.tsx`、`merge-conflicts.tsx` | `uploads.test.js`、`merge.test.js` |
 | 壳与自愈 | `launch.js`、`bootstrap.js`、`log.js` | —（控制台） | `launch.test.js`、`bootstrap.test.js`、`log.test.js` |
-| 通用件 | `errors.js`、`http.js`、`versions.js`、`workdir.js`、`name-safety.js`、`system-open.js`、`pick-folder.js`、`routes.js`、`ansi.js` | `ui/src/lib/*.ts`、`ui/src/app/pager.tsx`、`clamp-text.tsx`、`copy-text.ts`、`pixel-loader.tsx`、`app-shell.tsx`、`busy-action-button.tsx`、`busy-overlay.tsx`、`identifier-text.tsx`、`pixel-mascot.tsx`、`use-action-runner.ts`、`use-alive.ts` | `edges.test.js`、`system-open.test.js`、`pick-folder.test.js` |
+| 通用件 | `errors.js`、`http.js`、`versions.js`、`workdir.js`、`name-safety.js`、`system-open.js`、`pick-folder.js`、`routes.js`、`ansi.js` | `ui/src/lib/*.ts`、`ui/src/app/pager.tsx`、`clamp-text.tsx`、`copy-text.ts`、`pixel-loader.tsx`、`app-shell.tsx`、`busy-action-button.tsx`、`busy-overlay.tsx`、`identifier-text.tsx`、`pixel-mascot.tsx`、`use-action-runner.ts`、`use-alive.ts`、`use-file-pick.ts` | `edges.test.js`、`system-open.test.js`、`pick-folder.test.js` |
 
 ## 约束与门禁
 

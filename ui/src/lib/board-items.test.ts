@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { fillTargets, keepPickedImages, parseBoardItems, parseBoardRows } from "@/lib/board-items"
+import { fillTargets, keepPickedImages, parseBoardItems, parseBoardRows, withPickedImage } from "@/lib/board-items"
 
 const LINK = "https://mastergo.com/goto/x?file=1&layer_id=2:3"
 
@@ -55,5 +55,21 @@ describe("parseBoardRows", () => {
 
   it("行号是文本框里那一行（空行也占一行）", () => {
     expect(parseBoardRows(`\n${LINK}\n\n${other} | F2`, "A").map((row) => row.line)).toEqual([2, 4])
+  })
+})
+
+describe("withPickedImage", () => {
+  const other = "https://mastergo.com/goto/y?file=1&layer_id=4:5"
+
+  it("按链接置入一张", () => {
+    expect(withPickedImage({}, LINK, "a.png")).toEqual({ [LINK]: "a.png" })
+  })
+
+  it("移除就把键也去掉，别的行不动", () => {
+    expect(withPickedImage({ [LINK]: "a.png", [other]: "b.png" }, LINK, null)).toEqual({ [other]: "b.png" })
+  })
+
+  it("同一个链接再选一张就是换那一张", () => {
+    expect(withPickedImage({ [LINK]: "a.png" }, LINK, "b.png")).toEqual({ [LINK]: "b.png" })
   })
 })

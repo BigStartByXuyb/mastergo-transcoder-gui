@@ -58,3 +58,14 @@ export function keepPickedImages<T>(images: Record<string, T>, text: string): Re
   )
   return Object.fromEntries(Object.entries(images).filter(([link]) => live.has(link)))
 }
+
+/*
+ * 选好的位图按链接记：置入或移除一张（移除最后一张就把键也去掉）—— 记录长什么样只在这一处维护。
+ * 两个入口共用：看板弹窗每行一个框，流水线页只有当前链接那一个键。
+ */
+export function withPickedImage<T>(images: Record<string, T>, link: string, file: T | null): Record<string, T> {
+  const next = { ...images }
+  if (file) next[link] = file
+  else delete next[link]
+  return next
+}

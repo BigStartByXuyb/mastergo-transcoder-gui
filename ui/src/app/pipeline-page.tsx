@@ -29,7 +29,7 @@ import { useTaskActions } from "@/app/use-task-actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { api, type PipelineStep, type PluginSummary } from "@/lib/api"
-import { keepPickedImages } from "@/lib/board-items"
+import { keepPickedImages, withPickedImage } from "@/lib/board-items"
 import { describeFailure } from "@/lib/describe-failure"
 import { candidatesForLink } from "@/lib/identity-flow"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
@@ -203,14 +203,7 @@ export function PipelinePage({
           contract={contract}
           identity={identity}
           image={stagedImage}
-          onPickImage={(file) =>
-            setImages((current) => {
-              const next = { ...current }
-              if (file) next[form.link] = file
-              else delete next[form.link]
-              return next
-            })
-          }
+          onPickImage={(file) => setImages((current) => withPickedImage(current, form.link, file))}
           busy={actions.busy}
           failure={failure}
           canStop={task !== null && canStop(task.state)}

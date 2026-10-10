@@ -22,7 +22,7 @@ import { useValueRunner } from "@/app/use-action-runner"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentityFill } from "@/app/use-identity-fill"
 import { api, type Board } from "@/lib/api"
-import { fillTargets, keepPickedImages, parseBoardItems } from "@/lib/board-items"
+import { fillTargets, keepPickedImages, parseBoardItems, withPickedImage } from "@/lib/board-items"
 import { filterTasks, hasFilters, readBoardFilters, writeBoardFilters, type BoardFilters } from "@/lib/board-filters"
 import { useOnlyEffective } from "@/lib/use-only-effective"
 import { coverageOf, visibleByCoverage, type Coverage } from "@/lib/board-effective"
@@ -249,14 +249,7 @@ export function BoardPage() {
         identity={identity}
         identityFailure={identityFailure}
         onChange={changeForm}
-        onPickImage={(link, file) =>
-          setImages((current) => {
-            const next = { ...current }
-            if (file) next[link] = file
-            else delete next[link]
-            return next
-          })
-        }
+        onPickImage={(link, file) => setImages((current) => withPickedImage(current, link, file))}
         onOpenChange={setAdding}
         onSubmit={addTasks}
         onFill={fillIdentity}
