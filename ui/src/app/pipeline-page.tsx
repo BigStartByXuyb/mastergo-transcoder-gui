@@ -1,3 +1,14 @@
+/*
+ * 流水线页：两屏 —— 新建任务（表单）与任务详情。
+ *
+ *   新建：`#pipeline`（侧边栏「+ 新建任务」进来）→ NewTaskCard。
+ *   详情：`#pipeline?task=<id>`（看板点「详情」、或刚加入看板）→ 左边步骤条 + 右边当前那一步的界面。
+ *
+ * 本文件只做编排与接线：看板快照在 use-board-tasks，待确认清单在 use-pending，
+ * 动作在 use-task-actions，开始前的身份决定在 ui/src/lib/task-start.ts，步骤条的数据映射在
+ * ui/src/lib/step-rows.ts，身份补全在 use-identity，运行日志在 use-run-log。每个面板自己知道自己要什么。
+ */
+
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
@@ -10,29 +21,21 @@ import { StepCard } from "@/app/step-card"
 import { TaskDetailCard } from "@/app/task-detail-card"
 import { TaskLogCard } from "@/app/task-log-card"
 import { StepRail } from "@/app/task-steps"
+import { ClampText } from "@/app/clamp-text"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentity } from "@/app/use-identity"
 import { usePending } from "@/app/use-pending"
 import { useRunLog } from "@/app/use-run-log"
 import { useTaskActions } from "@/app/use-task-actions"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { api, type PipelineStep, type PluginSummary } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
-import { candidatesForLink, identityConflict } from "@/lib/identity-flow"
+import { candidatesForLink } from "@/lib/identity-flow"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
-import { AUTOMATION_LABEL, adoptsIdentityWithoutConfirm, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
+import { AUTOMATION_LABEL, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
+import { decideStartIdentity } from "@/lib/task-start"
 import { canStop, hasProducts, isBusyState, isInFlight, pendingInputCount, waitingCounts } from "@/lib/task-state"
-
-/*
- * 流水线页：两屏 —— 新建任务（表单）与任务详情。
- *
- *   新建：`#pipeline`（侧边栏「+ 新建任务」进来）→ NewTaskCard。
- *   详情：`#pipeline?task=<id>`（看板点「详情」、或刚加入看板）→ 左边步骤条 + 右边当前那一步的界面。
- *
- * 本文件只做编排与接线：看板快照在 use-board-tasks，待确认清单在 use-pending，
- * 动作在 use-task-actions，步骤条的数据映射在 ui/src/lib/step-rows.ts，身份补全在 use-identity，
- * 运行日志在 use-run-log。每个面板自己知道自己要什么。
- */
 
 export function PipelinePage({
   taskId,
@@ -138,56 +141,37 @@ export function PipelinePage({
   // 开始 = 新建看板任务 + 启动它；看板负责建工作目录、并发与合并。
   async function start() {
     writeTaskForm(form)
+    const decision = await decideStartIdentity({
+      link: form.link,
+      projectRoot: form.projectRoot,
+      target: form.target,
+      ui: form.ui,
+      automation,
+      loadCandidates: async () =>
+        (
+          await candidatesForLink({
+            link: form.link,
+            projectRoot: form.projectRoot,
+            pageName: identity.name,
+            ui: form.ui,
+            useAi: false
+          })
+        ).items,
+      autoPick: () => identity.pick(),
+      autoApply: (item) => identity.apply(item)
+    })
+    if (!decision.ok) {
+      if (decision.reason) setFailure(decision.reason)
+      return
+    }
     try {
-      /*
-       * 自动化层级是「自动」时身份也不必先点按钮：启动前自己补一遍（与插件跑法里 agent 做的一致）。
-       * 自动只在「这一页登记过区域」时成立：区域是团队对项目的约定、设计稿里没有，
-       * 这一页没登记过时 pick 停下来把原因写进 failure，让人点一次——那一次是项目事实。
-       */
-      let finalTarget = form.target.trim()
-      let finalUi = form.ui.trim()
-      /*
-       * 提交前对账：人填的 Target 与链接指向的那一页是不是同一页。不是就当场拦下 ——
-       * 放过去的话，插件会在还没进流水线时按身份混搭守卫拒掉（Target 取自一页、layerId 取自另一页），
-       * 那一次失败连步骤都没有，人只能对着「没跑起来」猜。
-       * 候选由后端按链接 + 登记表给（前端不自己拆链接）。
-       */
-      if (finalTarget && form.link.trim() && form.projectRoot.trim()) {
-        const got = await candidatesForLink({
-          link: form.link,
-          projectRoot: form.projectRoot,
-          pageName: identity.name,
-          ui: finalUi,
-          useAi: false
-        })
-        const conflict = identityConflict({ target: finalTarget, candidates: got.items })
-        if (conflict) {
-          setFailure(
-            "这个链接指向的页面在登记表里是 " +
-              conflict.target +
-              (conflict.ui ? "（区域 " + conflict.ui + "）" : "") +
-              "，你填的 Target 是 " +
-              finalTarget +
-              " —— 两者不是同一页，插件会拒绝。点「自动补 Target / 区域」会用登记表里的那一个；或确认链接是不是贴错了。"
-          )
-          return
-        }
-      }
-      if (!finalTarget && !finalUi && adoptsIdentityWithoutConfirm(automation)) {
-        // 与按钮同一条实现：落后端取候选 → 写登记表 → 回填；要人决策时 pick 已经把原因写进 failure。
-        const picked = await identity.pick()
-        if (!picked) return
-        await identity.apply(picked)
-        finalTarget = picked.target
-        finalUi = picked.ui
-      }
       const added = await actions.start({
         projectRoot: form.projectRoot,
-        ui: finalUi,
+        ui: decision.ui,
         autoMerge: true,
         stopAfter: form.stopAfter,
         overwrite: form.overwrite,
-        items: [{ link: form.link, target: finalTarget, mode: form.mode as "A" | "B" | "AB" }]
+        items: [{ link: form.link, target: decision.target, mode: form.mode as "A" | "B" | "AB" }]
       })
       const created = added.created[0] ?? ""
       await actions.startJob(created)
@@ -242,6 +226,15 @@ export function PipelinePage({
           />
 
           <div className="flex min-w-0 flex-1 flex-col gap-4">
+            {/* 动作的失败只有一个出口（use-task-actions 的 onFailure）：这一屏也得看得见，不能只在表单那屏显示。 */}
+            {failure && (
+              <Alert variant="destructive">
+                <AlertTitle>这一步没做成</AlertTitle>
+                <AlertDescription>
+                  <ClampText text={failure} />
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="flex items-center justify-end">
               <Button
                 size="sm"

@@ -7,8 +7,8 @@ import { describeFailure } from "@/lib/describe-failure"
 /*
  * 一条任务上能做的动作：开始（建任务并启动）/ 停 / 从断点继续 / 合并 / 冲突裁决 / 重读契约。
  *
- * 每个动作都只做三件事：调后端、把后端回的最新看板（与运行）换到界面上、把失败原话交出去。
- * 页面只负责把按钮接到这些动作上，不再各自写一遍「取数 → 换 state → 提示」。
+ * 每个动作都只做三件事：调后端、把后端回的最新看板（与运行 / 契约）换到界面上、把失败原话交出去。
+ * 六条动作全走同一个 run 骨架 —— 失败只有一个出口（页面的 failure），不再一半走横幅、一半只在 toast 里闪一下。
  */
 
 export function useTaskActions(input: {
@@ -52,11 +52,7 @@ export function useTaskActions(input: {
     },
 
     stop: async (task: BoardTask) => {
-      try {
-        await run("stop", () => api.boardStop(task.id), (payload) => input.onBoard(payload.board))
-      } catch (error) {
-        toast.error(describeFailure(error))
-      }
+      await run("stop", () => api.boardStop(task.id), (payload) => input.onBoard(payload.board)).catch(() => undefined)
     },
 
     resume: async (task: BoardTask) => {
@@ -86,35 +82,21 @@ export function useTaskActions(input: {
       }
     },
 
-    merge: (task: BoardTask) => {
-      setBusy("merge")
-      api
-        .boardMerge(task.id)
-        .then((payload) => input.onBoard(payload.board))
-        .catch((error) => toast.error(describeFailure(error)))
-        .finally(() => setBusy(""))
+    merge: async (task: BoardTask) => {
+      await run("merge", () => api.boardMerge(task.id), (payload) => input.onBoard(payload.board)).catch(() => undefined)
     },
 
     resolveConflict: async (task: BoardTask, path: string, pick: "mine" | "main" | "clear") => {
-      setBusy("resolve:" + path)
-      try {
-        const payload = await api.boardResolve(task.id, path, pick)
-        input.onBoard(payload.board)
-      } catch (error) {
-        toast.error(describeFailure(error))
-      } finally {
-        setBusy("")
-      }
+      await run("resolve:" + path, () => api.boardResolve(task.id, path, pick), (payload) => input.onBoard(payload.board)).catch(
+        () => undefined
+      )
     },
 
     reloadContract: async () => {
-      try {
-        const payload = await api.plugin()
-        input.onPlugin(payload.plugin, payload.steps)
-        toast.success("已重新读取流水线契约")
-      } catch (error) {
-        toast.error(describeFailure(error))
-      }
+      const payload = await run("contract", () => api.plugin(), (value) => input.onPlugin(value.plugin, value.steps)).catch(
+        () => null
+      )
+      if (payload) toast.success("已重新读取流水线契约")
     }
   }
 }

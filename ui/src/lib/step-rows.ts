@@ -41,15 +41,18 @@ function aiFillNoteOf(name: string, run: RegisteredStep | null, contract: Pipeli
   return "（当时停在第 " + (step ? step.Id : "?") + " 步）";
 }
 
+/* 造一行：契约那一项给序号与标题，其余字段一律从登记表那一行来（默认值在 fromRun 一处）。 */
+function buildRow(item: { id: number; name: string; title: string }, run: RegisteredStep | null, contract: PipelineStep[]): StepRow {
+  return Object.assign({ id: item.id, name: item.name, title: item.title }, fromRun(run), {
+    aiFillNote: aiFillNoteOf(item.name, run, contract)
+  });
+}
+
 /** 契约里的每一步各一行（没跑到的也列出来）。 */
 export function stepRowsOf(contract: PipelineStep[], runs: RegisteredStep[]): StepRow[] {
   return contract.map(function (item) {
     const run = runs.find(function (entry) { return entry.name === item.Name; }) ?? null;
-    return Object.assign(
-      { id: item.Id, name: item.Name, title: item.Title },
-      fromRun(run),
-      { aiFillNote: aiFillNoteOf(item.Name, run, contract) }
-    );
+    return buildRow({ id: item.Id, name: item.Name, title: item.Title }, run, contract);
   });
 }
 
@@ -60,10 +63,7 @@ export function stepRowsOf(contract: PipelineStep[], runs: RegisteredStep[]): St
 export function stepRowOf(contract: PipelineStep[], runs: RegisteredStep[], name: string): StepRow {
   const item = contract.find(function (entry) { return entry.Name === name; }) ?? null;
   const run = runs.find(function (entry) { return entry.name === name; }) ?? null;
-  if (item) {
-    return Object.assign({ id: item.Id, name: item.Name, title: item.Title }, fromRun(run), {
-      aiFillNote: aiFillNoteOf(name, run, contract)
-    });
-  }
-  return Object.assign({ id: run ? run.id : 0, name: name, title: name }, fromRun(run), { aiFillNote: "" });
+  // 契约里没有那一步（还没读到契约 / 那一步不在契约里）：用登记表那一行造标题，合成路径仍是上面那一条。
+  const fallback = { id: run ? run.id : 0, name: name, title: name };
+  return buildRow(item ? { id: item.Id, name: item.Name, title: item.Title } : fallback, run, contract);
 }
