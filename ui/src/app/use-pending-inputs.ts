@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react"
 
+import { useValueRunner } from "@/app/use-action-runner"
 import { useAlive } from "@/app/use-alive"
 import { api, type Pending } from "@/lib/api"
-import { describeFailure } from "@/lib/describe-failure"
 
 /*
  * 待确认清单的取数、三张草稿（命名表 / 译文 / 术语）与叫 AI 出候选。
@@ -39,6 +39,16 @@ export function usePendingInputs(input: {
   const [failure, setFailure] = useState("")
   const [aiReady, setAiReady] = useState<boolean | null>(null)
   const alive = useAlive()
+  /*
+   * 两个配置，同一份骨架（ui/src/app/use-action-runner.ts）：
+   *   run   —— 取数：失败就照原话写进 failure；
+   *   runAi —— 叫模型：同一份骨架，只是失败那句话前面补一句「可以人工填」，让人知道还有别的路。
+   */
+  const run = useValueRunner({ setWorking: setBusy, setFailure: setFailure })
+  const runAi = useValueRunner({
+    setWorking: setBusy,
+    setFailure: (message) => setFailure(message ? "AI 出候选失败（可以人工填）：" + message : "")
+  })
 
   // 没配模型就别去撞错误：直接说明白，让人工填这条路照常可用。
   useEffect(() => {
@@ -52,10 +62,7 @@ export function usePendingInputs(input: {
 
   const reload = useCallback(async () => {
     if (!projectRoot.trim() || !target.trim()) return
-    setBusy("load")
-    setFailure("")
-    try {
-      const payload = await api.pending(projectRoot, target)
+    await run("load", () => api.pending(projectRoot, target), (payload) => {
       if (!alive.current) return
       setPending(payload.pending)
       setNames((current) => {
@@ -80,29 +87,30 @@ export function usePendingInputs(input: {
         }
         return next
       })
-    } catch (error) {
-      if (alive.current) setFailure(describeFailure(error))
-    } finally {
-      if (alive.current) setBusy("")
-    }
-  }, [alive, projectRoot, target])
+    })
+  }, [alive, projectRoot, target, run])
 
   useEffect(() => {
     void reload()
   }, [reload, state, taskId, runId])
 
-  /* 三张表的载荷：只有填了的格子进提交（空名字、空译文不算人填过）。 */
-  const namingPayload = useCallback(
-    (): NamingItem[] =>
+  /*
+   * 命名表草稿 → 提交形状：只有这一处（人填的那份与模型出的那份共用它）。
+   * fromDsl 由后端的机械判定决定（sourceId 指向页面根的条目，几何改由它自己的 PATH 节点合成），不由模型猜。
+   */
+  const namingItemsOf = useCallback(
+    (pick: (index: number) => { name: string; comment: string } | undefined): NamingItem[] =>
       (pending?.icons.mustName ?? []).map((item) => ({
         index: item.index,
-        name: names[item.index]?.name ?? "",
-        comment: names[item.index]?.comment ?? "",
-        // 整页几何的条目由后端的机械判定决定（sourceId 指向页面根），不由模型猜。
+        name: pick(item.index)?.name ?? "",
+        comment: pick(item.index)?.comment ?? "",
         ...(item.sourceIsPageRoot ? { fromDsl: true } : {})
       })),
-    [pending, names]
+    [pending]
   )
+
+  /* 三张表的载荷：只有填了的格子进提交（空名字、空译文不算人填过）。 */
+  const namingPayload = useCallback((): NamingItem[] => namingItemsOf((index) => names[index]), [names, namingItemsOf])
 
   const translationsPayload = useCallback(() => {
     const out: Record<string, string> = {}
@@ -126,44 +134,23 @@ export function usePendingInputs(input: {
    * 叫 AI 出候选 → 预填草稿 → 交回 {这次要提交的那份, 模型给了几条}。
    * 自动那条路与三个手动按钮都走这三个函数：候选落进 state 的口径只有这一处。失败回 null（原话已写进 failure）。
    */
-  const aiFill = useCallback(
-    async function <T>(key: string, work: () => Promise<{ value: T; count: number }>): Promise<Filled<T> | null> {
-      setBusy(key)
-      setFailure("")
-      try {
-        return await work()
-      } catch (error) {
-        if (alive.current) setFailure("AI 出候选失败（可以人工填）：" + describeFailure(error))
-        return null
-      } finally {
-        if (alive.current) setBusy("")
-      }
-    },
-    [alive]
-  )
-
   const fillIconNames = useCallback(async (): Promise<Filled<NamingItem[]> | null> => {
     const list = pending?.icons.mustName ?? []
-    return await aiFill("ai-icons", async () => {
+    return await runAi("ai-icons", async () => {
       const payload = await api.aiIconNames(list)
       const patch: Record<number, { name: string; comment: string }> = {}
       for (const item of payload.items) patch[item.index] = { name: item.name, comment: item.comment }
       setNames((current) => ({ ...current, ...patch }))
       return {
-        value: list.map((item) => ({
-          index: item.index,
-          name: patch[item.index]?.name ?? "",
-          comment: patch[item.index]?.comment ?? "",
-          ...(item.sourceIsPageRoot ? { fromDsl: true } : {})
-        })),
+        value: namingItemsOf((index) => patch[index]),
         count: payload.items.length
       }
     })
-  }, [aiFill, pending])
+  }, [runAi, pending, namingItemsOf])
 
   const fillTranslations = useCallback(async (): Promise<Filled<Record<string, string>> | null> => {
     const list = pending?.translations.pendingTranslations ?? []
-    return await aiFill("ai-lang", async () => {
+    return await runAi("ai-lang", async () => {
       const payload = await api.aiTranslations(list.map((item) => item.text))
       const patch: Record<string, string> = {}
       for (const item of payload.items) patch[item.text] = item.translation
@@ -175,11 +162,11 @@ export function usePendingInputs(input: {
       }
       return { value: out, count: payload.items.length }
     })
-  }, [aiFill, pending])
+  }, [runAi, pending])
 
   const fillGlossary = useCallback(async (): Promise<Filled<Record<string, string>> | null> => {
     const list = pending?.translations.glossaryRequired ?? []
-    return await aiFill("ai", async () => {
+    return await runAi("ai", async () => {
       const payload = await api.aiGlossary(list.map((item) => item.text))
       const patch: Record<string, string> = {}
       for (const item of payload.items) patch[item.text] = item.identifier
@@ -191,7 +178,7 @@ export function usePendingInputs(input: {
       }
       return { value: out, count: payload.items.length }
     })
-  }, [aiFill, pending])
+  }, [runAi, pending])
 
   return {
     pending,
