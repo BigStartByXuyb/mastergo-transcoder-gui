@@ -67,7 +67,7 @@ export function StepRail(props: {
         )}
       >
         <LayoutList className="size-3.5 shrink-0" />
-        任务
+        任务总览
       </button>
       {props.rows.map((row) => {
         const active = row.name === props.current

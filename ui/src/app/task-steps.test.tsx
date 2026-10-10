@@ -54,7 +54,7 @@ describe("StepRail", () => {
     expect(screen.getAllByText("停这里").length).toBe(1)
   })
 
-  it("点一步切到那一步，点「任务」回总览", () => {
+  it("点一步切到那一步，点「任务总览」回总览", () => {
     const onPick = vi.fn()
     const onOverview = vi.fn()
     render(<StepRail rows={ROWS} current="fetch" stopStep="" onPick={onPick} onPickOverview={onOverview} />)
@@ -62,7 +62,7 @@ describe("StepRail", () => {
     fireEvent.click(screen.getByText("图标台账"))
     expect(onPick).toHaveBeenCalledWith("ledger")
 
-    fireEvent.click(screen.getByText("任务"))
+    fireEvent.click(screen.getByText("任务总览"))
     expect(onOverview).toHaveBeenCalled()
   })
 })

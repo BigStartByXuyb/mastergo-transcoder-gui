@@ -363,14 +363,33 @@ export function PipelinePage({
           />
 
           <div className="flex min-w-0 flex-1 flex-col gap-4">
+            <div className="flex items-center justify-end">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  window.location.hash = "board"
+                }}
+              >
+                在看板里看
+              </Button>
+            </div>
             {step === "" ? (
-              <TaskDetailCard
-                task={task}
-                busy={busy}
-                onResume={() => void resume()}
-                onMerge={merge}
-                onResolve={resolveConflict}
-              />
+              <>
+                <TaskDetailCard
+                  task={task}
+                  contractStep={contract.find((item) => item.Name === task.failure?.stepName) ?? null}
+                  stopStepNumber={contract.find((item) => item.Name === task.failure?.stepName)?.Id ?? 0}
+                  allStepsDone={stepRows.length > 0 && stepRows.every((row) => row.status === "ok" || row.status === "skipped")}
+                  busy={busy}
+                  onResume={() => void resume()}
+                  onMerge={merge}
+                  onResolve={resolveConflict}
+                />
+                {/* 产物与这一次运行的日志都属于「任务总览」：它们说的不是某一步，别在每一步下面都挂一遍。 */}
+                {showProducts && task.workDir && <DoneBoard projectRoot={task.workDir} target={task.request.target} />}
+                {job && <TaskLogCard logText={logText} logRef={logRef} />}
+              </>
             ) : (
               <StepCard
                 row={currentRow}
@@ -431,9 +450,6 @@ export function PipelinePage({
                 )}
               </StepCard>
             )}
-
-            {task && job && <TaskLogCard logText={logText} logRef={logRef} />}
-            {task && showProducts && task.workDir && <DoneBoard projectRoot={task.workDir} target={task.request.target} />}
           </div>
         </div>
       )}
