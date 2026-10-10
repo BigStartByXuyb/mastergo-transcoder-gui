@@ -108,4 +108,34 @@ describe("useLayoutGroups", () => {
     await waitFor(() => expect(result.current.controls.length).toBe(2))
     expect(result.current.groups[0].id).toBe("FromAi")
   })
+
+  it("刷新成功会把上一次读盘留下的错收掉", async () => {
+    let fail = true
+    vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
+      if (String(input).includes("/api/settings")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, settings: { layoutAutoPass: false } }), { status: 200 }))
+      }
+      if (fail) return Promise.reject(new Error("ECONNREFUSED"))
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            ok: true,
+            layout: { available: true, reason: "", controls: [], groups: SERVER_GROUPS, hasGroups: true, canSuggest: false }
+          }),
+          { status: 200 }
+        )
+      )
+    })
+    const { result, rerender } = renderHook(
+      (props: { updatedAt: string }) =>
+        useLayoutGroups({ taskId: "t", runId: "j", projectRoot: WORK_DIR, target: "DemoPage", updatedAt: props.updatedAt }),
+      { initialProps: { updatedAt: "1" } }
+    )
+    await waitFor(() => expect(result.current.failure).not.toBe(""))
+
+    fail = false
+    rerender({ updatedAt: "2" })
+    await waitFor(() => expect(result.current.failure).toBe(""))
+    expect(result.current.groups.length).toBe(1)
+  })
 })

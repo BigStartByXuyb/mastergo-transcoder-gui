@@ -50,6 +50,8 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
 
   const load = useCallback(async () => {
     if (!projectRoot || !target) return
+    // 与共用的动作骨架同口径：每次读之前先清上一次的错，成功就不用再管（失败在 catch 里写回）。
+    setFailure("")
     try {
       const [payload, settings] = await Promise.all([api.layoutGroups(projectRoot, target), api.settingsGet()])
       if (!alive.current) return
@@ -136,7 +138,6 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
     save,
     busy,
     failure,
-    setFailure,
     note,
     saved
   }
