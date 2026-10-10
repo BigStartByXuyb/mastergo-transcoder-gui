@@ -304,6 +304,7 @@ export function PipelinePage({
       {task && task.workDir && task.request.target && task.routes.includes("A") && (
         <LayoutPanel
           taskId={task.id}
+          runId={task.jobId}
           projectRoot={task.workDir}
           target={task.request.target}
           updatedAt={task.updatedAt}

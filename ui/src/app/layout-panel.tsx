@@ -31,6 +31,8 @@ function groupMembers(groups: LayoutGroup[]): Set<string> {
 
 type LayoutPanelProps = {
   taskId: string
+  /** 流水线直跑 / 孤儿条目没有 taskId，靠 runId 续跑。 */
+  runId: string
   projectRoot: string
   target: string
   /** 用于在任务推进时重读；看板任务给它 updatedAt，待确认页给空串（不轮询）。 */
@@ -38,12 +40,13 @@ type LayoutPanelProps = {
   progressDone?: number
 }
 
-export function LayoutPanel({ taskId, projectRoot, target, updatedAt, progressDone }: LayoutPanelProps) {
+export function LayoutPanel({ taskId, runId, projectRoot, target, updatedAt, progressDone }: LayoutPanelProps) {
   const [layout, setLayout] = useState<LayoutGroups | null>(null)
   const [groups, setGroups] = useState<LayoutGroup[]>([])
   const [autoPass, setAutoPass] = useState(false)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState("")
+  const [saved, setSaved] = useState(false)
   const [newId, setNewId] = useState("")
   const [newKind, setNewKind] = useState<"column" | "row">("column")
   const alive = useAlive()
@@ -128,9 +131,11 @@ export function LayoutPanel({ taskId, projectRoot, target, updatedAt, progressDo
     }
     setBusy(true)
     setFailure("")
+    setSaved(false)
     try {
       // 写回分组表并从 layout 续跑（写入只有 confirm 这一条路）。
-      await api.confirm({ projectRoot, target, taskId, groups, resume: true })
+      await api.confirm({ projectRoot, target, taskId, runId, groups, resume: true })
+      if (alive.current) setSaved(true)
     } catch (error) {
       if (alive.current) setFailure(describeFailure(error))
     } finally {
@@ -179,6 +184,7 @@ export function LayoutPanel({ taskId, projectRoot, target, updatedAt, progressDo
             </div>
 
             {failure ? <p className="text-sm text-destructive">{failure}</p> : null}
+            {saved ? <p className="text-sm text-muted-foreground">已确认，正在从布局推导继续。</p> : null}
 
             <div className="space-y-3">
               {groups.map((group) => (

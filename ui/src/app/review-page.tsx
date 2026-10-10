@@ -223,8 +223,14 @@ export function ReviewPage() {
               automation={automation}
               onResumed={() => void load()}
             />
-            {active.counts.layout > 0 && active.taskId && (
-              <LayoutPanel taskId={active.taskId} projectRoot={active.projectRoot} target={active.target} updatedAt="" />
+            {active.counts.layout > 0 && (active.taskId || active.runId) && (
+              <LayoutPanel
+                taskId={active.taskId}
+                runId={active.runId}
+                projectRoot={active.projectRoot}
+                target={active.target}
+                updatedAt=""
+              />
             )}
           </CardContent>
         </Card>
