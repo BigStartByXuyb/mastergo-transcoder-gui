@@ -5,16 +5,16 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ClampText } from "@/app/clamp-text"
 import { DesignImagePicker } from "@/app/design-image-picker"
 import { IdentityFillPanel } from "@/app/identity-fill-panel"
+import { ModeField } from "@/app/mode-field"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import type { useIdentity } from "@/app/use-identity"
 import type { PipelineStep, PluginSummary } from "@/lib/api"
-import { MODE_HINT, READ_IMAGE_HINT, modeTakesRoute, type TaskForm } from "@/lib/task-form"
+import { READ_IMAGE_HINT, modeTakesRoute, type TaskForm } from "@/lib/task-form"
 
 /*
  * 新建任务卡片：填链接 / 工程目录 / Target / 区域 / 路线，走 A 路线时还能先把设计稿位图选上，
@@ -85,23 +85,7 @@ export function NewTaskCard(props: Props) {
                   onChange={(event) => onForm({ projectRoot: event.target.value })}
                 />
               </div>
-              <div className="flex flex-col gap-2">
-                <Label>路线</Label>
-                <Select value={form.mode} onValueChange={(value) => onForm({ mode: value })}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue>{form.mode}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {/* 每一项的说法与下面那行说明同源（都在 ui/src/lib/task-form.ts 的 MODE_HINT 里）。 */}
-                    {(["B", "A", "AB"] as const).map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {MODE_HINT[value]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-muted-foreground text-xs">{MODE_HINT[form.mode] ?? ""}</p>
-              </div>
+              <ModeField label="路线" value={form.mode} onChange={(mode) => onForm({ mode })} />
             </FieldGroup>
 
             <FieldGroup title="可选" hint="不填就走默认">

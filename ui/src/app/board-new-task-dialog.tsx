@@ -4,6 +4,7 @@ import type { useIdentityFill } from "@/app/use-identity-fill"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DesignImagePicker } from "@/app/design-image-picker"
+import { ModeField } from "@/app/mode-field"
 import {
   Dialog,
   DialogContent,
@@ -14,12 +15,11 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import type { BoardTaskForm } from "@/lib/board-form"
 import { parseBoardRows } from "@/lib/board-items"
-import { AUTOMATION_LABEL, MODE_HINT, READ_IMAGE_HINT, modeTakesRoute } from "@/lib/task-form"
+import { AUTOMATION_LABEL, READ_IMAGE_HINT, modeTakesRoute } from "@/lib/task-form"
 
 /* 行上只给能认出是哪一页的那一段：链接太长，整条铺出来会把这一行挤成一团。 */
 function linkLabel(link: string): string {
@@ -83,26 +83,11 @@ export function BoardNewTaskDialog(props: {
               onChange={(event) => props.onChange({ ...form, ui: event.target.value })}
             />
           </div>
-          <div className="flex flex-col gap-2">
-            <Label>默认模式</Label>
-            <Select
-              value={form.mode}
-              onValueChange={(value) => props.onChange({ ...form, mode: value as BoardTaskForm["mode"] })}
-            >
-              <SelectTrigger>
-                {/* 触发按钮只显示短值，整句说明在下面一行（与新建任务卡片同一套，文案同源）。 */}
-                <SelectValue>{form.mode}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {(["B", "A", "AB"] as const).map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {MODE_HINT[value]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-muted-foreground text-xs">{MODE_HINT[form.mode] ?? ""}</p>
-          </div>
+          <ModeField
+            label="默认模式"
+            value={form.mode}
+            onChange={(mode) => props.onChange({ ...form, mode: mode as BoardTaskForm["mode"] })}
+          />
           <div className="flex flex-col gap-2">
             <Label htmlFor="board-stop">停在某一步（可选）</Label>
             <Input
