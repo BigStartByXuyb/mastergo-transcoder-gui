@@ -29,12 +29,11 @@ import { useTaskActions } from "@/app/use-task-actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { api, type PipelineStep, type PluginSummary } from "@/lib/api"
-import { keepPickedImages, withPickedImage } from "@/lib/board-items"
 import { describeFailure } from "@/lib/describe-failure"
 import { candidatesForLink } from "@/lib/identity-flow"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
 import { stagePickedImages } from "@/app/stage-design-images"
-import { AUTOMATION_LABEL, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
+import { AUTOMATION_LABEL, pickedImageFor, readTaskForm, writeTaskForm, type PickedImage, type TaskForm } from "@/lib/task-form"
 import { decideStartIdentity } from "@/lib/task-start"
 import { canStop, hasProducts } from "@/lib/task-state"
 
@@ -54,12 +53,9 @@ export function PipelinePage({
   const [form, setForm] = useState<TaskForm>(() => readTaskForm())
   /** 详情区现在看哪一步（空串 = 任务总览）。 */
   const [step, setStep] = useState("")
-  /*
-   * 新建时先选好的设计稿位图：按链接记（图跟着链接走，页面名改了还是同一页）——
-   * 与看板同一个判据、同一处实现（ui/src/lib/board-items.ts 的 keepPickedImages）。
-   */
-  const [images, setImages] = useState<Record<string, File>>({})
-  const stagedImage = images[form.link] ?? null
+  /* 新建时先选好的设计稿位图 + 它属于哪一页（判据在 ui/src/lib/task-form.ts 的 pickedImageFor）。 */
+  const [pickedImage, setPickedImage] = useState<PickedImage | null>(null)
+  const stagedImage = pickedImageFor(pickedImage, form.link)
   /*
    * 两屏：带 `task=<id>`（从看板点「详情」、或刚「加入看板并开始」）就是看那个任务；
    * 不带（侧边栏「+ 新建任务」）就是新建表单。换屏走侧边栏/看板，页内不放互相跳的按钮。
@@ -98,7 +94,8 @@ export function PipelinePage({
 
   function patchForm(patch: Partial<TaskForm>) {
     const link = patch.link
-    if (link !== undefined && link !== form.link) setImages((current) => keepPickedImages(current, link))
+    // 换页了就不算（填链接之前选的那一张不算换页：它还没认领，链接一填就归它）。
+    if (link !== undefined && link !== form.link && pickedImage && pickedImage.link !== "") setPickedImage(null)
     setForm((current) => ({ ...current, ...patch }))
   }
 
@@ -185,7 +182,7 @@ export function PipelinePage({
       // 门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts（与看板那条同源）。
       await stagePickedImages(form.mode, [{ taskId: created, file: stagedImage }])
     }
-    setImages({})
+    setPickedImage(null)
     window.location.hash = "pipeline?task=" + created
     toast.success("已加入看板并开始")
   }
@@ -204,7 +201,7 @@ export function PipelinePage({
           contract={contract}
           identity={identity}
           image={stagedImage}
-          onPickImage={(file) => setImages((current) => withPickedImage(current, form.link, file))}
+          onPickImage={(file) => setPickedImage(file ? { link: form.link, file } : null)}
           busy={actions.busy}
           failure={failure}
           canStop={task !== null && canStop(task.state)}
