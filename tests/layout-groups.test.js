@@ -90,6 +90,11 @@ function main() {
   // 校验失败：kind 非法、members 不足。
   {
     const root = sandbox();
+    // 没给 groups（undefined / 不是数组）与「明确给一张空表」是两回事：前者要拦住。
+    assert.throws(
+      function () { layout.save({ projectRoot: root, target: TARGET }); },
+      /分组表必须是数组/
+    );
     assert.throws(
       function () {
         layout.save({ projectRoot: root, target: TARGET, groups: [{ id: "g1", kind: "grid", members: ["a", "b"] }] });

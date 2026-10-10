@@ -59,7 +59,8 @@ async function caseAutomationOff() {
   const fx = harness({ automation: "off", layoutAutoPass: true, groups: [{ id: "g", kind: "row", members: ["1:9", "1:10"] }] });
   const result = await fx.autoFill.fill({ projectRoot: "D:/work", target: "T1", runId: "job-1" });
   assert.strictEqual(result.ok, false, "自动化层级是「关」时不叫模型");
-  assert.match(result.reason, /自动化未开启/);
+  // 停在布局确认却补不了：说清是哪一种停（别只说泛泛的「自动化未开启」）。
+  assert.match(result.reason, /停在布局确认/);
   assert.deepStrictEqual(fx.committed, []);
 }
 
