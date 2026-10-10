@@ -26,6 +26,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
   const [reason, setReason] = useState("")
   const [controls, setControls] = useState<LayoutControl[]>([])
   const [groups, setGroups] = useState<LayoutGroup[]>([])
+  const [canSuggest, setCanSuggest] = useState(false)
   const [autoPass, setAutoPass] = useState(false)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState("")
@@ -42,6 +43,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
       setReason(payload.layout.reason)
       setControls(payload.layout.controls)
       setGroups(payload.layout.groups)
+      setCanSuggest(payload.layout.canSuggest)
       setAutoPass(Boolean(settings.settings.layoutAutoPass))
     } catch (error) {
       if (alive.current) setFailure(describeFailure(error))
@@ -70,7 +72,6 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
   }
 
   async function suggest() {
-    if (controls.length < 2) return
     setBusy(true)
     setFailure("")
     try {
@@ -104,6 +105,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
     controls,
     groups,
     setGroups,
+    canSuggest,
     autoPass,
     toggleAutoPass,
     suggest,

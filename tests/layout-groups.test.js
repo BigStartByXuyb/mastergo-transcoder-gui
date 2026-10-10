@@ -64,8 +64,9 @@ function main() {
     assert.strictEqual(info.controls[0].text, "A");
     assert.strictEqual(info.controls[2].text, "C");
     assert.deepStrictEqual(info.groups, []);
-    // 读图状态不在这里（那是 lib/design-image.js 一处的事实），布局确认只回控件清单与现有分组。
-    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "controls", "groups", "reason"]);
+    // 读图状态不在这里（那是 lib/design-image.js 一处的事实）；canSuggest 是后端给的「能不能问 AI」。
+    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "canSuggest", "controls", "groups", "reason"]);
+    assert.strictEqual(info.canSuggest, true, "三个控件够分组");
   }
 
   // 写回分组表并读回。

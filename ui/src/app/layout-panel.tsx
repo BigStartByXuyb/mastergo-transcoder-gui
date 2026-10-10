@@ -68,7 +68,7 @@ export function LayoutPanel({ confirmable, ...input }: LayoutPanelProps) {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => void layout.suggest()} disabled={layout.busy || layout.controls.length < 2}>
+                <Button variant="outline" size="sm" onClick={() => void layout.suggest()} disabled={layout.busy || !layout.canSuggest}>
                   <Sparkles className="mr-1 h-4 w-4" />
                   AI 辅助
                 </Button>

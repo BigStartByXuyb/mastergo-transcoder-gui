@@ -204,6 +204,8 @@ export type LayoutGroups = {
   reason: string
   controls: LayoutControl[]
   groups: LayoutGroup[]
+  /** 现在问 AI 有没有意义（控件太少时分不出组）：阈值在后端，界面只管按它禁用按钮。 */
+  canSuggest: boolean
 }
 
 export type ResolvedNode = {
