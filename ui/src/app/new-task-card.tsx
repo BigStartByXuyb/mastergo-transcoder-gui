@@ -99,9 +99,12 @@ export function NewTaskCard(props: Props) {
                     <SelectValue>{form.mode}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="B">B —— MTSLG IOContorl 页面 XML</SelectItem>
-                    <SelectItem value="A">A —— MW WPF XAML 页面</SelectItem>
-                    <SelectItem value="AB">AB —— 两条都跑</SelectItem>
+                    {/* 每一项的说法与下面那行说明同源（都在 ui/src/lib/task-form.ts 的 MODE_HINT 里）。 */}
+                    {(["B", "A", "AB"] as const).map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {MODE_HINT[value]}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <p className="text-muted-foreground text-xs">{MODE_HINT[form.mode] ?? ""}</p>

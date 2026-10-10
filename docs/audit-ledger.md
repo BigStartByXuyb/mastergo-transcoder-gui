@@ -52,4 +52,8 @@
 | 2026-10-10 第 12 遍 | REVIEW-001 | 详情视图里 `step !== ""` 是恒真合取项（外层已经按 `step === ""` 分过屏） | 已收 | 去掉这个合取项（`ui/src/app/pipeline-page.tsx`） |
 | 2026-10-10 第 12 遍 | REVIEW-002 | `StepCard` 的 children 兜底渲染永远轮不到（调用方给的是两个条件表达式，children 是数组不是 null） | 已收 | 兜底删掉，`children` 改成必给（没有面板时给 false / null 由调用方决定） |
 | 2026-10-10 第 12 遍 | REVIEW-003 | 待确认页把「手填」这件事表达了两遍（`active.manual` 与再判一次列表里有没有它） | 已收 | 只读 `active.manual`（`ui/src/app/review-page.tsx`） |
+| 2026-10-10 第 13 遍 | REVIEW-001 | 路线（mode）的展示文案在 `task-form.ts` 与新建卡片各写一份（已经分叉） | 已收 | 下拉项与下面那行说明都从 `MODE_HINT` 一处取（`ui/src/app/new-task-card.tsx`） |
+| 2026-10-10 第 13 遍 | REVIEW-002 | 「画板尺寸还不知道」在同一张位图卡片里说了两遍，本地那句还绕过了真值源 | 已收 | 去掉本地改写，只说后端给的原话（`ui/src/app/design-image-card.tsx`） |
+| 2026-10-10 第 13 遍 | 非阻断 | 位图卡片自己手写了一遍动作骨架 | 已收 | 两个动作都改走 `useValueRunner`；`docs/facts.md` 的读者名单补上它 |
+| 2026-10-10 第 13 遍 | 非阻断 | `lib/ai.js` 的候选只去重成员不重组名，同名组要等写回时才被拒 | 不修 | 「组名唯一」这条判据只在写回校验一处（`lib/layout-groups.js`）；提前在候选里删重等于把同一判据再写一遍，且会让「模型给了什么」与「界面看到什么」不一致。现状是 fail-closed，只多一次往返 |
 
