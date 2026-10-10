@@ -21,6 +21,8 @@ describe("DesignImagePicker", () => {
     const file = new File(["x"], "DemoPage.design.png", { type: "image/png" })
     fireEvent.change(input, { target: { files: [file] } })
     expect(onPick).toHaveBeenCalledWith(file)
+    // 选完就把 value 清掉：不清的话再选同一份文件不会再触发 change。
+    expect(input.value).toBe("")
   })
 
   it("选好的那份照实显示，移除就交回空", () => {

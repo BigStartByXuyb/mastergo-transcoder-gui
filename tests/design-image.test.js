@@ -209,9 +209,11 @@ function caseStagedKeepsExisting() {
 function caseDiscardStaged() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-home-"));
   const staged = designImage.stage({ home: home, taskId: TASK, data: png(1280, 1024).toString("base64") });
-  assert.strictEqual(designImage.discardStaged({ home: home, taskId: TASK }), true, "有就清掉");
-  assert.ok(!fs.existsSync(staged.path));
-  assert.strictEqual(designImage.discardStaged({ home: home, taskId: TASK }), false, "没有就什么都不做");
+  designImage.discardStaged({ home: home, taskId: TASK });
+  assert.ok(!fs.existsSync(staged.path), "有就清掉");
+  // 没有第二次也不该出事：轮询与移除两条路都会调它。
+  designImage.discardStaged({ home: home, taskId: TASK });
+  assert.ok(!fs.existsSync(staged.path), "没有就什么都不做");
 
   // 暂存要认任务：没有任务 id 就没有键，收图这一步拒绝（不是拿工程 / 页面凑一个键）。
   assert.throws(
