@@ -4,7 +4,7 @@
  *   新建：`#pipeline`（侧边栏「+ 新建任务」进来）→ NewTaskCard。
  *   详情：`#pipeline?task=<id>`（看板点「详情」、或刚加入看板）→ 左边步骤条 + 右边当前那一步的界面。
  *
- * 本文件只做编排与接线：看板快照在 use-board-tasks，待确认清单在 use-pending，
+ * 本文件只做编排与接线：看板快照在 use-board-tasks，待确认清单由面板自己取（app/pending-panel.tsx），
  * 动作在 use-task-actions，开始前的身份决定在 ui/src/lib/task-start.ts，步骤条的数据映射在
  * ui/src/lib/step-rows.ts，身份补全在 use-identity，运行日志在 use-run-log。每个面板自己知道自己要什么。
  */
@@ -24,7 +24,6 @@ import { StepRail } from "@/app/task-steps"
 import { ClampText } from "@/app/clamp-text"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentity } from "@/app/use-identity"
-import { usePending } from "@/app/use-pending"
 import { useRunLog } from "@/app/use-run-log"
 import { useTaskActions } from "@/app/use-task-actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -35,7 +34,7 @@ import { candidatesForLink } from "@/lib/identity-flow"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
 import { AUTOMATION_LABEL, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
 import { decideStartIdentity } from "@/lib/task-start"
-import { canStop, hasProducts, isBusyState, pendingInputCount, waitingCounts } from "@/lib/task-state"
+import { canStop, hasProducts } from "@/lib/task-state"
 import { fileToBase64 } from "@/lib/upload-files"
 
 export function PipelinePage({
@@ -64,15 +63,7 @@ export function PipelinePage({
 
   const { setBoard, reload, taskOf } = useBoardTasks()
   const task = taskOf(currentId)
-  const running = task !== null && isBusyState(task.state)
   const showProducts = task !== null && hasProducts(task.state)
-  const pending = usePending({
-    workDir: task?.workDir ?? "",
-    target: task?.request.target ?? "",
-    running,
-    reloadKey: (task?.id ?? "") + ":" + (task?.updatedAt ?? "")
-  })
-  const counts = waitingCounts(pending)
   const stopStep = task?.failure?.stepName ?? ""
 
   const registeredSteps = task?.steps ?? []
@@ -183,24 +174,22 @@ export function PipelinePage({
         return
       }
     }
-    try {
-      const added = await actions.start({
-        projectRoot: form.projectRoot,
-        ui: decision.ui,
-        autoMerge: true,
-        stopAfter: form.stopAfter,
-        overwrite: form.overwrite,
-        items: [{ link: form.link, target: decision.target, mode: form.mode as "A" | "B" | "AB" }]
-      })
-      const created = added.created[0] ?? ""
-      await actions.startJob(created)
-      setCurrentId(created)
-      setStagedImage(null)
-      window.location.hash = "pipeline?task=" + created
-      toast.success("已加入看板并开始")
-    } catch {
-      // 失败原话已经由 use-task-actions 写进 failure，这里只把这一次点击收尾。
-    }
+    // 失败时动作返回 null，原话已经由 use-task-actions 写进 failure：这一次点击到这儿就收尾。
+    const added = await actions.start({
+      projectRoot: form.projectRoot,
+      ui: decision.ui,
+      autoMerge: true,
+      stopAfter: form.stopAfter,
+      overwrite: form.overwrite,
+      items: [{ link: form.link, target: decision.target, mode: form.mode as "A" | "B" | "AB" }]
+    })
+    if (!added) return
+    const created = added.created[0] ?? ""
+    await actions.startJob(created)
+    setCurrentId(created)
+    setStagedImage(null)
+    window.location.hash = "pipeline?task=" + created
+    toast.success("已加入看板并开始")
   }
 
   const failedStep = contract.find((item) => item.Name === stopStep) ?? null
@@ -312,8 +301,12 @@ export function PipelinePage({
                   </div>
                 )}
 
-                {/* 图标与文案要人补时，面板挂在「停在这里」的那一步上（补完就从这一步继续）。 */}
-                {step === stopStep && pendingInputCount(counts) > 0 && task.workDir && (
+                {/*
+                  图标与文案要人补时，面板挂在「停在这里」的那一步上（补完就从这一步继续）。
+                  「有没有要补的」不在这边另取一次清单：任务停在语义停点（waiting）就是后端的结论
+                  （lib/board.js 的 isSemanticStop，判据只那一处）；清单本身由面板自己取一次。
+                */}
+                {step === stopStep && task.state === "waiting" && task.workDir && (
                   <div className="flex flex-col gap-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-muted-foreground text-xs">

@@ -67,7 +67,7 @@ describe("useTaskActions", () => {
         overwrite: false,
         items: [{ link: "https://mastergo.com/goto/x?file=1&layer_id=2", target: "T", mode: "A" }]
       })
-      created = added.created[0] ?? ""
+      created = added?.created[0] ?? ""
     })
     await act(async () => {
       await fx.result.current.startJob(created)

@@ -128,12 +128,15 @@ export function PendingPanel({
     } finally {
       setBusy("")
     }
-    // 任务 / 运行状态变化都要重读：换了来源、换了一次运行（runId），或者同一次运行从「跑着」变成「停下」（state）。
-  }, [projectRoot, target, taskId, runId, state])
+  }, [projectRoot, target])
 
+  /*
+   * 什么时候重读：「去哪一页取」变了，或者来源换了（换了任务 / 换了一次运行），
+   * 或者同一次运行从「跑着」变成「停下」——那之后会新出现待办，不重读就看不见。
+   */
   useEffect(() => {
     void load()
-  }, [load])
+  }, [load, state, taskId, runId])
 
   const iconTotal = pending?.icons.available ? pending.icons.mustName.length : 0
   const iconCount = pending?.icons.available ? pending.icons.missing : 0

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
+import { useValueRunner } from "@/app/use-action-runner"
 import { useAlive } from "@/app/use-alive"
 import { api, type LayoutControl, type LayoutGroup } from "@/lib/api"
-import { describeFailure } from "@/lib/describe-failure"
 
 /*
  * 布局确认的数据动作：读控件清单与现有分组、叫 AI 出候选、把分组写回去并从布局那一步续跑。
@@ -52,13 +52,21 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
     setGroups(next)
   }, [])
   const { taskId, runId, resume, projectRoot, target, updatedAt, progressDone } = input
+  /*
+   * 两个配置，同一份骨架（ui/src/app/use-action-runner.ts）：
+   *   run     —— 动作：置「正在做」、清旧错、跑、收尾；
+   *   runRead —— 读：不动「正在做」（后台刷新不该让按钮闪一下），失败仍写进同一处 failure。
+   * 失败用返回值区分：骨架失败时回 null（它已经把原话写进 failure）。
+   */
+  const run = useValueRunner({ setWorking: (key) => setBusy(Boolean(key)), setFailure: setFailure })
+  const runRead = useValueRunner({ setWorking: () => undefined, setFailure: setFailure })
 
   const load = useCallback(async () => {
     if (!projectRoot || !target) return
-    // 与共用的动作骨架同口径：每次读之前先清上一次的错，成功就不用再管（失败在 catch 里写回）。
-    setFailure("")
-    try {
-      const [payload, settings] = await Promise.all([api.layoutGroups(projectRoot, target), api.settingsGet()])
+    await runRead(
+      "",
+      () => Promise.all([api.layoutGroups(projectRoot, target), api.settingsGet()]),
+      ([payload, settings]) => {
       if (!alive.current) return
       setAvailable(payload.layout.available)
       setReason(payload.layout.reason)
@@ -66,10 +74,9 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
       if (!dirty.current) setGroups(payload.layout.groups)
       setCanSuggest(payload.layout.canSuggest)
       setAutoPass(Boolean(settings.settings.layoutAutoPass))
-    } catch (error) {
-      if (alive.current) setFailure(describeFailure(error))
-    }
-  }, [alive, projectRoot, target])
+      }
+    )
+  }, [alive, projectRoot, target, runRead])
 
   useEffect(() => {
     void load()
@@ -82,22 +89,15 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
   async function toggleAutoPass(value: boolean) {
     const before = autoPass
     setAutoPass(value)
-    setFailure("")
-    try {
-      await api.settingsSave({ layoutAutoPass: value })
-    } catch (error) {
-      if (!alive.current) return
-      setAutoPass(before)
-      setFailure(describeFailure(error))
-    }
+    const payload = await run("toggle", () => api.settingsSave({ layoutAutoPass: value }))
+    // 写盘失败（骨架已把原话写进 failure）要把开关拨回写盘前的样子：显示成「开着」而落盘还是关，
+    // 界面说的就和真实门禁反了。
+    if (payload === null && alive.current) setAutoPass(before)
   }
 
   async function suggest() {
-    setBusy(true)
-    setFailure("")
     setNote("")
-    try {
-      const payload = await api.aiLayoutGroups(controls)
+    await run("suggest", () => api.aiLayoutGroups(controls), (payload) => {
       if (!alive.current) return
       if (payload.groups.length > 0) {
         applyGroups(payload.groups)
@@ -105,11 +105,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
       }
       // 模型一组都没给也是结论：说一句，别让人以为「点了没反应」（空表就是「本页没有要声明的分组」）。
       setNote("模型没有给出分组：可以自己建组，或直接确认（空表＝本页没有要声明的分组）。")
-    } catch (error) {
-      if (alive.current) setFailure(describeFailure(error))
-    } finally {
-      if (alive.current) setBusy(false)
-    }
+    })
   }
 
   /*
@@ -117,20 +113,17 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
    * 空数组也照写：那是「本页没有要声明的分组」。
    */
   async function save() {
-    setBusy(true)
-    setFailure("")
     setSaved(false)
-    try {
-      await api.confirm({ projectRoot, target, taskId, runId, groups, resume })
+    await run(
+      "save",
+      () => api.confirm({ projectRoot, target, taskId, runId, groups, resume }),
+      () => {
       if (alive.current) {
         dirty.current = false
         setSaved(true)
       }
-    } catch (error) {
-      if (alive.current) setFailure(describeFailure(error))
-    } finally {
-      if (alive.current) setBusy(false)
-    }
+      }
+    )
   }
 
   return {

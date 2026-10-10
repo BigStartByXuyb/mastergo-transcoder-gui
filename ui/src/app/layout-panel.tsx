@@ -34,7 +34,6 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
 
   function createGroup() {
-    if (!newId.trim()) return
     layout.setGroups(addGroup(layout.groups, newId, newKind))
     setNewId("")
   }

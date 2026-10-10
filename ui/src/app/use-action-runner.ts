@@ -16,6 +16,11 @@ import { describeFailure } from "@/lib/describe-failure"
 type RunnerSettings = {
   setWorking: (key: string) => void
   setFailure: (message: string) => void
+  /**
+   * 失败时若还要按错误类型做点别的（例如看板那条线「这一行已经不在看板上」要把看板拉回最新），
+   * 在这里做 —— 骨架仍是这一份，别为此再手写一遍 try/catch。
+   */
+  onFailure?: (error: unknown) => void
 }
 
 export type ActionRunner<T> = <R extends { status: T | null }>(
@@ -43,6 +48,7 @@ export function useValueRunner(settings: RunnerSettings): ValueRunner {
       if (done) done(payload)
       return payload
     } catch (error) {
+      latest.current.onFailure?.(error)
       latest.current.setFailure(describeFailure(error))
       return null
     } finally {

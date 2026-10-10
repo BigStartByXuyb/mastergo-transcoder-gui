@@ -1,14 +1,15 @@
 import { useState } from "react"
 import { toast } from "sonner"
 
+import { useValueRunner } from "@/app/use-action-runner"
 import { ApiFailure, api, type Board, type BoardTask, type Job, type PipelineStep, type PluginSummary } from "@/lib/api"
-import { describeFailure } from "@/lib/describe-failure"
 
 /*
  * 一条任务上能做的动作：开始（建任务并启动）/ 停 / 从断点继续 / 合并 / 冲突裁决 / 重读契约。
  *
  * 每个动作都只做三件事：调后端、把后端回的最新看板（与运行 / 契约）换到界面上、把失败原话交出去。
- * 六条动作全走同一个 run 骨架 —— 失败只有一个出口（页面的 failure），不再一半走横幅、一半只在 toast 里闪一下。
+ * 六条动作全走共用骨架（ui/src/app/use-action-runner.ts 那一份）—— 失败只有一个出口（页面的 failure），
+ * 不再一半走横幅、一半只在 toast 里闪一下；「这一行已经不在看板上」也挂在骨架的失败反应里，不另写一遍 try/catch。
  */
 
 export function useTaskActions(input: {
@@ -23,21 +24,14 @@ export function useTaskActions(input: {
   onTaskGone: () => void
 }) {
   const [busy, setBusy] = useState("")
-
-  async function run<T>(label: string, body: () => Promise<T>, onDone: (value: T) => void): Promise<T> {
-    input.onFailure("")
-    setBusy(label)
-    try {
-      const value = await body()
-      onDone(value)
-      return value
-    } catch (error) {
-      input.onFailure(describeFailure(error))
-      throw error
-    } finally {
-      setBusy("")
+  const run = useValueRunner({
+    setWorking: setBusy,
+    setFailure: input.onFailure,
+    onFailure: (error) => {
+      // 这一行已经不在看板上（被清掉、或换了工程）：把看板拉回最新，别对着不存在的任务点。
+      if (error instanceof ApiFailure && error.code === "NO_TASK") input.onTaskGone()
     }
-  }
+  })
 
   return {
     busy,
@@ -52,15 +46,13 @@ export function useTaskActions(input: {
     },
 
     stop: async (task: BoardTask) => {
-      await run("stop", () => api.boardStop(task.id), (payload) => input.onBoard(payload.board)).catch(() => undefined)
+      await run("stop", () => api.boardStop(task.id), (payload) => input.onBoard(payload.board))
     },
 
     resume: async (task: BoardTask) => {
-      try {
-        const payload = await run("resume", () => api.runResume(task.id), (value) => {
-          input.onJobReset()
-          input.onJob(value.job)
-        })
+      await run("resume", () => api.runResume(task.id), (payload) => {
+        input.onJobReset()
+        input.onJob(payload.job)
         toast.success(
           "已继续：路线 " +
             payload.mode +
@@ -76,26 +68,19 @@ export function useTaskActions(input: {
                   .join("、")
               : "")
         )
-      } catch (error) {
-        // 这一行已经不在看板上（被清掉、或换了工程）：把看板拉回最新，别对着不存在的任务点。
-        if (error instanceof ApiFailure && error.code === "NO_TASK") input.onTaskGone()
-      }
+      })
     },
 
     merge: async (task: BoardTask) => {
-      await run("merge", () => api.boardMerge(task.id), (payload) => input.onBoard(payload.board)).catch(() => undefined)
+      await run("merge", () => api.boardMerge(task.id), (payload) => input.onBoard(payload.board))
     },
 
     resolveConflict: async (task: BoardTask, path: string, pick: "mine" | "main" | "clear") => {
-      await run("resolve:" + path, () => api.boardResolve(task.id, path, pick), (payload) => input.onBoard(payload.board)).catch(
-        () => undefined
-      )
+      await run("resolve:" + path, () => api.boardResolve(task.id, path, pick), (payload) => input.onBoard(payload.board))
     },
 
     reloadContract: async () => {
-      const payload = await run("contract", () => api.plugin(), (value) => input.onPlugin(value.plugin, value.steps)).catch(
-        () => null
-      )
+      const payload = await run("contract", () => api.plugin(), (value) => input.onPlugin(value.plugin, value.steps))
       if (payload) toast.success("已重新读取流水线契约")
     }
   }

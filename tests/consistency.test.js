@@ -34,6 +34,8 @@ const TIERS_DOC = DOCS + "/plugin-sources.md";
 const RELEASE_DOC = DOCS + "/release-and-update.md";
 const STRUCTURE_DOC = DOCS + "/structure.md";
 const GATES_DOC = DOCS + "/gates.md";
+const FACTS_DOC = DOCS + "/facts.md";
+const LEDGER_DOC = DOCS + "/audit-ledger.md";
 const RECORD_INDEX = DOCS + "/records.md";
 
 function read(rel) {
@@ -153,6 +155,72 @@ const SINGLE_SOURCE = [
   { value: KEY_ENV, kind: "name", home: ["lib/codex.js"], what: "Codex 子进程的 key 环境变量名" },
   { value: PINNED_VERSION, kind: "version", home: ["lib/codex.js", DOCS + "/install.md"], what: "钉死的 Codex 版本" }
 ];
+
+/*
+ * 判据台账（docs/facts.md）：一件事的判据只能登记在一处。
+ * 表里每行的「真值源」列写成 `文件` · `那段唯一的字符串`（可写几段），门禁照它核对：
+ *   1. 那个文件真的在；2. 那段字符串真的在它里面；3. 那段字符串在 lib/ 与 ui/src/ 下**只出现在这一个文件**。
+ * 用例是夹具（会造同样的字符串），不算；所以「同一件事有几处」不用靠人肉 grep。
+ * 加一条判据 = 在表里加一行，不改这里。
+ */
+function caseFactsLedger() {
+  const files = scannedFiles().filter(function (rel) {
+    return (rel.startsWith("lib/") || rel.startsWith("ui/src/")) && !rel.includes(".test.");
+  });
+  const text = new Map(files.map(function (rel) { return [rel, read(rel)]; }));
+  let checked = 0;
+  for (const line of read(FACTS_DOC).split(/\r?\n/)) {
+    if (!/^\|\s*\S/.test(line)) continue;
+    const cells = line.split("|").map(function (cell) { return cell.trim(); });
+    // 表格行：| 这件事 | 真值源 | 谁在读它 | → split 后首尾是空串，中间三格。
+    if (cells.length < 5) continue;
+    const what = cells[1];
+    if (what === "这件事" || /^-+$/.test(what)) continue;
+    const quoted = [...cells[2].matchAll(/`([^`]+)`/g)].map(function (match) { return match[1]; });
+    assert.ok(quoted.length >= 2, FACTS_DOC + " 的「" + what + "」那行要写「`文件` · `那段字符串`」");
+    const home = quoted[0];
+    assert.ok(text.has(home), FACTS_DOC + " 的「" + what + "」写的真值源不是本仓的源码文件：" + home);
+    for (const marker of quoted.slice(1)) {
+      assert.ok(
+        text.get(home).includes(marker),
+        FACTS_DOC + " 的「" + what + "」在 " + home + " 里找不到那段字符串：" + marker
+      );
+      const others = files.filter(function (rel) { return rel !== home && text.get(rel).includes(marker); });
+      assert.deepStrictEqual(
+        others,
+        [],
+        "「" + what + "」的判据（" + marker + "）只住在 " + home + "；别处又写了一遍：" + others.join("、")
+      );
+    }
+    checked += 1;
+  }
+  assert.ok(checked >= 5, FACTS_DOC + " 至少要登记几条判据（现在只核对到 " + checked + " 条）");
+}
+
+/*
+ * 复核台账（docs/audit-ledger.md）：审计给的每条意见都要有处置，且只有三种 —— 已收 / 不修 / 独立一轮。
+ * 只核这一条格式（内容是人写的）：留着「待看」或写个别的说法，这里当场失败。
+ */
+const LEDGER_DISPOSITIONS = ["已收", "不修", "独立一轮"];
+
+function caseAuditLedger() {
+  let checked = 0;
+  for (const line of read(LEDGER_DOC).split(/\r?\n/)) {
+    if (!/^\|\s*\S/.test(line)) continue;
+    const cells = line.split("|").map(function (cell) { return cell.trim(); });
+    // 表格行：| 轮次 | id | 说什么 | 处置 | 落在哪 | → split 后首尾是空串，中间五格。
+    if (cells.length < 6) continue;
+    if (cells[1] === "轮次" || /^-+$/.test(cells[1])) continue;
+    assert.ok(cells[2], LEDGER_DOC + " 的每行都要写 id（第 " + cells[1] + " 轮那条）");
+    assert.ok(
+      LEDGER_DISPOSITIONS.includes(cells[4]),
+      LEDGER_DOC + " 的「" + cells[2] + "」处置只能是 " + LEDGER_DISPOSITIONS.join(" / ") + "，现在是：" + cells[4]
+    );
+    assert.ok(cells[5], LEDGER_DOC + " 的「" + cells[2] + "」要写清落在哪 / 为什么不修");
+    checked += 1;
+  }
+  assert.ok(checked >= 5, LEDGER_DOC + " 至少要登记几条复核（现在只核对到 " + checked + " 条）");
+}
 
 function caseSingleSource() {
   const files = scannedFiles();
@@ -459,6 +527,8 @@ function caseModulesInStructureTable() {
 const CASES = [
   ["档位表与代码一一对应", caseTierTableMatchesCode],
   ["字面量只在真值源", caseSingleSource],
+  ["判据台账与代码对得上", caseFactsLedger],
+  ["复核台账每行都有处置", caseAuditLedger],
   ["引用的文档都存在", caseDocRefsResolve],
   ["一句话只有一处说", caseFactsHaveOneHome],
   ["逐档清单不在别处复述", caseNoTierListCopy],

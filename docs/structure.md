@@ -41,6 +41,19 @@ launch.js ──> lib/launch.js      壳只用自己拥有的两份文件
 
 上面这些方向的守门人列在 [`gates.md`](gates.md)。
 
+### 界面这一侧的分层
+
+| 层 | 在哪 | 管什么 | 不许做什么 |
+| --- | --- | --- | --- |
+| 页面 | `ui/src/app/*-page.tsx` | 编排：选哪条数据、在哪儿挂哪个面板、切屏与跳转 | 自己拼展示细节 |
+| 面板与展示件 | `ui/src/app/*-panel.tsx`、`*-card.tsx`、表格与通用件 | 渲染与交互；要数据就调自己的 hook | 自己推任务状态（状态一律来自后端快照） |
+| hook | `ui/src/app/use-*.ts` | 取数与动作：一个 hook 一件事（清单、快照、动作、草稿各一份） | 渲染 |
+| 前端逻辑 | `ui/src/lib/*.ts` | 纯函数与判定（不碰网络、不碰 DOM） | 发请求 |
+| 网络出口 | `ui/src/lib/api.ts` | 界面**唯一**发请求的地方 | 被别的文件绕过（别的文件不直接 `fetch`） |
+
+「一起取数、一起刷新」的判据只有一个落点：[`facts.md`](facts.md) 的判据表逐条登记真值源，
+`tests/consistency.test.js` 按它核对「那段字符串只出现在这一处」。
+
 ## 一次操作怎么走
 
 | 场景 | 路径 |
@@ -61,7 +74,7 @@ launch.js ──> lib/launch.js      壳只用自己拥有的两份文件
 | --- | --- | --- | --- |
 | 看板与任务 | `board.js`、`concurrency.js`、`idle.js` | `board-page.tsx`、`board-task-table.tsx`、`done-board.tsx`、`new-task-card.tsx`、`board-new-task-dialog.tsx`、`board-filter-row.tsx`、`area-page.tsx`、`task-detail-card.tsx`、`effective-toggle.tsx`、`use-areas.ts`、`use-board-tasks.ts` | `board.test.js`、`board-flow.test.js`、`use-board-tasks.test.tsx` |
 | 流水线 | `run.js`、`page-progress.js`、`run-mark.js` | `pipeline-page.tsx`、`task-steps.tsx`、`step-card.tsx`、`failure-note.tsx`、`task-log-card.tsx`、`ai-fill-line.tsx`、`use-run-log.ts`、`use-task-actions.ts`、`ui/src/lib/step-rows.ts` | `run.test.js`、`run-failure.test.js`、`resume-after-restart.test.js`、`task-steps.test.tsx`、`step-rows.test.ts`、`use-task-actions.test.tsx` |
-| 待确认与语义补全 | `pending.js`、`pending-queue.js`、`confirm.js`、`identity.js`、`autofill.js`、`ai.js`、`layout-groups.js` | `pending-panel.tsx`、`identity-fill-panel.tsx`、`review-page.tsx`、`layout-panel.tsx`、`use-identity.ts`、`use-identity-fill.ts`、`use-layout-groups.ts`、`use-pending.ts`、`ui/src/lib/layout-edit.ts` | `identity.test.js`、`confirm-source.test.js`、`layout-groups.test.js`、`pending-layout.test.js`、`pending-queue.test.js`、`autofill-layout.test.js`、`use-pending.test.tsx` |
+| 待确认与语义补全 | `pending.js`、`pending-queue.js`、`confirm.js`、`identity.js`、`autofill.js`、`ai.js`、`layout-groups.js` | `pending-panel.tsx`、`identity-fill-panel.tsx`、`review-page.tsx`、`layout-panel.tsx`、`use-identity.ts`、`use-identity-fill.ts`、`use-layout-groups.ts`、`ui/src/lib/layout-edit.ts` | `identity.test.js`、`confirm-source.test.js`、`layout-groups.test.js`、`pending-layout.test.js`、`pending-queue.test.js`、`autofill-layout.test.js` |
 | 对话 | `chat.js`、`codex.js`、`codex-release.js`、`agent-context.js` | `chat-page.tsx`、`chat-transcript.tsx`、`codex-card.tsx`、`agent-avatar.tsx`、`chat-engine-log.tsx`、`chat-new-dialog.tsx`、`template-dialog.tsx` | `chat.test.js`、`codex.test.js`、`agent-context.test.js` |
 | 控件查询与映射 | `node-controls.js`、`mapping.js`、`resolve-target.js`、`resolve.js`、`project-pages.js`、`design-page-name.js`、`design-image.js`、`artifacts.js`、`xml-chunk.js`、`icon-names.js` | `query-page.tsx`、`mapping-page.tsx`、`design-image-card.tsx`、`project-pages-picker.tsx` | `node-controls.test.js`、`mapping.test.js`、`resolve-target.test.js`、`project-pages.test.js`、`design-image.test.js` |
 | 插件 | `plugin.js`、`plugin-root.js`、`plugin-update.js`、`plugin-layout.js` | `plugin-card.tsx`、`plugin-source-table.tsx`、`plugin-install-block.tsx`、`plugin-order-bar.tsx`、`plugin-source-dialog.tsx`、`plugin-source-facts.tsx`、`use-plugin-sources.ts`、`use-plugin-update.ts` | `plugin-sources.test.js`、`plugin-update.test.js`、`plugin-layout.test.js` |
