@@ -8,7 +8,8 @@ import type { BoardTask } from "@/lib/api"
 import { AUTOMATION_LABEL } from "@/lib/task-form"
 
 /*
- * 待确认卡片：任务停在插件的语义停点（图标命名 / 译文）时出现。
+ * 待确认卡片：任务停在插件的语义停点（图标命名 / 译文）时出现 —— 这两节是它自己处理的范围。
+ * 布局那一节由布局确认面板负责（同一页上它就在旁边），所以这里的条数与门禁都不含 layout。
  * 「要不要登记」是插件机械判定的；「叫什么名字、怎么翻译」只能人或 AI 给，这几步永远绕不过去。
  */
 
@@ -32,7 +33,6 @@ export function TaskPendingCard(props: Props) {
         <div className="flex flex-wrap items-center gap-2 pt-2">
           {counts.icons > 0 && <Badge variant="secondary">图标待办 {counts.icons} 条</Badge>}
           {counts.translations > 0 && <Badge variant="secondary">文案待办 {counts.translations} 条</Badge>}
-          {counts.layout > 0 && <Badge variant="secondary">布局待办 {counts.layout} 条</Badge>}
         </div>
       </CardHeader>
       <CardContent>

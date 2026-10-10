@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import { useAlive } from "@/app/use-alive"
 import { api, type LayoutControl, type LayoutGroup } from "@/lib/api"
@@ -33,6 +33,11 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
   const [note, setNote] = useState("")
   const [saved, setSaved] = useState(false)
   const alive = useAlive()
+  /*
+   * 人在界面上改过分组没有：任务每跑完一步都会刷新一次，刷新时不能把人刚拖好的分组盖回服务端那一份
+   * （面板就是让人「先改好、等停点再确认」的）。保存成功之后表就是服务端那一份，回到不脏。
+   */
+  const dirty = useRef(false)
   const { taskId, runId, projectRoot, target, updatedAt, progressDone } = input
 
   const load = useCallback(async () => {
@@ -43,7 +48,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
       setAvailable(payload.layout.available)
       setReason(payload.layout.reason)
       setControls(payload.layout.controls)
-      setGroups(payload.layout.groups)
+      if (!dirty.current) setGroups(payload.layout.groups)
       setCanSuggest(payload.layout.canSuggest)
       setAutoPass(Boolean(settings.settings.layoutAutoPass))
     } catch (error) {
@@ -99,7 +104,10 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
     setSaved(false)
     try {
       await api.confirm({ projectRoot, target, taskId, runId, groups, resume: true })
-      if (alive.current) setSaved(true)
+      if (alive.current) {
+        dirty.current = false
+        setSaved(true)
+      }
     } catch (error) {
       if (alive.current) setFailure(describeFailure(error))
     } finally {
@@ -112,7 +120,10 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
     reason,
     controls,
     groups,
-    setGroups,
+    setGroups: (next: LayoutGroup[]) => {
+      dirty.current = true
+      setGroups(next)
+    },
     canSuggest,
     autoPass,
     toggleAutoPass,

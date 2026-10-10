@@ -13,7 +13,7 @@ import { useRunLog } from "@/app/use-run-log"
 import { ApiFailure, api, type Board, type Pending, type PipelineStep, type PluginSummary } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { adoptsIdentityWithoutConfirm, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
-import { POLL_MS, canStop, hasProducts, isBusyState, isInFlight, waitingCounts } from "@/lib/task-state"
+import { POLL_MS, canStop, hasProducts, isBusyState, isInFlight, pendingInputCount, waitingCounts } from "@/lib/task-state"
 
 /*
  * 流水线：新建任务 + 看某个任务的详情。
@@ -313,7 +313,8 @@ export function PipelinePage({
         />
       )}
 
-      {task && counts.total > 0 && (
+      {/* 待确认卡只管图标与文案两节（布局那一节由上面的布局确认面板负责）。 */}
+      {task && pendingInputCount(counts) > 0 && (
         <TaskPendingCard
           task={task}
           automation={automation}

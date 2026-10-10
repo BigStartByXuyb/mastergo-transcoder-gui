@@ -105,3 +105,11 @@ export function waitingCounts(pending: Pending | null): {
   const layout = pending?.layout?.waiting ?? 0
   return { icons, translations, layout, total: icons + translations + layout }
 }
+
+/*
+ * 待补全面板自己处理的那两节（图标 + 译文）的条数：布局那一节归布局确认面板，
+ * 「这一页有没有图标/文案要补」只看这一个数 —— 面板的提交门禁与看板那张待确认卡都读它。
+ */
+export function pendingInputCount(counts: { icons: number; translations: number }): number {
+  return counts.icons + counts.translations
+}

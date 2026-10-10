@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { api, type Pending } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
-import { waitingCounts } from "@/lib/task-state"
+import { pendingInputCount, waitingCounts } from "@/lib/task-state"
 
 const BASIS_LABEL: Record<string, string> = {
   "host-shell": "宿主外壳自带",
@@ -143,9 +143,8 @@ export function PendingPanel({
   const duplicateCount = duplicateGroups.length
   const langCount = pending?.translations.available ? pending.translations.pendingTranslations.length : 0
   const glossaryCount = pending?.translations.available ? pending.translations.glossaryRequired.length : 0
-  // 本页还缺多少条语义输入：布局确认在 layout-panel 单独处理，这里只数图标 + 文案。
-  const counts = waitingCounts(pending)
-  const waiting = counts.icons + counts.translations
+  // 本页还缺多少条语义输入：布局确认在 layout-panel 单独处理，这里只数图标 + 文案（同一个判据给看板那张卡用）。
+  const waiting = pendingInputCount(waitingCounts(pending))
 
   /*
    * 「本页没有图标槽位」只有一种情形：插件判定必须登记的候选一条都没有。

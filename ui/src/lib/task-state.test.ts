@@ -12,6 +12,7 @@ import {
   isMerging,
   isSettled,
   occupiesSlot,
+  pendingInputCount,
   waitingCounts
 } from "@/lib/task-state"
 
@@ -82,6 +83,13 @@ describe("task-state", () => {
     expect(waitingCounts(pending({ translations: 2 }))).toEqual({ icons: 0, translations: 2, layout: 0, total: 2 })
     expect(waitingCounts(pending({ icons: 2, translations: 5 }))).toEqual({ icons: 2, translations: 5, layout: 0, total: 7 })
     expect(waitingCounts(pending({ layout: 1 }))).toEqual({ icons: 0, translations: 0, layout: 1, total: 1 })
+  })
+
+  it("待补全面板只管图标与文案两节：布局那一节不进它的条数", () => {
+    expect(pendingInputCount({ icons: 2, translations: 3 })).toBe(5)
+    expect(pendingInputCount({ icons: 0, translations: 0 })).toBe(0)
+    expect(waitingCounts(pending({ layout: 1 })).layout).toBe(1)
+    expect(pendingInputCount(waitingCounts(pending({ layout: 1 })))).toBe(0)
   })
 
   it("没有待确认清单时全是 0", () => {
