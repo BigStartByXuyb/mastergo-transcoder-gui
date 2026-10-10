@@ -22,14 +22,14 @@ import { useValueRunner } from "@/app/use-action-runner"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentityFill } from "@/app/use-identity-fill"
 import { api, type Board } from "@/lib/api"
-import { fillTargets, keepPickedImages, parseBoardItems, type BoardItem } from "@/lib/board-items"
+import { fillTargets, keepPickedImages, parseBoardItems } from "@/lib/board-items"
 import { filterTasks, hasFilters, readBoardFilters, writeBoardFilters, type BoardFilters } from "@/lib/board-filters"
 import { useOnlyEffective } from "@/lib/use-only-effective"
 import { coverageOf, visibleByCoverage, type Coverage } from "@/lib/board-effective"
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
-import { picksForCreated, picksForRoute, stageDesignImages } from "@/lib/stage-design-images"
+import { picksForCreated, stagePickedImages } from "@/app/stage-design-images"
 import { FINISHED_STATES } from "@/lib/task-state"
 import { useSettings } from "@/lib/use-settings"
 
@@ -110,17 +110,6 @@ export function BoardPage() {
     [run, applyBoard]
   )
 
-  /*
-   * 建完任务之后把先选好的位图逐张暂存（暂存件按任务 id 落键，只能在任务建出来之后做）。
-   * 这一步不抛错：图没跟上不算这次动作失败 —— 原话由 stageDesignImages 给，这里只负责弹出来
-   * （不走 problem：那是「看板没读到最新状态」，标题对不上这件事，而且轮询一到就清）。
-   */
-  async function stagePickedImages(created: string[], items: BoardItem[]) {
-    const picks = picksForRoute(form.mode, picksForCreated(items, created, images))
-    const failure = await stageDesignImages(picks)
-    if (failure) toast.error(failure)
-  }
-
   function addTasks() {
     const items = parseBoardItems(form.links, form.mode)
     if (!form.projectRoot.trim()) {
@@ -142,7 +131,8 @@ export function BoardPage() {
           stopAfter: form.stopAfter.trim(),
           items
         })
-        await stagePickedImages(added.created, items)
+        // 建完任务才暂存（暂存件按任务 id 落键）：门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts。
+        await stagePickedImages(form.mode, picksForCreated(items, added.created, images))
         return added
       },
       applyBoard

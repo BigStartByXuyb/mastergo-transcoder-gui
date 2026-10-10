@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import type { BoardTaskForm } from "@/lib/board-form"
-import { parseBoardItems } from "@/lib/board-items"
+import { parseBoardRows } from "@/lib/board-items"
 import { AUTOMATION_LABEL, READ_IMAGE_HINT, modeTakesRoute } from "@/lib/task-form"
 
 /* 行上只给能认出是哪一页的那一段：链接太长，整条铺出来会把这一行挤成一团。 */
@@ -50,7 +50,7 @@ export function BoardNewTaskDialog(props: {
 }) {
   const form = props.form
   const identity = props.identity
-  const items = parseBoardItems(form.links, form.mode)
+  const rows = parseBoardRows(form.links, form.mode)
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
@@ -149,25 +149,25 @@ export function BoardNewTaskDialog(props: {
             {/* 这一组下面是每行一个文件框，没有单个可关联的控件，所以不当 Label 用。 */}
             <div className="text-sm font-medium">设计稿位图（可选）</div>
             <div className="flex flex-col gap-2 rounded-md border px-3 py-2">
-              {items.length === 0 && (
+              {rows.length === 0 && (
                 <span className="text-muted-foreground text-xs">先在上面写链接：一行一个页面，一行配一张图。</span>
               )}
-              {items.map((item, index) => (
-                <div key={index + "|" + item.link} className="flex flex-wrap items-center gap-2">
-                  <span className="text-muted-foreground text-xs">第 {index + 1} 行</span>
+              {rows.map((row, index) => (
+                <div key={index + "|" + row.link} className="flex flex-wrap items-center gap-2">
+                  <span className="text-muted-foreground text-xs">第 {row.line} 行</span>
                   {/* 这一行的链接就是它自己那个选图框的标签（一行一个页面）。 */}
                   <Label
                     htmlFor={"board-image-" + index}
                     className="text-muted-foreground max-w-40 min-w-0 truncate font-mono text-xs font-normal"
-                    title={item.link}
+                    title={row.link}
                   >
-                    {linkLabel(item.link)}
+                    {linkLabel(row.link)}
                   </Label>
-                  {item.target && <Badge variant="secondary">{item.target}</Badge>}
+                  {row.target && <Badge variant="secondary">{row.target}</Badge>}
                   <DesignImagePicker
                     id={"board-image-" + index}
-                    file={props.images[item.link] ?? null}
-                    onPick={(file) => props.onPickImage(item.link, file)}
+                    file={props.images[row.link] ?? null}
+                    onPick={(file) => props.onPickImage(row.link, file)}
                   />
                 </div>
               ))}

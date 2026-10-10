@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { fillTargets, keepPickedImages, parseBoardItems } from "@/lib/board-items"
+import { fillTargets, keepPickedImages, parseBoardItems, parseBoardRows } from "@/lib/board-items"
 
 const LINK = "https://mastergo.com/goto/x?file=1&layer_id=2:3"
 
@@ -47,5 +47,13 @@ describe("keepPickedImages", () => {
   it("按链接记：行还在就留着，行没了就跟着走", () => {
     const picked = { [LINK]: "a.png", [other]: "b.png" }
     expect(keepPickedImages(picked, LINK)).toEqual({ [LINK]: "a.png" })
+  })
+})
+
+describe("parseBoardRows", () => {
+  const other = "https://mastergo.com/goto/y?file=1&layer_id=4:5"
+
+  it("行号是文本框里那一行（空行也占一行）", () => {
+    expect(parseBoardRows(`\n${LINK}\n\n${other} | F2`, "A").map((row) => row.line)).toEqual([2, 4])
   })
 })

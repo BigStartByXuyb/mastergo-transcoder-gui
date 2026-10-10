@@ -73,6 +73,11 @@ describe("BoardNewTaskDialog 的选图", () => {
     expect(screen.getByText("第 1 行")).toBeTruthy()
   })
 
+  it("行号与上面那个框里的行对得上（空行也占一行）", () => {
+    show({ form: form({ links: "\n" + LINK }) })
+    expect(screen.getByText("第 2 行")).toBeTruthy()
+  })
+
   it("不跑 A 路线就不给选图", () => {
     const { inputs } = show({ form: form({ mode: "B" }) })
     expect(inputs.length).toBe(0)

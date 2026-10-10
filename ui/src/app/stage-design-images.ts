@@ -1,14 +1,16 @@
+import { toast } from "sonner"
+
 import { api } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { modeTakesRoute } from "@/lib/task-form"
 import { fileToBase64 } from "@/lib/upload-files"
 
 /*
- * 新建时先选好的设计稿位图 → 暂存件：一条任务一份，键就是任务 id（后端只有 lib/design-image.js
- * 的 stagedPathOf 定这个键），所以选图这一步不必等页面 Target 有值，暂存也只能在任务建出来之后做。
- * 一张图被后端挡回来（不是 PNG/JPEG、太大）不连累同一批里其余几张：全部送完，把第一条原话回给调用方显示。
- * 图没暂存上不影响任务本身 —— 流水线跑到那一步会在任务详情里问。
- * 两个新建入口（流水线页的表单、看板的创建任务弹窗）共用这一份编排。
+ * 新建时先选好的设计稿位图 → 暂存件：一条任务一份，键就是任务 id（后端只有 lib/design-image.js 的
+ * stagedPathOf 定这个键），所以选图这一步不必等页面 Target 有值，暂存也只能在任务建出来之后做。
+ *
+ * 两个新建入口（流水线页的表单、看板的创建任务弹窗）共用这一份编排 —— 过门禁、逐张送、失败怎么说
+ * 都在这里，页面那侧只给「哪几行配了哪张图」。图没暂存上不影响任务本身：流水线跑到那一步会在任务详情里问。
  */
 
 export type StagedPick = { taskId: string; file: File }
@@ -43,15 +45,25 @@ export function picksForCreated(
   })
 }
 
-export async function stageDesignImages(picks: StagedPick[]): Promise<string> {
+/* 逐张送：一张被后端挡回来（不是 PNG/JPEG、太大）不连累其余几张，回第一条原话（没有就是空串）。 */
+async function sendAll(picks: StagedPick[]): Promise<string> {
   let firstFailure = ""
   for (const pick of picks) {
     try {
       await api.stageDesignImage({ taskId: pick.taskId, data: await fileToBase64(pick.file) })
     } catch (error) {
-      // 后端给的原话（原因 + 怎么修）在最前面，后面补一句这件事的后果 —— 两个入口显示的就是这一句。
+      // 后端给的原话（原因 + 怎么修）在最前面，后面补一句这件事的后果。
       if (!firstFailure) firstFailure = describeFailure(error) + STAGE_FAILED_NOTE
     }
   }
   return firstFailure
+}
+
+/*
+ * 唯一出口：过路线门禁 → 逐张送 → 失败弹一句（不走页内那条「看板没读到最新状态」的提示：
+ * 标题对不上这件事，而且轮询一到就清）。不抛错 —— 图没跟上不算这次新建失败。
+ */
+export async function stagePickedImages(mode: string, picks: StagedPick[]): Promise<void> {
+  const failure = await sendAll(picksForRoute(mode, picks))
+  if (failure) toast.error(failure)
 }
