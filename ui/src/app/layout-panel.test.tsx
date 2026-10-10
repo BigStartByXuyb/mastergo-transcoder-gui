@@ -6,7 +6,7 @@ import type { LayoutControl, LayoutGroup } from "@/lib/api"
 import { drive } from "@/lib/settings-fixtures"
 
 /*
- * 布局确认面板：控件编号、分组、AI 辅助与「确认并继续」这几件东西都在，且照后端说的渲染。
+ * 布局确认面板：控件编号、分组、AI 辅助与「写入分组表并继续」这几件东西都在，且照后端说的渲染。
  * 判据（组名、成员、写回校验）在后端 lib/layout-groups.js，这里只验界面把清单摆出来、把分组交回去。
  */
 
@@ -113,7 +113,7 @@ describe("LayoutPanel", () => {
     expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("false")
   })
 
-  it("确认并继续：把分组（ref）原样交给 /api/confirm，并从布局那一步续跑", async () => {
+  it("写入分组表并继续：把分组（ref）原样交给 /api/confirm，并从布局那一步续跑", async () => {
     let sent: { groups?: LayoutGroup[]; resume?: boolean; taskId?: string } = {}
     stub({
       groups: [{ id: "RightTools", kind: "column", members: ["1:9", "1:10"] }],
@@ -122,7 +122,7 @@ describe("LayoutPanel", () => {
     render(panel())
     await screen.findByText("RightTools")
 
-    screen.getByRole("button", { name: /确认并继续/ }).click()
+    screen.getByRole("button", { name: /写入分组表并继续/ }).click()
     await waitFor(() => expect(sent.resume).toBe(true))
     expect(sent.taskId).toBe("task-1")
     expect(sent.groups).toEqual([{ id: "RightTools", kind: "column", members: ["1:9", "1:10"] }])
@@ -139,7 +139,7 @@ describe("LayoutPanel", () => {
     render(panel())
     await screen.findByText("Half")
 
-    screen.getByRole("button", { name: /确认并继续/ }).click()
+    screen.getByRole("button", { name: /写入分组表并继续/ }).click()
     // 前端不自己判一遍：照原样把这次编辑交出去，由后端的判据说不行。
     await waitFor(() => expect(sent.groups).toEqual([{ id: "Half", kind: "row", members: ["1:9"] }]))
     expect(await screen.findByText(/members 至少 2 个 ref/)).toBeTruthy()
@@ -161,10 +161,10 @@ describe("LayoutPanel", () => {
     render(panel())
 
     expect(await screen.findByText(/还没有类型判定产物/)).toBeTruthy()
-    expect(screen.queryByRole("button", { name: /确认并继续/ })).toBeNull()
+    expect(screen.queryByRole("button", { name: /写入分组表并继续/ })).toBeNull()
   })
 
-  it("任务还在跑时：能改分组，但「确认并继续」不给点（续跑会起第二次运行）", async () => {
+  it("任务还在跑时：能改分组，但「写入分组表并继续」不给点（续跑会起第二次运行）", async () => {
     stub({ groups: [{ id: "RightTools", kind: "column", members: ["1:9", "1:10"] }] })
     render(
       <LayoutPanel
@@ -178,7 +178,7 @@ describe("LayoutPanel", () => {
     )
 
     await screen.findByText("RightTools")
-    expect(screen.getByRole("button", { name: /确认并继续/ }).hasAttribute("disabled")).toBe(true)
+    expect(screen.getByRole("button", { name: /写入分组表并继续/ }).hasAttribute("disabled")).toBe(true)
     expect(screen.getByText(/等它停在布局确认/)).toBeTruthy()
   })
 })

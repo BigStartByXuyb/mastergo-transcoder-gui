@@ -74,7 +74,7 @@ export function LayoutPanel({ confirmable, ...input }: LayoutPanelProps) {
                 </Button>
                 <Button size="sm" onClick={() => void layout.save()} disabled={layout.busy || !confirmable}>
                   <Save className="mr-1 h-4 w-4" />
-                  确认并继续
+                  写入分组表并继续
                 </Button>
               </div>
             </div>

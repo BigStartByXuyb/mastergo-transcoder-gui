@@ -160,9 +160,12 @@ export function ReviewPage() {
                         {RUN_STATE_TEXT[entry.runState] ?? entry.runState ?? "—"}
                       </TableCell>
                       <TableCell className="align-top text-xs whitespace-normal">
-                        {entry.counts.icons > 0 && <span className="mr-2">图标 {entry.counts.icons}</span>}
-                        {entry.counts.translations > 0 && <span>文案 {entry.counts.translations}</span>}
-                        {entry.counts.layout > 0 && <span className="mr-2">布局</span>}
+                        {/* 三节各自的条数：间距由这一层的 gap 一处给，不在每一项上各写一遍边距。 */}
+                        <span className="flex flex-wrap gap-x-2">
+                          {entry.counts.icons > 0 && <span>图标 {entry.counts.icons}</span>}
+                          {entry.counts.translations > 0 && <span>文案 {entry.counts.translations}</span>}
+                          {entry.counts.layout > 0 && <span>布局 {entry.counts.layout}</span>}
+                        </span>
                       </TableCell>
                       <TableCell
                         className="text-muted-foreground truncate font-mono text-xs"
