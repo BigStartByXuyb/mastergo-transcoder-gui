@@ -236,6 +236,42 @@ function caseExternalInstallShowsUp() {
   fs.rmSync(box.tmp, { recursive: true, force: true });
 }
 
+/*
+ * 读一次来源清单只扫一遍档位：定位（reload）与读清单（sources）花的扫描次数要一样 ——
+ * 数的是 readdirSync（档位扫描走它），不靠看代码。
+ */
+function caseSourcesScanOnce() {
+  const box = sandbox();
+  const fx = fixture(box);
+  const runtime = createPluginRuntime({
+    installRoot: box.install,
+    home: box.home,
+    env: { CODEX_HOME: box.codex }
+  });
+  const countScans = function (run) {
+    let scans = 0;
+    const original = fs.readdirSync;
+    fs.readdirSync = function () {
+      scans += 1;
+      return original.apply(fs, arguments);
+    };
+    try {
+      run();
+    }
+    finally {
+      fs.readdirSync = original;
+    }
+    return scans;
+  };
+
+  const relocateScans = countScans(function () { runtime.reload(); });
+  const sourcesScans = countScans(function () { runtime.sources(); });
+  assert.ok(relocateScans > 0, "定位本来就要扫一遍档位");
+  assert.strictEqual(sourcesScans, relocateScans, "读一次来源清单与定位一次是同一遍扫描（没有多扫一遍）");
+  assert.strictEqual(runtime.current().root, fx.codexNew, "顺手同步过之后生效的还是那一份");
+  fs.rmSync(box.tmp, { recursive: true, force: true });
+}
+
 try {
   const cases = [
     ["来源清单", caseSources],
@@ -244,7 +280,8 @@ try {
     ["一处都没有", caseMissing],
     ["同一个插件根只标一条正在用", caseActiveOnce],
     ["父目录里装着插件", caseParentDir],
-    ["外面装上的新插件读清单时就能看见", caseExternalInstallShowsUp]
+    ["外面装上的新插件读清单时就能看见", caseExternalInstallShowsUp],
+    ["读一次来源清单只扫一遍档位", caseSourcesScanOnce]
   ];
   for (const [name, run] of cases) {
     run();
