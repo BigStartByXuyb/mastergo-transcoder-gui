@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { api, type Pending } from "@/lib/api"
+import { PENDING_BUSY, usePendingInputs } from "@/app/use-pending-inputs"
+import { api } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { inFlightNote, isInFlight, pendingInputCount, waitingCounts } from "@/lib/task-state"
 
@@ -42,6 +43,9 @@ function labelOfWritten(item: { path: string; count: number }) {
 
 /** 刚补进去的东西，交给调用方显示在流程里：补了什么、从哪一步续跑。 */
 export type PendingFilled = { filled: string[]; resumedFrom: string }
+
+/* 提交这条动作自己的忙位名（面板自己那一半；取数/叫模型那一半在 use-pending-inputs 的 PENDING_BUSY）。 */
+const SUBMIT_BUSY = "submit"
 
 /*
  * 待确认面板：列出流水线停下来要补的语义输入，可以叫 AI 出候选，确认后从断点续跑。
@@ -76,67 +80,27 @@ export function PendingPanel({
   automation: string
   onResumed?: (info: PendingFilled) => void
 }) {
-  const [pending, setPending] = useState<Pending | null>(null)
-  const [names, setNames] = useState<Record<number, { name: string; comment: string }>>({})
-  const [texts, setTexts] = useState<Record<string, string>>({})
-  const [glossary, setGlossary] = useState<Record<string, string>>({})
-  const [busy, setBusy] = useState("")
-  const [failure, setFailure] = useState("")
-  const [allowEmptyLedger, setAllowEmptyLedger] = useState(true)
-  const [aiReady, setAiReady] = useState<boolean | null>(null)
-  const autoKey = useRef("")
-
-  // 没配模型就别去撞错误：直接说明白，让人工填这条路照常可用。
-  useEffect(() => {
-    api
-      .settingsGet()
-      .then((payload) => setAiReady(payload.settings.ai.hasKey && Boolean(payload.settings.ai.baseUrl) && Boolean(payload.settings.ai.model)))
-      .catch(() => setAiReady(false))
-  }, [])
-
-  const load = useCallback(async () => {
-    if (!projectRoot.trim() || !target.trim()) return
-    setBusy("load")
-    setFailure("")
-    try {
-      const payload = await api.pending(projectRoot, target)
-      setPending(payload.pending)
-      setNames((current) => {
-        const next = { ...current }
-        for (const item of payload.pending.icons.mustName) {
-          if (!next[item.index]) next[item.index] = { name: "", comment: "" }
-        }
-        for (const row of payload.pending.icons.naming) next[row.index] = { name: row.name ?? "", comment: row.comment ?? "" }
-        return next
-      })
-      setTexts((current) => {
-        const next = { ...current }
-        for (const item of payload.pending.translations.pendingTranslations) {
-          if (next[item.text] === undefined) next[item.text] = payload.pending.translations.translations[item.text] ?? ""
-        }
-        return next
-      })
-      setGlossary((current) => {
-        const next = { ...current }
-        for (const item of payload.pending.translations.glossaryRequired) {
-          if (next[item.text] === undefined) next[item.text] = payload.pending.translations.glossary[item.text] ?? ""
-        }
-        return next
-      })
-    } catch (error) {
-      setFailure(describeFailure(error))
-    } finally {
-      setBusy("")
-    }
-  }, [projectRoot, target])
-
   /*
-   * 什么时候重读：「去哪一页取」变了，或者来源换了（换了任务 / 换了一次运行），
-   * 或者同一次运行从「跑着」变成「停下」——那之后会新出现待办，不重读就看不见。
+   * 清单、三张草稿与叫 AI 都在 use-pending-inputs 那一处（取数只在那里取一次）；
+   * 面板这里只留「提交并续跑」这条动作的忙位与失败 —— 两处合起来是界面要显示的那一份。
    */
-  useEffect(() => {
-    void load()
-  }, [load, state, taskId, runId])
+  const inputs = usePendingInputs({ projectRoot, target, taskId, runId, state })
+  const { pending, names, texts, glossary, setName, setText, setGlossaryOf, aiReady } = inputs
+  const {
+    namingPayload,
+    translationsPayload,
+    glossaryPayload,
+    fillIconNames,
+    fillTranslations,
+    fillGlossary
+  } = inputs
+  const [submitBusy, setSubmitBusy] = useState("")
+  const [submitFailure, setSubmitFailure] = useState("")
+  const [allowEmptyLedger, setAllowEmptyLedger] = useState(true)
+  const autoKey = useRef("")
+  const busy = inputs.busy || submitBusy
+  const failure = inputs.failure || submitFailure
+  const load = inputs.reload
 
   const iconTotal = pending?.icons.available ? pending.icons.mustName.length : 0
   const iconCount = pending?.icons.available ? pending.icons.missing : 0
@@ -164,36 +128,6 @@ export function PendingPanel({
    */
   const inFlight = isInFlight(state)
 
-  const namingPayload = useCallback(
-    () =>
-      (pending?.icons.mustName ?? []).map((item) => ({
-        index: item.index,
-        name: names[item.index]?.name ?? "",
-        comment: names[item.index]?.comment ?? "",
-        // 整页几何的条目由后端的机械判定决定（sourceId 指向页面根），不由模型猜。
-        ...(item.sourceIsPageRoot ? { fromDsl: true } : {})
-      })),
-    [pending, names]
-  )
-
-  const translationsPayload = useCallback(() => {
-    const out: Record<string, string> = {}
-    for (const item of pending?.translations.pendingTranslations ?? []) {
-      const value = texts[item.text]
-      if (value && value.trim()) out[item.text] = value.trim()
-    }
-    return out
-  }, [pending, texts])
-
-  const glossaryPayload = useCallback(() => {
-    const out: Record<string, string> = {}
-    for (const item of pending?.translations.glossaryRequired ?? []) {
-      const value = glossary[item.text]
-      if (value && value.trim()) out[item.text] = value.trim()
-    }
-    return out
-  }, [pending, glossary])
-
   // 显式接收入参：自动路径拿的是「刚取回的候选」，等 setState 生效再读会拿到空值。
   const submitWith = useCallback(
     async (
@@ -203,8 +137,8 @@ export function PendingPanel({
       glossaryMap: Record<string, string>
     ) => {
       if (!pending) return
-      setBusy("submit")
-      setFailure("")
+      setSubmitBusy(SUBMIT_BUSY)
+      setSubmitFailure("")
       try {
         const payload = await api.confirm({
           projectRoot: pending.projectRoot,
@@ -225,9 +159,9 @@ export function PendingPanel({
         await load()
         if (payload.job) onResumed?.({ filled: written, resumedFrom: payload.resumedFrom ?? "" })
       } catch (error) {
-        setFailure(describeFailure(error))
+        setSubmitFailure(describeFailure(error))
       } finally {
-        setBusy("")
+        setSubmitBusy("")
       }
     },
     [pending, taskId, runId, allowEmptyLedger, load, onResumed]
@@ -237,56 +171,6 @@ export function PendingPanel({
     (resume: boolean) => submitWith(resume, namingPayload(), translationsPayload(), glossaryPayload()),
     [submitWith, namingPayload, translationsPayload, glossaryPayload]
   )
-
-  /*
-   * 叫 AI 出候选 → 预填本地状态 → 交回 {这次要提交的那份输入, 模型给了几条}。
-   * 自动那条路与三个手动按钮都走这三个函数：候选落进 state 的口径只有这一处
-   *（例如命名表里 fromDsl 的处理就在这儿，不再有第二份）。
-   */
-  const fillIconNames = useCallback(async (): Promise<{ value: { index: number; name: string; comment: string; fromDsl?: boolean }[]; count: number }> => {
-    const list = pending?.icons.mustName ?? []
-    const payload = await api.aiIconNames(list)
-    const patch: Record<number, { name: string; comment: string }> = {}
-    for (const item of payload.items) patch[item.index] = { name: item.name, comment: item.comment }
-    setNames((current) => ({ ...current, ...patch }))
-    return {
-      value: list.map((item) => ({
-        index: item.index,
-        name: patch[item.index]?.name ?? "",
-        comment: patch[item.index]?.comment ?? "",
-        ...(item.sourceIsPageRoot ? { fromDsl: true } : {})
-      })),
-      count: payload.items.length
-    }
-  }, [pending])
-
-  const fillTranslations = useCallback(async (): Promise<{ value: Record<string, string>; count: number }> => {
-    const list = pending?.translations.pendingTranslations ?? []
-    const payload = await api.aiTranslations(list.map((item) => item.text))
-    const patch: Record<string, string> = {}
-    for (const item of payload.items) patch[item.text] = item.translation
-    setTexts((current) => ({ ...current, ...patch }))
-    const out: Record<string, string> = {}
-    for (const item of list) {
-      const value = patch[item.text]
-      if (value && value.trim()) out[item.text] = value.trim()
-    }
-    return { value: out, count: payload.items.length }
-  }, [pending])
-
-  const fillGlossary = useCallback(async (): Promise<{ value: Record<string, string>; count: number }> => {
-    const list = pending?.translations.glossaryRequired ?? []
-    const payload = await api.aiGlossary(list.map((item) => item.text))
-    const patch: Record<string, string> = {}
-    for (const item of payload.items) patch[item.text] = item.identifier
-    setGlossary((current) => ({ ...current, ...patch }))
-    const out: Record<string, string> = {}
-    for (const item of list) {
-      const value = patch[item.text]
-      if (value && value.trim()) out[item.text] = value.trim()
-    }
-    return { value: out, count: payload.items.length }
-  }, [pending])
 
   /*
    * 自动出候选：同一个停点只自动跑一次。
@@ -304,39 +188,35 @@ export function PendingPanel({
     if (autoKey.current === key) return
     autoKey.current = key
     void (async () => {
-      setBusy("ai")
-      try {
-        let naming = namingPayload()
-        let translations = translationsPayload()
-        let glossaryMap = glossaryPayload()
-        if (iconCount > 0) {
-          const filled = await fillIconNames()
-          naming = filled.value
-          toast.success("AI 出了 " + filled.count + " 条图标名")
-        }
-        if (langCount > 0) {
-          const filled = await fillTranslations()
-          translations = filled.value
-          toast.success("AI 出了 " + filled.count + " 条译文")
-        }
-        if (glossaryCount > 0) {
-          const filled = await fillGlossary()
-          glossaryMap = filled.value
-          toast.success("AI 出了 " + filled.count + " 条术语")
-        }
-        /*
-         * 自动层级：出完候选直接提交并续跑，人只需要在日志里回看。
-         * 但看板任务那条不在这里续跑 —— 同一个停点只该有一个发起者：看板任务由服务端负责
-         *（lib/board.js 的 autoFillWaiting → lib/autofill.js，它读同一个 automation 设置，
-         * 而且不需要浏览器在场）；这里只对没有看板任务的条目（流水线直跑 / 孤儿）发起，免得同一个停点起两次运行。
-         */
-        if (automation === "auto" && !taskId) await submitWith(true, naming, translations, glossaryMap)
-      } catch (error) {
-        // 模型不可用不该把人挡住：退回人工填，把原因写在面板上。
-        setFailure("AI 出候选失败（可以人工填）：" + describeFailure(error))
-      } finally {
-        setBusy("")
+      // 叫模型那段（忙碌位与失败原话）由 use-pending-inputs 管；失败回 null 就不再往下续跑。
+      let naming = namingPayload()
+      let translations = translationsPayload()
+      let glossaryMap = glossaryPayload()
+      if (iconCount > 0) {
+        const filled = await fillIconNames()
+        if (!filled) return
+        naming = filled.value
+        toast.success("AI 出了 " + filled.count + " 条图标名")
       }
+      if (langCount > 0) {
+        const filled = await fillTranslations()
+        if (!filled) return
+        translations = filled.value
+        toast.success("AI 出了 " + filled.count + " 条译文")
+      }
+      if (glossaryCount > 0) {
+        const filled = await fillGlossary()
+        if (!filled) return
+        glossaryMap = filled.value
+        toast.success("AI 出了 " + filled.count + " 条术语")
+      }
+      /*
+       * 自动层级：出完候选直接提交并续跑，人只需要在日志里回看。
+       * 但看板任务那条不在这里续跑 —— 同一个停点只该有一个发起者：看板任务由服务端负责
+       *（lib/board.js 的 autoFillWaiting → lib/autofill.js，它读同一个 automation 设置，
+       * 而且不需要浏览器在场）；这里只对没有看板任务的条目（流水线直跑 / 孤儿）发起，免得同一个停点起两次运行。
+       */
+      if (automation === "auto" && !taskId) await submitWith(true, naming, translations, glossaryMap)
     })()
   }, [
     pending,
@@ -359,35 +239,19 @@ export function PendingPanel({
   ])
 
   async function suggestNamesOnly() {
-    if (!pending) return
-    setBusy("ai-icons")
-    try {
-      const filled = await fillIconNames()
-      toast.success("已填入 " + filled.count + " 条")
-    } catch (error) {
-      setFailure("AI 出候选失败（可以人工填）：" + describeFailure(error))
-    } finally {
-      setBusy("")
-    }
+    const filled = await fillIconNames()
+    if (filled) toast.success("已填入 " + filled.count + " 条")
   }
 
   async function suggestTextsOnly() {
-    if (!pending) return
-    setBusy("ai-lang")
-    try {
-      const filled = await fillTranslations()
-      toast.success("已填入 " + filled.count + " 条")
-    } catch (error) {
-      setFailure("AI 出候选失败（可以人工填）：" + describeFailure(error))
-    } finally {
-      setBusy("")
-    }
+    const filled = await fillTranslations()
+    if (filled) toast.success("已填入 " + filled.count + " 条")
   }
 
   if (!pending) {
     return (
       <div className="text-muted-foreground flex items-center gap-2 text-sm">
-        {busy === "load" && <Loader2 className="size-4 animate-spin" />}
+        {busy === PENDING_BUSY.load && <Loader2 className="size-4 animate-spin" />}
         <ClampText text={failure || "读取待确认清单…"} />
       </div>
     )
@@ -480,7 +344,7 @@ export function PendingPanel({
             <>
               <div>
                 <Button variant="outline" size="sm" disabled={busy !== ""} onClick={() => void suggestNamesOnly()}>
-                  {busy === "ai-icons" ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                  {busy === PENDING_BUSY.icons ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                   让 AI 重新出候选名
                 </Button>
               </div>
@@ -518,23 +382,13 @@ export function PendingPanel({
                             spellCheck={false}
                             placeholder="SetGeometry"
                             value={names[item.index]?.name ?? ""}
-                            onChange={(event) =>
-                              setNames((current) => ({
-                                ...current,
-                                [item.index]: { name: event.target.value, comment: current[item.index]?.comment ?? "" }
-                              }))
-                            }
+                            onChange={(event) => setName(item.index, { name: event.target.value })}
                           />
                         </TableCell>
                         <TableCell>
                           <Input
                             value={names[item.index]?.comment ?? ""}
-                            onChange={(event) =>
-                              setNames((current) => ({
-                                ...current,
-                                [item.index]: { name: current[item.index]?.name ?? "", comment: event.target.value }
-                              }))
-                            }
+                            onChange={(event) => setName(item.index, { comment: event.target.value })}
                           />
                         </TableCell>
                       </TableRow>
@@ -569,7 +423,7 @@ export function PendingPanel({
                       spellCheck={false}
                       placeholder="AxisX"
                       value={glossary[item.text] ?? ""}
-                      onChange={(event) => setGlossary((current) => ({ ...current, [item.text]: event.target.value }))}
+                      onChange={(event) => setGlossaryOf(item.text, event.target.value)}
                     />
                   </div>
                 ))}
@@ -588,7 +442,7 @@ export function PendingPanel({
             <>
               <div>
                 <Button variant="outline" size="sm" disabled={busy !== ""} onClick={() => void suggestTextsOnly()}>
-                  {busy === "ai-lang" ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                  {busy === PENDING_BUSY.translations ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                   让 AI 重新出候选译文
                 </Button>
               </div>
@@ -603,7 +457,7 @@ export function PendingPanel({
                       spellCheck={false}
                       placeholder="English"
                       value={texts[item.text] ?? ""}
-                      onChange={(event) => setTexts((current) => ({ ...current, [item.text]: event.target.value }))}
+                      onChange={(event) => setText(item.text, event.target.value)}
                     />
                   </div>
                 ))}
@@ -614,15 +468,15 @@ export function PendingPanel({
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button disabled={busy === "submit" || !canSubmit || inFlight} onClick={() => void submit(true)}>
-          {busy === "submit" ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+        <Button disabled={busy === SUBMIT_BUSY || !canSubmit || inFlight} onClick={() => void submit(true)}>
+          {busy === SUBMIT_BUSY ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           确认并继续
         </Button>
         <Button variant="outline" disabled={busy !== ""} onClick={() => void load()}>
           <RefreshCw className="size-4" />
           重新读取
         </Button>
-        <Button variant="ghost" disabled={busy === "submit" || !canSubmit || inFlight} onClick={() => void submit(false)}>
+        <Button variant="ghost" disabled={busy === SUBMIT_BUSY || !canSubmit || inFlight} onClick={() => void submit(false)}>
           只写入，不继续
         </Button>
         {inFlight && canSubmit && <span className="text-muted-foreground text-xs">{inFlightNote("确认并继续")}</span>}

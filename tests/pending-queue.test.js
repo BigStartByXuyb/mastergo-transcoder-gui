@@ -46,6 +46,25 @@ function caseEntryShape() {
   assert.strictEqual(items[0].stateLabel, "待确认", "状态名随条目给出来，界面不自己抄文案");
 }
 
+/*
+ * 前缀判据按「整段路径」比：工作目录是 `…\work` 时，`…\work2\…` 上的运行不算看板来源
+ *（只差一个字符的目录名在 Windows 上很常见）；大小写不敏感那一半也照同一条判据。
+ */
+function caseWorkRootPrefix() {
+  const workRoot = path.join(HOME, "work");
+  const queue = makeQueue({
+    runs: [{ id: "job-9", projectRoot: path.join(HOME, "work2", "x"), target: "DemoPage", state: "running" }],
+    pending: { icons: { waiting: 1 }, translations: { waiting: 0 }, layout: { waiting: 0 } }
+  });
+  assert.strictEqual(queue.snapshot().items[0].source, "pipeline", "只差一个字符的目录不算看板来源");
+
+  const upper = makeQueue({
+    runs: [{ id: "job-10", projectRoot: workRoot.toUpperCase(), target: "DemoPage", state: "running" }],
+    pending: { icons: { waiting: 1 }, translations: { waiting: 0 }, layout: { waiting: 0 } }
+  });
+  assert.strictEqual(upper.snapshot().items[0].source, "board", "大小写不同还是同一个工作目录（Windows）");
+}
+
 // 一条都不需要填的页面不进列表。
 function caseEmptyIsSkipped() {
   const queue = makeQueue({
@@ -79,6 +98,7 @@ function caseDedupeByProjectAndTarget() {
 try {
   const cases = [
     ["条目形状：条数、来源、状态名", caseEntryShape],
+    ["看板来源按整段路径判（work 不吃 work2、大小写不敏感）", caseWorkRootPrefix],
     ["一条都不需要填的不进列表", caseEmptyIsSkipped],
     ["同一页只列一条", caseDedupeByProjectAndTarget]
   ];

@@ -58,4 +58,16 @@
 | 2026-10-10 第 13 遍 | 非阻断 | `lib/ai.js` 的候选只去重成员不重组名，同名组要等写回时才被拒 | 不修 | 「组名唯一」这条判据只在写回校验一处（`lib/layout-groups.js`）；提前在候选里删重等于把同一判据再写一遍，且会让「模型给了什么」与「界面看到什么」不一致。现状是 fail-closed，只多一次往返 |
 | 2026-10-10 第 14 遍（合并后） | REVIEW-001 | 读画板尺寸时内联重写了「容错读 JSON」，绕开了 `lib/workdir.js` 的单源 | 已收 | `readCanvas` 改调 `workdir.readJsonIfExists`（`lib/design-image.js`） |
 | 2026-10-10 第 14 遍（合并后） | REVIEW-001 | `waitingCounts` 返回值里的 `layout` / `total` 在生产代码里没有读取方 | 已收 | 只留面板真正用的两节（`ui/src/lib/task-state.ts`），用例同步 |
+| 2026-10-10 第 15 遍 | 第 4/6 遍的「独立一轮」 | 待确认面板一个组件同时管取数、三张草稿、设置探测、AI 预填、载荷拼装与渲染 | 已收 | 拆出 `ui/src/app/use-pending-inputs.ts`（取数 + 三张草稿 + 叫 AI + 载荷拼装 + 设置探测）；面板只留渲染与提交编排（631 → 498 行），忙位/失败也分成这条数据线与提交两处再合成显示 |
+| 2026-10-10 第 15 遍 | 第 4 遍「不修」 | `ui/src/lib/step-rows.ts` 的 `StepRow` 绕经 `task-steps.tsx` 再导出 | 已收 | 消费者直接从 `@/lib/step-rows` 取，`task-steps.tsx` 不再二次导出 |
+| 2026-10-10 第 13 遍「不修」 | 非阻断 | `lib/ai.js` 的候选只去重成员不重组名，同名组要等写回时才被拒 | 已收 | 候选清理收进 `lib/layout-groups.js` 的 `cleanGroups`（同名组只留第一个 + 跨组去重 + 去掉成员不够的组），ai.js 只调它 |
+| 2026-10-10 第 8 遍「不修」 | 非阻断 | `lib/pending-queue.js` 的看板来源判据用路径前缀比较，没带分隔符 | 已收 | 工作目录结尾补分隔符再比前缀（`D:\work2` 不再被 `D:\work` 命中） |
+| 2026-10-10 第 16 遍 | REVIEW-001 | 新 hook `use-pending-inputs` 又手写了一遍动作骨架 | 已收 | 取数与叫模型都改走 `useValueRunner`（两个配置同一份骨架；叫模型那份的失败话前面补「可以人工填」） |
+| 2026-10-10 第 16 遍 | REVIEW-002 | 命名表的 `fromDsl` 口径在同一文件里写了两份 | 已收 | 「命名表草稿 → 提交形状」收成 `namingItemsOf` 一处，人填与模型出候选共用 |
+| 2026-10-10 第 17 遍 | REVIEW-001 | 看板来源前缀比较丢了大小写归一（Windows 上会误判来源） | 已收 | 工作目录去尾分隔符、补一个、统一小写；比较时给 root 也补分隔符 —— 按整段路径比（`lib/pending-queue.js`），用例补了「work 不吃 work2 + 大小写不敏感」 |
+| 2026-10-10 第 17 遍 | REVIEW-002 | 译文与术语两个填充函数是同形两份实现 | 已收 | 收成 `fillTextMap` 一处（问模型、落草稿、交回填了的那些），两类只是取哪个字段、写哪张草稿不同 |
+| 2026-10-10 第 18 遍 | REVIEW-001 | 译文与术语的载荷拼装是同形两份，「非空才算填过」写了两遍 | 已收 | 收成 `textMapPayload` 一处 |
+| 2026-10-10 第 18 遍 | REVIEW-002 | 新 hook 把三张草稿的原始 state 与 setState 交出去，面板照内部形状改 | 已收 | 只给意图级落点：`setName` / `setText` / `setGlossaryOf`（读还是读那三张表），面板不再拼内部记录 |
+| 2026-10-10 第 19 遍 | REVIEW-001 | 「只收非空的载荷」在同一文件里写了两份（候选填充与载荷拼装） | 已收 | 候选填充也走 `textMapPayload`（`use-pending-inputs.ts` 一处） |
+| 2026-10-10 第 19 遍 | REVIEW-002 | busy 键名是钩子与面板之间的隐式字符串协议 | 已收 | 钩子侧导出 `PENDING_BUSY`（load / icons / translations / glossary），面板侧提交那条用本文件的 `SUBMIT_BUSY`；两边都不再写裸字符串 |
 
