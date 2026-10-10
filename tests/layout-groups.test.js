@@ -9,7 +9,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { createLayoutGroups } = require("../lib/layout-groups.js");
+const layout = require("../lib/layout-groups.js");
 
 const TARGET = "DemoPage";
 
@@ -54,8 +54,6 @@ function sandbox() {
 }
 
 function main() {
-  const layout = createLayoutGroups();
-
   // 读控件清单 + 补文本。
   {
     const root = sandbox();
@@ -66,6 +64,8 @@ function main() {
     assert.strictEqual(info.controls[0].text, "A");
     assert.strictEqual(info.controls[2].text, "C");
     assert.deepStrictEqual(info.groups, []);
+    // 读图状态不在这里（那是 lib/design-image.js 一处的事实），布局确认只回控件清单与现有分组。
+    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "controls", "groups", "reason"]);
   }
 
   // 写回分组表并读回。
@@ -100,6 +100,32 @@ function main() {
       },
       /members 至少 2 个/
     );
+    // 一个 ref 只能进一个分组（写回校验与 AI 候选去重用同一份判据）。
+    assert.throws(
+      function () {
+        layout.save({
+          projectRoot: root,
+          target: TARGET,
+          groups: [
+            { id: "g1", kind: "column", members: ["a", "b"] },
+            { id: "g2", kind: "row", members: ["b", "c"] }
+          ]
+        });
+      },
+      /ref 出现在多个分组里: b/
+    );
+  }
+
+  // 空分组表照写：那是「本页没有要声明的分组」，插件按表在不在判（有图无表才停）。
+  {
+    const root = sandbox();
+    const saved = layout.save({ projectRoot: root, target: TARGET, groups: [] });
+    assert.strictEqual(saved.count, 0);
+    const file = JSON.parse(
+      fs.readFileSync(path.join(root, "Generated", "_inputs", TARGET + ".layout-groups.json"), "utf8")
+    );
+    assert.strictEqual(file.schemaVersion, "mw-wpf-layout-groups/1");
+    assert.deepStrictEqual(file.groups, []);
   }
 
   console.log("PASS layout-groups.test.js");

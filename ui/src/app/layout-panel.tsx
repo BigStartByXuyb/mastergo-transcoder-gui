@@ -69,9 +69,21 @@ export function LayoutPanel({ taskId, runId, projectRoot, target, updatedAt, pro
     void load()
   }, [load, updatedAt, progressDone])
 
-  function toggleAutoPass(value: boolean) {
+  /*
+   * 「自动通过」是门禁开关：写盘失败要照同页别的失败一样说出来，并把开关拨回写盘前的样子 ——
+   * 显示成「开着」而落盘还是关，界面说的就和真实门禁反了。
+   */
+  async function toggleAutoPass(value: boolean) {
+    const before = autoPass
     setAutoPass(value)
-    api.settingsSave({ layoutAutoPass: value }).catch(() => {})
+    setFailure("")
+    try {
+      await api.settingsSave({ layoutAutoPass: value })
+    } catch (error) {
+      if (!alive.current) return
+      setAutoPass(before)
+      setFailure(describeFailure(error))
+    }
   }
 
   const controls = layout?.controls ?? []
@@ -185,6 +197,11 @@ export function LayoutPanel({ taskId, runId, projectRoot, target, updatedAt, pro
 
             {failure ? <p className="text-sm text-destructive">{failure}</p> : null}
             {saved ? <p className="text-sm text-muted-foreground">已确认，正在从布局推导继续。</p> : null}
+            {groups.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                没有要声明的分组就直接确认：写出空分组表，布局推导按机械判据走。
+              </p>
+            ) : null}
 
             <div className="space-y-3">
               {groups.map((group) => (

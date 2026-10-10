@@ -82,7 +82,7 @@ export function canResume(task: { state: string; workDir: string }): boolean {
 }
 
 /*
- * 待确认条目计数：两节各自的 waiting 由后端 lib/pending.js 算一次（图标那节还含
+ * 待确认条目计数：三节各自的 waiting 由后端 lib/pending.js 算一次（图标那节还含
  * 命名表写歪的旧下标与重名组），这里只取数、不再按 needsXxx 重算一遍。
  */
 export function waitingCounts(pending: Pending | null): {
@@ -91,8 +91,8 @@ export function waitingCounts(pending: Pending | null): {
   layout: number
   total: number
 } {
-  const icons = pending?.icons.available ? pending.icons.waiting : 0
-  const translations = pending?.translations.available ? pending.translations.waiting : 0
-  const layout = pending?.layout?.available ? pending.layout.waiting : 0
+  const icons = pending?.icons.waiting ?? 0
+  const translations = pending?.translations.waiting ?? 0
+  const layout = pending?.layout?.waiting ?? 0
   return { icons, translations, layout, total: icons + translations + layout }
 }

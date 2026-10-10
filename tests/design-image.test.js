@@ -143,12 +143,16 @@ function caseNoSnapshot() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
-// 分组表可用照实报（文件存在且解析出非空 groups）：有图无可用分组表是流程漏步，判定在第 8 步。
+/*
+ * 分组表可用照实报（文件在且解析出 groups 数组，空数组合法）：有图无表是流程漏步，判定在第 8 步。
+ * 空表是「本页没有要声明的分组」，照旧算有表 —— 判据只有 lib/workdir.js 一处。
+ */
 function caseGroups() {
   const root = sandbox();
   fs.mkdirSync(path.join(root, "Generated", "_inputs"), { recursive: true });
+  const file = path.join(root, "Generated", "_inputs", TARGET + ".layout-groups.json");
   fs.writeFileSync(
-    path.join(root, "Generated", "_inputs", TARGET + ".layout-groups.json"),
+    file,
     JSON.stringify({
       schemaVersion: "mw-wpf-layout-groups/1",
       pageTarget: TARGET,
@@ -159,6 +163,13 @@ function caseGroups() {
   const state = designImage.read({ projectRoot: root, target: TARGET });
   assert.strictEqual(state.groups.exists, true);
   assert.match(state.groups.path, /layout-groups\.json$/);
+
+  fs.writeFileSync(
+    file,
+    JSON.stringify({ schemaVersion: "mw-wpf-layout-groups/1", pageTarget: TARGET, groups: [] }),
+    "utf8"
+  );
+  assert.strictEqual(designImage.read({ projectRoot: root, target: TARGET }).groups.exists, true, "空表也算有表");
   fs.rmSync(root, { recursive: true, force: true });
 }
 

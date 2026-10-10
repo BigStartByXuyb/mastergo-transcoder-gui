@@ -15,7 +15,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { pluginSources, PLUGIN_ENV_NAME } = require("../lib/plugin-root.js");
+const { pluginSources, activePluginSource, PLUGIN_ENV_NAME, PLUGIN_MARKER } = require("../lib/plugin-root.js");
 const { DEFAULT_PORT, API_TARGET_ENV } = require("../lib/config.js");
 const { TOKEN_ENV_KEY } = require("../lib/mcp-token.js");
 const { TOOLS, PWSH_ENV } = require("../lib/runtime.js");
@@ -372,16 +372,56 @@ function caseSingleImpl() {
   }
 }
 
-// 插件来源的手动切换：代码侧能切（canOverride / pluginOverride），文档侧就要同一次写清，旧散文不能留着。
+/*
+ * 插件来源的手动切换：挡的是「切不动」与「切了不生效」这两件事，所以判行为 ——
+ * 哪几档可切、切了之后定位到哪一份、清掉之后回不回到自动查找顺序。
+ * 文档侧要同一次写清（优先级与取消方式），旧散文不能留着。真值源见 docs/plugin-sources.md。
+ */
 function casePluginSwitchProse() {
   const prose = read(TIERS_DOC);
   assert.ok(!prose.includes("只读与查看"), TIERS_DOC + " 不能再写「只读与查看」：来源表现在支持手动切换");
   assert.ok(prose.includes("pluginOverride"), TIERS_DOC + " 要写清手动选择（pluginOverride）的优先级与取消方式");
-  assert.ok(read("lib/plugin-root.js").includes("canOverride"), "lib/plugin-root.js 要给出 canOverride 判据");
-  assert.ok(read("lib/settings.js").includes("pluginOverride"), "lib/settings.js 要存 pluginOverride 设置");
+
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "consistency-switch-"));
+  const writePlugin = function (dir) {
+    fs.mkdirSync(path.dirname(path.join(dir, PLUGIN_MARKER)), { recursive: true });
+    fs.writeFileSync(path.join(dir, PLUGIN_MARKER), "# 夹具\n", "utf8");
+    return dir;
+  };
+  try {
+    // 两个 agent 地盘各放一份能认出来的插件：一个排在查找顺序前面，一个排在最后（客户端自带）。
+    const codexRoot = writePlugin(path.join(home, "codex", "plugins", "cache", "bigstart", "mastergo-wpf-transcoder", "1.0.0"));
+    const installRoot = writePlugin(path.join(home, "install", "plugins", "mastergo-wpf-transcoder", "2.0.0"));
+    const options = { env: {}, home: home, codexHome: path.join(home, "codex"), installRoot: path.join(home, "install") };
+
+    const button = new Map(pluginSources(options).map(function (item) { return [item.id, item.canOverride]; }));
+    assert.strictEqual(button.get("arg"), false, "启动参数那一档不可手动切换（由启动时那个参数说了算）");
+    assert.strictEqual(button.get("env"), false, "环境变量那一档不可手动切换（由系统那边设）");
+    for (const id of ["codex-cache", "codex-market", "claude-cache", "claude-market", "install"]) {
+      assert.strictEqual(button.get(id), true, "「" + id + "」这一档要能手动切换");
+    }
+
+    assert.strictEqual(activePluginSource(options).active.id, "codex-cache", "没手动选时按查找顺序取");
+    assert.strictEqual(
+      activePluginSource(Object.assign({}, options, { override: "install" })).active.pluginRoot,
+      installRoot,
+      "手动选了自带那一份就用它（压过查找顺序里排在它前面的档）"
+    );
+    assert.strictEqual(
+      activePluginSource(Object.assign({}, options, { override: "" })).active.id,
+      "codex-cache",
+      "清掉手动选择就回到自动查找顺序"
+    );
+  }
+  finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
 }
 
-// 每个 lib/ 模块都要登记进结构表的功能结构（或通用件）那一栏；界面件太多子组件，不在这一条硬门禁里。
+/*
+ * 功能结构表要把模块登记齐：服务端（`lib/*.js`）与界面件（`ui/src/app/*`）各一格。
+ * 漏一个就失败 —— 结构表是「有哪些模块、各归哪个子系统」的唯一一处清单。用例不进表。
+ */
 function caseModulesInStructureTable() {
   const text = read(STRUCTURE_DOC);
   const at = function (marker) {
@@ -391,9 +431,11 @@ function caseModulesInStructureTable() {
   };
   const table = text.slice(at("## 功能结构"), at("## 约束与门禁"));
   const missing = [];
-  for (const entry of fs.readdirSync(path.join(ROOT, "lib"), { withFileTypes: true })) {
-    if (!entry.isFile() || !/\.(js|cjs|mjs)$/.test(entry.name) || entry.name.includes(".test.")) continue;
-    if (!table.includes(entry.name)) missing.push("lib/" + entry.name);
+  for (const dir of ["lib", "ui/src/app"]) {
+    for (const entry of fs.readdirSync(path.join(ROOT, ...dir.split("/")), { withFileTypes: true })) {
+      if (!entry.isFile() || !/\.(js|cjs|mjs|ts|tsx)$/.test(entry.name) || entry.name.includes(".test.")) continue;
+      if (!table.includes(entry.name)) missing.push(dir + "/" + entry.name);
+    }
   }
   assert.deepStrictEqual(missing, [], STRUCTURE_DOC + " 的功能结构表没登记这些模块：" + missing.join("、"));
 }

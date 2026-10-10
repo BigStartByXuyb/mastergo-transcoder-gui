@@ -13,6 +13,7 @@ const { createConfirm } = require("../lib/confirm.js");
 
 const STEPS = [
   { Id: 7, Name: "ledger", Title: "图标台账" },
+  { Id: 8, Name: "layout", Title: "Layout 清单" },
   { Id: 9, Name: "inputs", Title: "校验译文" }
 ];
 
@@ -37,7 +38,7 @@ function makeHarness() {
           ui: "F1",
           mode: "mtslg-iocontrol"
         },
-        runs: [{ steps: { 1: { id: 7, name: "ledger" } } }]
+        runs: [{ steps: { 1: { id: 7, name: "ledger" }, 2: { id: 8, name: "layout" } } }]
       };
     },
     start: (request) => {
@@ -55,6 +56,10 @@ function makeHarness() {
       },
       writeTranslations: () => { throw new Error("这条用例不该写译文"); },
       writeGlossary: () => { throw new Error("这条用例不该写术语"); },
+      writeGroups: (args) => {
+        written.push(args);
+        return { path: "D:/work/known/Generated/_inputs/T1.layout-groups.json", count: args.groups.length };
+      },
       reconcileNaming: () => null,
       clearNaming: () => undefined
     },
@@ -150,6 +155,24 @@ function caseWriteOnly() {
   assert.strictEqual(fx.written.length, 1);
 }
 
+/*
+ * 空分组表也照写、也从 layout 续跑：那是显式声明「本页没有要声明的分组」。
+ * 不写的话这一页永远解不开插件那条「有设计稿位图但没有分组表」。
+ */
+function caseEmptyGroups() {
+  const fx = makeHarness();
+  const result = fx.confirm.commit({
+    projectRoot: "D:/work/known",
+    target: "T1",
+    runId: "job-known",
+    groups: []
+  });
+  assert.deepStrictEqual(fx.written, [{ projectRoot: "D:/work/known", target: "T1", groups: [] }], "空数组照写");
+  assert.strictEqual(result.resumedFrom, "layout", "从消费分组表的第 8 步续");
+  assert.strictEqual(fx.started.length, 1);
+  assert.strictEqual(fx.started[0].progress, "layout");
+}
+
 try {
   caseNoSource();
   console.log("  ok  没有来源运行就明说，不猜最近一次");
@@ -161,6 +184,8 @@ try {
   console.log("  ok  运行没了但带着请求参数：从契约锚点续");
   caseWriteOnly();
   console.log("  ok  只写入不继续");
+  caseEmptyGroups();
+  console.log("  ok  空分组表照写（本页没有要声明的分组）");
   console.log("confirm-source.test.js 全部通过");
 }
 catch (error) {

@@ -204,9 +204,6 @@ export type LayoutGroups = {
   reason: string
   controls: LayoutControl[]
   groups: LayoutGroup[]
-  image: DesignImage["image"]
-  canvas: DesignImage["canvas"]
-  blocked: string
 }
 
 export type ResolvedNode = {
@@ -416,11 +413,9 @@ export type PendingTranslations = {
 }
 
 export type PendingLayout = {
-  available: boolean
-  reason: string
-  hasImage: boolean
-  hasGroups: boolean
+  /** 有设计稿位图、还没有分组表、控件清单也在手上 —— 这一页要人确认布局。 */
   needsGroups: boolean
+  /** 要人确认的条数：0 或 1。口径在 lib/pending.js 算一次，界面只取数。 */
   waiting: number
   controls: LayoutControl[]
 }
@@ -611,7 +606,7 @@ export type PendingQueueEntry = {
   runState: string
   /** 看板任务已经被移除，但工作目录与产物还在。 */
   orphan: boolean
-  /** 两节的待办条数，与看板 / 流水线详情同一份口径（图标一节、文案一节）。 */
+  /** 三节的待办条数，与看板 / 流水线详情同一份口径（图标一节、文案一节、布局一节）。 */
   counts: { icons: number; translations: number; layout: number }
   total: number
 }
@@ -1034,6 +1029,7 @@ export const api = {
     naming?: { index: number; name: string; comment: string; fromDsl?: boolean }[]
     translations?: Record<string, string>
     glossary?: Record<string, string>
+    /** 分组表：空数组也照写，表示「本页没有要声明的分组」。 */
     groups?: LayoutGroup[]
     allowEmptyLedger?: boolean
     /** 顺手把命名表里当前不认的旧下标裁掉。 */
