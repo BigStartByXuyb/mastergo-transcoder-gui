@@ -400,6 +400,41 @@ async function caseLayoutStepComesFromContract() {
   fs.rmSync(fx.home, { recursive: true, force: true });
 }
 
+/*
+ * 任务离开看板的三条路（移除这一条 / 清掉已结束 / 清空一个区域）都要把还没落地的暂存件一起收掉：
+ * 暂存件按任务 id 落在安装根的 work/staged/ 下，看板上没有它，任务走了就没人认领。
+ */
+async function caseRemovalDropsStagedImage() {
+  const fx = makeBoard();
+  const stagedOf = (id) => path.join(fx.home, "work", "staged", id + ".png");
+  const addWithImage = (target, ui) => {
+    const id = fx.board.add({
+      projectRoot: fx.project,
+      ui: ui,
+      items: [{ link: LINK, target: target, mode: "A" }]
+    }).created[0];
+    designImage.stage({ home: fx.home, taskId: id, data: png(1280, 1024).toString("base64") });
+    assert.ok(fs.existsSync(stagedOf(id)), "先选好的图先暂存着");
+    return id;
+  };
+
+  const removed = addWithImage("T1", "F1");
+  await fx.board.remove(removed);
+  assert.ok(!fs.existsSync(stagedOf(removed)), "移除这一条：暂存件跟着走");
+
+  const cleared = addWithImage("T2", "F2");
+  fx.board.stop(cleared);
+  assert.ok(fs.existsSync(stagedOf(cleared)), "只是停下（任务还在看板上）就不动暂存件");
+  fx.board.clear(["stopped"]);
+  assert.ok(!fs.existsSync(stagedOf(cleared)), "清掉已结束：暂存件跟着走");
+
+  const area = addWithImage("T3", "F3");
+  fx.board.clearArea(fx.project, "F3");
+  assert.ok(!fs.existsSync(stagedOf(area)), "清空一个区域：暂存件跟着走");
+
+  fs.rmSync(fx.home, { recursive: true, force: true });
+}
+
 async function caseStopRemoveClearAndMerge() {
   const fx = makeBoard();
   const added = fx.board.add({ projectRoot: fx.project, items: [{ link: LINK, target: "T1", mode: "B" }, { link: LINK + "&b=1", target: "T2", mode: "B" }] });
@@ -467,6 +502,7 @@ async function main() {
     ["语义停点与自动补输入", caseSemanticStopAndAutoFill],
     ["补输入到上限与真失败", caseAutoFillLimitAndRealFailure],
     ["先选的设计稿位图：尺寸不符写在行上、条件解除自清", caseStagedImageNotice],
+    ["任务离开看板（移除 / 清理 / 清空区域）：暂存件跟着走", caseRemovalDropsStagedImage],
     ["「哪一步吃布局输入」按契约的 Inputs 判，不认步骤名", caseLayoutStepComesFromContract],
     ["停止 / 移除 / 清理 / 合并前置校验", caseStopRemoveClearAndMerge],
     ["进度、步骤视图与 Target 认领", caseProgressStepsAndTargetAdoption]

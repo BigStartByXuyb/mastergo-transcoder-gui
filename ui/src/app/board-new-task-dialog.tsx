@@ -146,13 +146,14 @@ export function BoardNewTaskDialog(props: {
         {/* 一行一个页面：走 A 路线时每行各配一张设计稿位图（一个任务一份，见 ui/src/lib/stage-design-images.ts）。 */}
         {modeTakesRoute(form.mode, "A") && (
           <div className="flex flex-col gap-2">
-            <Label>设计稿位图（可选）</Label>
+            {/* 这一组下面是每行一个文件框，没有单个可关联的控件，所以不当 Label 用。 */}
+            <div className="text-sm font-medium">设计稿位图（可选）</div>
             <div className="flex flex-col gap-2 rounded-md border px-3 py-2">
               {items.length === 0 && (
                 <span className="text-muted-foreground text-xs">先在上面写链接：一行一个页面，一行配一张图。</span>
               )}
               {items.map((item, index) => (
-                <div key={item.link} className="flex flex-wrap items-center gap-2">
+                <div key={index + "|" + item.link} className="flex flex-wrap items-center gap-2">
                   <span className="text-muted-foreground text-xs">第 {index + 1} 行</span>
                   <span
                     className="text-muted-foreground max-w-40 min-w-0 truncate font-mono text-xs"
