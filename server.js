@@ -214,11 +214,18 @@ function busyReason() {
   return running ? running + " 个看板任务在跑（含建目录与合并）" : "";
 }
 
+/*
+ * 「这一份是不是被监督进程拉起来的」判一次就够：程序更新的切换互斥（lib/update.js）与路由
+ *（lib/routes.js 的回退/重启入口）读的是同一个值。
+ */
+const SUPERVISED = process.env[SUPERVISED_ENV] === "1";
+
 // 程序更新：运行树是这一份（HERE），用户状态与已下载的版本都在安装根（HOME）。
 const update = createUpdate({
   root: HERE,
   home: HOME,
   version: VERSION,
+  supervised: SUPERVISED,
   isBusy: busyReason,
   // 源与 token 每次现取：设置里刚改完，「检查更新」立刻按新的走。有没有 token 走廉价判断，轮询不解密。
   source: function () { return settings.sourceOf("source"); },
@@ -276,7 +283,7 @@ const routes = createRoutes({
   uploads: uploads,
   token: tokenOf,
   tokenSource: tokenSource,
-  supervised: process.env[SUPERVISED_ENV] === "1",
+  supervised: SUPERVISED,
   isBusy: busyReason,
   version: VERSION,
   runs: runs,
