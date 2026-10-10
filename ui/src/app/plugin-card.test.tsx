@@ -32,6 +32,7 @@ function source(id: PluginSource["id"], over: Partial<PluginSource> = {}): Plugi
     found: [],
     active: false,
     note: "（夹具）",
+    canOverride: true,
     ...over
   }
 }
@@ -44,7 +45,7 @@ function view(options: { activeId?: string; failure?: string; sameRoot?: boolean
   const activeId = options.activeId ?? "codex-cache"
   const installRoot = options.sameRoot ? CODEX_ROOT : INSTALLED_ROOT
   const sources: PluginSource[] = [
-    source("arg", { label: "启动参数（夹具）" }),
+    source("arg", { label: "启动参数（夹具）", canOverride: false }),
     source("env", {
       label: "环境变量（夹具）",
       note: "（夹具的那句话）",
@@ -53,7 +54,8 @@ function view(options: { activeId?: string; failure?: string; sameRoot?: boolean
       pluginRoot: ENV_ROOT,
       version: "2.0.0",
       found: [ENV_ROOT],
-      active: activeId === "env"
+      active: activeId === "env",
+      canOverride: false
     }),
     source("codex-cache", {
       label: "Codex 缓存（夹具）",

@@ -36,7 +36,8 @@ function sources(): PluginSources {
         pluginRoot: drive("C", "Users", "me", "app", "plugins", "mastergo-wpf-transcoder", "1.0.369"),
         version: "1.0.369",
         found: [drive("C", "Users", "me", "app", "plugins", "mastergo-wpf-transcoder", "1.0.369")],
-        active: true
+        active: true,
+        canOverride: true
       }
     ],
     override: ""

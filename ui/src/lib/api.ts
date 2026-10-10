@@ -35,6 +35,8 @@ export type PluginSource = {
   /** 这一处认出来的全部插件根（装了多版时按高版本在前）。 */
   found: string[]
   active: boolean
+  /** 这一档能不能手动切换（后端给的判据；启动参数与环境变量不可切）。 */
+  canOverride: boolean
 }
 
 export type PluginSources = {

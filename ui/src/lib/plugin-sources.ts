@@ -29,10 +29,6 @@ export type PluginSourceRow = PluginSource & {
  */
 export const INSTALL_SLOT_ID = "install"
 
-/** 显式指定的两档：优先级最高，手动切换盖不过它们，也不给切换入口。 */
-const EXPLICIT_SLOT_IDS = ["arg", "env"]
-
-
 export type PluginSourceSlot = PluginSource & {
   order: number
   /** 这一档并进了哪一行（那一行的 id）；它自己就是那一行时是空串。 */
@@ -92,9 +88,9 @@ export function isInstallRow(row: Pick<PluginSourceRow, "members">): boolean {
   return row.members.includes(INSTALL_SLOT_ID)
 }
 
-/** 这一行能不能手动切换：不含启动参数 / 环境变量那两档（它们由系统那边设）。 */
-export function canOverride(row: Pick<PluginSourceRow, "members">): boolean {
-  return !row.members.some((id) => EXPLICIT_SLOT_IDS.includes(id))
+/** 这一行能不能手动切换：后端给的 canOverride（启动参数 / 环境变量不可切）。 */
+export function canOverride(row: Pick<PluginSourceRow, "canOverride">): boolean {
+  return row.canOverride === true
 }
 
 /** 当前手动选择（来源 id）是不是落在这一行上。 */
