@@ -58,11 +58,12 @@ export function PipelinePage({
   /*
    * 两屏：带 `task=<id>`（从看板点「详情」、或刚「加入看板并开始」）就是看那个任务；
    * 不带（侧边栏「+ 新建任务」）就是新建表单。换屏走侧边栏/看板，页内不放互相跳的按钮。
+   * 给哪一屏由「有没有这条路由 + 快照里有没有这个任务」唯一决定（不另存一份状态）。
    */
-  const [formOpen, setFormOpen] = useState(!taskId)
-
   const { setBoard, reload, taskOf } = useBoardTasks()
   const task = taskOf(currentId)
+  /* 给哪一屏：见上面「两屏」那段 —— 没有路由里的任务 id，或快照里已经没有这个任务，就给表单。 */
+  const showForm = !taskId || !task
   const showProducts = task !== null && hasProducts(task.state)
   const stopStep = task?.failure?.stepName ?? ""
 
@@ -119,12 +120,7 @@ export function PipelinePage({
 
   // 路由决定这一屏显示什么（见上面的「两屏」）。
   useEffect(() => {
-    if (!taskId) {
-      setFormOpen(true)
-      return
-    }
-    setCurrentId(taskId)
-    setFormOpen(false)
+    if (taskId) setCurrentId(taskId)
   }, [taskId])
 
   // 任务推进到新的停点时自动切到那一步；人自己点过别的步骤就停在人点的那一步。
@@ -200,7 +196,7 @@ export function PipelinePage({
   return (
     <div className="flex w-full flex-col gap-4">
       {/* 表单与详情是两屏；没有选中任务时（任务被移除 / 只是进来看看）一定给表单。 */}
-      {(formOpen || !task) && (
+      {showForm && (
         <NewTaskCard
           form={form}
           onForm={patchForm}
@@ -218,7 +214,7 @@ export function PipelinePage({
         />
       )}
 
-      {(formOpen || !task) && task && (
+      {showForm && task && (
         <p className="text-muted-foreground text-sm">
           上面填好点「加入看板并开始」，或在看板点某个任务的「详情」——那是另一屏，按步骤看。
         </p>
@@ -228,7 +224,7 @@ export function PipelinePage({
         详情按「步骤条 + 当前那一步的界面」摆：左边一条（点一步切过去），右边只显示那一步的东西，
         不再把每步的输入挤在一屏里。停在哪一步就自动切到那一步。
       */}
-      {!formOpen && task && (
+      {!showForm && task && (
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
           <StepRail
             rows={stepRows}
