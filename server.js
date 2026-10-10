@@ -159,7 +159,8 @@ const proxy = applyProxy();
  */
 const pluginRuntime = createPluginRuntime({
   explicitDir: options.plugin,
-  installRoot: HOME
+  installRoot: HOME,
+  overrideOf: function () { return settings.read().pluginOverride; }
 });
 const PLUGIN = pluginRuntime.current();
 

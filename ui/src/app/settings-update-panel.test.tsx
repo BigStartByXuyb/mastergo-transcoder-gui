@@ -38,7 +38,8 @@ function sources(): PluginSources {
         found: [drive("C", "Users", "me", "app", "plugins", "mastergo-wpf-transcoder", "1.0.369")],
         active: true
       }
-    ]
+    ],
+    override: ""
   }
 }
 

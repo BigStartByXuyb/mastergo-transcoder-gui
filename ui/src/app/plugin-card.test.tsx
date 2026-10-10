@@ -96,7 +96,8 @@ function view(options: { activeId?: string; failure?: string; sameRoot?: boolean
       runAllExists: true,
       failure: options.failure ?? ""
     },
-    sources: sources
+    sources: sources,
+    override: ""
   }
 }
 

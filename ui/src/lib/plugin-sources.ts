@@ -29,6 +29,9 @@ export type PluginSourceRow = PluginSource & {
  */
 export const INSTALL_SLOT_ID = "install"
 
+/** 显式指定的两档：优先级最高，手动切换盖不过它们，也不给切换入口。 */
+const EXPLICIT_SLOT_IDS = ["arg", "env"]
+
 
 export type PluginSourceSlot = PluginSource & {
   order: number
@@ -85,5 +88,15 @@ export function pluginLookup(sources: PluginSource[]): PluginLookup {
 /** 这一行里有没有「客户端自带」那一档（它的管理入口与更新状态都挂在这一行上）。 */
 export function isInstallRow(row: Pick<PluginSourceRow, "members">): boolean {
   return row.members.includes(INSTALL_SLOT_ID)
+}
+
+/** 这一行能不能手动切换：不含启动参数 / 环境变量那两档（它们由系统那边设）。 */
+export function canOverride(row: Pick<PluginSourceRow, "members">): boolean {
+  return !row.members.some((id) => EXPLICIT_SLOT_IDS.includes(id))
+}
+
+/** 当前手动选择（来源 id）是不是落在这一行上。 */
+export function isOverridden(row: Pick<PluginSourceRow, "members">, override: string): boolean {
+  return Boolean(override) && row.members.includes(override)
 }
 

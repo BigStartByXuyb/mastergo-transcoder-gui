@@ -14,6 +14,7 @@ import { sourceViewOf } from "@/lib/source-check"
 import { busyNow } from "@/lib/update-state"
 import {
   isInstallRow,
+  isOverridden,
   pluginLookup
 } from "@/lib/plugin-sources"
 
@@ -47,6 +48,14 @@ export function PluginCard() {
     { busy: update.busy, transferring: update.transferring },
     { busy: update.update ? update.update.busy : "" }
   ])
+
+  // 手动切换：再点当前生效的那一行 = 取消（回到自动查找顺序）。
+  function toggleOverride(id: string) {
+    const current = sources.view?.override ?? ""
+    const row = lookup.rows.find((item) => item.id === id) ?? null
+    const next = row && isOverridden(row, current) ? "" : id
+    void sources.override(next)
+  }
 
   return (
     <Card>
@@ -86,7 +95,9 @@ export function PluginCard() {
             <PluginSourceTable
               rows={lookup.rows}
               update={update.update}
+              override={sources.view.override}
               onOpen={(id) => setOpened(id)}
+              onOverride={toggleOverride}
             />
 
             {/* 两半各自的失败：来源清单那一半与自带那份那一半，谁出事谁说话。 */}
