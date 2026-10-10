@@ -101,9 +101,15 @@ const settings = createSettings(HOME);
  * 这个控制台窗口一关就什么都不剩，而「程序闪退」只能靠这几行回答是哪个进程、什么错、什么码退的。
  * 未捕获异常与未处理拒绝照 Node 原本的行为退出（只是先写一行）——出错就退，重开交给监督进程。
  */
+/*
+ * 「这一份是不是被监督进程拉起来的」判一次就够：启动日志、程序更新的切换互斥（lib/update.js）
+ * 与路由（lib/routes.js 的回退/重启入口）读的都是它。
+ */
+const SUPERVISED = process.env[SUPERVISED_ENV] === "1";
+
 const log = createLog(HOME);
 log.write("boot", "启动 v" + VERSION + " port " + options.port + " pid " + process.pid
-  + (process.env[SUPERVISED_ENV] === "1" ? "（受监督，监督进程 pid " + process.ppid + "）" : "")
+  + (SUPERVISED ? "（受监督，监督进程 pid " + process.ppid + "）" : "")
   + " 安装根 " + HOME);
 /*
  * 上一次是不是正常退出：这一份在 logs/run.json 里留个记号，正常退出（含换版本的退出码 75）时自己摘掉。
@@ -219,6 +225,7 @@ const update = createUpdate({
   root: HERE,
   home: HOME,
   version: VERSION,
+  supervised: SUPERVISED,
   isBusy: busyReason,
   // 源与 token 每次现取：设置里刚改完，「检查更新」立刻按新的走。有没有 token 走廉价判断，轮询不解密。
   source: function () { return settings.sourceOf("source"); },
@@ -276,7 +283,7 @@ const routes = createRoutes({
   uploads: uploads,
   token: tokenOf,
   tokenSource: tokenSource,
-  supervised: process.env[SUPERVISED_ENV] === "1",
+  supervised: SUPERVISED,
   isBusy: busyReason,
   version: VERSION,
   runs: runs,
