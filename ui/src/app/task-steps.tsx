@@ -89,4 +89,3 @@ export function StepRail(props: {
 }
 
 export { StepIcon }
-export type { StepRow }

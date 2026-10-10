@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
-import { StepRail, type StepRow } from "@/app/task-steps"
+import { StepRail } from "@/app/task-steps"
+import type { StepRow } from "@/lib/step-rows"
 
 /*
  * 步骤条：每一步一行（序号 + 标题 + 状态 + 耗时 + 人/AI 语义输入），停在哪一步标「停这里」，

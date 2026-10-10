@@ -58,4 +58,8 @@
 | 2026-10-10 第 13 遍 | 非阻断 | `lib/ai.js` 的候选只去重成员不重组名，同名组要等写回时才被拒 | 不修 | 「组名唯一」这条判据只在写回校验一处（`lib/layout-groups.js`）；提前在候选里删重等于把同一判据再写一遍，且会让「模型给了什么」与「界面看到什么」不一致。现状是 fail-closed，只多一次往返 |
 | 2026-10-10 第 14 遍（合并后） | REVIEW-001 | 读画板尺寸时内联重写了「容错读 JSON」，绕开了 `lib/workdir.js` 的单源 | 已收 | `readCanvas` 改调 `workdir.readJsonIfExists`（`lib/design-image.js`） |
 | 2026-10-10 第 14 遍（合并后） | REVIEW-001 | `waitingCounts` 返回值里的 `layout` / `total` 在生产代码里没有读取方 | 已收 | 只留面板真正用的两节（`ui/src/lib/task-state.ts`），用例同步 |
+| 2026-10-10 第 15 遍 | 第 4/6 遍的「独立一轮」 | 待确认面板一个组件同时管取数、三张草稿、设置探测、AI 预填、载荷拼装与渲染 | 已收 | 拆出 `ui/src/app/use-pending-inputs.ts`（取数 + 三张草稿 + 叫 AI + 载荷拼装 + 设置探测）；面板只留渲染与提交编排（631 → 498 行），忙位/失败也分成这条数据线与提交两处再合成显示 |
+| 2026-10-10 第 15 遍 | 第 4 遍「不修」 | `ui/src/lib/step-rows.ts` 的 `StepRow` 绕经 `task-steps.tsx` 再导出 | 已收 | 消费者直接从 `@/lib/step-rows` 取，`task-steps.tsx` 不再二次导出 |
+| 2026-10-10 第 13 遍「不修」 | 非阻断 | `lib/ai.js` 的候选只去重成员不重组名，同名组要等写回时才被拒 | 已收 | 候选清理收进 `lib/layout-groups.js` 的 `cleanGroups`（同名组只留第一个 + 跨组去重 + 去掉成员不够的组），ai.js 只调它 |
+| 2026-10-10 第 8 遍「不修」 | 非阻断 | `lib/pending-queue.js` 的看板来源判据用路径前缀比较，没带分隔符 | 已收 | 工作目录结尾补分隔符再比前缀（`D:\work2` 不再被 `D:\work` 命中） |
 
