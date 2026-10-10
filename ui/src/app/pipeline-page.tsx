@@ -29,6 +29,7 @@ import { useTaskActions } from "@/app/use-task-actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { api, type PipelineStep, type PluginSummary } from "@/lib/api"
+import { keepPickedImages } from "@/lib/board-items"
 import { describeFailure } from "@/lib/describe-failure"
 import { candidatesForLink } from "@/lib/identity-flow"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
@@ -53,8 +54,12 @@ export function PipelinePage({
   const [form, setForm] = useState<TaskForm>(() => readTaskForm())
   /** 详情区现在看哪一步（空串 = 任务总览）。 */
   const [step, setStep] = useState("")
-  /** 新建时先选好的设计稿位图：只是这一份文件，任务建好之后跟着它暂存，尺寸核对与落地等跑到那一步。 */
-  const [stagedImage, setStagedImage] = useState<File | null>(null)
+  /*
+   * 新建时先选好的设计稿位图：按链接记（图跟着链接走，页面名改了还是同一页）——
+   * 与看板同一个判据、同一处实现（ui/src/lib/board-items.ts 的 keepPickedImages）。
+   */
+  const [images, setImages] = useState<Record<string, File>>({})
+  const stagedImage = images[form.link] ?? null
   /*
    * 两屏：带 `task=<id>`（从看板点「详情」、或刚「加入看板并开始」）就是看那个任务；
    * 不带（侧边栏「+ 新建任务」）就是新建表单。换屏走侧边栏/看板，页内不放互相跳的按钮。
@@ -91,14 +96,9 @@ export function PipelinePage({
       .catch(() => undefined)
   }, [])
 
-  /*
-   * 表单改动：链接或页面名变了，先前选好的那张图就不再是这一页的 —— 图跟着页面走，
-   * 与看板那边按行裁图同一条（那边一行的页面就是那个链接加页面名，见 ui/src/lib/board-items.ts）。
-   */
   function patchForm(patch: Partial<TaskForm>) {
-    if ((patch.link !== undefined && patch.link !== form.link) || (patch.target !== undefined && patch.target !== form.target)) {
-      setStagedImage(null)
-    }
+    const link = patch.link
+    if (link !== undefined && link !== form.link) setImages((current) => keepPickedImages(current, link))
     setForm((current) => ({ ...current, ...patch }))
   }
 
@@ -184,7 +184,7 @@ export function PipelinePage({
       // 门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts（与看板那条同源）。
       await stagePickedImages(form.mode, [{ taskId: created, file: stagedImage }])
     }
-    setStagedImage(null)
+    setImages({})
     window.location.hash = "pipeline?task=" + created
     toast.success("已加入看板并开始")
   }
@@ -203,7 +203,14 @@ export function PipelinePage({
           contract={contract}
           identity={identity}
           image={stagedImage}
-          onPickImage={setStagedImage}
+          onPickImage={(file) =>
+            setImages((current) => {
+              const next = { ...current }
+              if (file) next[form.link] = file
+              else delete next[form.link]
+              return next
+            })
+          }
           busy={actions.busy}
           failure={failure}
           canStop={task !== null && canStop(task.state)}
