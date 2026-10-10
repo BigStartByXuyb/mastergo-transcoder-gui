@@ -143,13 +143,17 @@ function caseNoSnapshot() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
-// 分组表在不在照实报：有图无表是流程漏步，说清是界面的事，判定在第 8 步。
+// 分组表可用照实报（文件存在且解析出非空 groups）：有图无可用分组表是流程漏步，判定在第 8 步。
 function caseGroups() {
   const root = sandbox();
   fs.mkdirSync(path.join(root, "Generated", "_inputs"), { recursive: true });
   fs.writeFileSync(
     path.join(root, "Generated", "_inputs", TARGET + ".layout-groups.json"),
-    JSON.stringify({ schemaVersion: "mw-wpf-layout-groups/1", pageTarget: TARGET, groups: [] }),
+    JSON.stringify({
+      schemaVersion: "mw-wpf-layout-groups/1",
+      pageTarget: TARGET,
+      groups: [{ id: "g1", kind: "column", members: ["a", "b"] }]
+    }),
     "utf8"
   );
   const state = designImage.read({ projectRoot: root, target: TARGET });

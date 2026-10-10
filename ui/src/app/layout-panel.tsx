@@ -113,6 +113,11 @@ export function LayoutPanel({ task }: { task: BoardTask }) {
   }
 
   async function save() {
+    const invalid = groups.find((group) => group.members.length < 2)
+    if (invalid) {
+      setFailure("组「" + invalid.id + "」成员不足 2 个，补齐或删掉后再确认。")
+      return
+    }
     setBusy(true)
     setFailure("")
     try {
@@ -158,7 +163,7 @@ export function LayoutPanel({ task }: { task: BoardTask }) {
                   <Sparkles className="mr-1 h-4 w-4" />
                   AI 辅助
                 </Button>
-                <Button size="sm" onClick={save} disabled={busy}>
+                <Button size="sm" onClick={save} disabled={busy || groups.some((group) => group.members.length < 2)}>
                   <Save className="mr-1 h-4 w-4" />
                   确认并继续
                 </Button>
