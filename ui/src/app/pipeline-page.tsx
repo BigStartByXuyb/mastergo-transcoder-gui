@@ -91,7 +91,14 @@ export function PipelinePage({
       .catch(() => undefined)
   }, [])
 
+  /*
+   * 表单改动：链接或页面名变了，先前选好的那张图就不再是这一页的 —— 图跟着页面走，
+   * 与看板那边按行裁图同一条（那边一行的页面就是那个链接加页面名，见 ui/src/lib/board-items.ts）。
+   */
   function patchForm(patch: Partial<TaskForm>) {
+    if ((patch.link !== undefined && patch.link !== form.link) || (patch.target !== undefined && patch.target !== form.target)) {
+      setStagedImage(null)
+    }
     setForm((current) => ({ ...current, ...patch }))
   }
 
