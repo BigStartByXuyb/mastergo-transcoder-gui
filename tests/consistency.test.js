@@ -523,6 +523,26 @@ function caseModulesInStructureTable() {
   assert.deepStrictEqual(missing, [], STRUCTURE_DOC + " 的功能结构表没登记这些模块：" + missing.join("、"));
 }
 
+/*
+ * 说明里指路的前端路径必须指到真文件：模块搬家 / 改名之后，指路那一句最容易留在原地。
+ * 只认「只属于本仓」的两个根（ui/src/、tests/）里带反引号的完整路径 —— 跨仓引用（插件与目标工程的
+ * lib/、scripts/、docs/）不在这条门禁的范围里。
+ */
+function caseFrontendPathsExist() {
+  const PATTERN = /`((?:ui\/src|tests)\/[\w./-]+\.(?:js|mjs|cjs|ts|tsx))(?![\w])`/g;
+  const docs = [INDEX, STRUCTURE_DOC, FACTS_DOC, GATES_DOC, TIERS_DOC, RELEASE_DOC, RECORD_INDEX, "README.md"];
+  const missing = [];
+  for (const rel of docs) {
+    for (const match of read(rel).matchAll(PATTERN)) {
+      const target = match[1];
+      if (target.includes("*")) continue;
+      if (fs.existsSync(path.join(ROOT, ...target.split("/")))) continue;
+      missing.push(rel + " → " + target);
+    }
+  }
+  assert.deepStrictEqual(missing, [], "说明里指到的这些前端路径不存在：" + missing.join("、"));
+}
+
 // 门禁定义也只有一处：docs/gates.md 的表与这里注册的用例一一对应。
 const CASES = [
   ["档位表与代码一一对应", caseTierTableMatchesCode],
@@ -539,6 +559,7 @@ const CASES = [
   ["插件切换散文与实现一致", casePluginSwitchProse],
   ["界面认的自带档在后端清单里", caseInstallSlotIdMatchesTiers],
   ["功能结构表登记模块", caseModulesInStructureTable],
+  ["说明里的前端路径都在", caseFrontendPathsExist],
   ["门禁定义与实际用例一致", caseGateListMatches],
   ["共享模块类型与导出一致", caseSharedTypesMatchExports]
 ];

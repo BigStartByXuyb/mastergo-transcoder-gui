@@ -20,7 +20,7 @@
 | 待确认清单的取数（含三张草稿与叫 AI 出候选） | `ui/src/app/use-pending-inputs.ts` · `api.pending(` | 待确认面板（取数只有这一处）；面板自己只管渲染与提交编排 |
 | 面板动作的骨架（置忙 → 清旧错 → 跑 → 收尾） | `ui/src/app/use-action-runner.ts` · `export function useValueRunner(` | `useActionRunner`（同文件）、`use-task-actions.ts`、`use-layout-groups.ts`、`use-plugin-sources.ts`、`use-plugin-update.ts`、`board-page.tsx`、`design-image-card.tsx`、设置页（`update-card` / `codex-card` / `runtime-panel` / `source-dialog` / `settings-agent-panel`） |
 | 界面唯一的网络出口 | `ui/src/lib/api.ts` · `fetch(` | 所有界面件（别的文件不直接发请求） |
-| 先选的位图暂存在哪（键是什么） | `lib/design-image.js` · `function stagedPathOf(` | 暂存（`lib/routes.js` 的 `POST /api/design-image/stage`）、落地与清理（`lib/board.js`）、界面按任务 id 送图（`ui/src/lib/stage-design-images.ts`） |
+| 先选的位图暂存在哪（键是什么） | `lib/design-image.js` · `function stagedPathOf(` | 暂存（`lib/routes.js` 的 `POST /api/design-image/stage`）、落地与清理（`lib/board.js`）、界面按任务 id 送图（`ui/src/app/stage-design-images.ts`） |
 | 「自动补输入并续跑」谁发起 | `ui/src/app/pending-panel.tsx` · `automation === "auto" && !taskId` | 看板任务由服务端发起（`lib/board.js` 的 `autoFillWaiting` → `lib/autofill.js`，同一个 automation 设置，不需要浏览器在场）；面板只对没有看板任务的条目发起 |
 | 位图落地要等的那一步怎么说 | `lib/design-image.js` · `const NO_CANVAS_REASON =` | 界面那一块照后端给的原话显示（`/api/design-image` 的 `blocked`）；表单的指引不提步骤名，只说「流水线产出画板尺寸之后」 |
 

@@ -143,7 +143,7 @@ export function BoardNewTaskDialog(props: {
           />
         </div>
 
-        {/* 一行一个页面：走 A 路线时每行各配一张设计稿位图（一个任务一份，见 ui/src/lib/stage-design-images.ts）。 */}
+        {/* 一行一个页面：走 A 路线时每行各配一张设计稿位图（一个任务一份，见 ui/src/app/stage-design-images.ts）。 */}
         {modeTakesRoute(form.mode, "A") && (
           <div className="flex flex-col gap-2">
             {/* 这一组下面是每行一个文件框，没有单个可关联的控件，所以不当 Label 用。 */}

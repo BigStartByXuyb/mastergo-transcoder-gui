@@ -7,7 +7,7 @@ import { humanSize } from "@/lib/upload-files"
 /*
  * 设计稿位图的选图框：新建任务那一张表单与看板的创建任务弹窗共用这一份。
  *
- * 只管「手里拿着哪张图」—— 暂存、尺寸核对、格式判据都在后端（ui/src/lib/stage-design-images.ts
+ * 只管「手里拿着哪张图」—— 暂存、尺寸核对、格式判据都在后端（ui/src/app/stage-design-images.ts
  * 送过去、lib/design-image.js 判）。所以在任务建出来之前这里选什么都不拦。
  */
 export function DesignImagePicker(props: {

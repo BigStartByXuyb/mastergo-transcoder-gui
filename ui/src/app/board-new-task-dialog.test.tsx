@@ -7,7 +7,7 @@ import type { useIdentityFill } from "@/app/use-identity-fill"
 
 /*
  * 创建任务弹窗：一行一个链接＝一行一个页面，所以走 A 路线时每行各有一个选图框（一行配一张图）。
- * 选图只交「哪一行选了哪一份文件」，暂存与尺寸核对在任务建出来之后（ui/src/lib/stage-design-images.ts）。
+ * 选图只交「哪一行选了哪一份文件」，暂存与尺寸核对在任务建出来之后（ui/src/app/stage-design-images.ts）。
  */
 
 const LINK = "https://mastergo.com/goto/x?file=1&layer_id=2:3"
