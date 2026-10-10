@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Image as ImageIcon, Loader2, Upload } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { IdentifierText } from "@/app/identifier-text"
+import { IMAGE_ACCEPT, useFilePick } from "@/app/use-file-pick"
 import { useValueRunner } from "@/app/use-action-runner"
 import { useAlive } from "@/app/use-alive"
 import { api, type BoardTask, type DesignImage } from "@/lib/api"
@@ -26,8 +27,8 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
   const [state, setState] = useState<DesignImage | null>(null)
   const [failure, setFailure] = useState("")
   const [busy, setBusy] = useState("")
-  const input = useRef<HTMLInputElement>(null)
   const alive = useAlive()
+  const picked = useFilePick((file) => void save(file))
   const projectRoot = task.workDir
   const target = task.request.target
 
@@ -55,21 +56,16 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
     void load()
   }, [load, task.updatedAt, task.progress?.done])
 
-  async function picked(file: File | undefined) {
+  async function save(file: File | null) {
     if (!file) return
-    try {
-      // 上传完直接落状态（不重读一次）；卸载之后迟到的响应不回写，与 load() 同一套守卫。
-      await run(
-        "save",
-        async () => api.saveDesignImage({ projectRoot, target, data: await fileToBase64(file) }),
-        (payload) => {
-          if (alive.current) setState(payload.image)
-        }
-      )
-    } finally {
-      // 选同一个文件两次也要能再传一次（input 的 value 不清就只响一次）。
-      if (input.current) input.current.value = ""
-    }
+    // 上传完直接落状态（不重读一次）；卸载之后迟到的响应不回写，与 load() 同一套守卫。
+    await run(
+      "save",
+      async () => api.saveDesignImage({ projectRoot, target, data: await fileToBase64(file) }),
+      (payload) => {
+        if (alive.current) setState(payload.image)
+      }
+    )
   }
 
   const image = state?.image ?? null
@@ -127,15 +123,14 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
 
         <div className="flex flex-wrap items-center gap-2">
           <input
-            ref={input}
+            ref={picked.input}
             type="file"
-            // 按内容认格式（后端那条判据），所以选择框只按大类筛一下，别用后缀把改名过的文件挡在外面。
-            accept="image/*"
+            accept={IMAGE_ACCEPT}
             className="hidden"
-            onChange={(event) => void picked(event.target.files?.[0])}
+            onChange={picked.onChange}
           />
           {/* 不能传时按后端给的 reason 显示并禁用（判据在后端，这里只渲染）。 */}
-          <Button size="sm" variant="outline" disabled={busy !== "" || Boolean(state?.blocked)} onClick={() => input.current?.click()}>
+          <Button size="sm" variant="outline" disabled={busy !== "" || Boolean(state?.blocked)} onClick={() => picked.input.current?.click()}>
             {busy !== "" ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
             {image ? "换一张" : "选择位图…"}
           </Button>

@@ -3,30 +3,23 @@ import type { ReactNode } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ClampText } from "@/app/clamp-text"
+import { DesignImagePicker } from "@/app/design-image-picker"
 import { IdentityFillPanel } from "@/app/identity-fill-panel"
+import { ModeField } from "@/app/mode-field"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import type { useIdentity } from "@/app/use-identity"
 import type { PipelineStep, PluginSummary } from "@/lib/api"
-import {
-  MODE_HINT,
-  READ_IMAGE_HINT,
-  READ_IMAGE_NO_TARGET_HINT,
-  imageNeedsTarget,
-  modeTakesRoute,
-  type TaskForm
-} from "@/lib/task-form"
-import { humanSize } from "@/lib/upload-files"
+import { READ_IMAGE_HINT, modeTakesRoute, type TaskForm } from "@/lib/task-form"
 
 /*
  * 新建任务卡片：填链接 / 工程目录 / Target / 区域 / 路线，走 A 路线时还能先把设计稿位图选上，
  * 然后「加入看板并开始」。只负责渲染与把用户输入交出去，取值链、候选与登记表写入都在 useIdentity；
- * 位图只是先拿着（暂存与尺寸核对在任务跑到取数那一步之后，见 lib/design-image.js）。
+ * 位图只是先拿着（跟着建出来的任务暂存，尺寸核对与落地在流水线跑到那一步之后，见 lib/design-image.js）。
  */
 
 type Props = {
@@ -36,7 +29,7 @@ type Props = {
   contract: PipelineStep[]
   identity: ReturnType<typeof useIdentity>
   /** 新建时先选好的设计稿位图（还没暂存到磁盘，只是这一份文件）：走 A 路线时才有意义。 */
-  stagedImage: { name: string; bytes: number } | null
+  image: File | null
   onPickImage: (file: File | null) => void
   busy: string
   failure: string
@@ -47,7 +40,7 @@ type Props = {
 }
 
 export function NewTaskCard(props: Props) {
-  const { form, onForm, plugin, contract, identity, busy, failure, canStop, onStart, onStop, onReloadContract, onPickImage } = props
+  const { form, onForm, plugin, contract, identity, busy, failure, canStop, onStart, onStop, onReloadContract } = props
 
   return (
     <Card>
@@ -92,23 +85,7 @@ export function NewTaskCard(props: Props) {
                   onChange={(event) => onForm({ projectRoot: event.target.value })}
                 />
               </div>
-              <div className="flex flex-col gap-2">
-                <Label>路线</Label>
-                <Select value={form.mode} onValueChange={(value) => onForm({ mode: value })}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue>{form.mode}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {/* 每一项的说法与下面那行说明同源（都在 ui/src/lib/task-form.ts 的 MODE_HINT 里）。 */}
-                    {(["B", "A", "AB"] as const).map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {MODE_HINT[value]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-muted-foreground text-xs">{MODE_HINT[form.mode] ?? ""}</p>
-              </div>
+              <ModeField label="路线" value={form.mode} onChange={(mode) => onForm({ mode })} />
             </FieldGroup>
 
             <FieldGroup title="可选" hint="不填就走默认">
@@ -125,30 +102,8 @@ export function NewTaskCard(props: Props) {
               {modeTakesRoute(form.mode, "A") && (
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="run-image">设计稿位图（可选）</Label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      id="run-image"
-                      type="file"
-                      accept="image/png,image/jpeg"
-                      className="text-xs"
-                      disabled={imageNeedsTarget(form.target)}
-                      onChange={(event) => onPickImage(event.target.files?.[0] ?? null)}
-                    />
-                    {props.stagedImage && (
-                      <>
-                        <span className="text-muted-foreground text-xs">
-                          {props.stagedImage.name}（{humanSize(props.stagedImage.bytes)}）
-                        </span>
-                        <Button size="sm" variant="ghost" onClick={() => props.onPickImage(null)}>
-                          移除
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                  {/* 两种情形各说一句，不叠着说：Target 空着时先说清它为什么选不了图。 */}
-                  <p className="text-muted-foreground text-xs">
-                    {imageNeedsTarget(form.target) ? READ_IMAGE_NO_TARGET_HINT : READ_IMAGE_HINT}
-                  </p>
+                  <DesignImagePicker id="run-image" file={props.image} onPick={props.onPickImage} />
+                  <p className="text-muted-foreground text-xs">{READ_IMAGE_HINT}</p>
                 </div>
               )}
             </FieldGroup>

@@ -29,13 +29,14 @@ import { useTaskActions } from "@/app/use-task-actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { api, type PipelineStep, type PluginSummary } from "@/lib/api"
+import { keepPickedImages, pickedForLink, withPickedImage } from "@/lib/board-items"
 import { describeFailure } from "@/lib/describe-failure"
 import { candidatesForLink } from "@/lib/identity-flow"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
-import { AUTOMATION_LABEL, imageNeedsTarget, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
+import { stagePickedImages } from "@/app/stage-design-images"
+import { AUTOMATION_LABEL, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
 import { decideStartIdentity } from "@/lib/task-start"
 import { canStop, hasProducts } from "@/lib/task-state"
-import { fileToBase64 } from "@/lib/upload-files"
 
 export function PipelinePage({
   taskId,
@@ -53,8 +54,12 @@ export function PipelinePage({
   const [form, setForm] = useState<TaskForm>(() => readTaskForm())
   /** 详情区现在看哪一步（空串 = 任务总览）。 */
   const [step, setStep] = useState("")
-  /** 新建时先选好的设计稿位图：只是这一份文件，等任务跑到「取数 + 固化快照」之后再暂存/核对落地。 */
-  const [stagedImage, setStagedImage] = useState<{ name: string; bytes: number; file: File } | null>(null)
+  /*
+   * 新建时先选好的设计稿位图：按链接记，与看板同一套（ui/src/lib/board-items.ts）——
+   * 还没填链接时选的那一份先记在「待认领」那一格，链接一填就归这一页；换成另一页就不算数。
+   */
+  const [images, setImages] = useState<Record<string, File>>({})
+  const stagedImage = pickedForLink(images, form.link)
   /*
    * 两屏：带 `task=<id>`（从看板点「详情」、或刚「加入看板并开始」）就是看那个任务；
    * 不带（侧边栏「+ 新建任务」）就是新建表单。换屏走侧边栏/看板，页内不放互相跳的按钮。
@@ -92,6 +97,8 @@ export function PipelinePage({
   }, [])
 
   function patchForm(patch: Partial<TaskForm>) {
+    const link = patch.link
+    if (link !== undefined && link !== form.link) setImages((current) => keepPickedImages(current, link))
     setForm((current) => ({ ...current, ...patch }))
   }
 
@@ -154,24 +161,6 @@ export function PipelinePage({
       if (decision.reason) setFailure(decision.reason)
       return
     }
-    /*
-     * 先选好的位图在这里暂存（那时画板尺寸还不知道，核不了尺寸）：任务跑到「取数 + 固化快照」之后
-     * 由看板那侧核对尺寸再落地。图不合规（不是 PNG/JPEG、太大）按后端原话拦下，不建任务。
-     * Target 空着时不暂存：暂存件按「工程 + Target」落键，空 Target 没有键（表单那边照同一句判据
-     * 不给选图，这里是那条判据的另一半 —— 判据本体在 ui/src/lib/task-form.ts）。
-     */
-    if (stagedImage && !imageNeedsTarget(decision.target)) {
-      try {
-        await api.stageDesignImage({
-          projectRoot: form.projectRoot,
-          target: decision.target,
-          data: await fileToBase64(stagedImage.file)
-        })
-      } catch (error) {
-        setFailure(describeFailure(error))
-        return
-      }
-    }
     // 失败时动作返回 null，原话已经由 use-task-actions 写进 failure：这一次点击到这儿就收尾。
     const added = await actions.start({
       projectRoot: form.projectRoot,
@@ -182,10 +171,21 @@ export function PipelinePage({
       items: [{ link: form.link, target: decision.target, mode: form.mode as "A" | "B" | "AB" }]
     })
     if (!added) return
-    const created = added.created[0] ?? ""
+    // 后端建不出来就不会回成功（lib/board.js 的 add 在没解析出链接时直接抛），所以这里一定有这一条。
+    const created = added.created[0]
     await actions.startJob(created)
     setCurrentId(created)
-    setStagedImage(null)
+    /*
+     * 先选好的位图跟着任务暂存（暂存件的键是任务 id）：那时画板尺寸还不知道，核不了尺寸 ——
+     * 任务跑到「取数 + 固化快照」之后由看板那侧核对尺寸再落地。
+     * 图被后端挡回来（不是 PNG/JPEG、太大）弹一句原话 + 后果，与看板那条同源：任务已经建好并在跑，
+     * 不占表单上的「启动失败」（那不是启动没成）。
+     */
+    if (stagedImage) {
+      // 门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts（与看板那条同源）。
+      await stagePickedImages(form.mode, [{ taskId: created, file: stagedImage }])
+    }
+    setImages({})
     window.location.hash = "pipeline?task=" + created
     toast.success("已加入看板并开始")
   }
@@ -203,8 +203,8 @@ export function PipelinePage({
           plugin={plugin}
           contract={contract}
           identity={identity}
-          stagedImage={stagedImage ? { name: stagedImage.name, bytes: stagedImage.bytes } : null}
-          onPickImage={(file) => setStagedImage(file ? { name: file.name, bytes: file.size, file: file } : null)}
+          image={stagedImage}
+          onPickImage={(file) => setImages((current) => withPickedImage(current, form.link, file))}
           busy={actions.busy}
           failure={failure}
           canStop={task !== null && canStop(task.state)}
