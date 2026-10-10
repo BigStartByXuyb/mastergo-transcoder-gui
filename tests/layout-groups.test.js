@@ -64,10 +64,10 @@ function main() {
     assert.strictEqual(info.controls[0].text, "A");
     assert.strictEqual(info.controls[2].text, "C");
     assert.deepStrictEqual(info.groups, []);
-    // 读图状态不在这里（那是 lib/design-image.js 一处的事实）；hasGroups / canSuggest 都由后端给。
-    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "canSuggest", "controls", "groups", "hasGroups", "reason"]);
+    // 读图状态不在这里（lib/design-image.js 一处）、「有没有分组表」也不在这里（lib/workdir.js 一处）；
+    // canSuggest 由后端给，界面照它禁用「AI 辅助」。
+    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "canSuggest", "controls", "groups", "reason"]);
     assert.strictEqual(info.canSuggest, true, "三个控件够分组");
-    assert.strictEqual(info.hasGroups, false, "还没有分组表");
   }
 
   // 写回分组表并读回。
