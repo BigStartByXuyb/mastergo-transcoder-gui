@@ -84,7 +84,7 @@ export function LayoutPanel({ confirmable, ...input }: LayoutPanelProps) {
             {layout.saved ? <p className="text-sm text-muted-foreground">已确认，正在从布局推导继续。</p> : null}
             {!confirmable ? (
               <p className="text-sm text-muted-foreground">
-                任务正在跑：先在下面改好分组，等它停在布局确认（或停下来之后）再点「确认并继续」。
+                任务正在跑：先在下面改好分组，等它停在布局确认（或停下来之后）再点「写入分组表并继续」。
               </p>
             ) : null}
             {layout.groups.length === 0 ? (
