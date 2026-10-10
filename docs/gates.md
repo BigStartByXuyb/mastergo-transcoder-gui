@@ -20,7 +20,7 @@
 | 插件切换散文与实现一致 | 来源表能不能手动切换，代码与权威文档要同一次说清 | `lib/plugin-root.js` 的 `canOverride`、`lib/settings.js` 的 `pluginOverride` ↔ [`plugin-sources.md`](plugin-sources.md) |
 | 界面认的自带档在后端清单里 | 界面只认「客户端自带」这一个档位 id，它必须是后端真列出来的那一档 | `lib/plugin-root.js` 的档位 id ↔ `ui/src/lib/plugin-sources.ts` 的 `INSTALL_SLOT_ID` |
 | 功能结构表登记模块 | 新增 `lib/` 模块与 `ui/src/app/` 界面件要同一次写进结构表 | [`structure.md`](structure.md) 的「功能结构」表 ↔ 仓库里 `lib/*.js`、`ui/src/app/` 下的界面件（用例除外） |
-| 说明里的前端路径都在 | 模块搬家 / 改名之后，说明里指路的那一句不许留在原地 | 说明文档里带反引号的 `ui/src/…`、`tests/…` 路径 ↔ 仓库里真实存在的文件 |
+| 说明里的前端路径都在 | 模块搬家 / 改名之后，说明里指路的那一句不许留在原地 | 索引、结构、判据、门禁、档位、发布、记录索引那几份说明里带反引号的 `ui/src/…`、`tests/…` 路径 ↔ 仓库里真实存在的文件（跨仓引用不在范围内） |
 | 门禁定义与实际用例一致 | 门禁本身也只有一处说明 | 本文的表 ↔ `tests/consistency.test.js` 注册的用例名 |
 | 共享模块类型与导出一致 | 共享库的类型声明不跟运行时导出走样 | `shared/versions.cjs` 的导出 ↔ `shared/versions.d.cts` 声明的导出名 |
 

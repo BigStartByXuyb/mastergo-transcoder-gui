@@ -17,9 +17,10 @@ export type StagedPick = { taskId: string; file: File }
 
 /*
  * 暂存没成时接在后端原话后面的那半句：只有这一处说（两个新建入口都显示同一句）。
- * 它说的是这件事的后果 —— 图不跟任务走，任务本身照常跑。
+ * 它说的是这件事的后果 —— 图不跟任务走，任务本身照常跑。不提步骤名：吃布局输入的是哪一步由插件契约说
+ * （与 ui/src/lib/task-form.ts 的 READ_IMAGE_HINT 同一口径）。
  */
-export const STAGE_FAILED_NOTE = "（先选的那张图没暂存上，任务照常跑；图可以在任务详情「布局」那一步再传）"
+export const STAGE_FAILED_NOTE = "（先选的那张图没暂存上，任务照常跑；图可以在任务详情里再传一张）"
 
 /*
  * 只有跑 A 路线才读设计稿位图（这条判据在 ui/src/lib/task-form.ts 的 modeTakesRoute）：

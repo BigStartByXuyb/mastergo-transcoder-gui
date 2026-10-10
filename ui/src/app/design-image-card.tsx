@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { IdentifierText } from "@/app/identifier-text"
-import { useFilePick } from "@/app/use-file-pick"
+import { IMAGE_ACCEPT, useFilePick } from "@/app/use-file-pick"
 import { useValueRunner } from "@/app/use-action-runner"
 import { useAlive } from "@/app/use-alive"
 import { api, type BoardTask, type DesignImage } from "@/lib/api"
@@ -125,8 +125,7 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
           <input
             ref={picked.input}
             type="file"
-            // 按内容认格式（后端那条判据），所以选择框只按大类筛一下，别用后缀把改名过的文件挡在外面。
-            accept="image/*"
+            accept={IMAGE_ACCEPT}
             className="hidden"
             onChange={picked.onChange}
           />

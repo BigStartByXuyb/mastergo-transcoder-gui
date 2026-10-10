@@ -1,7 +1,7 @@
 import { X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { useFilePick } from "@/app/use-file-pick"
+import { IMAGE_ACCEPT, useFilePick } from "@/app/use-file-pick"
 import { humanSize } from "@/lib/upload-files"
 
 /*
@@ -23,7 +23,7 @@ export function DesignImagePicker(props: {
         ref={picked.input}
         id={props.id}
         type="file"
-        accept="image/png,image/jpeg"
+        accept={IMAGE_ACCEPT}
         className="text-xs"
         onChange={picked.onChange}
       />

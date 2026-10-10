@@ -152,12 +152,12 @@ export function BoardNewTaskDialog(props: {
               {rows.length === 0 && (
                 <span className="text-muted-foreground text-xs">先在上面写链接：一行一个页面，一行配一张图。</span>
               )}
-              {rows.map((row, index) => (
-                <div key={index + "|" + row.link} className="flex flex-wrap items-center gap-2">
+              {rows.map((row) => (
+                <div key={row.line} className="flex flex-wrap items-center gap-2">
                   <span className="text-muted-foreground text-xs">第 {row.line} 行</span>
                   {/* 这一行的链接就是它自己那个选图框的标签（一行一个页面）。 */}
                   <Label
-                    htmlFor={"board-image-" + index}
+                    htmlFor={"board-image-" + row.line}
                     className="text-muted-foreground max-w-40 min-w-0 truncate font-mono text-xs font-normal"
                     title={row.link}
                   >
@@ -165,7 +165,7 @@ export function BoardNewTaskDialog(props: {
                   </Label>
                   {row.target && <Badge variant="secondary">{row.target}</Badge>}
                   <DesignImagePicker
-                    id={"board-image-" + index}
+                    id={"board-image-" + row.line}
                     file={props.images[row.link] ?? null}
                     onPick={(file) => props.onPickImage(row.link, file)}
                   />

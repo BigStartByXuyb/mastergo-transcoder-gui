@@ -535,7 +535,6 @@ function caseFrontendPathsExist() {
   for (const rel of docs) {
     for (const match of read(rel).matchAll(PATTERN)) {
       const target = match[1];
-      if (target.includes("*")) continue;
       if (fs.existsSync(path.join(ROOT, ...target.split("/")))) continue;
       missing.push(rel + " → " + target);
     }
