@@ -72,4 +72,5 @@
 | 2026-10-10 第 19 遍 | REVIEW-002 | busy 键名是钩子与面板之间的隐式字符串协议 | 已收 | 钩子侧导出 `PENDING_BUSY`（load / icons / translations / glossary），面板侧提交那条用本文件的 `SUBMIT_BUSY`；两边都不再写裸字符串 |
 | 2026-10-10 第 20 遍 | REVIEW-001 | 失败提示由两处状态合成时，旧的钩子失败会盖住新的提交失败 | 已收 | 提交开始时先清掉数据线那侧的旧失败（`use-pending-inputs` 的 `clearFailure`） |
 | 2026-10-10 第 21 遍 | REVIEW-001 | 面板把整个 `inputs` 放进 `submitWith` 的依赖（回调每次渲染都重建、自动出候选的 effect 跟着重跑） | 已收 | `clearFailure` 本身做成稳定函数，面板只依赖它，不依赖整个 `inputs` |
+| 2026-10-10 第 22 遍 | REVIEW-001 | 失败清理只做了单向：数据线成功刷新后，旧的提交失败仍留在界面上 | 已收 | 失败只留一个槽（`use-pending-inputs` 的 `writeFailure` / `clearFailure`）：谁开始干活谁先清，面板的提交也写这同一个槽，不再两处合成 |
 

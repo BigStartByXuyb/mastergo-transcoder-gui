@@ -146,6 +146,11 @@ export function usePendingInputs(input: {
 
   /** 面板那条提交动作开始时调它：把这条数据线的旧失败清掉，别让它盖住刚发生的提交失败。 */
   const clearFailure = useCallback(() => setFailure(""), [])
+  /*
+   * 失败这句话面板也要写（提交那条动作）：只留一个槽、谁开始干活谁先清 ——
+   * 两个槽再合成一句，就会出现「旧的盖住新的」与它的反面（成功之后旧的还挂着）两种毛病。
+   */
+  const writeFailure = useCallback((message: string) => setFailure(message), [])
 
   /*
    * 三张表的载荷：只有填了的格子进提交（空名字、空译文不算人填过）。
@@ -245,6 +250,7 @@ export function usePendingInputs(input: {
     busy,
     failure,
     clearFailure,
+    writeFailure,
     reload,
     namingPayload,
     translationsPayload,
