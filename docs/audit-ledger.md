@@ -68,4 +68,6 @@
 | 2026-10-10 第 17 遍 | REVIEW-002 | 译文与术语两个填充函数是同形两份实现 | 已收 | 收成 `fillTextMap` 一处（问模型、落草稿、交回填了的那些），两类只是取哪个字段、写哪张草稿不同 |
 | 2026-10-10 第 18 遍 | REVIEW-001 | 译文与术语的载荷拼装是同形两份，「非空才算填过」写了两遍 | 已收 | 收成 `textMapPayload` 一处 |
 | 2026-10-10 第 18 遍 | REVIEW-002 | 新 hook 把三张草稿的原始 state 与 setState 交出去，面板照内部形状改 | 已收 | 只给意图级落点：`setName` / `setText` / `setGlossaryOf`（读还是读那三张表），面板不再拼内部记录 |
+| 2026-10-10 第 19 遍 | REVIEW-001 | 「只收非空的载荷」在同一文件里写了两份（候选填充与载荷拼装） | 已收 | 候选填充也走 `textMapPayload`（`use-pending-inputs.ts` 一处） |
+| 2026-10-10 第 19 遍 | REVIEW-002 | busy 键名是钩子与面板之间的隐式字符串协议 | 已收 | 钩子侧导出 `PENDING_BUSY`（load / icons / translations / glossary），面板侧提交那条用本文件的 `SUBMIT_BUSY`；两边都不再写裸字符串 |
 

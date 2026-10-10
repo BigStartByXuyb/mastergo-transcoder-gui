@@ -20,6 +20,17 @@ export type NamingItem = { index: number; name: string; comment: string; fromDsl
 /** 叫 AI 的一次结果：要提交的那份输入 + 模型给了几条。 */
 export type Filled<T> = { value: T; count: number }
 
+/*
+ * 忙位键名：面板按它决定哪个按钮转圈 / 显示「正在读清单」。
+ * 名字就是这几件事自己的名字 —— 面板从这里取（`PENDING_BUSY.*`），不在两边各写一份字符串。
+ */
+export const PENDING_BUSY = {
+  load: "load",
+  icons: "ai-icons",
+  translations: "ai-lang",
+  glossary: "ai"
+} as const
+
 export function usePendingInputs(input: {
   projectRoot: string
   target: string
@@ -62,7 +73,7 @@ export function usePendingInputs(input: {
 
   const reload = useCallback(async () => {
     if (!projectRoot.trim() || !target.trim()) return
-    await run("load", () => api.pending(projectRoot, target), (payload) => {
+    await run(PENDING_BUSY.load, () => api.pending(projectRoot, target), (payload) => {
       if (!alive.current) return
       setPending(payload.pending)
       setNames((current) => {
@@ -165,7 +176,7 @@ export function usePendingInputs(input: {
    */
   const fillIconNames = useCallback(async (): Promise<Filled<NamingItem[]> | null> => {
     const list = pending?.icons.mustName ?? []
-    return await runAi("ai-icons", async () => {
+    return await runAi(PENDING_BUSY.icons, async () => {
       const payload = await api.aiIconNames(list)
       const patch: Record<number, { name: string; comment: string }> = {}
       for (const item of payload.items) patch[item.index] = { name: item.name, comment: item.comment }
@@ -193,20 +204,16 @@ export function usePendingInputs(input: {
         const patch: Record<string, string> = {}
         for (const item of items) patch[item.text] = item.value
         apply(patch)
-        const out: Record<string, string> = {}
-        for (const item of list) {
-          const value = patch[item.text]
-          if (value && value.trim()) out[item.text] = value.trim()
-        }
-        return { value: out, count: items.length }
+        // 「只收非空的」那一半与载荷拼装同一处（textMapPayload）：两边都是「按这份清单取、丢掉空的」。
+        return { value: textMapPayload(list, patch), count: items.length }
       }),
-    [runAi]
+    [runAi, textMapPayload]
   )
 
   const fillTranslations = useCallback(async (): Promise<Filled<Record<string, string>> | null> => {
     const list = pending?.translations.pendingTranslations ?? []
     return await fillTextMap(
-      "ai-lang",
+      PENDING_BUSY.translations,
       list,
       async (texts) => (await api.aiTranslations(texts)).items.map((item) => ({ text: item.text, value: item.translation })),
       (patch) => setTexts((current) => ({ ...current, ...patch }))
@@ -216,7 +223,7 @@ export function usePendingInputs(input: {
   const fillGlossary = useCallback(async (): Promise<Filled<Record<string, string>> | null> => {
     const list = pending?.translations.glossaryRequired ?? []
     return await fillTextMap(
-      "ai",
+      PENDING_BUSY.glossary,
       list,
       async (texts) => (await api.aiGlossary(texts)).items.map((item) => ({ text: item.text, value: item.identifier })),
       (patch) => setGlossary((current) => ({ ...current, ...patch }))

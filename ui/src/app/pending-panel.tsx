@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { usePendingInputs } from "@/app/use-pending-inputs"
+import { PENDING_BUSY, usePendingInputs } from "@/app/use-pending-inputs"
 import { api } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { inFlightNote, isInFlight, pendingInputCount, waitingCounts } from "@/lib/task-state"
@@ -43,6 +43,9 @@ function labelOfWritten(item: { path: string; count: number }) {
 
 /** 刚补进去的东西，交给调用方显示在流程里：补了什么、从哪一步续跑。 */
 export type PendingFilled = { filled: string[]; resumedFrom: string }
+
+/* 提交这条动作自己的忙位名（面板自己那一半；取数/叫模型那一半在 use-pending-inputs 的 PENDING_BUSY）。 */
+const SUBMIT_BUSY = "submit"
 
 /*
  * 待确认面板：列出流水线停下来要补的语义输入，可以叫 AI 出候选，确认后从断点续跑。
@@ -134,7 +137,7 @@ export function PendingPanel({
       glossaryMap: Record<string, string>
     ) => {
       if (!pending) return
-      setSubmitBusy("submit")
+      setSubmitBusy(SUBMIT_BUSY)
       setSubmitFailure("")
       try {
         const payload = await api.confirm({
@@ -248,7 +251,7 @@ export function PendingPanel({
   if (!pending) {
     return (
       <div className="text-muted-foreground flex items-center gap-2 text-sm">
-        {busy === "load" && <Loader2 className="size-4 animate-spin" />}
+        {busy === PENDING_BUSY.load && <Loader2 className="size-4 animate-spin" />}
         <ClampText text={failure || "读取待确认清单…"} />
       </div>
     )
@@ -341,7 +344,7 @@ export function PendingPanel({
             <>
               <div>
                 <Button variant="outline" size="sm" disabled={busy !== ""} onClick={() => void suggestNamesOnly()}>
-                  {busy === "ai-icons" ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                  {busy === PENDING_BUSY.icons ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                   让 AI 重新出候选名
                 </Button>
               </div>
@@ -439,7 +442,7 @@ export function PendingPanel({
             <>
               <div>
                 <Button variant="outline" size="sm" disabled={busy !== ""} onClick={() => void suggestTextsOnly()}>
-                  {busy === "ai-lang" ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                  {busy === PENDING_BUSY.translations ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                   让 AI 重新出候选译文
                 </Button>
               </div>
@@ -465,15 +468,15 @@ export function PendingPanel({
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button disabled={busy === "submit" || !canSubmit || inFlight} onClick={() => void submit(true)}>
-          {busy === "submit" ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+        <Button disabled={busy === SUBMIT_BUSY || !canSubmit || inFlight} onClick={() => void submit(true)}>
+          {busy === SUBMIT_BUSY ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           确认并继续
         </Button>
         <Button variant="outline" disabled={busy !== ""} onClick={() => void load()}>
           <RefreshCw className="size-4" />
           重新读取
         </Button>
-        <Button variant="ghost" disabled={busy === "submit" || !canSubmit || inFlight} onClick={() => void submit(false)}>
+        <Button variant="ghost" disabled={busy === SUBMIT_BUSY || !canSubmit || inFlight} onClick={() => void submit(false)}>
           只写入，不继续
         </Button>
         {inFlight && canSubmit && <span className="text-muted-foreground text-xs">{inFlightNote("确认并继续")}</span>}
