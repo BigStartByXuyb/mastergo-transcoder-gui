@@ -33,6 +33,14 @@ export const MODE_HINT: Record<string, string> = {
 }
 
 /*
+ * 这一版走不走某条路线：与后端 lib/run.js 的 routesOfMode 同一口径（AB 两条都跑，回给界面的就是
+ * 展开后的 routes）。表单里只有 mode 这一个值，所以按它判，不用子串匹配 —— 新增路线值不会被误命中。
+ */
+export function modeTakesRoute(mode: string, route: "A" | "B"): boolean {
+  return mode === "AB" || mode === route
+}
+
+/*
  * A 路线多一道输入：设计稿位图。图必须与设计稿画板同尺寸，而画板尺寸要等流水线取数之后才知道 ——
  * 所以它不在新建表单里传，而是任务跑到「取数 + 固化快照」之后在任务详情里传。这句话只有这一处。
  */

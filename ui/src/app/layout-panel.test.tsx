@@ -68,6 +68,7 @@ function stub(
             reason: available ? "" : "还没有类型判定产物（流水线尚未跑到第 5 步的类型判定）",
             controls: options.controls ?? CONTROLS,
             groups: options.groups ?? [],
+            hasGroups: (options.groups ?? []).length > 0,
             // 后端的口径：控件够不够问 AI 由它给（阈值在 lib/layout-groups.js），界面照它禁用按钮。
             canSuggest: (options.controls ?? CONTROLS).length >= 2
           }

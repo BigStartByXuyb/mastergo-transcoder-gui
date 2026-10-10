@@ -64,10 +64,11 @@ function main() {
     assert.strictEqual(info.controls[0].text, "A");
     assert.strictEqual(info.controls[2].text, "C");
     assert.deepStrictEqual(info.groups, []);
-    // 读图状态不在这里（lib/design-image.js 一处）、「有没有分组表」也不在这里（lib/workdir.js 一处）；
-    // canSuggest 由后端给，界面照它禁用「AI 辅助」。
-    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "canSuggest", "controls", "groups", "reason"]);
+    // 读图状态不在这里（lib/design-image.js 一处）；hasGroups 与 canSuggest 都由后端给
+    // （hasGroups 与 tables 同一次读，界面照 canSuggest 禁用「AI 辅助」）。
+    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "canSuggest", "controls", "groups", "hasGroups", "reason"]);
     assert.strictEqual(info.canSuggest, true, "三个控件够分组");
+    assert.strictEqual(info.hasGroups, false, "还没写过分组表");
   }
 
   // 写回分组表并读回。
@@ -85,6 +86,7 @@ function main() {
     assert.strictEqual(file.schemaVersion, "mw-wpf-layout-groups/1");
     assert.strictEqual(file.pageTarget, TARGET);
     assert.deepStrictEqual(file.groups, [{ id: "g1", kind: "column", members: ["a", "b"] }]);
+    assert.strictEqual(layout.inspect({ projectRoot: root, target: TARGET }).hasGroups, true, "写过之后就算有表");
   }
 
   // 校验失败：kind 非法、members 不足。
