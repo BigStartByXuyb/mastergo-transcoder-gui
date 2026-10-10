@@ -24,7 +24,11 @@ export function StepCard({
   contractStep: PipelineStep | null
   /** 这一步的停点 / 失败（没有就是 null）：说明由 FailureNote 一处渲染，这里不再排一遍。 */
   failure: BoardTask["failure"]
-  children?: ReactNode
+  /**
+   * 这一步要人补的输入（每一种各不相同）。调用方一定会给：没有面板时给 false / null，
+   * 这一块就不出现（要不要给一句「这一步没有要你补的输入」，由调用方决定）。
+   */
+  children: ReactNode
 }) {
   const failed = row.status === "failed"
   return (
@@ -52,11 +56,7 @@ export function StepCard({
 
         <FailureNote failure={failure} contractStep={contractStep} stopStepNumber={row.id} inStepView />
 
-        {children ?? (
-          <p className="text-muted-foreground text-sm">
-            这一步没有要你补的输入：它的产物由流水线自己产出，看下面的日志与产物即可。
-          </p>
-        )}
+        {children}
       </CardContent>
     </Card>
   )

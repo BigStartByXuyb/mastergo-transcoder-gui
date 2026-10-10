@@ -208,7 +208,7 @@ export function ReviewPage() {
           <CardHeader>
             <CardTitle className="text-base">
               {active.target || "（未指定 Target）"}
-              {!queue.some((item) => keyOf(item) === selected) && manualRoot.trim() ? " —— 手填" : ""}
+              {active.manual ? " —— 手填" : ""}
             </CardTitle>
             <CardDescription className="text-xs">
               <IdentifierText text={active.projectRoot} />

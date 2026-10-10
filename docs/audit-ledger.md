@@ -49,4 +49,7 @@
 | 2026-10-10 第 10 遍 | 非阻断 | `use-layout-groups.ts` 的 `save` 那段缩进深一层 | 已收 | 同一次改掉 |
 | 2026-10-10 第 10 遍 | 非阻断 | `docs/facts.md` 的骨架读者名单漏了设置页 Agent 面板 | 已收 | 补上（顺带补 `board-page.tsx`） |
 | 2026-10-10 第 11 遍 | REVIEW-001 | 详情页「给表单还是给详情」由 `formOpen` 状态与路由 `taskId` 两处同时决定（二者恒等） | 已收 | 去掉那份状态，改成从「路由有没有任务 id + 快照里有没有这个任务」派生（`ui/src/app/pipeline-page.tsx`） |
+| 2026-10-10 第 12 遍 | REVIEW-001 | 详情视图里 `step !== ""` 是恒真合取项（外层已经按 `step === ""` 分过屏） | 已收 | 去掉这个合取项（`ui/src/app/pipeline-page.tsx`） |
+| 2026-10-10 第 12 遍 | REVIEW-002 | `StepCard` 的 children 兜底渲染永远轮不到（调用方给的是两个条件表达式，children 是数组不是 null） | 已收 | 兜底删掉，`children` 改成必给（没有面板时给 false / null 由调用方决定） |
+| 2026-10-10 第 12 遍 | REVIEW-003 | 待确认页把「手填」这件事表达了两遍（`active.manual` 与再判一次列表里有没有它） | 已收 | 只读 `active.manual`（`ui/src/app/review-page.tsx`） |
 

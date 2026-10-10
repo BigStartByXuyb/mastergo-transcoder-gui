@@ -283,7 +283,7 @@ export function PipelinePage({
                   图与分组表都属于「布局」那一步的输入；那一步叫什么由后端按插件契约的 Inputs 算出来
                   （task.layoutStep），界面不认步骤名。它们就挂在这一步的界面里。
                 */}
-                {step !== "" && step === task.layoutStep && task.workDir && task.request.target && task.routes.includes("A") && (
+                {step === task.layoutStep && task.workDir && task.request.target && task.routes.includes("A") && (
                   <div className="flex flex-col gap-3">
                     <DesignImageCard task={task} />
                     <LayoutPanel
