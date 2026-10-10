@@ -18,6 +18,7 @@ import { useTaskActions } from "@/app/use-task-actions"
 import { Button } from "@/components/ui/button"
 import { api, type PipelineStep, type PluginSummary } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
+import { candidatesForLink, identityConflict } from "@/lib/identity-flow"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
 import { AUTOMATION_LABEL, adoptsIdentityWithoutConfirm, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
 import { canStop, hasProducts, isBusyState, isInFlight, pendingInputCount, waitingCounts } from "@/lib/task-state"
@@ -145,6 +146,33 @@ export function PipelinePage({
        */
       let finalTarget = form.target.trim()
       let finalUi = form.ui.trim()
+      /*
+       * 提交前对账：人填的 Target 与链接指向的那一页是不是同一页。不是就当场拦下 ——
+       * 放过去的话，插件会在还没进流水线时按身份混搭守卫拒掉（Target 取自一页、layerId 取自另一页），
+       * 那一次失败连步骤都没有，人只能对着「没跑起来」猜。
+       * 候选由后端按链接 + 登记表给（前端不自己拆链接）。
+       */
+      if (finalTarget && form.link.trim() && form.projectRoot.trim()) {
+        const got = await candidatesForLink({
+          link: form.link,
+          projectRoot: form.projectRoot,
+          pageName: identity.name,
+          ui: finalUi,
+          useAi: false
+        })
+        const conflict = identityConflict({ target: finalTarget, candidates: got.items })
+        if (conflict) {
+          setFailure(
+            "这个链接指向的页面在登记表里是 " +
+              conflict.target +
+              (conflict.ui ? "（区域 " + conflict.ui + "）" : "") +
+              "，你填的 Target 是 " +
+              finalTarget +
+              " —— 两者不是同一页，插件会拒绝。点「自动补 Target / 区域」会用登记表里的那一个；或确认链接是不是贴错了。"
+          )
+          return
+        }
+      }
       if (!finalTarget && !finalUi && adoptsIdentityWithoutConfirm(automation)) {
         // 与按钮同一条实现：落后端取候选 → 写登记表 → 回填；要人决策时 pick 已经把原因写进 failure。
         const picked = await identity.pick()

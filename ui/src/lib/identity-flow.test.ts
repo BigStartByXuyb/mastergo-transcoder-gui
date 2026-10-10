@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { applyIdentity, candidatesForLink } from "@/lib/identity-flow"
+import { applyIdentity, candidatesForLink, identityConflict } from "@/lib/identity-flow"
 
 /*
  * 走真的 api 层（只把 fetch 换掉）：要验的就是「拼了哪些字段出去、模型那几条排哪」，
@@ -90,5 +90,29 @@ describe("applyIdentity", () => {
       item: { target: "F1StopAdjust", ui: "F1", semanticName: "", basis: "", needsSemanticName: false, designPageName: "旧的" }
     })
     expect(sentBody(mock).designPageName).toBe("StopAdjust")
+  })
+})
+
+describe("identityConflict", () => {
+  const registered = {
+    target: "F4FocusMaintain",
+    ui: "F4",
+    semanticName: "FocusMaintain",
+    basis: "登记表",
+    needsSemanticName: false
+  }
+
+  it("填的 Target 就是链接指向的那一页：不拦", () => {
+    expect(identityConflict({ target: "F4FocusMaintain", candidates: [registered] })).toBeNull()
+  })
+
+  it("填的 Target 与链接指向的那一页不一致：把链接那一页交出来（调用方据此拦下提交）", () => {
+    // 真实回归：Target 拼错成 saddas，链接指向的 99:056200 在登记表里是 F4FocusMaintain。
+    expect(identityConflict({ target: "saddas", candidates: [registered] })).toBe(registered)
+  })
+
+  it("没填 Target、或后端给不出候选：无从对账，不拦", () => {
+    expect(identityConflict({ target: "", candidates: [registered] })).toBeNull()
+    expect(identityConflict({ target: "Any", candidates: [] })).toBeNull()
   })
 })

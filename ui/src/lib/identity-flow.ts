@@ -53,3 +53,18 @@ export async function applyIdentity(input: {
   })
   return { replaced: written.replaced }
 }
+
+/**
+ * 提交前的身份对账：人填的 Target 与「链接指向的那一页」是不是同一页。
+ *
+ * 不是同一页时给回链接指向的那一条候选（登记表里那一页），调用方据此拦下提交 —— 放过去的话，
+ * 插件在还没进流水线时就会按身份混搭守卫拒掉（Target 取自一页、layerId 取自另一页）。
+ * 判据只用后端给的候选：前端不自己拆链接，也不自己推页面身份。
+ * 没填 Target、或后端一条候选都给不出时给 null（那种情况无从对账，交给插件判）。
+ */
+export function identityConflict(input: { target: string; candidates: IdentityCandidate[] }): IdentityCandidate | null {
+  const typed = input.target.trim()
+  if (!typed || input.candidates.length === 0) return null
+  if (input.candidates.some((item) => item.target === typed)) return null
+  return input.candidates[0]
+}
