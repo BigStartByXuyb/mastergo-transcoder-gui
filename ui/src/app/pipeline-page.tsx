@@ -32,7 +32,7 @@ import { api, type PipelineStep, type PluginSummary } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { candidatesForLink } from "@/lib/identity-flow"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
-import { stageDesignImages } from "@/lib/stage-design-images"
+import { picksForRoute, stageDesignImages } from "@/lib/stage-design-images"
 import { AUTOMATION_LABEL, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
 import { decideStartIdentity } from "@/lib/task-start"
 import { canStop, hasProducts } from "@/lib/task-state"
@@ -174,7 +174,8 @@ export function PipelinePage({
      * 图可以在任务详情「布局」那一步再传（见 ui/src/lib/stage-design-images.ts）。
      */
     if (stagedImage && created) {
-      const stagedFailure = await stageDesignImages([{ taskId: created, file: stagedImage }])
+      // 跑不跑 A 由 picksForRoute 那一条判据决定（与选图框露不露同源）。
+      const stagedFailure = await stageDesignImages(picksForRoute(form.mode, [{ taskId: created, file: stagedImage }]))
       if (stagedFailure) setFailure(stagedFailure)
     }
     setStagedImage(null)

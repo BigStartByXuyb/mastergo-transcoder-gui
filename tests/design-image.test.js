@@ -151,7 +151,7 @@ function caseStageThenInstall() {
   const staged = designImage.stage({ home: home, taskId: TASK, data: png(1280, 1024).toString("base64") });
   assert.strictEqual(staged.width, 1280, "暂存时就把尺寸读出来了（给人看的那两个数）");
   assert.ok(fs.existsSync(staged.path), "暂存件落盘");
-  assert.match(staged.path, new RegExp(TASK + "\\.png$"), "暂存件按任务 id 落键");
+  assert.strictEqual(path.basename(staged.path), TASK + ".staged", "暂存件按任务 id 落键");
 
   // 画板尺寸还没产出（没有快照）时什么都不做 —— 那时没有基准可核。
   const noSnapshot = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-nosnap2-"));

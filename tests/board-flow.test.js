@@ -406,31 +406,31 @@ async function caseLayoutStepComesFromContract() {
  */
 async function caseRemovalDropsStagedImage() {
   const fx = makeBoard();
-  const stagedOf = (id) => path.join(fx.home, "work", "staged", id + ".png");
+  /* 暂存件在哪由 stage() 自己给（不在这里拼路径）：布局改了这条用例不用跟着改。 */
   const addWithImage = (target, ui) => {
     const id = fx.board.add({
       projectRoot: fx.project,
       ui: ui,
       items: [{ link: LINK, target: target, mode: "A" }]
     }).created[0];
-    designImage.stage({ home: fx.home, taskId: id, data: png(1280, 1024).toString("base64") });
-    assert.ok(fs.existsSync(stagedOf(id)), "先选好的图先暂存着");
-    return id;
+    const staged = designImage.stage({ home: fx.home, taskId: id, data: png(1280, 1024).toString("base64") });
+    assert.ok(fs.existsSync(staged.path), "先选好的图先暂存着");
+    return { id: id, path: staged.path };
   };
 
   const removed = addWithImage("T1", "F1");
-  await fx.board.remove(removed);
-  assert.ok(!fs.existsSync(stagedOf(removed)), "移除这一条：暂存件跟着走");
+  await fx.board.remove(removed.id);
+  assert.ok(!fs.existsSync(removed.path), "移除这一条：暂存件跟着走");
 
   const cleared = addWithImage("T2", "F2");
-  fx.board.stop(cleared);
-  assert.ok(fs.existsSync(stagedOf(cleared)), "只是停下（任务还在看板上）就不动暂存件");
+  fx.board.stop(cleared.id);
+  assert.ok(fs.existsSync(cleared.path), "只是停下（任务还在看板上）就不动暂存件");
   fx.board.clear(["stopped"]);
-  assert.ok(!fs.existsSync(stagedOf(cleared)), "清掉已结束：暂存件跟着走");
+  assert.ok(!fs.existsSync(cleared.path), "清掉已结束：暂存件跟着走");
 
   const area = addWithImage("T3", "F3");
   fx.board.clearArea(fx.project, "F3");
-  assert.ok(!fs.existsSync(stagedOf(area)), "清空一个区域：暂存件跟着走");
+  assert.ok(!fs.existsSync(area.path), "清空一个区域：暂存件跟着走");
 
   fs.rmSync(fx.home, { recursive: true, force: true });
 }

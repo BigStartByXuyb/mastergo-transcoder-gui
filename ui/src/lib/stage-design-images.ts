@@ -1,5 +1,6 @@
 import { api } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
+import { modeTakesRoute } from "@/lib/task-form"
 import { fileToBase64 } from "@/lib/upload-files"
 
 /*
@@ -11,6 +12,14 @@ import { fileToBase64 } from "@/lib/upload-files"
  */
 
 export type StagedPick = { taskId: string; file: File }
+
+/*
+ * 只有跑 A 路线才读设计稿位图（这条判据在 ui/src/lib/task-form.ts 的 modeTakesRoute）：
+ * 选图框露不露读它，送不送也读它 —— 两个新建入口都从这里过，不为「送了也没用」的图留下暂存件。
+ */
+export function picksForRoute(mode: string, picks: StagedPick[]): StagedPick[] {
+  return modeTakesRoute(mode, "A") ? picks : []
+}
 
 export async function stageDesignImages(picks: StagedPick[]): Promise<string> {
   let firstFailure = ""

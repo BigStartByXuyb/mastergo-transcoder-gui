@@ -29,7 +29,7 @@ import { coverageOf, visibleByCoverage, type Coverage } from "@/lib/board-effect
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
-import { stageDesignImages } from "@/lib/stage-design-images"
+import { picksForRoute, stageDesignImages } from "@/lib/stage-design-images"
 import { FINISHED_STATES } from "@/lib/task-state"
 import { useSettings } from "@/lib/use-settings"
 
@@ -141,7 +141,7 @@ export function BoardPage() {
           const taskId = added.created[index] ?? ""
           return file && taskId ? [{ taskId, file }] : []
         })
-        const stagedFailure = await stageDesignImages(picked)
+        const stagedFailure = await stageDesignImages(picksForRoute(form.mode, picked))
         if (stagedFailure) setProblem(stagedFailure)
         return added
       },

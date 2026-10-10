@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { stageDesignImages } from "@/lib/stage-design-images"
+import { picksForRoute, stageDesignImages } from "@/lib/stage-design-images"
 
 /*
  * 新建时先选好的位图 → 暂存件（一条任务一份）：走真的 api 层，只把 fetch 换掉。
@@ -56,5 +56,15 @@ describe("stageDesignImages", () => {
     const seen = stub(() => new Response(okBody, { status: 200 }))
     expect(await stageDesignImages([])).toBe("")
     expect(seen).toEqual([])
+  })
+})
+
+describe("picksForRoute", () => {
+  const picks = [{ taskId: "task-1", file: file("a") }]
+
+  it("跑 A / AB 才送：不跑 A 时选的图不算数", () => {
+    expect(picksForRoute("A", picks)).toEqual(picks)
+    expect(picksForRoute("AB", picks)).toEqual(picks)
+    expect(picksForRoute("B", picks)).toEqual([])
   })
 })
