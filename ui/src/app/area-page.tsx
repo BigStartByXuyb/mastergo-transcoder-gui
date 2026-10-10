@@ -19,7 +19,7 @@ import { describeFailure } from "@/lib/describe-failure"
 /*
  * 区域详情：一个「工程 + 区域」底下有什么。
  *   页面：来自工程登记表（插件自己的口径），只读；
- *   任务：这一区域跑过/正在跑的任务，点「详情」进那条任务的 12 步与日志。
+ *   任务：这一区域跑过/正在跑的任务，点「详情」进那条任务的步骤与日志。
  *        同一页面只留当前生效那一行（与看板同一口径），被后一次合并覆盖的默认藏起来；
  *   两个动作：「复制区域模板」去新建任务（回填工程 + 区域）、「清空任务」只清这一区域的任务。
  * 清空不动工程登记表 —— 那是工程自己的文件，删条会影响这一页后续运行。
@@ -125,7 +125,7 @@ export function AreaPage(props: Props) {
       <Card>
         <CardHeader>
           <CardTitle>这一区域的任务</CardTitle>
-          <CardDescription>点「详情」看这条任务的 12 步、待确认与日志。</CardDescription>
+          <CardDescription>点「详情」看这条任务的步骤、待确认与日志。</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           {area.tasks.length === 0 && <p className="text-muted-foreground text-sm">这个区域还没有任务。</p>}

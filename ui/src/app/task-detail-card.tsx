@@ -22,7 +22,7 @@ type Props = {
   contractStep: PipelineStep | null
   /** 停点那一步在流水线里的序号（定位不到时是 0）。 */
   stopStepNumber: number
-  /** 这次运行的 12 步是不是都跑完了（跑完还停在「待处理」就是等合并）。 */
+  /** 这次运行各步是不是都跑完了（跑完还停在「待处理」就是等合并）。 */
   allStepsDone: boolean
   busy: string
   onResume: () => void
@@ -66,8 +66,8 @@ export function TaskDetailCard(props: Props) {
         {props.allStepsDone && (task.state === "ready" || task.state === "conflict") && (
           <p className="text-sm">
             {task.state === "conflict"
-              ? "流水线的 12 步都跑完了，产物也写好了；现在卡在「合并回工程」那一步 —— 下面把冲突逐文件选一遍，再点「重新合并」。"
-              : "流水线的 12 步都跑完了，产物也写好了；现在等的是「合并回工程」（点下面的「合并回工程」）。"}
+              ? "流水线各步都跑完了，产物也写好了；现在卡在「合并回工程」那一步 —— 下面把冲突逐文件选一遍，再点「重新合并」。"
+              : "流水线各步都跑完了，产物也写好了；现在等的是「合并回工程」（点下面的「合并回工程」）。"}
           </p>
         )}
         {task.merge && task.merge.conflicts.length > 0 && (

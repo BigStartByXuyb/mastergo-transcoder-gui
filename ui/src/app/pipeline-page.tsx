@@ -338,7 +338,6 @@ export function PipelinePage({
                       taskId={task.id}
                       runId={task.jobId}
                       state={task.state}
-                      reloadKey={task.id + ":" + task.updatedAt}
                       automation={automation}
                       onResumed={() => void reload()}
                     />

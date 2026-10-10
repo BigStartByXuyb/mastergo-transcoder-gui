@@ -57,7 +57,6 @@ export function PendingPanel({
   taskId,
   runId,
   state,
-  reloadKey,
   automation,
   onResumed
 }: {
@@ -67,10 +66,13 @@ export function PendingPanel({
   taskId: string
   /** 来源运行 id：非看板来源（流水线直跑、任务已移除）没有 taskId，续跑只有它能用。 */
   runId: string
-  /** 来源运行/任务的状态：跑着的时候不给续跑（判据见 ui/src/lib/task-state.ts 的 isInFlight）。 */
+  /**
+   * 来源运行/任务的状态。两件事都靠它：
+   *   - 跑着的时候不给续跑（判据见 ui/src/lib/task-state.ts 的 isInFlight）；
+   *   - 状态一变就重读清单 —— 同一次运行「跑着 → 停下」后会新出现待办，不重读就看不见。
+   * 重读的判据收在面板里（下面 load 的依赖），两个入口都不必记得另传什么指纹。
+   */
   state: string
-  /** 运行状态指纹（如 `<jobId>:<state>`）。状态变化要重读清单——否则「跑着 → 停下」后看不见新出现的待办。 */
-  reloadKey?: string
   automation: string
   onResumed?: (info: PendingFilled) => void
 }) {
@@ -126,8 +128,8 @@ export function PendingPanel({
     } finally {
       setBusy("")
     }
-    // 任务 / 运行状态变化都要重读：换了一次运行，或者同一次运行从"跑着"变成"停下"。
-  }, [projectRoot, target, taskId, reloadKey])
+    // 任务 / 运行状态变化都要重读：换了来源、换了一次运行（runId），或者同一次运行从「跑着」变成「停下」（state）。
+  }, [projectRoot, target, taskId, runId, state])
 
   useEffect(() => {
     void load()
