@@ -204,6 +204,8 @@ export type LayoutGroups = {
   reason: string
   controls: LayoutControl[]
   groups: LayoutGroup[]
+  /** 这一页有没有分组表（空表也算有）：判据在后端读表那一处。 */
+  hasGroups: boolean
   /** 现在问 AI 有没有意义（控件太少时分不出组）：阈值在后端，界面只管按它禁用按钮。 */
   canSuggest: boolean
 }

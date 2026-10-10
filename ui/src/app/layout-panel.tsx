@@ -50,8 +50,8 @@ export function LayoutPanel({ confirmable, ...input }: LayoutPanelProps) {
         </CardTitle>
         <CardDescription>
           控件按清单次序编号（#1 起）：把「同属一行或一列」的编号分成一组；分组表由布局推导消费。
-          没有要声明的分组就直接确认（写出空表，按机械判据走）。成员至少 2 个、一个控件只能进一组这两条
-          由后端判，写不进去时它会把原话显示在这里。
+          没有要声明的分组就直接确认（写出空表，按机械判据走）。成员太少、一个控件进多组这类毛病由后端判，
+          写不进去时它会把原话显示在这里。
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -80,6 +80,7 @@ export function LayoutPanel({ confirmable, ...input }: LayoutPanelProps) {
             </div>
 
             {layout.failure ? <p className="text-sm text-destructive">{layout.failure}</p> : null}
+            {layout.note ? <p className="text-sm text-muted-foreground">{layout.note}</p> : null}
             {layout.saved ? <p className="text-sm text-muted-foreground">已确认，正在从布局推导继续。</p> : null}
             {!confirmable ? (
               <p className="text-sm text-muted-foreground">

@@ -33,6 +33,8 @@ function stub(
     available?: boolean
     onConfirm?: (body: unknown) => void
     confirmError?: { code: string; message: string; hint: string }
+    /** AI 候选：默认给一组，传 [] 验「模型一组没给」时的提示。 */
+    suggestGroups?: LayoutGroup[]
   } = {}
 ) {
   const available = options.available !== false
@@ -52,6 +54,11 @@ function stub(
         new Response(JSON.stringify({ ok: true, settings: { layoutAutoPass: false, automation: "assist" } }), { status: 200 })
       )
     }
+    if (url.includes("/api/ai/suggest")) {
+      return Promise.resolve(
+        new Response(JSON.stringify({ ok: true, groups: options.suggestGroups ?? [{ id: "RightTools", kind: "column", members: ["1:9", "1:10"] }] }), { status: 200 })
+      )
+    }
     return Promise.resolve(
       new Response(
         JSON.stringify({
@@ -61,6 +68,7 @@ function stub(
             reason: available ? "" : "还没有类型判定产物（流水线尚未跑到映射草稿那一步）",
             controls: options.controls ?? CONTROLS,
             groups: options.groups ?? [],
+            hasGroups: (options.groups ?? []).length > 0,
             // 后端的口径：控件够不够问 AI 由它给（阈值在 lib/layout-groups.js），界面照它禁用按钮。
             canSuggest: (options.controls ?? CONTROLS).length >= 2
           }
@@ -135,6 +143,17 @@ describe("LayoutPanel", () => {
     // 前端不自己判一遍：照原样把这次编辑交出去，由后端的判据说不行。
     await waitFor(() => expect(sent.groups).toEqual([{ id: "Half", kind: "row", members: ["1:9"] }]))
     expect(await screen.findByText(/members 至少 2 个 ref/)).toBeTruthy()
+  })
+
+  it("AI 一组都没给时说一句（空表＝本页没有要声明的分组），不让人以为点了没反应", async () => {
+    stub({ suggestGroups: [] })
+    render(panel())
+    await screen.findByText("布局确认")
+
+    const button = screen.getByRole("button", { name: /AI 辅助/ })
+    expect(button.hasAttribute("disabled")).toBe(false)
+    button.click()
+    expect(await screen.findByText(/模型没有给出分组/)).toBeTruthy()
   })
 
   it("还没有控件清单时：按后端给的原因说清，不给编辑入口", async () => {

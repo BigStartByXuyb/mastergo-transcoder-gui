@@ -30,6 +30,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
   const [autoPass, setAutoPass] = useState(false)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState("")
+  const [note, setNote] = useState("")
   const [saved, setSaved] = useState(false)
   const alive = useAlive()
   const { taskId, runId, projectRoot, target, updatedAt, progressDone } = input
@@ -74,9 +75,16 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
   async function suggest() {
     setBusy(true)
     setFailure("")
+    setNote("")
     try {
       const payload = await api.aiLayoutGroups(controls)
-      if (alive.current && payload.groups.length > 0) setGroups(payload.groups)
+      if (!alive.current) return
+      if (payload.groups.length > 0) {
+        setGroups(payload.groups)
+        return
+      }
+      // 模型一组都没给也是结论：说一句，别让人以为「点了没反应」（空表就是「本页没有要声明的分组」）。
+      setNote("模型没有给出分组：可以自己建组，或直接确认（空表＝本页没有要声明的分组）。")
     } catch (error) {
       if (alive.current) setFailure(describeFailure(error))
     } finally {
@@ -113,6 +121,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
     busy,
     failure,
     setFailure,
+    note,
     saved
   }
 }
