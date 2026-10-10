@@ -171,7 +171,8 @@ export function PipelinePage({
       items: [{ link: form.link, target: decision.target, mode: form.mode as "A" | "B" | "AB" }]
     })
     if (!added) return
-    const created = added.created[0] ?? ""
+    // 后端建不出来就不会回成功（lib/board.js 的 add 在没解析出链接时直接抛），所以这里一定有这一条。
+    const created = added.created[0]
     await actions.startJob(created)
     setCurrentId(created)
     /*
@@ -180,7 +181,7 @@ export function PipelinePage({
      * 图被后端挡回来（不是 PNG/JPEG、太大）弹一句原话 + 后果，与看板那条同源：任务已经建好并在跑，
      * 不占表单上的「启动失败」（那不是启动没成）。
      */
-    if (stagedImage && created) {
+    if (stagedImage) {
       // 门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts（与看板那条同源）。
       await stagePickedImages(form.mode, [{ taskId: created, file: stagedImage }])
     }
