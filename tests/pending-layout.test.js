@@ -66,6 +66,15 @@ function writeGroups(root, groups) {
   );
 }
 
+/* 损坏的分组表（groups 不是数组）：界面按「没有表」处理，让人重写一次 —— 写回之后表就好了。 */
+function writeBrokenGroups(root) {
+  fs.writeFileSync(
+    path.join(root, "Generated", "_inputs", TARGET + ".layout-groups.json"),
+    JSON.stringify({ schemaVersion: "mw-wpf-layout-groups/1", pageTarget: TARGET, groups: { id: "g1" } }),
+    "utf8"
+  );
+}
+
 function layoutOf(root, pending) {
   return pending.inspect({ projectRoot: root, target: TARGET }).layout;
 }
@@ -119,13 +128,25 @@ function caseImageBeforeControls() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+function caseBrokenGroupsAsksAgain() {
+  const root = sandbox();
+  writeControls(root);
+  writeImage(root);
+  writeBrokenGroups(root);
+  const layout = layoutOf(root, pendingFor(root));
+  assert.strictEqual(layout.needsGroups, true, "损坏的表按「没有表」处理：把这一页列出来让人确认一次");
+  assert.strictEqual(layout.waiting, 1);
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 try {
   const cases = [
     ["还没跑到取数那一步", caseNothingYet],
     ["没有位图就不是待办", caseNoImageNoTodo],
     ["有图没有表 = 要人确认", caseImageWithoutGroups],
     ["空分组表也算有表", caseImageWithEmptyGroups],
-    ["只有图、还没有控件清单", caseImageBeforeControls]
+    ["只有图、还没有控件清单", caseImageBeforeControls],
+    ["分组表损坏 = 按没有表处理，让人重写一次", caseBrokenGroupsAsksAgain]
   ];
   for (const [name, run] of cases) {
     run();

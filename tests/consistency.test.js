@@ -419,6 +419,21 @@ function casePluginSwitchProse() {
 }
 
 /*
+ * 界面只认一个档位 id（「客户端自带」那一档：它的管理入口与更新徽章都挂在这一行上）。
+ * 前端只能各写一份，那就用这条门禁锁住：它必须真是后端列出来的那一档。
+ */
+function caseInstallSlotIdMatchesTiers() {
+  const source = read("ui/src/lib/plugin-sources.ts");
+  const match = source.match(/INSTALL_SLOT_ID\s*=\s*"([^"]+)"/);
+  assert.ok(match, "ui/src/lib/plugin-sources.ts 要定义 INSTALL_SLOT_ID");
+  const ids = truth().map(function (item) { return item.id; });
+  assert.ok(
+    ids.includes(match[1]),
+    "界面认的自带档 id（" + match[1] + "）必须是 pluginPlaces() 真列出来的那一档：后端现在是 " + ids.join("、")
+  );
+}
+
+/*
  * 功能结构表要把模块登记齐：服务端（`lib/*.js`）与界面件（`ui/src/app/*`）各一格。
  * 漏一个就失败 —— 结构表是「有哪些模块、各归哪个子系统」的唯一一处清单。用例不进表。
  */
@@ -452,6 +467,7 @@ const CASES = [
   ["每个模块都有职责头", caseModulesHaveHeaderComment],
   ["helper 只一处定义", caseSingleImpl],
   ["插件切换散文与实现一致", casePluginSwitchProse],
+  ["界面认的自带档在后端清单里", caseInstallSlotIdMatchesTiers],
   ["功能结构表登记模块", caseModulesInStructureTable],
   ["门禁定义与实际用例一致", caseGateListMatches],
   ["共享模块类型与导出一致", caseSharedTypesMatchExports]
