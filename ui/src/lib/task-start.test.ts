@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 
 import type { IdentityCandidate } from "@/lib/api"
+import { drive } from "@/lib/settings-fixtures"
 import { conflictReason, decideStartIdentity } from "@/lib/task-start"
 
 /*
@@ -15,7 +16,8 @@ function candidate(target: string, ui = "F4"): IdentityCandidate {
 function input(over: Partial<Parameters<typeof decideStartIdentity>[0]> = {}) {
   return {
     link: "https://mastergo.com/goto/x?file=1&layer_id=99:056200",
-    projectRoot: "D:\\only_test",
+    // 夹具路径按段拼（settings-fixtures 的 drive）：源码里不出现机器专属的盘符写法。
+    projectRoot: drive("D", "only_test"),
     target: "",
     ui: "",
     automation: "assist",
