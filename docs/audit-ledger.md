@@ -73,4 +73,25 @@
 | 2026-10-10 第 20 遍 | REVIEW-001 | 失败提示由两处状态合成时，旧的钩子失败会盖住新的提交失败 | 已收 | 提交开始时先清掉数据线那侧的旧失败（`use-pending-inputs` 的 `clearFailure`） |
 | 2026-10-10 第 21 遍 | REVIEW-001 | 面板把整个 `inputs` 放进 `submitWith` 的依赖（回调每次渲染都重建、自动出候选的 effect 跟着重跑） | 已收 | `clearFailure` 本身做成稳定函数，面板只依赖它，不依赖整个 `inputs` |
 | 2026-10-10 第 22 遍 | REVIEW-001 | 失败清理只做了单向：数据线成功刷新后，旧的提交失败仍留在界面上 | 已收 | 失败只留一个槽（`use-pending-inputs` 的 `writeFailure` / `clearFailure`）：谁开始干活谁先清，面板的提交也写这同一个槽，不再两处合成 |
+| 2026-10-10 第 23 遍 | REVIEW-001 | 暂存件的清理只盖住两条移除路径，按区域清空任务时漏清 | 已收 | 移除统一走 `lib/board.js` 的 `dropTasks`：先算留下哪些，再让走掉的把暂存件一起带走 |
+| 2026-10-10 第 24 遍 | REVIEW-001 | 共用选图框不复位 `input.value`，移除后选同一份文件不触发 change | 已收 | 选完清 value 收进 `ui/src/app/use-file-pick.ts`，选图框与任务详情那张图共用 |
+| 2026-10-10 第 24 遍 | REVIEW-002 | 批量暂存遇到第一张失败就中止，后面的图被静默丢弃 | 已收 | 记下第一条原话但继续送完其余几张（`ui/src/app/stage-design-images.ts`） |
+| 2026-10-10 第 25 遍 | REVIEW-001 | 「只有 A 路线读图」只在渲染时判，切成 B 之后选的图照样被暂存 | 已收 | 提交侧补同一判据：`stagePickedImages` 过 `modeTakesRoute` 再送 |
+| 2026-10-10 第 26 遍 | REVIEW-001 | 暂存失败的提示塞进看板横幅（标题对不上，且轮询一到就清） | 已收 | 改成两个入口同一句 toast：后端原话 + `STAGE_FAILED_NOTE` |
+| 2026-10-10 第 27 遍 | REVIEW-001 | 任务 id 的校验把页面 Target 的包装又抄了一份 | 已收 | 抽 `requireSafeName` 一处，两个包装只留各自文案（`lib/name-safety.js`） |
+| 2026-10-10 第 27 遍 | REVIEW-002 | `addTasks` 把建任务与逐张暂存糅在一个动作里 | 已收 | 配图抽成 `picksForCreated`，暂存只留一次调用 |
+| 2026-10-10 第 28 遍 | REVIEW-001 | 模块从 `lib/` 搬到 `app/` 之后，四处注释与台账仍写旧路径 | 已收 | 四处对齐；新增门禁「说明里的前端路径都在」（`tests/consistency.test.js`） |
+| 2026-10-10 第 29 遍 | REVIEW-001 | 两个新建入口各自写一遍「过门禁 → 暂存 → 弹错」 | 已收 | 整段编排收进 `ui/src/app/stage-design-images.ts` 的 `stagePickedImages`，页面只传 picks |
+| 2026-10-10 第 30 遍 | REVIEW-001 | 新门禁的真值源在 `gates.md` 里少列了仓库根 `README.md` | 已收 | 那一行补上仓库根 README |
+| 2026-10-10 第 30 遍 | REVIEW-002 | 暂存件的删除在 `design-image.js` 里有两份写法 | 已收 | `installStaged` 两处内联删除改成调 `discardStaged` |
+| 2026-10-10 第 31 遍 | REVIEW-001 | 创建任务弹窗自己写了一份路线文案，与 `MODE_HINT` 分叉 | 已收 | 路线这一项收成 `ui/src/app/mode-field.tsx`，两个入口共用 |
+| 2026-10-10 第 32 遍 | REVIEW-001 | 流水线页改链接不清已选图，与看板按行裁图不一致 | 已收 | 两个入口统一成「按链接记」：`keepPickedImages` / `withPickedImage` / `pickedForLink` 一处 |
+| 2026-10-10 第 33 遍 | REVIEW-001 | 「页面变了就裁图」两份判据还不一致（一个看链接、一个看链接 + 页面名） | 已收 | 判据收到一处：图跟着链接走，页面名改了还是同一页 |
+| 2026-10-10 第 34 遍 | REVIEW-001 | 按链接置入/移除一张图在两个页面各写一份 | 已收 | 置入与裁剪都在 `ui/src/lib/board-items.ts` |
+| 2026-10-10 第 35 遍 | REVIEW-001 | `created` 在调用点恒非空，那层判空是永远走不到的分支 | 已收 | 去掉 `?? ""` 与 `&& created`（建不出任务时后端不回成功） |
+| 2026-10-10 第 35 遍 | REVIEW-002 | 同一处清理失败，`dropTasks` 兜住、`installStaged` 却变成「落地失败」 | 已收 | 兜底收进 `discardStaged` 自己一处 |
+| 2026-10-10 第 36 遍 | REVIEW-001 | 先选图、后填链接时，单任务表单会把选好的图丢掉 | 已收 | 还没填链接时选的那一份记在「待认领」那一格，链接一填就归它 |
+| 2026-10-10 第 37 遍 | REVIEW-001 | 待认领槽与链接槽并存：移除后旧图重现、换页后还跟着走 | 已收 | 置入/移除都先清掉待认领那一格（待认领槽只留一份），并补用例 |
+| 2026-10-10 第 38 遍 | REVIEW-001 | 暂存件读不出尺寸时写成「图 0×0」，把两条事实混成一条 | 已收 | `installStaged` 分开回 `mismatch` 与 `unreadable`，行上说法各一句 |
+| 2026-10-10 第 39 遍 | REVIEW-001 | 「某链接配哪张图」的解析写了两份，还抄了另一模块的私有哨兵 | 已收 | `picksForCreated` 也走 `pickedForLink` |
 
