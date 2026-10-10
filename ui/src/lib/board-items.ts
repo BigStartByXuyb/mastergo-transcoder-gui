@@ -45,6 +45,9 @@ export function fillTargets(text: string, targets: Map<string, string>): string 
     .join("\n")
 }
 
+/* 还没填链接时选的那一份记在这一格（键是空串）：链接一填上就归那一页。 */
+const UNCLAIMED = ""
+
 /*
  * 选好的位图按链接记：链接行没了，那一份图跟着走 —— 暂存件是任务的一部分，不留没人认领的文件。
  * 「哪几行有链接」与解析同一处（lineParts），所以行怎么改都不会算岔。
@@ -60,18 +63,17 @@ export function keepPickedImages<T>(images: Record<string, T>, text: string): Re
 }
 
 /*
- * 选好的位图按链接记：置入或移除一张（移除最后一张就把键也去掉）—— 记录长什么样只在这一处维护。
- * 两个入口共用：看板弹窗每行一个框，流水线页只有当前链接那一个键。
+ * 选好的位图按链接记：置入或移除一张 —— 记录长什么样、怎么清只在这一处维护。
+ * 「待认领」那一格只有一份：这一份要么归当前链接，要么占用它（链接还空着时）；置入或移除都先清掉它，
+ * 所以移除之后不会又从那一格里冒出来。两个入口共用：看板弹窗每行一个框，流水线页只有当前链接那一个键。
  */
 export function withPickedImage<T>(images: Record<string, T>, link: string, file: T | null): Record<string, T> {
   const next = { ...images }
-  if (file) next[link] = file
-  else delete next[link]
+  delete next[UNCLAIMED]
+  delete next[link]
+  if (file) next[link || UNCLAIMED] = file
   return next
 }
-
-/* 还没填链接时选的那一份记在这一格（键是空串）。 */
-const UNCLAIMED = ""
 
 /*
  * 这一页现在的图：按链接取；还没填链接时给「待认领」那一格 —— 链接一填上就归这一页。

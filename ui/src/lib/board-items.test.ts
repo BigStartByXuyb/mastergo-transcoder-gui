@@ -83,6 +83,23 @@ describe("withPickedImage", () => {
   it("同一个链接再选一张就是换那一张", () => {
     expect(withPickedImage({ [LINK]: "a.png" }, LINK, "b.png")).toEqual({ [LINK]: "b.png" })
   })
+
+  it("还没填链接时选的那一份记在待认领那一格，链接一填就归这一页", () => {
+    const picked = withPickedImage({}, "", "a.png")
+    expect(picked).toEqual({ "": "a.png" })
+    expect(pickedForLink(picked, LINK)).toBe("a.png")
+    expect(keepPickedImages(picked, LINK)).toEqual({ "": "a.png" })
+  })
+
+  it("再选一张或移除都把待认领那一格清掉（移除之后不会又从那儿冒出来）", () => {
+    const unclaimed = withPickedImage({}, "", "a.png")
+    expect(withPickedImage(unclaimed, LINK, "b.png")).toEqual({ [LINK]: "b.png" })
+    expect(withPickedImage(unclaimed, LINK, null)).toEqual({})
+  })
+
+  it("换到另一页时旧的一页那一份不算数", () => {
+    expect(keepPickedImages({ [LINK]: "a.png" }, other)).toEqual({})
+  })
 })
 
 describe("pickedForLink", () => {
