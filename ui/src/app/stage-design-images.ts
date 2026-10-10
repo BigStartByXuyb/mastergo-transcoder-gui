@@ -1,5 +1,6 @@
 import { toast } from "sonner"
 
+import { pickedForLink } from "@/lib/board-items"
 import { api, type Board } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { modeTakesRoute } from "@/lib/task-form"
@@ -41,7 +42,9 @@ export function picksForCreated(
 ): StagedPick[] {
   const linkOf = new Map(board.tasks.map((task) => [task.id, task.request.link]))
   return created.flatMap((taskId) => {
-    const file = images[linkOf.get(taskId) ?? ""]
+    const link = linkOf.get(taskId)
+    // 取法与单页表单同一处（含「还没填链接」那一格）：这里只看这一条任务自己带的链接。
+    const file = link ? pickedForLink(images, link) : null
     return file ? [{ taskId, file }] : []
   })
 }
