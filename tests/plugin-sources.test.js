@@ -237,8 +237,8 @@ function caseExternalInstallShowsUp() {
 }
 
 /*
- * 读一次来源清单只扫一遍档位：定位（reload）与读清单（sources）花的扫描次数要一样 ——
- * 数的是 readdirSync（档位扫描走它），不靠看代码。
+ * 读一次来源清单只扫一遍档位：定位（reload）与读清单（sources）在夹具树里扫的次数要一样 ——
+ * 数的是 readdirSync（档位扫描走它），只数夹具树里的：解析 node/pwsh 会扫 PATH，那与档位无关。
  */
 function caseSourcesScanOnce() {
   const box = sandbox();
@@ -251,8 +251,8 @@ function caseSourcesScanOnce() {
   const countScans = function (run) {
     let scans = 0;
     const original = fs.readdirSync;
-    fs.readdirSync = function () {
-      scans += 1;
+    fs.readdirSync = function (target) {
+      if (String(target).startsWith(box.tmp)) scans += 1;
       return original.apply(fs, arguments);
     };
     try {
