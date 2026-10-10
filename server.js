@@ -268,6 +268,8 @@ const chats = createChats({ home: HOME });
 const uploads = createUploads(HOME);
 const routes = createRoutes({
   resolver: resolver,
+  // 暂存件（暂存的设计稿位图）落在安装根下，与别的用户状态同处。
+  installRoot: HOME,
   plugin: PLUGIN,
   pluginRuntime: pluginRuntime,
   chats: chats,

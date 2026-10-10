@@ -14,10 +14,12 @@ import { Switch } from "@/components/ui/switch"
 import type { useIdentity } from "@/app/use-identity"
 import type { PipelineStep, PluginSummary } from "@/lib/api"
 import { MODE_HINT, READ_IMAGE_HINT, modeTakesRoute, type TaskForm } from "@/lib/task-form"
+import { humanSize } from "@/lib/upload-files"
 
 /*
- * 新建任务卡片：填链接 / 工程目录 / Target / 区域 / 路线，然后「加入看板并开始」。
- * 只负责渲染与把用户输入交出去，取值链、候选与登记表写入都在 useIdentity。
+ * 新建任务卡片：填链接 / 工程目录 / Target / 区域 / 路线，走 A 路线时还能先把设计稿位图选上，
+ * 然后「加入看板并开始」。只负责渲染与把用户输入交出去，取值链、候选与登记表写入都在 useIdentity；
+ * 位图只是先拿着（暂存与尺寸核对在任务跑到取数那一步之后，见 lib/design-image.js）。
  */
 
 type Props = {
@@ -26,6 +28,9 @@ type Props = {
   plugin: PluginSummary | null
   contract: PipelineStep[]
   identity: ReturnType<typeof useIdentity>
+  /** 新建时先选好的设计稿位图（还没暂存到磁盘，只是这一份文件）：走 A 路线时才有意义。 */
+  stagedImage: { name: string; bytes: number } | null
+  onPickImage: (file: File | null) => void
   busy: string
   failure: string
   canStop: boolean
@@ -35,7 +40,7 @@ type Props = {
 }
 
 export function NewTaskCard(props: Props) {
-  const { form, onForm, plugin, contract, identity, busy, failure, canStop, onStart, onStop, onReloadContract } = props
+  const { form, onForm, plugin, contract, identity, busy, failure, canStop, onStart, onStop, onReloadContract, onPickImage } = props
 
   return (
     <Card>
@@ -108,6 +113,34 @@ export function NewTaskCard(props: Props) {
                   onChange={(event) => onForm({ stopAfter: event.target.value })}
                 />
               </div>
+              {modeTakesRoute(form.mode, "A") && (
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="run-image">设计稿位图（可选）</Label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      id="run-image"
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      className="text-xs"
+                      onChange={(event) => onPickImage(event.target.files?.[0] ?? null)}
+                    />
+                    {props.stagedImage && (
+                      <>
+                        <span className="text-muted-foreground text-xs">
+                          {props.stagedImage.name}（{humanSize(props.stagedImage.bytes)}）
+                        </span>
+                        <Button size="sm" variant="ghost" onClick={() => props.onPickImage(null)}>
+                          移除
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-muted-foreground text-xs">
+                    按设计稿原始尺寸导出（位图尺寸要等于 DSL 画板尺寸）。现在可以先选：任务跑到「取数 + 固化快照」
+                    之后自动核对尺寸——对就装上，不对会告诉你两边的尺寸，再按原尺寸导出一张。
+                  </p>
+                </div>
+              )}
             </FieldGroup>
           </div>
 

@@ -958,6 +958,12 @@ export const api = {
    */
   saveDesignImage: (body: { projectRoot: string; target: string; data: string }) =>
     post<{ ok: true; image: DesignImage }>("/api/design-image", body),
+  /**
+   * 新建任务时先把位图暂存起来（那时还不知道画板尺寸）：任务跑到「取数 + 固化快照」之后
+   * 由看板那侧核对尺寸再落地 —— 对就装上，不对会告诉两边的尺寸。
+   */
+  stageDesignImage: (body: { projectRoot: string; target: string; data: string }) =>
+    post<{ ok: true; staged: { path: string; width: number; height: number } }>("/api/design-image/stage", body),
   /** 作业A 的布局确认：读控件清单 + 现有分组（后端 lib/layout-groups.js）。 */
   layoutGroups: (projectRoot: string, target: string) =>
     request<{ ok: true; layout: LayoutGroups }>(

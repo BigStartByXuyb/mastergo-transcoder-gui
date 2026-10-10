@@ -173,6 +173,66 @@ function caseGroups() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+/*
+ * 新建任务时先选好的图：那时还不知道画板尺寸，所以先暂存；任务跑到「取数 + 固化快照」之后
+ * 由看板那侧核对尺寸再装进工作目录（插件从那读图），暂存件随之删掉。
+ */
+function caseStageThenInstall() {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-home-"));
+  const root = sandbox();
+  const staged = designImage.stage({ home: home, projectRoot: root, target: TARGET, data: png(1280, 1024).toString("base64") });
+  assert.strictEqual(staged.width, 1280, "暂存时就把尺寸读出来了（给人看的那两个数）");
+  assert.ok(fs.existsSync(staged.path), "暂存件落盘");
+
+  // 画板尺寸还没产出（没有快照）时什么都不做 —— 那时没有基准可核。
+  const noSnapshot = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-nosnap2-"));
+  assert.strictEqual(designImage.installStaged({ home: home, projectRoot: root, target: TARGET, workDir: noSnapshot }), null);
+  fs.rmSync(noSnapshot, { recursive: true, force: true });
+
+  const workDir = sandbox();
+  const installed = designImage.installStaged({ home: home, projectRoot: root, target: TARGET, workDir: workDir });
+  assert.match(installed.installed, /DemoPage\.design\.png$/);
+  assert.ok(designImage.read({ projectRoot: workDir, target: TARGET }).matches, "装进去之后与画板尺寸一致");
+  assert.ok(!fs.existsSync(staged.path), "落地之后暂存件删掉（不留第二份）");
+
+  fs.rmSync(home, { recursive: true, force: true });
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(workDir, { recursive: true, force: true });
+}
+
+function caseStagedMismatch() {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-home-"));
+  const root = sandbox();
+  const staged = designImage.stage({ home: home, projectRoot: root, target: TARGET, data: png(1280, 1023).toString("base64") });
+  const workDir = sandbox();
+
+  const result = designImage.installStaged({ home: home, projectRoot: root, target: TARGET, workDir: workDir });
+  assert.deepStrictEqual(result.mismatch, { image: { width: 1280, height: 1023 }, canvas: { width: 1280, height: 1024 } });
+  assert.strictEqual(designImage.read({ projectRoot: workDir, target: TARGET }).image, null, "对不上就不装");
+  assert.ok(fs.existsSync(staged.path), "暂存件留着，人重导一张不用重新走建任务");
+
+  fs.rmSync(home, { recursive: true, force: true });
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(workDir, { recursive: true, force: true });
+}
+
+function caseStagedKeepsExisting() {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-home-"));
+  const root = sandbox();
+  designImage.stage({ home: home, projectRoot: root, target: TARGET, data: png(1280, 1024).toString("base64") });
+  const workDir = sandbox();
+  // 工作目录里已经有人传过一张（人在布局那一步补的）：暂存件不动它。
+  designImage.save({ projectRoot: workDir, target: TARGET, data: png(1280, 1024).toString("base64") });
+  const before = designImage.read({ projectRoot: workDir, target: TARGET }).image.path;
+
+  assert.strictEqual(designImage.installStaged({ home: home, projectRoot: root, target: TARGET, workDir: workDir }), null);
+  assert.strictEqual(designImage.read({ projectRoot: workDir, target: TARGET }).image.path, before, "已有的图不被覆盖");
+
+  fs.rmSync(home, { recursive: true, force: true });
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(workDir, { recursive: true, force: true });
+}
+
 try {
   const cases = [
     ["存一张 PNG 并读回状态", caseSaveAndRead],
@@ -180,7 +240,10 @@ try {
     ["换格式只留一张", caseReplace],
     ["拒绝的几种", caseRejections],
     ["还没跑到第 2 步", caseNoSnapshot],
-    ["分组表在不在", caseGroups]
+    ["分组表在不在", caseGroups],
+    ["新建时先选的图：暂存 → 有画板尺寸后核对落地", caseStageThenInstall],
+    ["暂存图尺寸不对：不装、留原话、暂存件还在", caseStagedMismatch],
+    ["工作目录里已经有人传过图：暂存件不动它", caseStagedKeepsExisting]
   ];
   for (const [name, run] of cases) {
     run();

@@ -36,6 +36,7 @@ import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
 import { AUTOMATION_LABEL, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
 import { decideStartIdentity } from "@/lib/task-start"
 import { canStop, hasProducts, isBusyState, isInFlight, pendingInputCount, waitingCounts } from "@/lib/task-state"
+import { fileToBase64 } from "@/lib/upload-files"
 
 export function PipelinePage({
   taskId,
@@ -53,6 +54,8 @@ export function PipelinePage({
   const [form, setForm] = useState<TaskForm>(() => readTaskForm())
   /** 详情区现在看哪一步（空串 = 任务总览）。 */
   const [step, setStep] = useState("")
+  /** 新建时先选好的设计稿位图：只是这一份文件，等任务跑到「取数 + 固化快照」之后再暂存/核对落地。 */
+  const [stagedImage, setStagedImage] = useState<{ name: string; bytes: number; file: File } | null>(null)
   /*
    * 两屏：带 `task=<id>`（从看板点「详情」、或刚「加入看板并开始」）就是看那个任务；
    * 不带（侧边栏「+ 新建任务」）就是新建表单。换屏走侧边栏/看板，页内不放互相跳的按钮。
@@ -164,6 +167,22 @@ export function PipelinePage({
       if (decision.reason) setFailure(decision.reason)
       return
     }
+    /*
+     * 先选好的位图在这里暂存（那时画板尺寸还不知道，核不了尺寸）：任务跑到「取数 + 固化快照」之后
+     * 由看板那侧核对尺寸再落地。图不合规（不是 PNG/JPEG、太大）按后端原话拦下，不建任务。
+     */
+    if (stagedImage) {
+      try {
+        await api.stageDesignImage({
+          projectRoot: form.projectRoot,
+          target: decision.target,
+          data: await fileToBase64(stagedImage.file)
+        })
+      } catch (error) {
+        setFailure(describeFailure(error))
+        return
+      }
+    }
     try {
       const added = await actions.start({
         projectRoot: form.projectRoot,
@@ -176,6 +195,7 @@ export function PipelinePage({
       const created = added.created[0] ?? ""
       await actions.startJob(created)
       setCurrentId(created)
+      setStagedImage(null)
       window.location.hash = "pipeline?task=" + created
       toast.success("已加入看板并开始")
     } catch {
@@ -196,6 +216,8 @@ export function PipelinePage({
           plugin={plugin}
           contract={contract}
           identity={identity}
+          stagedImage={stagedImage ? { name: stagedImage.name, bytes: stagedImage.bytes } : null}
+          onPickImage={(file) => setStagedImage(file ? { name: file.name, bytes: file.size, file: file } : null)}
           busy={actions.busy}
           failure={failure}
           canStop={task !== null && canStop(task.state)}
