@@ -42,23 +42,11 @@ export function modeTakesRoute(mode: string, route: "A" | "B"): boolean {
 
 /*
  * A 路线多一道输入：设计稿位图。图必须与设计稿画板同尺寸，而画板尺寸要等流水线取数之后才知道 ——
- * 所以新建时选好的图先暂存，任务跑到「取数 + 固化快照」之后自动核对尺寸再落地；
+ * 所以新建时选好的图先跟**任务**一起暂存（键是任务 id），任务跑到「取数 + 固化快照」之后自动核对尺寸再落地；
  * 也可以不在这里选，等跑到那一步在任务详情里传。这句话只有这一处。
  */
 export const READ_IMAGE_HINT =
-  "A 路线要读设计稿位图（按设计稿原尺寸导出）：现在选好就先暂存，流水线产出画板尺寸之后自动核对落地；也可以等那一步在任务详情里传。"
-
-/*
- * 先选的位图能不能暂存：暂存件按「工程 + Target」落键，而「Target 留空、跑起来再按登记表认回」
- * 那条路要到任务建起来之后才认得出 —— 所以 Target 空着时先别选图（选了也没处放，暂存那一步会拒收）。
- * 这句话只有这一处：表单照它禁用选图并说同一句，提交前也照它决定要不要暂存。
- */
-export function imageNeedsTarget(target: string): boolean {
-  return target.trim() === ""
-}
-
-export const READ_IMAGE_NO_TARGET_HINT =
-  "先填「页面 Target」再选图：留空的 Target 要到任务跑起来之后才认回来，图那时才有地方放；也可以建好任务之后在任务详情那一步传。"
+  "A 路线要读设计稿位图（按设计稿原尺寸导出）：现在选好就跟着任务一起暂存，流水线产出画板尺寸之后自动核对落地；也可以等那一步在任务详情里传。"
 
 export const AUTOMATION_LABEL: Record<string, string> = {
   off: "关（不叫模型）",

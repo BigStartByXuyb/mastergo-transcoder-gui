@@ -37,3 +37,12 @@ export function fillTargets(text: string, targets: Map<string, string>): string 
     })
     .join("\n")
 }
+
+/*
+ * 选好的位图按链接记：链接行没了，那一份图跟着走 —— 暂存件是任务的一部分，不留没人认领的文件。
+ * 判据与「哪几行算数」同一处（parseBoardItems），所以行怎么改都不会算岔。
+ */
+export function keepPickedImages<T>(images: Record<string, T>, text: string, mode: BoardMode): Record<string, T> {
+  const live = new Set(parseBoardItems(text, mode).map((item) => item.link))
+  return Object.fromEntries(Object.entries(images).filter(([link]) => live.has(link)))
+}

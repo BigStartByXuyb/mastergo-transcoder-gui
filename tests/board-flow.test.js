@@ -331,7 +331,7 @@ async function caseStagedImageNotice() {
   const added = fx.board.add({ projectRoot: project, items: [{ link: LINK, target: "T1", mode: "A" }] });
   const id = added.created[0];
   // 先选的那张图比画板矮 1 像素：落地时会被拦下。
-  const staged = designImage.stage({ home: fx.home, projectRoot: project, target: "T1", data: png(1280, 1023).toString("base64") });
+  const staged = designImage.stage({ home: fx.home, taskId: id, data: png(1280, 1023).toString("base64") });
   fx.board.start(id);
   const task = await waitForTask(fx.board, id, hasJob, "启动完成");
 
@@ -346,8 +346,8 @@ async function caseStagedImageNotice() {
   await sleep(TICK * 2 + 300);
   assert.strictEqual(fs.statSync(store).mtimeMs, before, "同一句话不再每个 tick 重写一遍");
 
-  // 按原尺寸重导一张、在建任务那里重新选一次（暂存件被覆盖）：下一 tick 装进工作目录，并把提示清掉。
-  designImage.stage({ home: fx.home, projectRoot: project, target: "T1", data: png(1280, 1024).toString("base64") });
+  // 按原尺寸重导一张、在任务详情那一步重新传一次：下一 tick 装进工作目录，并把提示清掉。
+  designImage.stage({ home: fx.home, taskId: id, data: png(1280, 1024).toString("base64") });
   await sleep(TICK + 300);
   const fixed = fx.board.snapshot().tasks.find((item) => item.id === id);
   assert.strictEqual(fixed.designImage, "", "条件解除后提示自己清掉");

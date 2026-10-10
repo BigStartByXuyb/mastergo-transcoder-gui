@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { fillTargets, parseBoardItems } from "@/lib/board-items"
+import { fillTargets, keepPickedImages, parseBoardItems } from "@/lib/board-items"
 
 const LINK = "https://mastergo.com/goto/x?file=1&layer_id=2:3"
 
@@ -38,5 +38,14 @@ describe("fillTargets", () => {
   it("补过之后再补不会写成两个 Target", () => {
     const once = fillTargets(LINK, new Map([[LINK, "F1StopAdjust"]]))
     expect(fillTargets(once, new Map([[LINK, "F1Other"]]))).toBe(once)
+  })
+})
+
+describe("keepPickedImages", () => {
+  const other = "https://mastergo.com/goto/y?file=1&layer_id=4:5"
+
+  it("按链接记：行还在就留着，行没了就跟着走", () => {
+    const picked = { [LINK]: "a.png", [other]: "b.png" }
+    expect(keepPickedImages(picked, LINK, "A")).toEqual({ [LINK]: "a.png" })
   })
 })

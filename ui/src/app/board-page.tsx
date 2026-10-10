@@ -22,13 +22,14 @@ import { useValueRunner } from "@/app/use-action-runner"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentityFill } from "@/app/use-identity-fill"
 import { api, type Board } from "@/lib/api"
-import { fillTargets, parseBoardItems } from "@/lib/board-items"
+import { fillTargets, keepPickedImages, parseBoardItems } from "@/lib/board-items"
 import { filterTasks, hasFilters, readBoardFilters, writeBoardFilters, type BoardFilters } from "@/lib/board-filters"
 import { useOnlyEffective } from "@/lib/use-only-effective"
 import { coverageOf, visibleByCoverage, type Coverage } from "@/lib/board-effective"
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
+import { stageDesignImages } from "@/lib/stage-design-images"
 import { FINISHED_STATES } from "@/lib/task-state"
 import { useSettings } from "@/lib/use-settings"
 
@@ -41,6 +42,8 @@ export function BoardPage() {
   const [form, setForm] = useState<BoardTaskForm>(readBoardForm)
   const [busy, setBusy] = useState("")
   const [adding, setAdding] = useState(false)
+  /** 创建任务时先选好的设计稿位图：一行（一个页面）一份，按链接记；文件不进 localStorage。 */
+  const [images, setImages] = useState<Record<string, File>>({})
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<BoardFilters>(readBoardFilters)
   // 「只看生效」与区域页共用一份记忆；它不属于创建任务那张表单。
@@ -119,17 +122,34 @@ export function BoardPage() {
     }
     void run(
       "add",
-      () =>
-        api.boardAdd({
+      async () => {
+        const added = await api.boardAdd({
           projectRoot: form.projectRoot.trim(),
           ui: form.ui.trim(),
           autoMerge: form.autoMerge,
           overwrite: form.overwrite,
           stopAfter: form.stopAfter.trim(),
           items
-        }),
+        })
+        /*
+         * 先选好的位图在这里跟着任务暂存：暂存件的键是任务 id（后端只有一处定这个键），
+         * 所以只能在任务建出来之后做；created 与 items 同一个次序，一行对一条任务。
+         * 图被后端挡回来只说那一句原话，任务本身照常跑（流水线跑到那一步会在任务详情里问）。
+         */
+        const picked = items.flatMap((item, index) => {
+          const file = images[item.link]
+          const taskId = added.created[index] ?? ""
+          return file && taskId ? [{ taskId, file }] : []
+        })
+        const stagedFailure = await stageDesignImages(picked)
+        if (stagedFailure) setProblem(stagedFailure)
+        return added
+      },
       applyBoard
-    ).then(() => setAdding(false))
+    ).then((added) => {
+      if (added) setImages({})
+      setAdding(false)
+    })
   }
 
   function fillIdentity() {
@@ -148,6 +168,7 @@ export function BoardPage() {
   /* 链接或工程改了，上一次的补全结论就不作数了。 */
   function changeForm(next: BoardTaskForm) {
     if (next.links !== form.links || next.projectRoot !== form.projectRoot || next.ui !== form.ui) identity.reset()
+    if (next.links !== form.links) setImages((current) => keepPickedImages(current, next.links, next.mode))
     setForm(next)
   }
 
@@ -232,11 +253,20 @@ export function BoardPage() {
       <BoardNewTaskDialog
         open={adding}
         form={form}
+        images={images}
         busy={busy === "add"}
         automation={settings?.automation ?? "assist"}
         identity={identity}
         identityFailure={identityFailure}
         onChange={changeForm}
+        onPickImage={(link, file) =>
+          setImages((current) => {
+            const next = { ...current }
+            if (file) next[link] = file
+            else delete next[link]
+            return next
+          })
+        }
         onOpenChange={setAdding}
         onSubmit={addTasks}
         onFill={fillIdentity}

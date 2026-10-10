@@ -13,6 +13,8 @@ const designImage = require("../lib/design-image.js");
 const { png, jpeg, bmp } = require("./image-fixtures.js");
 
 const TARGET = "DemoPage";
+// 暂存件的键：一条任务一份（后端只有 lib/design-image.js 的 stagedPathOf 定这个键）。
+const TASK = "6f1d0f0e-0000-4000-8000-000000000001";
 
 /* 一份最小工程：DSL 快照（画板 1280×1024）+ _inputs 目录。 */
 function sandbox() {
@@ -146,20 +148,23 @@ function caseGroups() {
 function caseStageThenInstall() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-home-"));
   const root = sandbox();
-  const staged = designImage.stage({ home: home, projectRoot: root, target: TARGET, data: png(1280, 1024).toString("base64") });
+  const staged = designImage.stage({ home: home, taskId: TASK, data: png(1280, 1024).toString("base64") });
   assert.strictEqual(staged.width, 1280, "暂存时就把尺寸读出来了（给人看的那两个数）");
   assert.ok(fs.existsSync(staged.path), "暂存件落盘");
+  assert.match(staged.path, new RegExp(TASK + "\\.png$"), "暂存件按任务 id 落键");
 
   // 画板尺寸还没产出（没有快照）时什么都不做 —— 那时没有基准可核。
   const noSnapshot = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-nosnap2-"));
-  assert.strictEqual(designImage.installStaged({ home: home, projectRoot: root, target: TARGET, workDir: noSnapshot }), null);
+  assert.strictEqual(designImage.installStaged({ home: home, taskId: TASK, target: TARGET, workDir: noSnapshot }), null);
+  assert.ok(fs.existsSync(staged.path), "还没到那一步，暂存件留着等下一次轮询");
   fs.rmSync(noSnapshot, { recursive: true, force: true });
 
   const workDir = sandbox();
-  const installed = designImage.installStaged({ home: home, projectRoot: root, target: TARGET, workDir: workDir });
+  const installed = designImage.installStaged({ home: home, taskId: TASK, target: TARGET, workDir: workDir });
   assert.match(installed.installed, /DemoPage\.design\.png$/);
   assert.ok(designImage.read({ projectRoot: workDir, target: TARGET }).matches, "装进去之后与画板尺寸一致");
   assert.ok(!fs.existsSync(staged.path), "落地之后暂存件删掉（不留第二份）");
+  assert.strictEqual(designImage.installStaged({ home: home, taskId: TASK, target: TARGET, workDir: workDir }), null);
 
   fs.rmSync(home, { recursive: true, force: true });
   fs.rmSync(root, { recursive: true, force: true });
@@ -169,13 +174,13 @@ function caseStageThenInstall() {
 function caseStagedMismatch() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-home-"));
   const root = sandbox();
-  const staged = designImage.stage({ home: home, projectRoot: root, target: TARGET, data: png(1280, 1023).toString("base64") });
+  const staged = designImage.stage({ home: home, taskId: TASK, data: png(1280, 1023).toString("base64") });
   const workDir = sandbox();
 
-  const result = designImage.installStaged({ home: home, projectRoot: root, target: TARGET, workDir: workDir });
+  const result = designImage.installStaged({ home: home, taskId: TASK, target: TARGET, workDir: workDir });
   assert.deepStrictEqual(result.mismatch, { image: { width: 1280, height: 1023 }, canvas: { width: 1280, height: 1024 } });
   assert.strictEqual(designImage.read({ projectRoot: workDir, target: TARGET }).image, null, "对不上就不装");
-  assert.ok(fs.existsSync(staged.path), "暂存件留着，人重导一张不用重新走建任务");
+  assert.ok(fs.existsSync(staged.path), "对不上的那一份留着：人重导一张再选一次，覆盖的就是它");
 
   fs.rmSync(home, { recursive: true, force: true });
   fs.rmSync(root, { recursive: true, force: true });
@@ -185,18 +190,36 @@ function caseStagedMismatch() {
 function caseStagedKeepsExisting() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-home-"));
   const root = sandbox();
-  designImage.stage({ home: home, projectRoot: root, target: TARGET, data: png(1280, 1024).toString("base64") });
+  const staged = designImage.stage({ home: home, taskId: TASK, data: png(1280, 1024).toString("base64") });
   const workDir = sandbox();
   // 工作目录里已经有人传过一张（人在布局那一步补的）：暂存件不动它。
   designImage.save({ projectRoot: workDir, target: TARGET, data: png(1280, 1024).toString("base64") });
   const before = designImage.read({ projectRoot: workDir, target: TARGET }).image.path;
 
-  assert.strictEqual(designImage.installStaged({ home: home, projectRoot: root, target: TARGET, workDir: workDir }), null);
+  assert.strictEqual(designImage.installStaged({ home: home, taskId: TASK, target: TARGET, workDir: workDir }), null);
   assert.strictEqual(designImage.read({ projectRoot: workDir, target: TARGET }).image.path, before, "已有的图不被覆盖");
+  assert.ok(!fs.existsSync(staged.path), "那一位已经不需要了，暂存件清掉");
 
   fs.rmSync(home, { recursive: true, force: true });
   fs.rmSync(root, { recursive: true, force: true });
   fs.rmSync(workDir, { recursive: true, force: true });
+}
+
+/* 任务被移除时把还没轮到的暂存件一起收掉：暂存件不在看板上，留着没人认领。 */
+function caseDiscardStaged() {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-home-"));
+  const staged = designImage.stage({ home: home, taskId: TASK, data: png(1280, 1024).toString("base64") });
+  assert.strictEqual(designImage.discardStaged({ home: home, taskId: TASK }), true, "有就清掉");
+  assert.ok(!fs.existsSync(staged.path));
+  assert.strictEqual(designImage.discardStaged({ home: home, taskId: TASK }), false, "没有就什么都不做");
+
+  // 暂存要认任务：没有任务 id 就没有键，收图这一步拒绝（不是拿工程 / 页面凑一个键）。
+  assert.throws(
+    function () { designImage.stage({ home: home, projectRoot: "/x", target: TARGET, data: png(4, 4).toString("base64") }); },
+    /缺少任务 id/
+  );
+
+  fs.rmSync(home, { recursive: true, force: true });
 }
 
 try {
@@ -208,8 +231,9 @@ try {
     ["还没跑到第 2 步", caseNoSnapshot],
     ["分组表在不在", caseGroups],
     ["新建时先选的图：暂存 → 有画板尺寸后核对落地", caseStageThenInstall],
-    ["暂存图尺寸不对：不装、留原话、暂存件还在", caseStagedMismatch],
-    ["工作目录里已经有人传过图：暂存件不动它", caseStagedKeepsExisting]
+    ["暂存图尺寸不对：不装、回两边的数、暂存件留着等人重导", caseStagedMismatch],
+    ["工作目录里已经有人传过图：暂存件不动它、自己清掉", caseStagedKeepsExisting],
+    ["任务没了：暂存件跟着走", caseDiscardStaged]
   ];
   for (const [name, run] of cases) {
     run();

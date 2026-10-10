@@ -32,10 +32,10 @@ import { api, type PipelineStep, type PluginSummary } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { candidatesForLink } from "@/lib/identity-flow"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
-import { AUTOMATION_LABEL, imageNeedsTarget, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
+import { stageDesignImages } from "@/lib/stage-design-images"
+import { AUTOMATION_LABEL, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
 import { decideStartIdentity } from "@/lib/task-start"
 import { canStop, hasProducts } from "@/lib/task-state"
-import { fileToBase64 } from "@/lib/upload-files"
 
 export function PipelinePage({
   taskId,
@@ -54,7 +54,7 @@ export function PipelinePage({
   /** 详情区现在看哪一步（空串 = 任务总览）。 */
   const [step, setStep] = useState("")
   /** 新建时先选好的设计稿位图：只是这一份文件，等任务跑到「取数 + 固化快照」之后再暂存/核对落地。 */
-  const [stagedImage, setStagedImage] = useState<{ name: string; bytes: number; file: File } | null>(null)
+  const [stagedImage, setStagedImage] = useState<File | null>(null)
   /*
    * 两屏：带 `task=<id>`（从看板点「详情」、或刚「加入看板并开始」）就是看那个任务；
    * 不带（侧边栏「+ 新建任务」）就是新建表单。换屏走侧边栏/看板，页内不放互相跳的按钮。
@@ -154,24 +154,6 @@ export function PipelinePage({
       if (decision.reason) setFailure(decision.reason)
       return
     }
-    /*
-     * 先选好的位图在这里暂存（那时画板尺寸还不知道，核不了尺寸）：任务跑到「取数 + 固化快照」之后
-     * 由看板那侧核对尺寸再落地。图不合规（不是 PNG/JPEG、太大）按后端原话拦下，不建任务。
-     * Target 空着时不暂存：暂存件按「工程 + Target」落键，空 Target 没有键（表单那边照同一句判据
-     * 不给选图，这里是那条判据的另一半 —— 判据本体在 ui/src/lib/task-form.ts）。
-     */
-    if (stagedImage && !imageNeedsTarget(decision.target)) {
-      try {
-        await api.stageDesignImage({
-          projectRoot: form.projectRoot,
-          target: decision.target,
-          data: await fileToBase64(stagedImage.file)
-        })
-      } catch (error) {
-        setFailure(describeFailure(error))
-        return
-      }
-    }
     // 失败时动作返回 null，原话已经由 use-task-actions 写进 failure：这一次点击到这儿就收尾。
     const added = await actions.start({
       projectRoot: form.projectRoot,
@@ -185,6 +167,16 @@ export function PipelinePage({
     const created = added.created[0] ?? ""
     await actions.startJob(created)
     setCurrentId(created)
+    /*
+     * 先选好的位图跟着任务暂存（暂存件的键是任务 id）：那时画板尺寸还不知道，核不了尺寸 ——
+     * 任务跑到「取数 + 固化快照」之后由看板那侧核对尺寸再落地。
+     * 图被后端挡回来（不是 PNG/JPEG、太大）只报那一句原话：任务已经建好并在跑，
+     * 图可以在任务详情「布局」那一步再传（见 ui/src/lib/stage-design-images.ts）。
+     */
+    if (stagedImage && created) {
+      const stagedFailure = await stageDesignImages([{ taskId: created, file: stagedImage }])
+      if (stagedFailure) setFailure(stagedFailure)
+    }
     setStagedImage(null)
     window.location.hash = "pipeline?task=" + created
     toast.success("已加入看板并开始")
@@ -203,8 +195,8 @@ export function PipelinePage({
           plugin={plugin}
           contract={contract}
           identity={identity}
-          stagedImage={stagedImage ? { name: stagedImage.name, bytes: stagedImage.bytes } : null}
-          onPickImage={(file) => setStagedImage(file ? { name: file.name, bytes: file.size, file: file } : null)}
+          image={stagedImage}
+          onPickImage={setStagedImage}
           busy={actions.busy}
           failure={failure}
           canStop={task !== null && canStop(task.state)}

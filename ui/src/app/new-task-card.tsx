@@ -3,6 +3,7 @@ import type { ReactNode } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ClampText } from "@/app/clamp-text"
+import { DesignImagePicker } from "@/app/design-image-picker"
 import { IdentityFillPanel } from "@/app/identity-fill-panel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,15 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import type { useIdentity } from "@/app/use-identity"
 import type { PipelineStep, PluginSummary } from "@/lib/api"
-import {
-  MODE_HINT,
-  READ_IMAGE_HINT,
-  READ_IMAGE_NO_TARGET_HINT,
-  imageNeedsTarget,
-  modeTakesRoute,
-  type TaskForm
-} from "@/lib/task-form"
-import { humanSize } from "@/lib/upload-files"
+import { MODE_HINT, READ_IMAGE_HINT, modeTakesRoute, type TaskForm } from "@/lib/task-form"
 
 /*
  * 新建任务卡片：填链接 / 工程目录 / Target / 区域 / 路线，走 A 路线时还能先把设计稿位图选上，
@@ -36,7 +29,7 @@ type Props = {
   contract: PipelineStep[]
   identity: ReturnType<typeof useIdentity>
   /** 新建时先选好的设计稿位图（还没暂存到磁盘，只是这一份文件）：走 A 路线时才有意义。 */
-  stagedImage: { name: string; bytes: number } | null
+  image: File | null
   onPickImage: (file: File | null) => void
   busy: string
   failure: string
@@ -47,7 +40,7 @@ type Props = {
 }
 
 export function NewTaskCard(props: Props) {
-  const { form, onForm, plugin, contract, identity, busy, failure, canStop, onStart, onStop, onReloadContract, onPickImage } = props
+  const { form, onForm, plugin, contract, identity, busy, failure, canStop, onStart, onStop, onReloadContract } = props
 
   return (
     <Card>
@@ -125,30 +118,8 @@ export function NewTaskCard(props: Props) {
               {modeTakesRoute(form.mode, "A") && (
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="run-image">设计稿位图（可选）</Label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      id="run-image"
-                      type="file"
-                      accept="image/png,image/jpeg"
-                      className="text-xs"
-                      disabled={imageNeedsTarget(form.target)}
-                      onChange={(event) => onPickImage(event.target.files?.[0] ?? null)}
-                    />
-                    {props.stagedImage && (
-                      <>
-                        <span className="text-muted-foreground text-xs">
-                          {props.stagedImage.name}（{humanSize(props.stagedImage.bytes)}）
-                        </span>
-                        <Button size="sm" variant="ghost" onClick={() => props.onPickImage(null)}>
-                          移除
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                  {/* 两种情形各说一句，不叠着说：Target 空着时先说清它为什么选不了图。 */}
-                  <p className="text-muted-foreground text-xs">
-                    {imageNeedsTarget(form.target) ? READ_IMAGE_NO_TARGET_HINT : READ_IMAGE_HINT}
-                  </p>
+                  <DesignImagePicker id="run-image" file={props.image} onPick={props.onPickImage} />
+                  <p className="text-muted-foreground text-xs">{READ_IMAGE_HINT}</p>
                 </div>
               )}
             </FieldGroup>
