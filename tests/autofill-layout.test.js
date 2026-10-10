@@ -67,10 +67,14 @@ async function caseAutomationOff() {
 async function caseSwitchOff() {
   const fx = harness({ automation: "auto", layoutAutoPass: false, groups: [] });
   const result = await fx.autoFill.fill({ projectRoot: "D:/work", target: "T1", runId: "job-1" });
-  // 布局那一节不动（开关关着），其余节也没东西可补：交回给人，不当失败。
+  /*
+   * 布局那一节不动（开关关着），其余节也没东西可补：交回给人，不当失败。
+   * 但原因要说「哪一条没满足」—— 界面上那句承诺（没自动出分组时说清是哪一条）靠它兑现。
+   */
   assert.strictEqual(fx.committed.length, 0);
   assert.strictEqual(result.ok, false);
-  assert.match(result.reason, /没有要补的输入|模型没有给出可用结果/);
+  assert.match(result.reason, /停在布局确认/);
+  assert.match(result.reason, /「自动通过」没开/);
 }
 
 const CASES = [

@@ -114,10 +114,10 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
       "save",
       () => api.confirm({ projectRoot, target, taskId, runId, groups, resume }),
       () => {
-      if (alive.current) {
-        dirty.current = false
-        setSaved(true)
-      }
+        if (alive.current) {
+          dirty.current = false
+          setSaved(true)
+        }
       }
     )
   }

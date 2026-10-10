@@ -312,10 +312,8 @@ export function PipelinePage({
                   <div className="flex flex-col gap-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-muted-foreground text-xs">
+                        {/* 只报这一层级的名字：每层什么意思、布局确认那一节怎么另算，都在设置 → AI Agent 那一处说。 */}
                         当前自动化层级：{AUTOMATION_LABEL[automation] ?? automation}
-                        {automation === "assist" ? "（AI 自动出候选，你确认后继续）" : ""}
-                        {automation === "auto" ? "（AI 自动出候选并直接继续）" : ""}
-                        {automation === "off" ? "（不叫模型，全人工填）" : ""}
                       </span>
                       <Button
                         size="sm"
