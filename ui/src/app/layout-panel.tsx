@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { useAlive } from "@/app/use-alive"
-import { api, type BoardTask, type LayoutControl, type LayoutGroup, type LayoutGroups } from "@/lib/api"
+import { api, type LayoutControl, type LayoutGroup, type LayoutGroups } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 
 /*
@@ -28,9 +28,16 @@ function groupMembers(groups: LayoutGroup[]): Set<string> {
   return used
 }
 
-export function LayoutPanel({ task }: { task: BoardTask }) {
-  const projectRoot = task.workDir
-  const target = task.request.target
+type LayoutPanelProps = {
+  taskId: string
+  projectRoot: string
+  target: string
+  /** 用于在任务推进时重读；看板任务给它 updatedAt，待确认页给空串（不轮询）。 */
+  updatedAt: string
+  progressDone?: number
+}
+
+export function LayoutPanel({ taskId, projectRoot, target, updatedAt, progressDone }: LayoutPanelProps) {
   const [layout, setLayout] = useState<LayoutGroups | null>(null)
   const [groups, setGroups] = useState<LayoutGroup[]>([])
   const [autoPass, setAutoPass] = useState(false)
@@ -56,7 +63,7 @@ export function LayoutPanel({ task }: { task: BoardTask }) {
 
   useEffect(() => {
     void load()
-  }, [load, task.updatedAt, task.progress?.done])
+  }, [load, updatedAt, progressDone])
 
   function toggleAutoPass(value: boolean) {
     setAutoPass(value)
@@ -122,7 +129,7 @@ export function LayoutPanel({ task }: { task: BoardTask }) {
     setFailure("")
     try {
       // 写回分组表并从 layout 续跑（写入只有 confirm 这一条路）。
-      await api.confirm({ projectRoot, target, taskId: task.id, groups, resume: true })
+      await api.confirm({ projectRoot, target, taskId, groups, resume: true })
     } catch (error) {
       if (alive.current) setFailure(describeFailure(error))
     } finally {
