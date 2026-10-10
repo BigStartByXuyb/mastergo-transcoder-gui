@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { Board } from "@/lib/api"
-import { STAGE_FAILED_NOTE, picksForCreated, picksForRoute, stagePickedImages } from "@/app/stage-design-images"
+import { STAGE_FAILED_NOTE, picksForCreated, stagePickedImages } from "@/app/stage-design-images"
 
 /*
  * 新建时先选好的位图 → 暂存件（一条任务一份）：走真的 api 层，只把 fetch 与 toast 换掉。
@@ -72,16 +72,6 @@ describe("stagePickedImages", () => {
     await stagePickedImages("B", [{ taskId: "task-1", file: file("a") }])
     expect(seen).toEqual([])
     expect(toasted).toEqual([])
-  })
-})
-
-describe("picksForRoute", () => {
-  const picks = [{ taskId: "task-1", file: file("a") }]
-
-  it("跑 A / AB 才送：不跑 A 时选的图不算数", () => {
-    expect(picksForRoute("A", picks)).toEqual(picks)
-    expect(picksForRoute("AB", picks)).toEqual(picks)
-    expect(picksForRoute("B", picks)).toEqual([])
   })
 })
 

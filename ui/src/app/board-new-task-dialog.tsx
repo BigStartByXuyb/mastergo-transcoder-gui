@@ -19,7 +19,7 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import type { BoardTaskForm } from "@/lib/board-form"
 import { parseBoardRows } from "@/lib/board-items"
-import { AUTOMATION_LABEL, READ_IMAGE_HINT, modeTakesRoute } from "@/lib/task-form"
+import { AUTOMATION_LABEL, MODE_HINT, READ_IMAGE_HINT, modeTakesRoute } from "@/lib/task-form"
 
 /* 行上只给能认出是哪一页的那一段：链接太长，整条铺出来会把这一行挤成一团。 */
 function linkLabel(link: string): string {
@@ -90,14 +90,18 @@ export function BoardNewTaskDialog(props: {
               onValueChange={(value) => props.onChange({ ...form, mode: value as BoardTaskForm["mode"] })}
             >
               <SelectTrigger>
-                <SelectValue />
+                {/* 触发按钮只显示短值，整句说明在下面一行（与新建任务卡片同一套，文案同源）。 */}
+                <SelectValue>{form.mode}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="B">B —— MTSLG IOContorl</SelectItem>
-                <SelectItem value="A">A —— MW WPF</SelectItem>
-                <SelectItem value="AB">AB —— 两条都跑</SelectItem>
+                {(["B", "A", "AB"] as const).map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {MODE_HINT[value]}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+            <p className="text-muted-foreground text-xs">{MODE_HINT[form.mode] ?? ""}</p>
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="board-stop">停在某一步（可选）</Label>
