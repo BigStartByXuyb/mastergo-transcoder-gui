@@ -51,6 +51,23 @@ export function occupiesSlot(state: string): boolean {
   return OCCUPIED_STATES.includes(state)
 }
 
+/*
+ * 在跑：占着这一位、又不是停在语义停点上（「等待」那一档正是等人补输入的时候）。
+ * 「写回并续跑」（待确认页与布局确认面板的「确认并继续」）只在不在跑的时候给 ——
+ * 跑着的时候再来一次会起第二次运行。
+ */
+export function isInFlight(state: string): boolean {
+  return occupiesSlot(state) && state !== "waiting"
+}
+
+/*
+ * 「运行中不给续跑」这句说法的唯一一处：布局确认与待确认面板的「写入并续跑」都挂它。
+ * 判据是上面的 isInFlight；说法只写一处，两个入口不会一个拦一个不拦、也不会各说各的。
+ */
+export function inFlightNote(action: string): string {
+  return "流水线正在跑：等它停下来再点「" + action + "」。"
+}
+
 /* 正在合并：产物已写完、正在回写主工程，这时不给「停止」（停也停不了一半）。 */
 export function isMerging(state: string): boolean {
   return state === "merging"
@@ -82,11 +99,26 @@ export function canResume(task: { state: string; workDir: string }): boolean {
 }
 
 /*
- * 待确认条目计数：两节各自的 waiting 由后端 lib/pending.js 算一次（图标那节还含
- * 命名表写歪的旧下标与重名组），这里只取数、不再按 needsXxx 重算一遍。
+ * 待确认条目计数：三节各自的 waiting 由后端 lib/pending.js 算一次（图标那节还含
+ * 命名表写歪的旧下标与重名组），这里只取数、不再按 needsXxx 重算一遍；
+ * 合计数这一端各加一次（跨语言没法共用这一步），三个加数本身只有那一处算。
  */
-export function waitingCounts(pending: Pending | null): { icons: number; translations: number; total: number } {
-  const icons = pending?.icons.available ? pending.icons.waiting : 0
-  const translations = pending?.translations.available ? pending.translations.waiting : 0
-  return { icons, translations, total: icons + translations }
+export function waitingCounts(pending: Pending | null): {
+  icons: number
+  translations: number
+  layout: number
+  total: number
+} {
+  const icons = pending?.icons.waiting ?? 0
+  const translations = pending?.translations.waiting ?? 0
+  const layout = pending?.layout?.waiting ?? 0
+  return { icons, translations, layout, total: icons + translations + layout }
+}
+
+/*
+ * 待补全面板自己处理的那两节（图标 + 译文）的条数：布局那一节归布局确认面板，
+ * 「这一页有没有图标/文案要补」只看这一个数 —— 面板的提交门禁与看板那张待确认卡都读它。
+ */
+export function pendingInputCount(counts: { icons: number; translations: number }): number {
+  return counts.icons + counts.translations
 }

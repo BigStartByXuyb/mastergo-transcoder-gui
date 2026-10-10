@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { RefreshCw } from "lucide-react"
 
 import { PendingPanel } from "@/app/pending-panel"
+import { LayoutPanel } from "@/app/layout-panel"
 import { ClampText } from "@/app/clamp-text"
 import { PixelLoader } from "@/app/pixel-loader"
 import { IdentifierText } from "@/app/identifier-text"
@@ -23,24 +24,12 @@ import { REVIEW_POLL_MS } from "@/lib/task-state"
  * 按「工程目录 + Target」去重。这里只负责选一条、把面板挂上去；判断什么要填仍然由插件产物决定。
  */
 
-const RUN_STATE_TEXT: Record<string, string> = {
-  queued: "排队中",
-  preparing: "建工作目录",
-  running: "运行中",
-  waiting: "待确认",
-  ready: "待合并",
-  merging: "合并中",
-  merged: "已合并",
-  conflict: "合并冲突",
-  failed: "失败",
-  stopped: "已停止",
-  done: "已跑完",
-  stopping: "正在停止"
-}
-
 function keyOf(entry: { source: string; projectRoot: string; target: string }) {
   return entry.source + "|" + entry.projectRoot + "|" + entry.target
 }
+
+/** 一屏里的当前条目：待确认队列里的那条，或人手动填的工程目录 + Target（后者没有待办条数）。 */
+type ActiveEntry = PendingQueueEntry & { manual?: boolean }
 
 export function ReviewPage() {
   const [queue, setQueue] = useState<PendingQueueEntry[]>([])
@@ -76,8 +65,12 @@ export function ReviewPage() {
       .catch(() => undefined)
   }, [])
 
-  // 选中的那条已经从列表里消失（填完了 / 任务被移除），面板继续留着看结果，但会提示一下。
-  const active = useMemo(() => {
+  /*
+   * 当前处理哪一条：列表里选中的那条；它已经从列表里消失（填完了 / 任务被移除）就收起来 ——
+   * 面板不再显示。手填的条目（列表里没有这个工程目录）也挂上去，它的条数给 0：
+   * 布局确认那一块自己会照后端的读结论说「可编辑 / 还没有控件清单」，没有来源运行就只写盘不续跑。
+   */
+  const active = useMemo<ActiveEntry | null>(() => {
     const hit = queue.find((item) => keyOf(item) === selected)
     if (hit) return hit
     if (manualRoot.trim() && manualTarget.trim()) {
@@ -88,8 +81,12 @@ export function ReviewPage() {
         runId: "",
         taskId: "",
         runState: "",
-        counts: { icons: 0, translations: 0 },
-        total: 0
+        // 手填的条目没有来源运行，因而没有状态可显示。
+        stateLabel: "",
+        orphan: false,
+        counts: { icons: 0, translations: 0, layout: 0 },
+        total: 0,
+        manual: true
       }
     }
     return null
@@ -100,9 +97,9 @@ export function ReviewPage() {
       {problem && (
         <Alert variant="destructive">
           <AlertTitle>待确认列表没读到最新状态</AlertTitle>
-              <AlertDescription>
-                <ClampText text={problem} />
-              </AlertDescription>
+          <AlertDescription>
+            <ClampText text={problem} />
+          </AlertDescription>
         </Alert>
       )}
 
@@ -156,11 +153,16 @@ export function ReviewPage() {
                         {entry.target || "（未指定）"}
                       </TableCell>
                       <TableCell className="align-top text-xs whitespace-normal">
-                        {RUN_STATE_TEXT[entry.runState] ?? entry.runState ?? "—"}
+                        {/* 状态名由后端一处映射（lib/board.js 的 stateLabelOf），界面不自己抄一份文案表。 */}
+                        {entry.stateLabel || "—"}
                       </TableCell>
                       <TableCell className="align-top text-xs whitespace-normal">
-                        {entry.counts.icons > 0 && <span className="mr-2">图标 {entry.counts.icons}</span>}
-                        {entry.counts.translations > 0 && <span>文案 {entry.counts.translations}</span>}
+                        {/* 三节各自的条数：间距由这一层的 gap 一处给，不在每一项上各写一遍边距。 */}
+                        <span className="flex flex-wrap gap-x-2">
+                          {entry.counts.icons > 0 && <span>图标 {entry.counts.icons}</span>}
+                          {entry.counts.translations > 0 && <span>文案 {entry.counts.translations}</span>}
+                          {entry.counts.layout > 0 && <span>布局 {entry.counts.layout}</span>}
+                        </span>
                       </TableCell>
                       <TableCell
                         className="text-muted-foreground truncate font-mono text-xs"
@@ -206,7 +208,7 @@ export function ReviewPage() {
           <CardHeader>
             <CardTitle className="text-base">
               {active.target || "（未指定 Target）"}
-              {!queue.some((item) => keyOf(item) === selected) && manualRoot.trim() ? " —— 手填" : ""}
+              {active.manual ? " —— 手填" : ""}
             </CardTitle>
             <CardDescription className="text-xs">
               <IdentifierText text={active.projectRoot} />
@@ -218,9 +220,22 @@ export function ReviewPage() {
               target={active.target}
               taskId={active.taskId}
               runId={active.runId}
+              state={active.runState}
               automation={automation}
               onResumed={() => void load()}
             />
+            {/* 手填的条目（列表里没有它）也把布局确认挂上：没有来源运行就只写盘、不续跑。 */}
+            {(active.manual || active.counts.layout > 0) && (
+              <LayoutPanel
+                taskId={active.taskId}
+                runId={active.runId}
+                resume={Boolean(active.taskId || active.runId)}
+                projectRoot={active.projectRoot}
+                target={active.target}
+                updatedAt=""
+                state={active.runState}
+              />
+            )}
           </CardContent>
         </Card>
       )}

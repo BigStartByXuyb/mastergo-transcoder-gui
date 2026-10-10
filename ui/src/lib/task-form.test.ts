@@ -4,6 +4,7 @@ import {
   AUTOMATION_LABEL,
   MODE_HINT,
   adoptsIdentityWithoutConfirm,
+  modeTakesRoute,
   readTaskForm,
   writeTaskForm
 } from "@/lib/task-form"
@@ -63,5 +64,14 @@ describe("task-form", () => {
     expect(adoptsIdentityWithoutConfirm("auto")).toBe(true)
     expect(adoptsIdentityWithoutConfirm("assist")).toBe(false)
     expect(adoptsIdentityWithoutConfirm("off")).toBe(false)
+  })
+
+  it("哪一版走哪条路线：单条按名字对上，AB 两条都算", () => {
+    expect(modeTakesRoute("A", "A")).toBe(true)
+    expect(modeTakesRoute("A", "B")).toBe(false)
+    expect(modeTakesRoute("B", "B")).toBe(true)
+    expect(modeTakesRoute("AB", "A")).toBe(true)
+    expect(modeTakesRoute("AB", "B")).toBe(true)
+    expect(modeTakesRoute("", "A")).toBe(false)
   })
 })

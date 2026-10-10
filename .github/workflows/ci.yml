@@ -18,11 +18,14 @@ permissions:
 
 jobs:
   ci:
-    # 取 980f0ba9 这一版：插件夹具铺成「客户端自带那一份」（安装根 plugins/ 下）再跑测试 ——
-    # 夹具按安装根那份摆，与用户机器上装好之后的样子一致。
-    uses: BigStartByXuyb/cicd/.github/workflows/desktop-app.yml@980f0ba93a4829f7c6879d0e548c879ddf919548
+    # 取 480094b 这一版（cicd PR #6 的头）：插件夹具仍按「客户端自带那一份」摆（安装根 plugins/ 下），
+    # 另外几处是这版新修的 —— 审计报告缺 front matter / 缺一级标题 / 版本号写错 / 条数不符 / result 写成小写 /
+    # finding 标题没写方括号 / finding 漏写 Confidence 时按正文采信并记备注（不再判 INVALID，也不再丢 finding）、
+    # semantic-audit 等 runtime-tests 跑完再取覆盖率产物（不再抢跑）、审计 diff 排除生成产物（public/assets 等）。
+    # 合并 PR #6 之后这个 commit 就是 main 上的同一个 commit，不用再改。
+    uses: BigStartByXuyb/cicd/.github/workflows/desktop-app.yml@480094be25ffb8cbf5b9aa44f5479b90422efd1a
     with:
-      ci_ref: 980f0ba93a4829f7c6879d0e548c879ddf919548
+      ci_ref: 480094be25ffb8cbf5b9aa44f5479b90422efd1a
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}

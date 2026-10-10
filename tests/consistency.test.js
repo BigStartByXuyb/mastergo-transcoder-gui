@@ -15,7 +15,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { pluginSources, PLUGIN_ENV_NAME } = require("../lib/plugin-root.js");
+const { pluginSources, activePluginSource, PLUGIN_ENV_NAME, PLUGIN_MARKER } = require("../lib/plugin-root.js");
 const { DEFAULT_PORT, API_TARGET_ENV } = require("../lib/config.js");
 const { TOKEN_ENV_KEY } = require("../lib/mcp-token.js");
 const { TOOLS, PWSH_ENV } = require("../lib/runtime.js");
@@ -34,6 +34,8 @@ const TIERS_DOC = DOCS + "/plugin-sources.md";
 const RELEASE_DOC = DOCS + "/release-and-update.md";
 const STRUCTURE_DOC = DOCS + "/structure.md";
 const GATES_DOC = DOCS + "/gates.md";
+const FACTS_DOC = DOCS + "/facts.md";
+const LEDGER_DOC = DOCS + "/audit-ledger.md";
 const RECORD_INDEX = DOCS + "/records.md";
 
 function read(rel) {
@@ -153,6 +155,72 @@ const SINGLE_SOURCE = [
   { value: KEY_ENV, kind: "name", home: ["lib/codex.js"], what: "Codex 子进程的 key 环境变量名" },
   { value: PINNED_VERSION, kind: "version", home: ["lib/codex.js", DOCS + "/install.md"], what: "钉死的 Codex 版本" }
 ];
+
+/*
+ * 判据台账（docs/facts.md）：一件事的判据只能登记在一处。
+ * 表里每行的「真值源」列写成 `文件` · `那段唯一的字符串`（可写几段），门禁照它核对：
+ *   1. 那个文件真的在；2. 那段字符串真的在它里面；3. 那段字符串在 lib/ 与 ui/src/ 下**只出现在这一个文件**。
+ * 用例是夹具（会造同样的字符串），不算；所以「同一件事有几处」不用靠人肉 grep。
+ * 加一条判据 = 在表里加一行，不改这里。
+ */
+function caseFactsLedger() {
+  const files = scannedFiles().filter(function (rel) {
+    return (rel.startsWith("lib/") || rel.startsWith("ui/src/")) && !rel.includes(".test.");
+  });
+  const text = new Map(files.map(function (rel) { return [rel, read(rel)]; }));
+  let checked = 0;
+  for (const line of read(FACTS_DOC).split(/\r?\n/)) {
+    if (!/^\|\s*\S/.test(line)) continue;
+    const cells = line.split("|").map(function (cell) { return cell.trim(); });
+    // 表格行：| 这件事 | 真值源 | 谁在读它 | → split 后首尾是空串，中间三格。
+    if (cells.length < 5) continue;
+    const what = cells[1];
+    if (what === "这件事" || /^-+$/.test(what)) continue;
+    const quoted = [...cells[2].matchAll(/`([^`]+)`/g)].map(function (match) { return match[1]; });
+    assert.ok(quoted.length >= 2, FACTS_DOC + " 的「" + what + "」那行要写「`文件` · `那段字符串`」");
+    const home = quoted[0];
+    assert.ok(text.has(home), FACTS_DOC + " 的「" + what + "」写的真值源不是本仓的源码文件：" + home);
+    for (const marker of quoted.slice(1)) {
+      assert.ok(
+        text.get(home).includes(marker),
+        FACTS_DOC + " 的「" + what + "」在 " + home + " 里找不到那段字符串：" + marker
+      );
+      const others = files.filter(function (rel) { return rel !== home && text.get(rel).includes(marker); });
+      assert.deepStrictEqual(
+        others,
+        [],
+        "「" + what + "」的判据（" + marker + "）只住在 " + home + "；别处又写了一遍：" + others.join("、")
+      );
+    }
+    checked += 1;
+  }
+  assert.ok(checked >= 5, FACTS_DOC + " 至少要登记几条判据（现在只核对到 " + checked + " 条）");
+}
+
+/*
+ * 复核台账（docs/audit-ledger.md）：审计给的每条意见都要有处置，且只有三种 —— 已收 / 不修 / 独立一轮。
+ * 只核这一条格式（内容是人写的）：留着「待看」或写个别的说法，这里当场失败。
+ */
+const LEDGER_DISPOSITIONS = ["已收", "不修", "独立一轮"];
+
+function caseAuditLedger() {
+  let checked = 0;
+  for (const line of read(LEDGER_DOC).split(/\r?\n/)) {
+    if (!/^\|\s*\S/.test(line)) continue;
+    const cells = line.split("|").map(function (cell) { return cell.trim(); });
+    // 表格行：| 轮次 | id | 说什么 | 处置 | 落在哪 | → split 后首尾是空串，中间五格。
+    if (cells.length < 6) continue;
+    if (cells[1] === "轮次" || /^-+$/.test(cells[1])) continue;
+    assert.ok(cells[2], LEDGER_DOC + " 的每行都要写 id（第 " + cells[1] + " 轮那条）");
+    assert.ok(
+      LEDGER_DISPOSITIONS.includes(cells[4]),
+      LEDGER_DOC + " 的「" + cells[2] + "」处置只能是 " + LEDGER_DISPOSITIONS.join(" / ") + "，现在是：" + cells[4]
+    );
+    assert.ok(cells[5], LEDGER_DOC + " 的「" + cells[2] + "」要写清落在哪 / 为什么不修");
+    checked += 1;
+  }
+  assert.ok(checked >= 5, LEDGER_DOC + " 至少要登记几条复核（现在只核对到 " + checked + " 条）");
+}
 
 function caseSingleSource() {
   const files = scannedFiles();
@@ -349,16 +417,128 @@ function hasHeaderComment(head) {
   return false;
 }
 
+// 只该有一处实现的 helper / 判据：定义它的那一处是真值源，别处只准 require/import。
+// 加一条 = 加一行；这个 helper 换住处 = 改这一行的 home。
+const SINGLE_IMPL = [
+  { name: "readJsonIfExists", home: "lib/workdir.js", what: "容错读 JSON" },
+  { name: "requirePageTarget", home: "lib/name-safety.js", what: "页面 Target 校验" },
+  { name: "requireProjectRoot", home: "lib/name-safety.js", what: "工程目录校验" },
+  { name: "uniqueMembers", home: "lib/layout-groups.js", what: "分组跨组唯一化" }
+];
+
+function caseSingleImpl() {
+  const files = scannedFiles().filter(function (rel) { return /\.(js|cjs|mjs)$/.test(rel); });
+  for (const fact of SINGLE_IMPL) {
+    // 定义（不是 require/import 的转发）：function X( 或 const X = function / const X = (
+    const defined = new RegExp("(?:^|\\n)\\s*(?:function\\s+" + fact.name + "\\s*\\(|const\\s+" + fact.name + "\\s*=\\s*(?:async\\s*)?(?:function|\\())");
+    const homes = files.filter(function (rel) { return defined.test(read(rel)); });
+    assert.deepStrictEqual(
+      homes,
+      [fact.home],
+      "「" + fact.what + "」(" + fact.name + ") 只该在 " + fact.home + " 定义；别处又写了一份：" + homes.join("、")
+    );
+  }
+}
+
+/*
+ * 插件来源的手动切换：挡的是「切不动」与「切了不生效」这两件事，所以判行为 ——
+ * 哪几档可切、切了之后定位到哪一份、清掉之后回不回到自动查找顺序。
+ * 文档侧要同一次写清（优先级与取消方式），旧散文不能留着。真值源见 docs/plugin-sources.md。
+ */
+function casePluginSwitchProse() {
+  const prose = read(TIERS_DOC);
+  assert.ok(!prose.includes("只读与查看"), TIERS_DOC + " 不能再写「只读与查看」：来源表现在支持手动切换");
+  assert.ok(prose.includes("pluginOverride"), TIERS_DOC + " 要写清手动选择（pluginOverride）的优先级与取消方式");
+
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "consistency-switch-"));
+  const writePlugin = function (dir) {
+    fs.mkdirSync(path.dirname(path.join(dir, PLUGIN_MARKER)), { recursive: true });
+    fs.writeFileSync(path.join(dir, PLUGIN_MARKER), "# 夹具\n", "utf8");
+    return dir;
+  };
+  try {
+    // 两个 agent 地盘各放一份能认出来的插件：一个排在查找顺序前面，一个排在最后（客户端自带）。
+    const codexRoot = writePlugin(path.join(home, "codex", "plugins", "cache", "bigstart", "mastergo-wpf-transcoder", "1.0.0"));
+    const installRoot = writePlugin(path.join(home, "install", "plugins", "mastergo-wpf-transcoder", "2.0.0"));
+    const options = { env: {}, home: home, codexHome: path.join(home, "codex"), installRoot: path.join(home, "install") };
+
+    const button = new Map(pluginSources(options).map(function (item) { return [item.id, item.canOverride]; }));
+    assert.strictEqual(button.get("arg"), false, "启动参数那一档不可手动切换（由启动时那个参数说了算）");
+    assert.strictEqual(button.get("env"), false, "环境变量那一档不可手动切换（由系统那边设）");
+    for (const id of ["codex-cache", "codex-market", "claude-cache", "claude-market", "install"]) {
+      assert.strictEqual(button.get(id), true, "「" + id + "」这一档要能手动切换");
+    }
+
+    assert.strictEqual(activePluginSource(options).active.id, "codex-cache", "没手动选时按查找顺序取");
+    assert.strictEqual(
+      activePluginSource(Object.assign({}, options, { override: "install" })).active.pluginRoot,
+      installRoot,
+      "手动选了自带那一份就用它（压过查找顺序里排在它前面的档）"
+    );
+    assert.strictEqual(
+      activePluginSource(Object.assign({}, options, { override: "" })).active.id,
+      "codex-cache",
+      "清掉手动选择就回到自动查找顺序"
+    );
+  }
+  finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+}
+
+/*
+ * 界面只认一个档位 id（「客户端自带」那一档：它的管理入口与更新徽章都挂在这一行上）。
+ * 前端只能各写一份，那就用这条门禁锁住：它必须真是后端列出来的那一档。
+ */
+function caseInstallSlotIdMatchesTiers() {
+  const source = read("ui/src/lib/plugin-sources.ts");
+  const match = source.match(/INSTALL_SLOT_ID\s*=\s*"([^"]+)"/);
+  assert.ok(match, "ui/src/lib/plugin-sources.ts 要定义 INSTALL_SLOT_ID");
+  const ids = truth().map(function (item) { return item.id; });
+  assert.ok(
+    ids.includes(match[1]),
+    "界面认的自带档 id（" + match[1] + "）必须是 pluginPlaces() 真列出来的那一档：后端现在是 " + ids.join("、")
+  );
+}
+
+/*
+ * 功能结构表要把模块登记齐：服务端（`lib/*.js`）与界面件（`ui/src/app/*`）各一格。
+ * 漏一个就失败 —— 结构表是「有哪些模块、各归哪个子系统」的唯一一处清单。用例不进表。
+ */
+function caseModulesInStructureTable() {
+  const text = read(STRUCTURE_DOC);
+  const at = function (marker) {
+    const index = text.indexOf(marker);
+    assert.ok(index >= 0, STRUCTURE_DOC + " 里找不到「" + marker + "」");
+    return index;
+  };
+  const table = text.slice(at("## 功能结构"), at("## 约束与门禁"));
+  const missing = [];
+  for (const dir of ["lib", "ui/src/app"]) {
+    for (const entry of fs.readdirSync(path.join(ROOT, ...dir.split("/")), { withFileTypes: true })) {
+      if (!entry.isFile() || !/\.(js|cjs|mjs|ts|tsx)$/.test(entry.name) || entry.name.includes(".test.")) continue;
+      if (!table.includes(entry.name)) missing.push(dir + "/" + entry.name);
+    }
+  }
+  assert.deepStrictEqual(missing, [], STRUCTURE_DOC + " 的功能结构表没登记这些模块：" + missing.join("、"));
+}
+
 // 门禁定义也只有一处：docs/gates.md 的表与这里注册的用例一一对应。
 const CASES = [
   ["档位表与代码一一对应", caseTierTableMatchesCode],
   ["字面量只在真值源", caseSingleSource],
+  ["判据台账与代码对得上", caseFactsLedger],
+  ["复核台账每行都有处置", caseAuditLedger],
   ["引用的文档都存在", caseDocRefsResolve],
   ["一句话只有一处说", caseFactsHaveOneHome],
   ["逐档清单不在别处复述", caseNoTierListCopy],
   ["每份文档都进索引", caseDocsIndexed],
   ["顶层条目都在结构表里", caseRootEntriesRegistered],
   ["每个模块都有职责头", caseModulesHaveHeaderComment],
+  ["helper 只一处定义", caseSingleImpl],
+  ["插件切换散文与实现一致", casePluginSwitchProse],
+  ["界面认的自带档在后端清单里", caseInstallSlotIdMatchesTiers],
+  ["功能结构表登记模块", caseModulesInStructureTable],
   ["门禁定义与实际用例一致", caseGateListMatches],
   ["共享模块类型与导出一致", caseSharedTypesMatchExports]
 ];

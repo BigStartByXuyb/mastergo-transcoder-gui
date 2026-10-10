@@ -5,9 +5,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { IdentifierText } from "@/app/identifier-text"
+import { useValueRunner } from "@/app/use-action-runner"
 import { useAlive } from "@/app/use-alive"
 import { api, type BoardTask, type DesignImage } from "@/lib/api"
-import { describeFailure } from "@/lib/describe-failure"
 import { fileToBase64, humanSize } from "@/lib/upload-files"
 
 /*
@@ -25,21 +25,27 @@ function sizeText(size: { width: number; height: number } | null): string {
 export function DesignImageCard({ task }: { task: BoardTask }) {
   const [state, setState] = useState<DesignImage | null>(null)
   const [failure, setFailure] = useState("")
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState("")
   const input = useRef<HTMLInputElement>(null)
   const alive = useAlive()
   const projectRoot = task.workDir
   const target = task.request.target
 
+  /*
+   * 两个动作都走共用骨架（ui/src/app/use-action-runner.ts）：
+   *   runRead —— 读：不动「正在做」（后台刷新不该让按钮闪一下）；
+   *   run     —— 存图：置忙、失败写同一处原话、收尾复位。
+   * 「卸载之后迟到的响应不回写」由 done 里的 alive 守卫管。
+   */
+  const runRead = useValueRunner({ setWorking: () => undefined, setFailure: setFailure })
+  const run = useValueRunner({ setWorking: setBusy, setFailure: setFailure })
+
   const load = useCallback(async () => {
     if (!projectRoot || !target) return
-    try {
-      const payload = await api.designImage(projectRoot, target)
+    await runRead("", () => api.designImage(projectRoot, target), (payload) => {
       if (alive.current) setState(payload.image)
-    } catch (error) {
-      if (alive.current) setFailure(describeFailure(error))
-    }
-  }, [alive, projectRoot, target])
+    })
+  }, [alive, projectRoot, target, runRead])
 
   /*
    * 任务每往前走一步（看板在轮询）就重读一次：画板尺寸来自固化快照那一步的产物，
@@ -51,20 +57,16 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
 
   async function picked(file: File | undefined) {
     if (!file) return
-    setFailure("")
-    setBusy(true)
     try {
       // 上传完直接落状态（不重读一次）；卸载之后迟到的响应不回写，与 load() 同一套守卫。
-      const payload = await api.saveDesignImage({
-        projectRoot,
-        target,
-        data: await fileToBase64(file)
-      })
-      if (alive.current) setState(payload.image)
-    } catch (error) {
-      if (alive.current) setFailure(describeFailure(error))
+      await run(
+        "save",
+        async () => api.saveDesignImage({ projectRoot, target, data: await fileToBase64(file) }),
+        (payload) => {
+          if (alive.current) setState(payload.image)
+        }
+      )
     } finally {
-      if (alive.current) setBusy(false)
       // 选同一个文件两次也要能再传一次（input 的 value 不清就只响一次）。
       if (input.current) input.current.value = ""
     }
@@ -94,10 +96,8 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
       <CardContent className="flex flex-col gap-3 text-sm">
         <div className="flex flex-col gap-1">
           <span className="text-muted-foreground text-xs">DSL 画板（图该有的尺寸）</span>
-          <span>
-            {sizeText(canvas)}
-            {!canvas && <span className="text-muted-foreground">（还没跑到取数并固化快照那一步）</span>}
-          </span>
+          {/* 还没有画板尺寸时怎么说，只有后端一处（下面那行照实显示它的原话）。 */}
+          <span>{sizeText(canvas)}</span>
         </div>
 
         <div className="flex flex-col gap-1">
@@ -135,8 +135,8 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
             onChange={(event) => void picked(event.target.files?.[0])}
           />
           {/* 不能传时按后端给的 reason 显示并禁用（判据在后端，这里只渲染）。 */}
-          <Button size="sm" variant="outline" disabled={busy || Boolean(state?.blocked)} onClick={() => input.current?.click()}>
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+          <Button size="sm" variant="outline" disabled={busy !== "" || Boolean(state?.blocked)} onClick={() => input.current?.click()}>
+            {busy !== "" ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
             {image ? "换一张" : "选择位图…"}
           </Button>
           <span className="text-muted-foreground text-xs">

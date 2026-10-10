@@ -18,6 +18,8 @@ import { BoardTaskTable } from "@/app/board-task-table"
 import { ClampText } from "@/app/clamp-text"
 import { EffectiveToggle } from "@/app/effective-toggle"
 import { Pager } from "@/app/pager"
+import { useValueRunner } from "@/app/use-action-runner"
+import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentityFill } from "@/app/use-identity-fill"
 import { api, type Board } from "@/lib/api"
 import { fillTargets, parseBoardItems } from "@/lib/board-items"
@@ -27,15 +29,15 @@ import { coverageOf, visibleByCoverage, type Coverage } from "@/lib/board-effect
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
-import { FINISHED_STATES, POLL_MS } from "@/lib/task-state"
+import { FINISHED_STATES } from "@/lib/task-state"
 import { useSettings } from "@/lib/use-settings"
 
 // 一页十条：一屏放得下，多出来的翻页。
 const PAGE_SIZE = 10
 
 export function BoardPage() {
-  const [board, setBoard] = useState<Board | null>(null)
-  const [problem, setProblem] = useState("")
+  // 看板快照与这条线上的失败提示都由 use-board-tasks 一处管（取数、轮询、动作回来的替换）。
+  const { board, setBoard, problem, setProblem } = useBoardTasks()
   const [form, setForm] = useState<BoardTaskForm>(readBoardForm)
   const [busy, setBusy] = useState("")
   const [adding, setAdding] = useState(false)
@@ -61,30 +63,6 @@ export function BoardPage() {
     writeBoardFilters(filters)
   }, [filters])
 
-  useEffect(() => {
-    let alive = true
-    const load = () => {
-      api
-        .board()
-        .then((payload) => {
-          if (!alive) return
-          setBoard(payload.board)
-          setProblem("")
-        })
-        .catch((error) => {
-          if (!alive) return
-          // 轮询失败保留上一份数据：界面不该因为一次抖动就空掉。
-          setProblem(describeFailure(error))
-        })
-    }
-    load()
-    const timer = setInterval(load, POLL_MS)
-    return () => {
-      alive = false
-      clearInterval(timer)
-    }
-  }, [])
-
   /*
    * 合并全部要一个工程：筛选选了哪个工作区就用哪个（人在看哪个就合哪个），
    * 没选时取任务最多的那个，用不着人再填一遍。
@@ -107,20 +85,27 @@ export function BoardPage() {
     return best
   }, [board, filters.projectRoot])
 
-  const run = useCallback(async (key: string, action: () => Promise<{ board: Board }>) => {
-    setBusy(key)
-    try {
-      const payload = await action()
-      setBoard(payload.board)
-      setProblem("")
-    } catch (error) {
-      const message = describeFailure(error)
-      setProblem(message)
-      toast.error(message)
-    } finally {
-      setBusy("")
-    }
-  }, [])
+  /*
+   * 这一页的动作走共用骨架（ui/src/app/use-action-runner.ts）：成功把最新看板换上去并清掉提示，
+   * 失败把原话同时写进页内提示与 toast —— 骨架只管前者，toast 由 done 之外的失败反应补。
+   */
+  const run = useValueRunner({
+    setWorking: setBusy,
+    setFailure: setProblem,
+    onFailure: (error: unknown) => toast.error(describeFailure(error))
+  })
+  /* 每个动作回来的都是最新看板：换上去就完事（成功与失败的写法都在骨架那一处）。 */
+  const applyBoard = useCallback((payload: { board: Board }) => setBoard(payload.board), [setBoard])
+  /*
+   * 任务表要的形状是「给个动作、把回来的看板换上去」：这里只把共用骨架套成那个形状，
+   * 骨架（置忙 / 清错 / 失败原话 / 收尾）仍只有 use-action-runner 那一份。
+   */
+  const runBoardAction = useCallback(
+    async (key: string, action: () => Promise<{ board: Board }>) => {
+      await run(key, action, applyBoard)
+    },
+    [run, applyBoard]
+  )
 
   function addTasks() {
     const items = parseBoardItems(form.links, form.mode)
@@ -132,15 +117,18 @@ export function BoardPage() {
       toast.error("一行一个 MasterGo 链接，至少一行")
       return
     }
-    void run("add", () =>
-      api.boardAdd({
-        projectRoot: form.projectRoot.trim(),
-        ui: form.ui.trim(),
-        autoMerge: form.autoMerge,
-        overwrite: form.overwrite,
-        stopAfter: form.stopAfter.trim(),
-        items
-      })
+    void run(
+      "add",
+      () =>
+        api.boardAdd({
+          projectRoot: form.projectRoot.trim(),
+          ui: form.ui.trim(),
+          autoMerge: form.autoMerge,
+          overwrite: form.overwrite,
+          stopAfter: form.stopAfter.trim(),
+          items
+        }),
+      applyBoard
     ).then(() => setAdding(false))
   }
 
@@ -196,7 +184,7 @@ export function BoardPage() {
           <Button
             variant="outline"
             disabled={busy !== "" || !tasks.some((task) => task.state === "queued")}
-            onClick={() => void run("start-all", () => api.boardStart())}
+            onClick={() => void run("start-all", () => api.boardStart(), applyBoard)}
           >
             {busy === "start-all" ? <Loader2 className="animate-spin" /> : <Play />}
             启动全部
@@ -204,7 +192,7 @@ export function BoardPage() {
           <Button
             variant="outline"
             disabled={busy !== "" || readyCount === 0 || !projectRoot}
-            onClick={() => void run("merge-all", () => api.boardMergeAll(projectRoot))}
+            onClick={() => void run("merge-all", () => api.boardMergeAll(projectRoot), applyBoard)}
           >
             {busy === "merge-all" ? <Loader2 className="animate-spin" /> : <GitMerge />}
             合并全部
@@ -212,7 +200,7 @@ export function BoardPage() {
           <Button
             variant="ghost"
             disabled={busy !== "" || tasks.length === 0}
-            onClick={() => void run("clear", () => api.boardClear(FINISHED_STATES))}
+            onClick={() => void run("clear", () => api.boardClear(FINISHED_STATES), applyBoard)}
           >
             清掉已结束
           </Button>
@@ -232,7 +220,7 @@ export function BoardPage() {
               tasks={pageSlice(shown, page, PAGE_SIZE)}
               coverage={coverage}
               busy={busy}
-              onRun={run}
+              onRun={runBoardAction}
               onCreate={() => setAdding(true)}
               filtered={hasFilters(filters)}
               hiddenByEffective={coveredCount}

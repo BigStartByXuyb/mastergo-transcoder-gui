@@ -15,7 +15,7 @@ const { readPipelineSteps, resolvePwsh } = require("../lib/plugin.js");
 // 这些用例要跑桩脚本（读步骤契约），需要一份 pwsh：测试机上那份显式允许使用 ——
 // 就是产品里运行环境页那一行选的「用系统上那一份」，不是隐式回落。
 require("../lib/runtime-policy.js").setSource(function () { return { node: true, pwsh: true }; });
-const { resolvePluginRoot, pluginHomes, PLUGIN_ENV_NAME } = require("../lib/plugin-root.js");
+const { resolvePluginRoot, pluginHomes, PLUGIN_ENV_NAME, PLUGIN_MARKER } = require("../lib/plugin-root.js");
 
 function write(file, text) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -95,9 +95,8 @@ function casePluginRootErrors() {
     );
 
     // 版本目录按数字段比：1.0.10 必须赢过 1.0.9
-    const marker = path.join("skills", "mastergo-to-wpf", "SKILL.md");
-    write(path.join(process.env.CODEX_HOME, "plugins", "cache", "bigstart-plugins", "mastergo-wpf-transcoder", "1.0.9", marker), "# 老版本\n");
-    write(path.join(process.env.CODEX_HOME, "plugins", "cache", "bigstart-plugins", "mastergo-wpf-transcoder", "1.0.10", marker), "# 新版本\n");
+    write(path.join(process.env.CODEX_HOME, "plugins", "cache", "bigstart-plugins", "mastergo-wpf-transcoder", "1.0.9", PLUGIN_MARKER), "# 老版本\n");
+    write(path.join(process.env.CODEX_HOME, "plugins", "cache", "bigstart-plugins", "mastergo-wpf-transcoder", "1.0.10", PLUGIN_MARKER), "# 新版本\n");
     assert.match(resolvePluginRoot(), /1\.0\.10$/, "按数字段比较，取最高版本");
 
     // 环境变量指向已存在的插件根时优先于安装目录

@@ -35,12 +35,16 @@ export type PluginSource = {
   /** 这一处认出来的全部插件根（装了多版时按高版本在前）。 */
   found: string[]
   active: boolean
+  /** 这一档能不能手动切换（后端给的判据；启动参数与环境变量不可切）。 */
+  canOverride: boolean
 }
 
 export type PluginSources = {
   ok: true
   plugin: PluginSummary
   sources: PluginSource[]
+  /** 手动选择的来源 id，空 = 按查找顺序自动选。 */
+  override: string
 }
 
 /**
@@ -175,6 +179,39 @@ export type DesignImage = {
   blocked: string
 }
 
+/**
+ * 作业A 的布局确认：控件清单 + 分组表（口径见后端 lib/layout-groups.js）。
+ * 分组表是「语义输入」之一，人/AI 看图后写，布局推导那一步消费它。
+ */
+export type LayoutControl = {
+  ref: string
+  controlType: string
+  text: string
+  absX: number
+  absY: number
+  w: number
+  h: number
+}
+
+export type LayoutGroup = {
+  id: string
+  kind: "column" | "row"
+  members: string[]
+}
+
+export type LayoutGroups = {
+  available: boolean
+  reason: string
+  controls: LayoutControl[]
+  groups: LayoutGroup[]
+  /** 这一页有没有分组表（空表也算有）：与「表里有什么」同一次读给出。 */
+  hasGroups: boolean
+  /** 现在问 AI 有没有意义（控件太少时分不出组）：阈值在后端，界面只管按它禁用按钮。 */
+  canSuggest: boolean
+  /** 「自动通过」是全局开关，值随这一页一起读回来（面板不必再取一遍设置）。 */
+  autoPass: boolean
+}
+
 export type ResolvedNode = {
   ref: string
   id: string
@@ -269,6 +306,13 @@ export type Settings = {
   providers: ProviderPreset[]
   ai: { provider: string; baseUrl: string; model: string; hasKey: boolean }
   automation: "off" | "assist" | "auto"
+  /**
+   * 布局确认的独立开关：默认关（有图无表时停在布局确认等人）。
+   * 生效条件与后端同一处（lib/autofill.js 的 fill()）：还得自动化层级不是「关」、这一页确实停在那里、控件至少 2 个。
+   */
+  layoutAutoPass: boolean
+  /** 插件来源的手动选择：来源 id，空串 = 按查找顺序自动选（见 docs/plugin-sources.md）。 */
+  pluginOverride: string
   /** 对话/自动模式的写盘开关：关着时 Codex 只读，开着才允许它直接改工程文件。 */
   agent: { allowWrite: boolean }
   /**
@@ -379,12 +423,21 @@ export type PendingTranslations = {
   waiting: number
 }
 
+export type PendingLayout = {
+  /** 有设计稿位图、还没有分组表、控件清单也在手上 —— 这一页要人确认布局。 */
+  needsGroups: boolean
+  /** 要人确认的条数：0 或 1。口径在 lib/pending.js 算一次，界面只取数。 */
+  waiting: number
+  controls: LayoutControl[]
+}
+
 export type Pending = {
   projectRoot: string
   target: string
   summary: unknown
   icons: PendingIcons
   translations: PendingTranslations
+  layout: PendingLayout
 }
 
 export type ArtifactEntry = {
@@ -499,6 +552,8 @@ export type BoardTask = {
   progress: BoardProgress | null
   /** 这一页的流程：步骤来自插件自己的运行登记表，续跑会接着写同一份。 */
   steps: BoardTaskStep[]
+  /** 吃布局输入（设计稿位图 / 分组表）的那一步叫什么：任务详情把位图卡片与布局确认挂在这一步上。 */
+  layoutStep: string
   aiFills: BoardAiFill[]
   failure: {
     /** semantic = 停在语义判断点（不是错误）；error = 真的失败。 */
@@ -512,6 +567,8 @@ export type BoardTask = {
   /** 冲突处已做的选择（相对路径 → mine / main），合并成功后清空。 */
   resolutions: Record<string, "mine" | "main">
   error: string
+  /** 新建时先选的设计稿位图没能落地时的那句话（不是任务的失败原因）；空串表示没有要说的。 */
+  designImage: string
 }
 
 export type BoardAiFill = {
@@ -561,11 +618,14 @@ export type PendingQueueEntry = {
   target: string
   runId: string
   taskId: string
+  /** 来源那一刻的状态（看板任务的状态或运行的状态），原样给出来备用。 */
   runState: string
+  /** 上面那个状态的中文名，后端一处映射好，界面直接用。 */
+  stateLabel: string
   /** 看板任务已经被移除，但工作目录与产物还在。 */
   orphan: boolean
-  /** 两节的待办条数，与看板 / 流水线详情同一份口径（图标一节、文案一节）。 */
-  counts: { icons: number; translations: number }
+  /** 三节的待办条数，与看板 / 流水线详情同一份口径（图标一节、文案一节、布局一节）。 */
+  counts: { icons: number; translations: number; layout: number }
   total: number
 }
 
@@ -894,6 +954,8 @@ export const api = {
   health: () => request<Health>("/api/health"),
   plugin: () => request<PluginInfo>("/api/plugin"),
   pluginSources: () => request<PluginSources>("/api/plugin/sources"),
+  /** 手动切换插件来源：override 是来源 id，空串 = 回到自动查找顺序。 */
+  pluginOverride: (override: string) => post<PluginSources>("/api/plugin/override", { override }),
   /** 作业A 的读图输入：这一页放着哪张图、尺寸对不对、分组表在不在。 */
   designImage: (projectRoot: string, target: string) =>
     request<{ ok: true; image: DesignImage }>(
@@ -905,6 +967,17 @@ export const api = {
    */
   saveDesignImage: (body: { projectRoot: string; target: string; data: string }) =>
     post<{ ok: true; image: DesignImage }>("/api/design-image", body),
+  /**
+   * 新建任务时先把位图暂存起来（那时还不知道画板尺寸）：任务跑到「取数 + 固化快照」之后
+   * 由看板那侧核对尺寸再落地 —— 对就装上，不对会告诉两边的尺寸。
+   */
+  stageDesignImage: (body: { projectRoot: string; target: string; data: string }) =>
+    post<{ ok: true; staged: { path: string; width: number; height: number } }>("/api/design-image/stage", body),
+  /** 作业A 的布局确认：读控件清单 + 现有分组（后端 lib/layout-groups.js）。 */
+  layoutGroups: (projectRoot: string, target: string) =>
+    request<{ ok: true; layout: LayoutGroups }>(
+      "/api/layout-groups?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
+    ),
   /** 在文件管理器里打开一个目录（插件页各行的「打开目录」）。打不开时 ok=false，reason 是原话。 */
   openFolder: (path: string) => post<{ ok: boolean; reason: string }>("/api/system/open-folder", { path }),
   pluginUpdateStatus: () => request<{ ok: true; status: PluginUpdateStatus }>("/api/plugin/update/status"),
@@ -965,6 +1038,11 @@ export const api = {
       kind: "glossary",
       texts
     }),
+  aiLayoutGroups: (controls: LayoutControl[]) =>
+    post<{ ok: true; groups: LayoutGroup[] }>("/api/ai/suggest", {
+      kind: "layout-groups",
+      controls
+    }),
   confirm: (body: {
     projectRoot: string
     target: string
@@ -975,6 +1053,8 @@ export const api = {
     naming?: { index: number; name: string; comment: string; fromDsl?: boolean }[]
     translations?: Record<string, string>
     glossary?: Record<string, string>
+    /** 分组表：空数组也照写，表示「本页没有要声明的分组」。 */
+    groups?: LayoutGroup[]
     allowEmptyLedger?: boolean
     /** 顺手把命名表里当前不认的旧下标裁掉。 */
     pruneNaming?: boolean

@@ -69,4 +69,24 @@ describe("useActionRunner", () => {
     expect(setFailure).toHaveBeenLastCalledWith("连不上")
     expect(setWorking.mock.calls).toEqual([["check"], [""]])
   })
+
+  // 按错误类型做别的（看板那条线「这一行已经不在看板上」要把看板拉回最新）：挂在同一份骨架的失败反应里。
+  it("onFailure 拿到原始错误（骨架的失败反应只有这一处）", async () => {
+    const boom = new Error("boom")
+    const onFailure = vi.fn()
+    const setWorking = vi.fn()
+    const setFailure = vi.fn()
+    const { result } = renderHook(() =>
+      useActionRunner<string>({ setWorking, setFailure, setStatus: vi.fn(), onFailure })
+    )
+
+    await act(async () => {
+      await result.current("check", async () => {
+        throw boom
+      })
+    })
+
+    expect(onFailure).toHaveBeenCalledWith(boom)
+    expect(setFailure).toHaveBeenLastCalledWith("boom")
+  })
 })

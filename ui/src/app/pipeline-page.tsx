@@ -1,28 +1,41 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+/*
+ * 流水线页：两屏 —— 新建任务（表单）与任务详情。
+ *
+ *   新建：`#pipeline`（侧边栏「+ 新建任务」进来）→ NewTaskCard。
+ *   详情：`#pipeline?task=<id>`（看板点「详情」、或刚加入看板）→ 左边步骤条 + 右边当前那一步的界面。
+ *
+ * 本文件只做编排与接线：看板快照在 use-board-tasks，待确认清单由面板自己取（app/pending-panel.tsx），
+ * 动作在 use-task-actions，开始前的身份决定在 ui/src/lib/task-start.ts，步骤条的数据映射在
+ * ui/src/lib/step-rows.ts，身份补全在 use-identity，运行日志在 use-run-log。每个面板自己知道自己要什么。
+ */
+
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
 import { DoneBoard } from "@/app/done-board"
 import { DesignImageCard } from "@/app/design-image-card"
+import { LayoutPanel } from "@/app/layout-panel"
 import { NewTaskCard } from "@/app/new-task-card"
+import { PendingPanel } from "@/app/pending-panel"
+import { StepCard } from "@/app/step-card"
 import { TaskDetailCard } from "@/app/task-detail-card"
 import { TaskLogCard } from "@/app/task-log-card"
-import { TaskPendingCard } from "@/app/task-pending-card"
+import { StepRail } from "@/app/task-steps"
+import { ClampText } from "@/app/clamp-text"
+import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentity } from "@/app/use-identity"
 import { useRunLog } from "@/app/use-run-log"
-import { ApiFailure, api, type Board, type Pending, type PipelineStep, type PluginSummary } from "@/lib/api"
+import { useTaskActions } from "@/app/use-task-actions"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { api, type PipelineStep, type PluginSummary } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
-import { adoptsIdentityWithoutConfirm, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
-import { POLL_MS, canStop, hasProducts, isBusyState, waitingCounts } from "@/lib/task-state"
-
-/*
- * 流水线：新建任务 + 看某个任务的详情。
- *
- * 任务只有一套登记（看板）：这里「开始」等于「加入看板并启动」，看板的「详情」跳到这里，
- * 两边看的是同一个任务的同一份步骤登记。执行引擎、工作目录、并发与合并都在后端做。
- *
- * 本文件只做编排：表单在 NewTaskCard，详情 / 待确认 / 日志各一张卡，
- * 身份补全在 useIdentity，运行日志在 useRunLog，判定逻辑在 src/lib。
- */
+import { candidatesForLink } from "@/lib/identity-flow"
+import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
+import { AUTOMATION_LABEL, imageNeedsTarget, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
+import { decideStartIdentity } from "@/lib/task-start"
+import { canStop, hasProducts } from "@/lib/task-state"
+import { fileToBase64 } from "@/lib/upload-files"
 
 export function PipelinePage({
   taskId,
@@ -34,65 +47,35 @@ export function PipelinePage({
 }) {
   const [plugin, setPlugin] = useState<PluginSummary | null>(null)
   const [contract, setContract] = useState<PipelineStep[]>([])
-  const [board, setBoard] = useState<Board | null>(null)
   const [currentId, setCurrentId] = useState(taskId)
-  const [pending, setPending] = useState<Pending | null>(null)
   const [failure, setFailure] = useState("")
-  const [busy, setBusy] = useState("")
   const [automation, setAutomation] = useState("assist")
   const [form, setForm] = useState<TaskForm>(() => readTaskForm())
+  /** 详情区现在看哪一步（空串 = 任务总览）。 */
+  const [step, setStep] = useState("")
+  /** 新建时先选好的设计稿位图：只是这一份文件，等任务跑到「取数 + 固化快照」之后再暂存/核对落地。 */
+  const [stagedImage, setStagedImage] = useState<{ name: string; bytes: number; file: File } | null>(null)
+  /*
+   * 两屏：带 `task=<id>`（从看板点「详情」、或刚「加入看板并开始」）就是看那个任务；
+   * 不带（侧边栏「+ 新建任务」）就是新建表单。换屏走侧边栏/看板，页内不放互相跳的按钮。
+   * 给哪一屏由「有没有这条路由 + 快照里有没有这个任务」唯一决定（不另存一份状态）。
+   */
+  const { setBoard, reload, taskOf } = useBoardTasks()
+  const task = taskOf(currentId)
+  /* 给哪一屏：见上面「两屏」那段 —— 没有路由里的任务 id，或快照里已经没有这个任务，就给表单。 */
+  const showForm = !taskId || !task
+  const showProducts = task !== null && hasProducts(task.state)
+  const stopStep = task?.failure?.stepName ?? ""
+
+  const registeredSteps = task?.steps ?? []
+  const stepRows = useMemo(() => stepRowsOf(contract, registeredSteps), [contract, registeredSteps])
+  const currentRow = useMemo(() => stepRowOf(contract, registeredSteps, step), [contract, registeredSteps, step])
 
   // 区域模板：工程与区域是团队/项目约定，不来自设计稿，所以可以整条回填（Target 与链接不回填）。
   useEffect(() => {
     if (!initialArea) return
     setForm((current) => ({ ...current, projectRoot: initialArea.projectRoot, ui: initialArea.ui }))
   }, [initialArea?.projectRoot, initialArea?.ui])
-
-  function patchForm(patch: Partial<TaskForm>) {
-    setForm((current) => ({ ...current, ...patch }))
-  }
-
-  const identity = useIdentity({
-    link: form.link,
-    projectRoot: form.projectRoot,
-    target: form.target,
-    ui: form.ui,
-    automation,
-    onFailure: setFailure,
-    onPicked: (nextTarget, nextUi) => patchForm({ target: nextTarget, ui: nextUi })
-  })
-
-  const task = useMemo(
-    () => (board?.tasks ?? []).find((item) => item.id === currentId) ?? null,
-    [board, currentId]
-  )
-  const stepTitles = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const step of contract) map.set(step.Name, step.Title)
-    return map
-  }, [contract])
-  const running = task !== null && isBusyState(task.state)
-  const showProducts = task !== null && hasProducts(task.state)
-  const contractStep = task?.failure ? contract.find((step) => step.Name === task.failure?.stepName) ?? null : null
-  const counts = waitingCounts(pending)
-
-  const { job, setJob, logText, logRef, reset } = useRunLog(task?.jobId ?? "")
-
-  // 看板是任务的唯一登记：详情页的状态一律从它的快照读，不自己推。
-  const loadBoard = useCallback(
-    () =>
-      api
-        .board()
-        .then((payload) => setBoard(payload.board))
-        .catch(() => undefined),
-    []
-  )
-
-  useEffect(() => {
-    void loadBoard()
-    const timer = window.setInterval(() => void loadBoard(), POLL_MS)
-    return () => window.clearInterval(timer)
-  }, [loadBoard])
 
   useEffect(() => {
     api
@@ -108,212 +91,252 @@ export function PipelinePage({
       .catch(() => undefined)
   }, [])
 
-  // 从看板点「详情」进来时 URL 带 task=<id>：跟着它切换当前任务。
+  function patchForm(patch: Partial<TaskForm>) {
+    setForm((current) => ({ ...current, ...patch }))
+  }
+
+  const identity = useIdentity({
+    link: form.link,
+    projectRoot: form.projectRoot,
+    target: form.target,
+    ui: form.ui,
+    automation,
+    onFailure: setFailure,
+    onPicked: (nextTarget, nextUi) => patchForm({ target: nextTarget, ui: nextUi })
+  })
+
+  const { job, setJob, logText, logRef, reset } = useRunLog(task?.jobId ?? "")
+  const actions = useTaskActions({
+    onBoard: setBoard,
+    onPlugin: (nextPlugin, nextContract) => {
+      setPlugin(nextPlugin)
+      setContract(nextContract)
+    },
+    onJob: setJob,
+    onJobReset: reset,
+    onFailure: setFailure,
+    onTaskGone: () => void reload()
+  })
+
+  // 路由决定这一屏显示什么（见上面的「两屏」）。
   useEffect(() => {
     if (taskId) setCurrentId(taskId)
   }, [taskId])
 
-  /*
-   * 任务停下来后看一眼有没有待确认项：有就说明这次停是插件设计的语义判断停点
-   * （等人/AI 补输入），不是错误。产物在任务自己的工作目录里，所以这里读 workDir。
-   */
+  // 任务推进到新的停点时自动切到那一步；人自己点过别的步骤就停在人点的那一步。
   useEffect(() => {
-    if (!task || !task.workDir || running) {
-      setPending(null)
-      return
-    }
-    let stopped = false
-    api
-      .pending(task.workDir, task.request.target)
-      .then((payload) => {
-        if (!stopped) setPending(payload.pending)
-      })
-      .catch(() => {
-        if (!stopped) setPending(null)
-      })
-    return () => {
-      stopped = true
-    }
-  }, [task?.id, task?.workDir, task?.request.target, task?.state, running])
+    if (stopStep) setStep(stopStep)
+  }, [stopStep, task?.jobId])
 
   // 开始 = 新建看板任务 + 启动它；看板负责建工作目录、并发与合并。
   async function start() {
-    setFailure("")
     writeTaskForm(form)
-    setBusy("start")
-    try {
-      /*
-       * 自动化层级是「自动」时身份也不必先点按钮：启动前自己补一遍（与插件跑法里 agent 做的一致）。
-       * 自动只在「这一页登记过区域」时成立：区域是团队对项目的约定、设计稿里没有，
-       * 这一页没登记过时 pick 停下来把原因写进 failure，让人点一次——那一次是项目事实。
-       */
-      let finalTarget = form.target.trim()
-      let finalUi = form.ui.trim()
-      if (!finalTarget && !finalUi && adoptsIdentityWithoutConfirm(automation)) {
-        // 与按钮同一条实现：落后端取候选 → 写登记表 → 回填；要人决策时 pick 已经把原因写进 failure。
-        const picked = await identity.pick()
-        if (!picked) return
-        await identity.apply(picked)
-        finalTarget = picked.target
-        finalUi = picked.ui
+    const decision = await decideStartIdentity({
+      link: form.link,
+      projectRoot: form.projectRoot,
+      target: form.target,
+      ui: form.ui,
+      automation,
+      loadCandidates: async () =>
+        (
+          await candidatesForLink({
+            link: form.link,
+            projectRoot: form.projectRoot,
+            pageName: identity.name,
+            ui: form.ui,
+            useAi: false
+          })
+        ).items,
+      autoPick: () => identity.pick(),
+      autoApply: (item) => identity.apply(item)
+    })
+    if (!decision.ok) {
+      if (decision.reason) setFailure(decision.reason)
+      return
+    }
+    /*
+     * 先选好的位图在这里暂存（那时画板尺寸还不知道，核不了尺寸）：任务跑到「取数 + 固化快照」之后
+     * 由看板那侧核对尺寸再落地。图不合规（不是 PNG/JPEG、太大）按后端原话拦下，不建任务。
+     * Target 空着时不暂存：暂存件按「工程 + Target」落键，空 Target 没有键（表单那边照同一句判据
+     * 不给选图，这里是那条判据的另一半 —— 判据本体在 ui/src/lib/task-form.ts）。
+     */
+    if (stagedImage && !imageNeedsTarget(decision.target)) {
+      try {
+        await api.stageDesignImage({
+          projectRoot: form.projectRoot,
+          target: decision.target,
+          data: await fileToBase64(stagedImage.file)
+        })
+      } catch (error) {
+        setFailure(describeFailure(error))
+        return
       }
-      const added = await api.boardAdd({
-        projectRoot: form.projectRoot,
-        ui: finalUi,
-        autoMerge: true,
-        stopAfter: form.stopAfter,
-        overwrite: form.overwrite,
-        items: [{ link: form.link, target: finalTarget, mode: form.mode as "A" | "B" | "AB" }]
-      })
-      const created = added.created[0] ?? ""
-      await api.boardStart(created)
-      setBoard(added.board)
-      setCurrentId(created)
-      window.location.hash = "pipeline?task=" + created
-      toast.success("已加入看板并开始")
-    } catch (error) {
-      setFailure(describeFailure(error))
-    } finally {
-      setBusy("")
     }
+    // 失败时动作返回 null，原话已经由 use-task-actions 写进 failure：这一次点击到这儿就收尾。
+    const added = await actions.start({
+      projectRoot: form.projectRoot,
+      ui: decision.ui,
+      autoMerge: true,
+      stopAfter: form.stopAfter,
+      overwrite: form.overwrite,
+      items: [{ link: form.link, target: decision.target, mode: form.mode as "A" | "B" | "AB" }]
+    })
+    if (!added) return
+    const created = added.created[0] ?? ""
+    await actions.startJob(created)
+    setCurrentId(created)
+    setStagedImage(null)
+    window.location.hash = "pipeline?task=" + created
+    toast.success("已加入看板并开始")
   }
 
-  async function stop() {
-    if (!task) return
-    setBusy("stop")
-    try {
-      const payload = await api.boardStop(task.id)
-      setBoard(payload.board)
-    } catch (error) {
-      toast.error(describeFailure(error))
-    } finally {
-      setBusy("")
-    }
-  }
-
-  // 从断点继续：后端按看板任务取第一条没跑完的路线，参数与停点从任务与登记表重建。
-  async function resume() {
-    if (!task) return
-    setBusy("resume")
-    setFailure("")
-    try {
-      const payload = await api.runResume(task.id)
-      reset()
-      setJob(payload.job)
-      toast.success(
-        "已继续：路线 " +
-          payload.mode +
-          (payload.resumedFrom === "起点" ? "（从起点）" : "（从 " + payload.resumedFrom + "）") +
-          (payload.recomputedManifest ? "；已有页面 → 回到生成 Bundle 清单的那一步重算" : "") +
-          (payload.reconciled && (payload.reconciled.removed > 0 || payload.reconciled.renamed > 0)
-            ? "；命名表已修回台账口径：" +
-              [
-                payload.reconciled.removed > 0
-                  ? "裁掉 " + payload.reconciled.removed + " 条当前不登记的下标"
-                  : "",
-                payload.reconciled.renamed > 0 ? "改掉 " + payload.reconciled.renamed + " 条重名资源名" : ""
-              ]
-                .filter(Boolean)
-                .join("、")
-            : "")
-      )
-    } catch (error) {
-      setFailure(describeFailure(error))
-      // 这一行已经不在看板上（被清掉、或换了工程）：把看板拉回最新，别对着不存在的任务点。
-      if (error instanceof ApiFailure && error.code === "NO_TASK") void loadBoard()
-    } finally {
-      setBusy("")
-    }
-  }
-
-  function merge() {
-    if (!task) return
-    setBusy("merge")
-    api
-      .boardMerge(task.id)
-      .then((payload) => setBoard(payload.board))
-      .catch((error) => toast.error(describeFailure(error)))
-      .finally(() => setBusy(""))
-  }
-
-  async function resolveConflict(path: string, pick: "mine" | "main" | "clear") {
-    if (!task) return
-    setBusy("resolve:" + path)
-    try {
-      const payload = await api.boardResolve(task.id, path, pick)
-      setBoard(payload.board)
-    } catch (error) {
-      toast.error(describeFailure(error))
-    } finally {
-      setBusy("")
-    }
-  }
-
-  async function reloadContract() {
-    try {
-      const payload = await api.plugin()
-      setPlugin(payload.plugin)
-      setContract(payload.steps)
-      toast.success("已重新读取流水线契约")
-    } catch (error) {
-      toast.error(describeFailure(error))
-    }
-  }
+  const failedStep = contract.find((item) => item.Name === stopStep) ?? null
+  const allStepsDone = stepRows.length > 0 && stepRows.every((row) => row.status === "ok" || row.status === "skipped")
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <NewTaskCard
-        form={form}
-        onForm={patchForm}
-        plugin={plugin}
-        contract={contract}
-        identity={identity}
-        busy={busy}
-        failure={failure}
-        canStop={task !== null && canStop(task.state)}
-        onStart={() => void start()}
-        onStop={() => void stop()}
-        onReloadContract={() => void reloadContract()}
-      />
+      {/* 表单与详情是两屏；没有选中任务时（任务被移除 / 只是进来看看）一定给表单。 */}
+      {showForm && (
+        <NewTaskCard
+          form={form}
+          onForm={patchForm}
+          plugin={plugin}
+          contract={contract}
+          identity={identity}
+          stagedImage={stagedImage ? { name: stagedImage.name, bytes: stagedImage.bytes } : null}
+          onPickImage={(file) => setStagedImage(file ? { name: file.name, bytes: file.size, file: file } : null)}
+          busy={actions.busy}
+          failure={failure}
+          canStop={task !== null && canStop(task.state)}
+          onStart={() => void start()}
+          onStop={() => task && void actions.stop(task)}
+          onReloadContract={() => void actions.reloadContract()}
+        />
+      )}
 
-      {!task && (
+      {showForm && task && (
         <p className="text-muted-foreground text-sm">
-          还没有选中的任务。上面填好点「加入看板并开始」，或在看板点某个任务的「详情」。
+          上面填好点「加入看板并开始」，或在看板点某个任务的「详情」——那是另一屏，按步骤看。
         </p>
       )}
 
-      {task && (
-        <TaskDetailCard
-          task={task}
-          contractStep={contractStep}
-          stepTitles={stepTitles}
-          busy={busy}
-          onResume={() => void resume()}
-          onMerge={merge}
-          onResolve={resolveConflict}
-        />
-      )}
-
       {/*
-        走 A 路线（mw-wpf）的任务才读图：AB 的 A 段同样读，所以判据是「路线里有 A」而不是 mode 恰好是 A。
-        图是按页面名放的，没有 Target 就无从谈起 —— 那种任务根本不显示这一块。
+        详情按「步骤条 + 当前那一步的界面」摆：左边一条（点一步切过去），右边只显示那一步的东西，
+        不再把每步的输入挤在一屏里。停在哪一步就自动切到那一步。
       */}
-      {task && task.workDir && task.request.target && task.routes.includes("A") && <DesignImageCard task={task} />}
+      {!showForm && task && (
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+          <StepRail
+            rows={stepRows}
+            current={step}
+            stopStep={stopStep}
+            onPick={setStep}
+            onPickOverview={() => setStep("")}
+          />
 
-      {task && counts.total > 0 && (
-        <TaskPendingCard
-          task={task}
-          automation={automation}
-          counts={counts}
-          onResumed={() => {
-            void loadBoard()
-          }}
-        />
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
+            {/* 动作的失败只有一个出口（use-task-actions 的 onFailure）：这一屏也得看得见，不能只在表单那屏显示。 */}
+            {failure && (
+              <Alert variant="destructive">
+                <AlertTitle>这一步没做成</AlertTitle>
+                <AlertDescription>
+                  <ClampText text={failure} />
+                </AlertDescription>
+              </Alert>
+            )}
+            <div className="flex items-center justify-end">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  window.location.hash = "board"
+                }}
+              >
+                在看板里看
+              </Button>
+            </div>
+
+            {step === "" ? (
+              <>
+                <TaskDetailCard
+                  task={task}
+                  contractStep={failedStep}
+                  stopStepNumber={failedStep ? failedStep.Id : 0}
+                  allStepsDone={allStepsDone}
+                  busy={actions.busy}
+                  onResume={() => void actions.resume(task)}
+                  onMerge={() => actions.merge(task)}
+                  onResolve={(path, pick) => actions.resolveConflict(task, path, pick)}
+                />
+                {/* 产物与这一次运行的日志都属于「任务总览」：它们说的不是某一步，别在每一步下面都挂一遍。 */}
+                {showProducts && task.workDir && <DoneBoard projectRoot={task.workDir} target={task.request.target} />}
+                {job && <TaskLogCard logText={logText} logRef={logRef} />}
+              </>
+            ) : (
+              <StepCard
+                row={currentRow}
+                contractStep={contract.find((item) => item.Name === step) ?? null}
+                failure={task.failure?.stepName === step ? task.failure : null}
+              >
+                {/*
+                  走 A 路线（mw-wpf）的任务才读图：AB 的 A 段同样读，所以判据是「路线里有 A」。
+                  图与分组表都属于「布局」那一步的输入；那一步叫什么由后端按插件契约的 Inputs 算出来
+                  （task.layoutStep），界面不认步骤名。它们就挂在这一步的界面里。
+                */}
+                {step === task.layoutStep && task.workDir && task.request.target && task.routes.includes("A") && (
+                  <div className="flex flex-col gap-3">
+                    <DesignImageCard task={task} />
+                    <LayoutPanel
+                      taskId={task.id}
+                      runId={task.jobId}
+                      resume
+                      projectRoot={task.workDir}
+                      target={task.request.target}
+                      updatedAt={task.updatedAt}
+                      progressDone={task.progress?.done}
+                      state={task.state}
+                    />
+                  </div>
+                )}
+
+                {/*
+                  图标与文案要人补时，面板挂在「停在这里」的那一步上（补完就从这一步继续）。
+                  「有没有要补的」不在这边另取一次清单：任务停在语义停点（waiting）就是后端的结论
+                  （lib/board.js 的 isSemanticStop，判据只那一处）；清单本身由面板自己取一次。
+                */}
+                {step === stopStep && task.state === "waiting" && task.workDir && (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-muted-foreground text-xs">
+                        {/* 只报这一层级的名字：每层什么意思、布局确认那一节怎么另算，都在设置 → AI Agent 那一处说。 */}
+                        当前自动化层级：{AUTOMATION_LABEL[automation] ?? automation}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          window.location.hash = "review"
+                        }}
+                      >
+                        在独立页面打开
+                      </Button>
+                    </div>
+                    <PendingPanel
+                      projectRoot={task.workDir}
+                      target={task.request.target}
+                      taskId={task.id}
+                      runId={task.jobId}
+                      state={task.state}
+                      automation={automation}
+                      onResumed={() => void reload()}
+                    />
+                  </div>
+                )}
+              </StepCard>
+            )}
+          </div>
+        </div>
       )}
-
-      {task && showProducts && task.workDir && <DoneBoard projectRoot={task.workDir} target={task.request.target} />}
-
-      {task && job && <TaskLogCard logText={logText} logRef={logRef} />}
     </div>
   )
 }

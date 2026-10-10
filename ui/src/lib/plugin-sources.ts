@@ -29,7 +29,6 @@ export type PluginSourceRow = PluginSource & {
  */
 export const INSTALL_SLOT_ID = "install"
 
-
 export type PluginSourceSlot = PluginSource & {
   order: number
   /** 这一档并进了哪一行（那一行的 id）；它自己就是那一行时是空串。 */
@@ -54,6 +53,8 @@ export function pluginLookup(sources: PluginSource[]): PluginLookup {
   const slots: PluginSourceSlot[] = []
   // 插件根 → 留下的那一行：只有这一张表要维护。
   const keeperOf = new Map<string, PluginSourceRow>()
+  // 行 id → 它那一档的 slot：并进来的档会把「正在用」并到行上，slot 也要跟着改，两处不能各说一套。
+  const slotOf = new Map<string, PluginSourceSlot>()
 
   sources.forEach(function (item, index) {
     const order = index + 1
@@ -62,6 +63,12 @@ export function pluginLookup(sources: PluginSource[]): PluginLookup {
     if (keeper) {
       keeper.alsoFrom.push(item.label)
       keeper.members.push(item.id)
+      // 并进去的档可能被 override 标成 active：把它归到留下的那一行，避免「正在用」徽章消失。
+      if (item.active) {
+        keeper.active = true
+        const kept = slotOf.get(keeper.id)
+        if (kept) kept.active = true
+      }
       // 并进去的：处境按留下那一行说，顺序条与表不会各说一套。
       slots.push({
         ...item,
@@ -76,7 +83,9 @@ export function pluginLookup(sources: PluginSource[]): PluginLookup {
     const row: PluginSourceRow = { ...item, order: order, alsoFrom: [], members: [item.id] }
     if (root) keeperOf.set(root, row)
     rows.push(row)
-    slots.push({ ...item, order: order, mergedInto: "", mergedIntoOrder: 0 })
+    const slot: PluginSourceSlot = { ...item, order: order, mergedInto: "", mergedIntoOrder: 0 }
+    slotOf.set(row.id, slot)
+    slots.push(slot)
   })
 
   return { slots: slots, rows: rows }
@@ -85,5 +94,15 @@ export function pluginLookup(sources: PluginSource[]): PluginLookup {
 /** 这一行里有没有「客户端自带」那一档（它的管理入口与更新状态都挂在这一行上）。 */
 export function isInstallRow(row: Pick<PluginSourceRow, "members">): boolean {
   return row.members.includes(INSTALL_SLOT_ID)
+}
+
+/** 这一行能不能手动切换：后端给的 canOverride（启动参数 / 环境变量不可切）。 */
+export function canOverride(row: Pick<PluginSourceRow, "canOverride">): boolean {
+  return row.canOverride === true
+}
+
+/** 当前手动选择（来源 id）是不是落在这一行上。 */
+export function isOverridden(row: Pick<PluginSourceRow, "members">, override: string): boolean {
+  return Boolean(override) && row.members.includes(override)
 }
 

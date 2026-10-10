@@ -33,11 +33,13 @@ function task(
     autoMerge: true,
     progress: null,
     steps: [],
+    layoutStep: "",
     aiFills: [],
     failure: null,
     merge: at ? { at, applied: [], skipped: [], notes: [], conflicts: [] } : null,
     resolutions: {},
-    error: ""
+    error: "",
+    designImage: ""
   }
 }
 

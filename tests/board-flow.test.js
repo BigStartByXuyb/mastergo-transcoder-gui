@@ -11,6 +11,8 @@ const os = require("os");
 const path = require("path");
 
 const { createBoard } = require("../lib/board.js");
+const designImage = require("../lib/design-image.js");
+const { png } = require("./image-fixtures.js");
 
 const LINK = "https://mastergo.com/goto/x?file=204689197363903&layer_id=1872:60904";
 const TICK = 1100;
@@ -40,8 +42,8 @@ function makeProject() {
   return root;
 }
 
-// 桩执行引擎：状态由测试逐条指定。
-function makeRuns() {
+// 桩执行引擎：状态由测试逐条指定；步骤契约默认上面那一份，换契约的用例自己给。
+function makeRuns(contract) {
   const jobs = new Map();
   const latest = new Map();
   const started = [];
@@ -61,7 +63,7 @@ function makeRuns() {
       },
       status: (id) => jobs.get(id) || null,
       latestFor: (projectRoot) => latest.get(projectRoot) || null,
-      contract: () => STEPS
+      contract: () => contract || STEPS
     }
   };
 }
@@ -69,7 +71,7 @@ function makeRuns() {
 function makeBoard(options = {}) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-home-"));
   const project = options.project || makeProject();
-  const runs = makeRuns();
+  const runs = makeRuns(options.steps);
   const pendingCalls = [];
   const autoFillCalls = [];
   const board = createBoard({
@@ -292,6 +294,110 @@ async function caseAutoFillLimitAndRealFailure() {
   assert.strictEqual(after2.state, "failed");
   assert.strictEqual(after2.failure.kind, "error");
   fs.rmSync(fx2.home, { recursive: true, force: true });
+
+  /*
+   * 清单读不到时退回契约：失败的那一步在契约里吃人/AI 写的输入文件（这里是第 7 步 ledger），
+   * 就按「等语义输入」算，交回给人去那一步补 —— 不走「真失败」那条路。
+   */
+  const fx3 = makeBoard({ pendingThrows: true });
+  const added3 = fx3.board.add({ projectRoot: fx3.project, items: [{ link: LINK, target: "T1", mode: "B" }] });
+  fx3.board.start(added3.created[0]);
+  const task3 = await waitForTask(fx3.board, added3.created[0], hasJob, "启动完成");
+  fx3.runs.seed(task3.jobId, {
+    id: task3.jobId,
+    state: "failed",
+    request: {},
+    runs: [{ mode: "mtslg-iocontrol", label: "B", state: "failed", failure: { stepId: 7, stepName: "ledger", message: "台账不合格", resume: "", detail: "" }, steps: {} }]
+  }, task3.workDir);
+  await sleep(TICK + 300);
+  const after3 = fx3.board.snapshot().tasks.find((item) => item.id === added3.created[0]);
+  assert.strictEqual(after3.state, "waiting", "吃人/AI 输入的那一步失败＝停点，不是真失败");
+  assert.strictEqual(after3.failure.kind, "semantic");
+  fs.rmSync(fx3.home, { recursive: true, force: true });
+}
+
+/*
+ * 新建任务时先选的设计稿位图：跑到「取数 + 固化快照」之后核对尺寸 —— 对不上就在任务行上写一句
+ * （两个尺寸都写出来），条件解除之后自己清掉。这条提示不占 task.error，也不每个 tick 重复落盘。
+ */
+async function caseStagedImageNotice() {
+  const project = makeProject();
+  // 画板 1280×1024 的快照：主工程里这一份会随工作目录一起复制过去（插件在「取数 + 固化快照」那一步产出它）。
+  write(
+    path.join(project, "Generated", "runs", "T1", "dsl.snapshot.json"),
+    JSON.stringify({ dsl: { nodes: [{ type: "FRAME", id: "1:1", layoutStyle: { width: 1280, height: 1024 } }] } })
+  );
+  const fx = makeBoard({ project: project });
+  const added = fx.board.add({ projectRoot: project, items: [{ link: LINK, target: "T1", mode: "A" }] });
+  const id = added.created[0];
+  // 先选的那张图比画板矮 1 像素：落地时会被拦下。
+  const staged = designImage.stage({ home: fx.home, projectRoot: project, target: "T1", data: png(1280, 1023).toString("base64") });
+  fx.board.start(id);
+  const task = await waitForTask(fx.board, id, hasJob, "启动完成");
+
+  await sleep(TICK + 300);
+  const mismatched = fx.board.snapshot().tasks.find((item) => item.id === id);
+  assert.match(mismatched.designImage, /与画板尺寸不一致：图 1280×1023，画板 1280×1024/);
+  assert.strictEqual(mismatched.error, "", "这条提示不是任务的失败原因（不占 error）");
+
+  // 结果没变的 tick 不再落盘：任务还在跑，这一段时间里只有这一处会写 board.json。
+  const store = path.join(fx.home, "board.json");
+  const before = fs.statSync(store).mtimeMs;
+  await sleep(TICK * 2 + 300);
+  assert.strictEqual(fs.statSync(store).mtimeMs, before, "同一句话不再每个 tick 重写一遍");
+
+  // 按原尺寸重导一张、在建任务那里重新选一次（暂存件被覆盖）：下一 tick 装进工作目录，并把提示清掉。
+  designImage.stage({ home: fx.home, projectRoot: project, target: "T1", data: png(1280, 1024).toString("base64") });
+  await sleep(TICK + 300);
+  const fixed = fx.board.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(fixed.designImage, "", "条件解除后提示自己清掉");
+  assert.ok(designImage.read({ projectRoot: task.workDir, target: "T1" }).matches, "合格的图装进了工作目录");
+  assert.ok(!fs.existsSync(staged.path), "落地之后暂存件删掉");
+
+  fs.rmSync(fx.home, { recursive: true, force: true });
+  fs.rmSync(project, { recursive: true, force: true });
+}
+
+/*
+ * 「哪一步吃布局输入」按契约的 Inputs 判，不看步骤名：契约里叫 layout 的那一步若不吃分组表，
+ * 界面就不会把设计稿位图与布局确认挂上去（另有一个 decoy 故意叫这个名字）。
+ */
+function contractStep(detail) {
+  return { Outputs: ["x"], Failures: ["f"], Recovery: ["r"], Inputs: [], ...detail };
+}
+
+async function caseLayoutStepComesFromContract() {
+  const steps = [
+    contractStep({ Id: 3, Name: "layout", Title: "另一步", Inputs: ["dsl.snapshot.json"] }),
+    contractStep({ Id: 7, Name: "ledger", Title: "图标台账", Inputs: ["命名表 Generated/_inputs/<Target>.icon-naming.json"] }),
+    contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
+  ];
+  const artifacts = {
+    read: () => ({
+      available: true,
+      steps: [
+        { id: 3, name: "layout", status: "ok", seconds: 1, note: "" },
+        { id: 7, name: "ledger", status: "ok", seconds: 1, note: "" },
+        { id: 8, name: "layoutManifest", status: "ok", seconds: 1, note: "" }
+      ]
+    })
+  };
+  const fx = makeBoard({ steps: steps, artifacts: artifacts });
+  const added = fx.board.add({ projectRoot: fx.project, items: [{ link: LINK, target: "T1", mode: "A" }] });
+  const id = added.created[0];
+  fx.board.start(id);
+  const task = await waitForTask(fx.board, id, hasJob, "启动完成");
+  const byName = new Map(task.steps.map((step) => [step.name, step]));
+  assert.strictEqual(task.layoutStep, "layoutManifest", "吃分组表的那一步就是布局那一步（叫 layout 的那一步不算）");
+  assert.strictEqual(byName.get("ledger").humanInput, true, "吃命名表那一步仍标「人/AI 语义输入」");
+  assert.strictEqual(byName.get("layoutManifest").humanInput, true, "吃分组表那一步同样是人/AI 语义输入");
+  assert.strictEqual(byName.get("layout").humanInput, false, "不吃这些输入的那一步不标");
+
+  // 插件来源可以在运行中被换掉（换一份契约）：看板这份事实跟着契约走，不在自己这边留一份缓存。
+  steps[2] = contractStep({ Id: 8, Name: "renamedLayout", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] });
+  const after = fx.board.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(after.layoutStep, "renamedLayout", "换了契约之后按新的那一份算");
+  fs.rmSync(fx.home, { recursive: true, force: true });
 }
 
 async function caseStopRemoveClearAndMerge() {
@@ -360,6 +466,8 @@ async function main() {
     ["tick 同步：跑完自动合并", caseTickSyncsReadyAndMerges],
     ["语义停点与自动补输入", caseSemanticStopAndAutoFill],
     ["补输入到上限与真失败", caseAutoFillLimitAndRealFailure],
+    ["先选的设计稿位图：尺寸不符写在行上、条件解除自清", caseStagedImageNotice],
+    ["「哪一步吃布局输入」按契约的 Inputs 判，不认步骤名", caseLayoutStepComesFromContract],
     ["停止 / 移除 / 清理 / 合并前置校验", caseStopRemoveClearAndMerge],
     ["进度、步骤视图与 Target 认领", caseProgressStepsAndTargetAdoption]
   ];

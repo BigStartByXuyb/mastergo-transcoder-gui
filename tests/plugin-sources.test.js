@@ -9,10 +9,8 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { pluginSources, pluginRootsUnder, resolvePluginRoot, PLUGIN_ENV_NAME } = require("../lib/plugin-root.js");
+const { pluginSources, pluginRootsUnder, resolvePluginRoot, PLUGIN_ENV_NAME, PLUGIN_MARKER } = require("../lib/plugin-root.js");
 const { createPluginRuntime } = require("../lib/plugin.js");
-
-const MARKER = path.join("skills", "mastergo-to-wpf", "SKILL.md");
 
 /* 路径直接塞进正则：反斜杠与别的元字符都要转义（Windows 路径里这两种都常见）。 */
 function escapeRegExp(value) {
@@ -21,8 +19,8 @@ function escapeRegExp(value) {
 
 // 造一份能被认出来的插件：认根只看 SKILL.md，版本读插件自己的清单。
 function makePlugin(dir, version) {
-  fs.mkdirSync(path.dirname(path.join(dir, MARKER)), { recursive: true });
-  fs.writeFileSync(path.join(dir, MARKER), "# " + version + "\n", "utf8");
+  fs.mkdirSync(path.dirname(path.join(dir, PLUGIN_MARKER)), { recursive: true });
+  fs.writeFileSync(path.join(dir, PLUGIN_MARKER), "# " + version + "\n", "utf8");
   fs.mkdirSync(path.join(dir, ".claude-plugin"), { recursive: true });
   fs.writeFileSync(path.join(dir, ".claude-plugin", "plugin.json"), JSON.stringify({ version: version }), "utf8");
   return dir;
@@ -219,6 +217,61 @@ function caseParentDir() {
   fs.rmSync(box.tmp, { recursive: true, force: true });
 }
 
+/*
+ * 插件是在客户端之外装上的（Codex / Claude 那边更新了自己的缓存）时：读一次来源清单就重新定位一次，
+ * 顶栏那行版本与「正在用」因此跟着变 —— 不会出现「表里是新版、顶栏还是旧版」。
+ */
+function caseExternalInstallShowsUp() {
+  const box = sandbox();
+  const runtime = createPluginRuntime({
+    installRoot: box.install,
+    home: box.home,
+    env: { CODEX_HOME: box.codex }
+  });
+  assert.strictEqual(runtime.current().root, "", "一开始一处都没有");
+  const installed = makePlugin(path.join(box.codex, "plugins", "cache", "bigstart", "mastergo-wpf-transcoder", "3.0.0"), "3.0.0");
+  assert.strictEqual(runtime.sources().find((item) => item.id === "codex-cache").version, "3.0.0", "读清单时重新定位");
+  assert.strictEqual(runtime.current().root, installed, "顶栏那行读的也是这一份");
+  assert.strictEqual(runtime.failure(), "", "重新定位之后不再报「找不到插件」");
+  fs.rmSync(box.tmp, { recursive: true, force: true });
+}
+
+/*
+ * 读一次来源清单只扫一遍档位：定位（reload）与读清单（sources）在夹具树里扫的次数要一样 ——
+ * 数的是 readdirSync（档位扫描走它），只数夹具树里的：解析 node/pwsh 会扫 PATH，那与档位无关。
+ */
+function caseSourcesScanOnce() {
+  const box = sandbox();
+  const fx = fixture(box);
+  const runtime = createPluginRuntime({
+    installRoot: box.install,
+    home: box.home,
+    env: { CODEX_HOME: box.codex }
+  });
+  const countScans = function (run) {
+    let scans = 0;
+    const original = fs.readdirSync;
+    fs.readdirSync = function (target) {
+      if (String(target).startsWith(box.tmp)) scans += 1;
+      return original.apply(fs, arguments);
+    };
+    try {
+      run();
+    }
+    finally {
+      fs.readdirSync = original;
+    }
+    return scans;
+  };
+
+  const relocateScans = countScans(function () { runtime.reload(); });
+  const sourcesScans = countScans(function () { runtime.sources(); });
+  assert.ok(relocateScans > 0, "定位本来就要扫一遍档位");
+  assert.strictEqual(sourcesScans, relocateScans, "读一次来源清单与定位一次是同一遍扫描（没有多扫一遍）");
+  assert.strictEqual(runtime.current().root, fx.codexNew, "顺手同步过之后生效的还是那一份");
+  fs.rmSync(box.tmp, { recursive: true, force: true });
+}
+
 try {
   const cases = [
     ["来源清单", caseSources],
@@ -226,7 +279,9 @@ try {
     ["装配处按查找顺序定位", caseRuntime],
     ["一处都没有", caseMissing],
     ["同一个插件根只标一条正在用", caseActiveOnce],
-    ["父目录里装着插件", caseParentDir]
+    ["父目录里装着插件", caseParentDir],
+    ["外面装上的新插件读清单时就能看见", caseExternalInstallShowsUp],
+    ["读一次来源清单只扫一遍档位", caseSourcesScanOnce]
   ];
   for (const [name, run] of cases) {
     run();

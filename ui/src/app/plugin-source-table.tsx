@@ -4,22 +4,24 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { IdentifierText } from "@/app/identifier-text"
 import { PluginInstallBadge, SourceAlsoFrom, SourceCopyCount, SourceStatusBadge, SourceVersion } from "@/app/plugin-source-facts"
-import { isInstallRow, type PluginSourceRow } from "@/lib/plugin-sources"
+import { canOverride, isInstallRow, isOverridden, type PluginSourceRow } from "@/lib/plugin-sources"
 import type { PluginUpdateStatus } from "@/lib/api"
 
 /*
  * 来源表：来源 / 版本 / 状态 / 路径 / 操作。与上面那条查找顺序一一对应（同一份插件只列一行）。
  * 「自带那一行」还带一句它自己的更新状态（有新版 / 是最新 / 未检查 / 检查失败），表里就能看见要不要去管。
  *
- * 这一页只读与查看，不给「换用某一档」：启动参数与环境变量那两档各自在系统那边设，
- * 两个 agent 缓存里的那份归它们自己管，客户端自带那一份用「管理…」里的检查与安装。
+ * 操作列：点开是详情 / 管理；非「启动参数 / 环境变量」且确实有插件的档，还能手动切换（覆盖自动查找顺序）。
  */
 
 export function PluginSourceTable(props: {
   rows: PluginSourceRow[]
   /** 自带那一份的状态（这一行里没有自带的也能传，只是不加那个更新状态徽章）。 */
   update: PluginUpdateStatus | null
+  /** 当前手动选择的来源 id（空 = 自动）。 */
+  override: string
   onOpen: (rowId: string) => void
+  onOverride: (rowId: string) => void
 }) {
   return (
     <div className="overflow-hidden rounded-md border">
@@ -39,7 +41,9 @@ export function PluginSourceTable(props: {
               key={row.id}
               row={row}
               installState={isInstallRow(row) ? <PluginInstallBadge status={props.update} /> : null}
+              override={props.override}
               onOpen={() => props.onOpen(row.id)}
+              onOverride={() => props.onOverride(row.id)}
             />
           ))}
         </TableBody>
@@ -53,9 +57,12 @@ function PluginSourceLine(props: {
   row: PluginSourceRow
   /** 自带那一行那一格的状态徽章（别的行给 null）。 */
   installState: ReactNode
+  override: string
   onOpen: () => void
+  onOverride: () => void
 }) {
   const row = props.row
+  const switchable = canOverride(row) && row.exists
   return (
     <TableRow className="cursor-pointer" onClick={props.onOpen}>
       <TableCell className="align-top text-sm whitespace-normal">
@@ -77,6 +84,11 @@ function PluginSourceLine(props: {
       </TableCell>
       <TableCell className="align-top text-right whitespace-normal">
         <div className="flex flex-wrap justify-end gap-2" onClick={(event) => event.stopPropagation()}>
+          {switchable && (
+            <Button size="sm" variant="outline" onClick={props.onOverride}>
+              {isOverridden(row, props.override) ? "取消切换" : "切换"}
+            </Button>
+          )}
           <Button size="sm" variant="outline" onClick={props.onOpen}>
             {isInstallRow(row) ? "管理…" : "详情…"}
           </Button>

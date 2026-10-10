@@ -12,14 +12,20 @@ const assert = require("assert");
 const { createConfirm } = require("../lib/confirm.js");
 
 const STEPS = [
-  { Id: 7, Name: "ledger", Title: "图标台账" },
-  { Id: 9, Name: "inputs", Title: "校验译文" }
+  { Id: 7, Name: "ledger", Title: "图标台账", Inputs: ["命名表 Generated/_inputs/<Target>.icon-naming.json（人工/AI 语义输入）"] },
+  { Id: 8, Name: "layout", Title: "Layout 清单", Inputs: ["（作业A）分组表 Generated/_inputs/<Target>.layout-groups.json"] },
+  { Id: 9, Name: "inputs", Title: "校验译文", Inputs: ["译文清单 Generated/_inputs/<Target>.lang-translations.json（术语表可选）"] }
 ];
 
 const icon = (name) => ({ index: 1, name: name, comment: "" });
 
 // 运行管理器桩：只认登记过的那次运行；status() 记下每一次要过的 id，用来证明没有空 id 的猜测。
-function makeHarness() {
+// 这一次运行自己的步骤表取自契约（同一份插件跑出来的），所以换一份契约就是换一次插件版本。
+function makeHarness(contract) {
+  const steps = contract || STEPS;
+  // 运行登记表里那一次跑过的步骤（按 id 键）：与契约同源，换一份契约就是换一次插件版本。
+  const stepTable = {};
+  steps.forEach(function (step) { stepTable[step.Id] = { id: step.Id, name: step.Name }; });
   const calls = [];
   const written = [];
   const started = [];
@@ -37,14 +43,14 @@ function makeHarness() {
           ui: "F1",
           mode: "mtslg-iocontrol"
         },
-        runs: [{ steps: { 1: { id: 7, name: "ledger" } } }]
+        runs: [{ steps: stepTable }]
       };
     },
     start: (request) => {
       started.push(request);
       return { id: "job-new", request: request };
     },
-    contract: () => STEPS
+    contract: () => steps
   };
   const confirm = createConfirm({
     runs: runs,
@@ -55,10 +61,14 @@ function makeHarness() {
       },
       writeTranslations: () => { throw new Error("这条用例不该写译文"); },
       writeGlossary: () => { throw new Error("这条用例不该写术语"); },
+      writeGroups: (args) => {
+        written.push(args);
+        return { path: "D:/work/known/Generated/_inputs/T1.layout-groups.json", count: args.groups.length };
+      },
       reconcileNaming: () => null,
       clearNaming: () => undefined
     },
-    steps: () => STEPS
+    steps: () => steps
   });
   return { confirm: confirm, calls: calls, written: written, started: started };
 }
@@ -150,6 +160,45 @@ function caseWriteOnly() {
   assert.strictEqual(fx.written.length, 1);
 }
 
+/*
+ * 空分组表也照写、也从 layout 续跑：那是显式声明「本页没有要声明的分组」。
+ * 不写的话这一页永远解不开插件那条「有设计稿位图但没有分组表」。
+ */
+function caseEmptyGroups() {
+  const fx = makeHarness();
+  const result = fx.confirm.commit({
+    projectRoot: "D:/work/known",
+    target: "T1",
+    runId: "job-known",
+    groups: []
+  });
+  assert.deepStrictEqual(fx.written, [{ projectRoot: "D:/work/known", target: "T1", groups: [] }], "空数组照写");
+  assert.strictEqual(result.resumedFrom, "layout", "从消费分组表的第 8 步续");
+  assert.strictEqual(fx.started.length, 1);
+  assert.strictEqual(fx.started[0].progress, "layout");
+}
+
+/*
+ * 锚点按插件契约自己的 Inputs 找「刚写入的文件所喂的第一步」，不认步骤名叫什么：
+ * 插件把这一步改了名字（或另有一个叫 layout 的步骤），续跑照样落在吃分组表的那一步上。
+ */
+function caseAnchorFollowsContract() {
+  const renamed = [
+    { Id: 3, Name: "layout", Title: "另一步", Inputs: ["dsl.snapshot.json"] },
+    { Id: 7, Name: "ledger", Title: "图标台账", Inputs: ["命名表 Generated/_inputs/<Target>.icon-naming.json"] },
+    { Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["（作业A）分组表 Generated/_inputs/<Target>.layout-groups.json"] }
+  ];
+  const fx = makeHarness(renamed);
+  const result = fx.confirm.commit({
+    projectRoot: "D:/work/known",
+    target: "T1",
+    runId: "job-known",
+    groups: []
+  });
+  assert.strictEqual(result.resumedFrom, "layoutManifest", "按契约的 Inputs 找吃分组表那一步，不认名字");
+  assert.strictEqual(fx.started[0].progress, "layoutManifest");
+}
+
 try {
   caseNoSource();
   console.log("  ok  没有来源运行就明说，不猜最近一次");
@@ -161,6 +210,10 @@ try {
   console.log("  ok  运行没了但带着请求参数：从契约锚点续");
   caseWriteOnly();
   console.log("  ok  只写入不继续");
+  caseEmptyGroups();
+  console.log("  ok  空分组表照写（本页没有要声明的分组）");
+  caseAnchorFollowsContract();
+  console.log("  ok  续跑锚点跟着插件契约的 Inputs 走，不认步骤名");
   console.log("confirm-source.test.js 全部通过");
 }
 catch (error) {

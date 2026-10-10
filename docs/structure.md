@@ -15,7 +15,7 @@
 | `public/` | 界面构建产物（`npm run build:ui` 生成，入库） | 手写的源文件 |
 | `scripts/` + `scripts/lib/` | 工具链：打包、发布、winget、起前端等一次性任务 | 运行期会加载的逻辑 |
 | `tools/launcher/` | 不依赖 Node 的启动器（Go） | 任何 JavaScript |
-| `tests/` | 一条链路/一个模块一份用例；命名 `<主题>.test.js` | 生产代码 |
+| `tests/` | 一条链路/一个模块一份用例；命名 `<主题>.test.js`；用例共用的小夹具（`image-fixtures.js`） | 生产代码 |
 | `docs/` | 说明：一份文档一类事，索引见 [`README.md`](README.md) | 与实现重复的清单 |
 | `vendor/` | 模型依赖的压缩件（由 `scripts/vendor-openai.js` 生成） | 手写源码 |
 | 运行目录（`versions/`、`agents/`、`plugins/`、`runtime/`、`blobs/`、`logs/`、`work/`、`chats/`、`update-cache/`、`dist/`、`output/`、`.playwright-cli/`） | 本机状态与产物（`.gitignore` 里那些） | 仓库源码 |
@@ -41,6 +41,19 @@ launch.js ──> lib/launch.js      壳只用自己拥有的两份文件
 
 上面这些方向的守门人列在 [`gates.md`](gates.md)。
 
+### 界面这一侧的分层
+
+| 层 | 在哪 | 管什么 | 不许做什么 |
+| --- | --- | --- | --- |
+| 页面 | `ui/src/app/*-page.tsx` | 编排：选哪条数据、在哪儿挂哪个面板、切屏与跳转 | 自己拼展示细节 |
+| 面板与展示件 | `ui/src/app/*-panel.tsx`、`*-card.tsx`、表格与通用件 | 渲染与交互；要数据就调自己的 hook | 自己推任务状态（状态一律来自后端快照） |
+| hook | `ui/src/app/use-*.ts` | 取数与动作：一个 hook 一件事（清单、快照、动作、草稿各一份） | 渲染 |
+| 前端逻辑 | `ui/src/lib/*.ts` | 纯函数与判定（不碰网络、不碰 DOM） | 发请求 |
+| 网络出口 | `ui/src/lib/api.ts` | 界面**唯一**发请求的地方 | 被别的文件绕过（别的文件不直接 `fetch`） |
+
+「一起取数、一起刷新」的判据只有一个落点：[`facts.md`](facts.md) 的判据表逐条登记真值源，
+`tests/consistency.test.js` 按它核对「那段字符串只出现在这一处」。
+
 ## 一次操作怎么走
 
 | 场景 | 路径 |
@@ -59,18 +72,18 @@ launch.js ──> lib/launch.js      壳只用自己拥有的两份文件
 
 | 子系统 | 服务端 | 界面 | 用例 |
 | --- | --- | --- | --- |
-| 看板与任务 | `board.js`、`concurrency.js`、`idle.js` | `board-page.tsx`、`board-task-table.tsx`、`done-board.tsx` | `board.test.js`、`board-flow.test.js` |
-| 流水线 | `run.js`、`page-progress.js`、`run-mark.js` | `pipeline-page.tsx`、`task-steps.tsx`、`task-log-card.tsx` | `run.test.js`、`run-failure.test.js`、`resume-after-restart.test.js` |
-| 待确认与语义补全 | `pending.js`、`pending-queue.js`、`confirm.js`、`identity.js`、`autofill.js`、`ai.js` | `pending-panel.tsx`、`identity-fill-panel.tsx`、`review-page.tsx` | `identity.test.js`、`confirm-source.test.js` |
-| 对话 | `chat.js`、`codex.js`、`codex-release.js`、`agent-context.js` | `chat-page.tsx`、`chat-transcript.tsx`、`codex-card.tsx` | `chat.test.js`、`codex.test.js`、`agent-context.test.js` |
-| 控件查询与映射 | `node-controls.js`、`mapping.js`、`resolve-target.js`、`resolve.js`、`project-pages.js`、`design-page-name.js`、`design-image.js`、`artifacts.js`、`xml-chunk.js`、`icon-names.js` | `query-page.tsx`、`mapping-page.tsx`、`design-image-card.tsx` | `node-controls.test.js`、`mapping.test.js`、`resolve-target.test.js`、`project-pages.test.js`、`design-image.test.js` |
-| 插件 | `plugin.js`、`plugin-root.js`、`plugin-update.js`、`plugin-layout.js` | `plugin-card.tsx`、`plugin-source-table.tsx`、`plugin-install-block.tsx` | `plugin-sources.test.js`、`plugin-update.test.js`、`plugin-layout.test.js` |
+| 看板与任务 | `board.js`、`concurrency.js`、`idle.js` | `board-page.tsx`、`board-task-table.tsx`、`done-board.tsx`、`new-task-card.tsx`、`board-new-task-dialog.tsx`、`board-filter-row.tsx`、`area-page.tsx`、`task-detail-card.tsx`、`effective-toggle.tsx`、`use-areas.ts`、`use-board-tasks.ts` | `board.test.js`、`board-flow.test.js`、`use-board-tasks.test.tsx` |
+| 流水线 | `run.js`、`page-progress.js`、`run-mark.js` | `pipeline-page.tsx`、`task-steps.tsx`、`step-card.tsx`、`failure-note.tsx`、`task-log-card.tsx`、`ai-fill-line.tsx`、`use-run-log.ts`、`use-task-actions.ts`、`ui/src/lib/step-rows.ts` | `run.test.js`、`run-failure.test.js`、`resume-after-restart.test.js`、`task-steps.test.tsx`、`step-rows.test.ts`、`use-task-actions.test.tsx` |
+| 待确认与语义补全 | `pending.js`、`pending-queue.js`、`confirm.js`、`identity.js`、`autofill.js`、`ai.js`、`layout-groups.js` | `pending-panel.tsx`、`identity-fill-panel.tsx`、`review-page.tsx`、`layout-panel.tsx`、`use-identity.ts`、`use-identity-fill.ts`、`use-layout-groups.ts`、`ui/src/lib/layout-edit.ts` | `identity.test.js`、`confirm-source.test.js`、`layout-groups.test.js`、`pending-layout.test.js`、`pending-queue.test.js`、`autofill-layout.test.js` |
+| 对话 | `chat.js`、`codex.js`、`codex-release.js`、`agent-context.js` | `chat-page.tsx`、`chat-transcript.tsx`、`codex-card.tsx`、`agent-avatar.tsx`、`chat-engine-log.tsx`、`chat-new-dialog.tsx`、`template-dialog.tsx` | `chat.test.js`、`codex.test.js`、`agent-context.test.js` |
+| 控件查询与映射 | `node-controls.js`、`mapping.js`、`resolve-target.js`、`resolve.js`、`project-pages.js`、`design-page-name.js`、`design-image.js`、`artifacts.js`、`xml-chunk.js`、`icon-names.js` | `query-page.tsx`、`mapping-page.tsx`、`design-image-card.tsx`、`project-pages-picker.tsx` | `node-controls.test.js`、`mapping.test.js`、`resolve-target.test.js`、`project-pages.test.js`、`design-image.test.js` |
+| 插件 | `plugin.js`、`plugin-root.js`、`plugin-update.js`、`plugin-layout.js` | `plugin-card.tsx`、`plugin-source-table.tsx`、`plugin-install-block.tsx`、`plugin-order-bar.tsx`、`plugin-source-dialog.tsx`、`plugin-source-facts.tsx`、`use-plugin-sources.ts`、`use-plugin-update.ts` | `plugin-sources.test.js`、`plugin-update.test.js`、`plugin-layout.test.js` |
 | 运行时 | `runtime.js`、`runtime-policy.js`、`exe-path.js`、`pwsh.js`、`download.js`、`bundle-store.js`、`tar.js`、`atomic-write.js` | `settings-runtime-panel.tsx`、`runtime-panel.tsx`、`runtime-source-dialog.tsx` | `runtime.test.js`、`bundle-store.test.js`、`download.test.js`、`tar.test.js` |
-| 更新与发布 | `update.js`、`update-task.js`、`recheck.js`、`manifest-fetch.js`、`app-manifest.js`、`changelog.js` | `update-card.tsx`、`update-badge.tsx`、`settings-update-panel.tsx` | `update.test.js`、`app-manifest.test.js`、`changelog.test.js` |
-| 设置与凭据 | `settings.js`、`config.js`、`source.js`、`mcp-token.js`、`proxy.js`、`getter.js` | `settings-page.tsx`、`settings-ai-panel.tsx`、`settings-mastergo-panel.tsx`、`settings-agent-panel.tsx`、`source-dialog.tsx` | `settings-templates.test.js`、`mastergo-token.test.js`、`source.test.js`、`proxy.test.js` |
+| 更新与发布 | `update.js`、`update-task.js`、`recheck.js`、`manifest-fetch.js`、`app-manifest.js`、`changelog.js` | `update-card.tsx`、`update-badge.tsx`、`settings-update-panel.tsx`、`update-source-row.tsx`、`update-source-actions.tsx`、`confirm-switch-dialog.tsx`、`download-actions.ts`、`use-status-poll.ts`、`use-failure-memory.ts` | `update.test.js`、`app-manifest.test.js`、`changelog.test.js` |
+| 设置与凭据 | `settings.js`、`config.js`、`source.js`、`mcp-token.js`、`proxy.js`、`getter.js` | `settings-page.tsx`、`settings-ai-panel.tsx`、`settings-mastergo-panel.tsx`、`settings-agent-panel.tsx`、`source-dialog.tsx`、`tab-button.tsx` | `settings-templates.test.js`、`mastergo-token.test.js`、`source.test.js`、`proxy.test.js` |
 | 上传与合并 | `uploads.js`、`merge.js`、`limits.js` | `chat-write-dialog.tsx`、`merge-conflicts.tsx` | `uploads.test.js`、`merge.test.js` |
 | 壳与自愈 | `launch.js`、`bootstrap.js`、`log.js` | —（控制台） | `launch.test.js`、`bootstrap.test.js`、`log.test.js` |
-| 通用件 | `errors.js`、`http.js`、`versions.js`、`workdir.js`、`name-safety.js`、`system-open.js`、`pick-folder.js` | `ui/src/lib/*.ts`、`ui/src/app/pager.tsx`、`clamp-text.tsx`、`copy-text.ts`、`pixel-loader.tsx` | `edges.test.js`、`system-open.test.js`、`pick-folder.test.js` |
+| 通用件 | `errors.js`、`http.js`、`versions.js`、`workdir.js`、`name-safety.js`、`system-open.js`、`pick-folder.js`、`routes.js`、`ansi.js` | `ui/src/lib/*.ts`、`ui/src/app/pager.tsx`、`clamp-text.tsx`、`copy-text.ts`、`pixel-loader.tsx`、`app-shell.tsx`、`busy-action-button.tsx`、`busy-overlay.tsx`、`identifier-text.tsx`、`pixel-mascot.tsx`、`use-action-runner.ts`、`use-alive.ts` | `edges.test.js`、`system-open.test.js`、`pick-folder.test.js` |
 
 ## 约束与门禁
 

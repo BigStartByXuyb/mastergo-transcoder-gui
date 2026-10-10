@@ -30,9 +30,21 @@ export function usePluginSources() {
     })
   }, [act])
 
+  // 手动切换来源：后端写回 override 并重定位插件，返回的新清单直接落状态。
+  const override = useCallback(
+    async (id: string) => {
+      await act(PLUGIN_BUSY.load, async () => {
+        const payload = await api.pluginOverride(id)
+        if (alive.current) setView(payload)
+        return payload
+      })
+    },
+    [act]
+  )
+
   useEffect(() => {
     void load()
   }, [load])
 
-  return { view: view, failure: failure, busy: busy, load: load }
+  return { view: view, failure: failure, busy: busy, load: load, override: override }
 }

@@ -14,6 +14,7 @@ import { sourceViewOf } from "@/lib/source-check"
 import { busyNow } from "@/lib/update-state"
 import {
   isInstallRow,
+  isOverridden,
   pluginLookup
 } from "@/lib/plugin-sources"
 
@@ -25,7 +26,7 @@ import {
 //                  点开「客户端自带」那一行是它的管理：更新来源（GitHub / GitLab / 静态目录，
 //                  与「程序更新」同一个弹窗，但存的是插件自己那一项设置：没配＝插件仓库）
 //                  + 检查更新 / 下载并安装 / 进度。
-// 这一页只读与查看，不给「换用某一档」：换用只用启动参数与环境变量那两档（顺序见 lib/plugin-root.js）。
+// 来源表支持手动切换（非启动参数/环境变量的档）：默认按查找顺序自动选，切到某一档后优先用它，可取消回自动。
 //
 // 取数分两半，各有各的 hook：来源清单（use-plugin-sources）、
 // 自带那一份的更新与轮询（use-plugin-update）；本组件只编排与渲染。
@@ -47,6 +48,14 @@ export function PluginCard() {
     { busy: update.busy, transferring: update.transferring },
     { busy: update.update ? update.update.busy : "" }
   ])
+
+  // 手动切换：再点当前生效的那一行 = 取消（回到自动查找顺序）。
+  function toggleOverride(id: string) {
+    const current = sources.view?.override ?? ""
+    const row = lookup.rows.find((item) => item.id === id) ?? null
+    const next = row && isOverridden(row, current) ? "" : id
+    void sources.override(next)
+  }
 
   return (
     <Card>
@@ -86,7 +95,9 @@ export function PluginCard() {
             <PluginSourceTable
               rows={lookup.rows}
               update={update.update}
+              override={sources.view.override}
               onOpen={(id) => setOpened(id)}
+              onOverride={toggleOverride}
             />
 
             {/* 两半各自的失败：来源清单那一半与自带那份那一半，谁出事谁说话。 */}
