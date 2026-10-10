@@ -53,7 +53,7 @@ export function PipelinePage({
   const [form, setForm] = useState<TaskForm>(() => readTaskForm())
   /** 详情区现在看哪一步（空串 = 任务总览）。 */
   const [step, setStep] = useState("")
-  /** 新建时先选好的设计稿位图：只是这一份文件，等任务跑到「取数 + 固化快照」之后再暂存/核对落地。 */
+  /** 新建时先选好的设计稿位图：只是这一份文件，任务建好之后跟着它暂存，尺寸核对与落地等跑到那一步。 */
   const [stagedImage, setStagedImage] = useState<File | null>(null)
   /*
    * 两屏：带 `task=<id>`（从看板点「详情」、或刚「加入看板并开始」）就是看那个任务；

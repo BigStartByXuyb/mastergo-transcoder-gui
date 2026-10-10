@@ -19,7 +19,7 @@ import { MODE_HINT, READ_IMAGE_HINT, modeTakesRoute, type TaskForm } from "@/lib
 /*
  * 新建任务卡片：填链接 / 工程目录 / Target / 区域 / 路线，走 A 路线时还能先把设计稿位图选上，
  * 然后「加入看板并开始」。只负责渲染与把用户输入交出去，取值链、候选与登记表写入都在 useIdentity；
- * 位图只是先拿着（暂存与尺寸核对在任务跑到取数那一步之后，见 lib/design-image.js）。
+ * 位图只是先拿着（跟着建出来的任务暂存，尺寸核对与落地在流水线跑到那一步之后，见 lib/design-image.js）。
  */
 
 type Props = {
