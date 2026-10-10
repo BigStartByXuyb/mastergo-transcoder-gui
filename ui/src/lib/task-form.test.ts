@@ -74,5 +74,4 @@ describe("task-form", () => {
     expect(modeTakesRoute("AB", "B")).toBe(true)
     expect(modeTakesRoute("", "A")).toBe(false)
   })
-
 })

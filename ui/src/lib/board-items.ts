@@ -71,7 +71,8 @@ export function withPickedImage<T>(images: Record<string, T>, link: string, file
   const next = { ...images }
   delete next[UNCLAIMED]
   delete next[link]
-  if (file) next[link || UNCLAIMED] = file
+  // 链接还空着时 link 就是 UNCLAIMED 那一格：这一份先记在待认领处，链接一填就归那一页。
+  if (file) next[link] = file
   return next
 }
 
