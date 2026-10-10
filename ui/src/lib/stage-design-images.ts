@@ -14,6 +14,12 @@ import { fileToBase64 } from "@/lib/upload-files"
 export type StagedPick = { taskId: string; file: File }
 
 /*
+ * 暂存没成时接在后端原话后面的那半句：只有这一处说（两个新建入口都显示同一句）。
+ * 它说的是这件事的后果 —— 图不跟任务走，任务本身照常跑。
+ */
+export const STAGE_FAILED_NOTE = "（先选的那张图没暂存上，任务照常跑；图可以在任务详情「布局」那一步再传）"
+
+/*
  * 只有跑 A 路线才读设计稿位图（这条判据在 ui/src/lib/task-form.ts 的 modeTakesRoute）：
  * 选图框露不露读它，送不送也读它 —— 两个新建入口都从这里过，不为「送了也没用」的图留下暂存件。
  */
@@ -27,7 +33,8 @@ export async function stageDesignImages(picks: StagedPick[]): Promise<string> {
     try {
       await api.stageDesignImage({ taskId: pick.taskId, data: await fileToBase64(pick.file) })
     } catch (error) {
-      if (!firstFailure) firstFailure = describeFailure(error)
+      // 后端给的原话（原因 + 怎么修）在最前面，后面补一句这件事的后果 —— 两个入口显示的就是这一句。
+      if (!firstFailure) firstFailure = describeFailure(error) + STAGE_FAILED_NOTE
     }
   }
   return firstFailure

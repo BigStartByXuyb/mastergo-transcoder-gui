@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { picksForRoute, stageDesignImages } from "@/lib/stage-design-images"
+import { STAGE_FAILED_NOTE, picksForRoute, stageDesignImages } from "@/lib/stage-design-images"
 
 /*
  * 新建时先选好的位图 → 暂存件（一条任务一份）：走真的 api 层，只把 fetch 换掉。
@@ -48,7 +48,7 @@ describe("stageDesignImages", () => {
       { taskId: "task-1", file: file("a") },
       { taskId: "task-2", file: file("b") }
     ])
-    expect(failure).toBe("这张图不是位图：传 PNG / JPEG")
+    expect(failure).toBe("这张图不是位图：传 PNG / JPEG" + STAGE_FAILED_NOTE)
     expect(seen.map((item) => item.taskId)).toEqual(["task-1", "task-2"])
   })
 

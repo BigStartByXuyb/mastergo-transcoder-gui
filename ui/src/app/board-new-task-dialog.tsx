@@ -155,12 +155,14 @@ export function BoardNewTaskDialog(props: {
               {items.map((item, index) => (
                 <div key={index + "|" + item.link} className="flex flex-wrap items-center gap-2">
                   <span className="text-muted-foreground text-xs">第 {index + 1} 行</span>
-                  <span
-                    className="text-muted-foreground max-w-40 min-w-0 truncate font-mono text-xs"
+                  {/* 这一行的链接就是它自己那个选图框的标签（一行一个页面）。 */}
+                  <Label
+                    htmlFor={"board-image-" + index}
+                    className="text-muted-foreground max-w-40 min-w-0 truncate font-mono text-xs font-normal"
                     title={item.link}
                   >
                     {linkLabel(item.link)}
-                  </span>
+                  </Label>
                   {item.target && <Badge variant="secondary">{item.target}</Badge>}
                   <DesignImagePicker
                     id={"board-image-" + index}

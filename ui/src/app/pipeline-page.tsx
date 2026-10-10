@@ -170,13 +170,13 @@ export function PipelinePage({
     /*
      * 先选好的位图跟着任务暂存（暂存件的键是任务 id）：那时画板尺寸还不知道，核不了尺寸 ——
      * 任务跑到「取数 + 固化快照」之后由看板那侧核对尺寸再落地。
-     * 图被后端挡回来（不是 PNG/JPEG、太大）只报那一句原话：任务已经建好并在跑，
-     * 图可以在任务详情「布局」那一步再传（见 ui/src/lib/stage-design-images.ts）。
+     * 图被后端挡回来（不是 PNG/JPEG、太大）弹一句原话 + 后果，与看板那条同源：任务已经建好并在跑，
+     * 不占表单上的「启动失败」（那不是启动没成）。
      */
     if (stagedImage && created) {
       // 跑不跑 A 由 picksForRoute 那一条判据决定（与选图框露不露同源）。
       const stagedFailure = await stageDesignImages(picksForRoute(form.mode, [{ taskId: created, file: stagedImage }]))
-      if (stagedFailure) setFailure(stagedFailure)
+      if (stagedFailure) toast.error(stagedFailure)
     }
     setStagedImage(null)
     window.location.hash = "pipeline?task=" + created

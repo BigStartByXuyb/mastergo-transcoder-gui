@@ -134,7 +134,8 @@ export function BoardPage() {
         /*
          * 先选好的位图在这里跟着任务暂存：暂存件的键是任务 id（后端只有一处定这个键），
          * 所以只能在任务建出来之后做；created 与 items 同一个次序，一行对一条任务。
-         * 图被后端挡回来只说那一句原话，任务本身照常跑（流水线跑到那一步会在任务详情里问）。
+         * 图被后端挡回来只弹一句原话 + 后果（见 ui/src/lib/stage-design-images.ts），任务本身照常跑：
+         * 这条提示不走 problem —— 那是「看板没读到最新状态」，轮询一到就清，且标题对不上这件事。
          */
         const picked = items.flatMap((item, index) => {
           const file = images[item.link]
@@ -142,7 +143,7 @@ export function BoardPage() {
           return file && taskId ? [{ taskId, file }] : []
         })
         const stagedFailure = await stageDesignImages(picksForRoute(form.mode, picked))
-        if (stagedFailure) setProblem(stagedFailure)
+        if (stagedFailure) toast.error(stagedFailure)
         return added
       },
       applyBoard
