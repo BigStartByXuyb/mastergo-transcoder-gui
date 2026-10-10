@@ -8,15 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { useLayoutGroups, type LayoutGroupsInput } from "@/app/use-layout-groups"
-import {
-  addGroup,
-  firstUnderfilledGroup,
-  labelOf,
-  moveMember,
-  removeGroup,
-  removeMember,
-  ungroupedControls
-} from "@/lib/layout-edit"
+import { addGroup, labelOf, moveMember, removeGroup, removeMember, ungroupedControls } from "@/lib/layout-edit"
 import { useState } from "react"
 
 /*
@@ -49,15 +41,6 @@ export function LayoutPanel({ confirmable, ...input }: LayoutPanelProps) {
     setNewId("")
   }
 
-  async function save() {
-    const underfilled = firstUnderfilledGroup(layout.groups)
-    if (underfilled) {
-      layout.setFailure("组「" + underfilled.id + "」成员不足 2 个，补齐或删掉后再确认。")
-      return
-    }
-    await layout.save()
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -67,8 +50,8 @@ export function LayoutPanel({ confirmable, ...input }: LayoutPanelProps) {
         </CardTitle>
         <CardDescription>
           控件按清单次序编号（#1 起）：把「同属一行或一列」的编号分成一组；分组表由布局推导消费。
-          没有要声明的分组就直接确认（写出空表，按机械判据走）。自动通过默认关，开着且自动化层级不是「关」时，
-          由 AI 候选直接往下。
+          没有要声明的分组就直接确认（写出空表，按机械判据走）。成员至少 2 个、一个控件只能进一组这两条
+          由后端判，写不进去时它会把原话显示在这里。
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -80,13 +63,16 @@ export function LayoutPanel({ confirmable, ...input }: LayoutPanelProps) {
               <div className="flex items-center gap-2">
                 <Switch checked={layout.autoPass} onCheckedChange={(value) => void layout.toggleAutoPass(value)} id="layout-auto-pass" />
                 <Label htmlFor="layout-auto-pass">自动通过</Label>
+                <span className="text-xs text-muted-foreground">
+                  （开着、且「设置 → AI Agent」的自动化层级不是「关」时才自动出分组）
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={() => void layout.suggest()} disabled={layout.busy || layout.controls.length < 2}>
                   <Sparkles className="mr-1 h-4 w-4" />
                   AI 辅助
                 </Button>
-                <Button size="sm" onClick={() => void save()} disabled={layout.busy || !confirmable}>
+                <Button size="sm" onClick={() => void layout.save()} disabled={layout.busy || !confirmable}>
                   <Save className="mr-1 h-4 w-4" />
                   确认并继续
                 </Button>

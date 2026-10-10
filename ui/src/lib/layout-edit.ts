@@ -2,7 +2,9 @@ import type { LayoutControl, LayoutGroup } from "@/lib/api"
 
 /*
  * 布局确认面板的两件纯逻辑：控件编号（人对编号说话，分组表里存 ref）与分组的增删改。
- * 面板只调用它们并渲染；写回与校验的判据在后端 lib/layout-groups.js，这里不重复判一遍。
+ *
+ * 这里只做「人怎么改」这件事，不做「表合不合法」的判断 —— 成员至少 2 个、一个 ref 只能进一个分组
+ * 这类校验只有后端 lib/layout-groups.js 一处，界面把后端的原话照实显示（见 app/layout-panel.tsx）。
  */
 
 /** 控件编号＝控件清单里的次序（1 起）；不在清单里的 ref 给 0（清单被换过时不硬编一个号）。 */
@@ -27,7 +29,10 @@ export function ungroupedControls(controls: LayoutControl[], groups: LayoutGroup
   return controls.filter((control) => !used.has(control.ref))
 }
 
-/** 把控件挪进某一组：已在别的组里时先从原组删掉（一个 ref 只能进一个组）；已经在这一组里就不动。 */
+/*
+ * 把控件挪进某一组：这是一次「移动」（控件的归属只有一处），所以先从原组摘掉再放进目标组；
+ * 已经在这一组里就不动。它不是校验 —— 表合不合法仍由后端判。
+ */
 export function moveMember(groups: LayoutGroup[], groupId: string, ref: string): LayoutGroup[] {
   const target = groups.find((group) => group.id === groupId)
   if (!target || target.members.includes(ref)) return groups
@@ -50,9 +55,4 @@ export function addGroup(groups: LayoutGroup[], id: string, kind: "column" | "ro
 /** 删掉一个组（组里的控件回到未分组）。 */
 export function removeGroup(groups: LayoutGroup[], id: string): LayoutGroup[] {
   return groups.filter((group) => group.id !== id)
-}
-
-/** 第一个成员不足 2 个的组：写回前要报出来（判据与后端 members 至少 2 个一致）。 */
-export function firstUnderfilledGroup(groups: LayoutGroup[]): LayoutGroup | null {
-  return groups.find((group) => group.members.length < 2) ?? null
 }

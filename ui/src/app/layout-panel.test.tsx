@@ -22,13 +22,29 @@ const CONTROLS = [
   control("1:11", "TextBlock", "标题")
 ]
 
-/* 后端那两个接口：布局读 /api/layout-groups，开关读 /api/settings。 */
-function stub(options: { controls?: LayoutControl[]; groups?: LayoutGroup[]; available?: boolean; onConfirm?: (body: unknown) => void } = {}) {
+/*
+ * 后端那几个接口：布局读 /api/layout-groups，开关读 /api/settings，写回走 /api/confirm。
+ * confirmError 用来验「后端拒绝时把它的原话显示出来」（校验判据只在后端一处）。
+ */
+function stub(
+  options: {
+    controls?: LayoutControl[]
+    groups?: LayoutGroup[]
+    available?: boolean
+    onConfirm?: (body: unknown) => void
+    confirmError?: { code: string; message: string; hint: string }
+  } = {}
+) {
   const available = options.available !== false
   vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     if (url.includes("/api/confirm")) {
       options.onConfirm?.(JSON.parse(String(init?.body)))
+      if (options.confirmError) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ ok: false, error: options.confirmError }), { status: 400 })
+        )
+      }
       return Promise.resolve(new Response(JSON.stringify({ ok: true, written: [], job: null }), { status: 200 }))
     }
     if (url.includes("/api/settings")) {
@@ -103,18 +119,20 @@ describe("LayoutPanel", () => {
     expect(await screen.findByText(/已确认，正在从布局推导继续/)).toBeTruthy()
   })
 
-  it("组里只有 1 个控件时不提交，当场说清怎么补齐", async () => {
-    let sent = false
+  it("后端拒绝时（例如组里只有 1 个控件）把它那句话原样显示", async () => {
+    let sent: { groups?: LayoutGroup[] } = {}
     stub({
       groups: [{ id: "Half", kind: "row", members: ["1:9"] }],
-      onConfirm: () => (sent = true)
+      onConfirm: (body) => (sent = body as { groups: LayoutGroup[] }),
+      confirmError: { code: "BAD_GROUP", message: "分组表第 1 项（Half）的 members 至少 2 个 ref", hint: "" }
     })
     render(panel())
     await screen.findByText("Half")
 
     screen.getByRole("button", { name: /确认并继续/ }).click()
-    expect(await screen.findByText(/成员不足 2 个/)).toBeTruthy()
-    expect(sent).toBe(false)
+    // 前端不自己判一遍：照原样把这次编辑交出去，由后端的判据说不行。
+    await waitFor(() => expect(sent.groups).toEqual([{ id: "Half", kind: "row", members: ["1:9"] }]))
+    expect(await screen.findByText(/members 至少 2 个 ref/)).toBeTruthy()
   })
 
   it("还没有控件清单时：按后端给的原因说清，不给编辑入口", async () => {

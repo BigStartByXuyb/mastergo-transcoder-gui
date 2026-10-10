@@ -300,7 +300,10 @@ export type Settings = {
   providers: ProviderPreset[]
   ai: { provider: string; baseUrl: string; model: string; hasKey: boolean }
   automation: "off" | "assist" | "auto"
-  /** 布局确认的独立开关：默认关（有图无表时停在布局确认等人）；开着才由 AI 自动出分组并续跑。 */
+  /**
+   * 布局确认的独立开关：默认关（有图无表时停在布局确认等人）。
+   * 生效条件与后端同一处（lib/autofill.js 的 fill()）：还得自动化层级不是「关」、这一页确实停在那里、控件至少 2 个。
+   */
   layoutAutoPass: boolean
   /** 插件来源的手动选择：来源 id，空串 = 按查找顺序自动选（见 docs/plugin-sources.md）。 */
   pluginOverride: string

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest"
 
 import {
   addGroup,
-  firstUnderfilledGroup,
   labelOf,
   moveMember,
   numberOf,
@@ -56,8 +55,4 @@ describe("layout-edit", () => {
     expect(removeGroup(GROUPS, "RightTools")).toEqual([])
   })
 
-  it("写回前先找成员不足 2 个的组", () => {
-    expect(firstUnderfilledGroup(GROUPS)).toBeNull()
-    expect(firstUnderfilledGroup([{ id: "Half", kind: "row", members: ["1:9"] }])?.id).toBe("Half")
-  })
 })

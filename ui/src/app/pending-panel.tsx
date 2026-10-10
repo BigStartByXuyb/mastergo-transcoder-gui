@@ -29,7 +29,9 @@ const BASIS_LABEL: Record<string, string> = {
 const WRITTEN_LABEL: Record<string, string> = {
   "icon-naming.json": "图标命名",
   "lang-translations.json": "译文",
-  "lang-glossary.json": "术语"
+  "lang-glossary.json": "术语",
+  // 分组表由布局确认面板写回（同一份 /api/confirm），写进去的文件名这里也认。
+  "layout-groups.json": "布局分组"
 }
 
 function labelOfWritten(item: { path: string; count: number }) {
