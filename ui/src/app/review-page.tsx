@@ -66,8 +66,8 @@ export function ReviewPage() {
   }, [])
 
   /*
-   * 选中的那条已经从列表里消失（填完了 / 任务被移除），面板继续留着看结果，但会提示一下。
-   * 手填的条目（列表里没有这个工程目录）没有可以读的待办条数 —— 它的条数给 0，面板一律挂上去：
+   * 当前处理哪一条：列表里选中的那条；它已经从列表里消失（填完了 / 任务被移除）就收起来 ——
+   * 面板不再显示。手填的条目（列表里没有这个工程目录）也挂上去，它的条数给 0：
    * 布局确认那一块自己会照后端的读结论说「可编辑 / 还没有控件清单」，没有来源运行就只写盘不续跑。
    */
   const active = useMemo<ActiveEntry | null>(() => {
@@ -97,9 +97,9 @@ export function ReviewPage() {
       {problem && (
         <Alert variant="destructive">
           <AlertTitle>待确认列表没读到最新状态</AlertTitle>
-              <AlertDescription>
-                <ClampText text={problem} />
-              </AlertDescription>
+          <AlertDescription>
+            <ClampText text={problem} />
+          </AlertDescription>
         </Alert>
       )}
 

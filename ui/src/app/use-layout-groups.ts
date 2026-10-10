@@ -83,15 +83,14 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
   }, [load, updatedAt, progressDone])
 
   /*
-   * 「自动通过」是门禁开关：写盘失败要照同页别的失败一样说出来，并把开关拨回写盘前的样子 ——
+   * 「自动通过」是门禁开关：写盘失败要照同页别的失败一样说出来（骨架管），并把开关拨回写盘前的样子 ——
    * 显示成「开着」而落盘还是关，界面说的就和真实门禁反了。
    */
   async function toggleAutoPass(value: boolean) {
     const before = autoPass
     setAutoPass(value)
     const payload = await run("toggle", () => api.settingsSave({ layoutAutoPass: value }))
-    // 写盘失败（骨架已把原话写进 failure）要把开关拨回写盘前的样子：显示成「开着」而落盘还是关，
-    // 界面说的就和真实门禁反了。
+    // 写盘失败（骨架已把原话写进 failure）要把开关拨回写盘前的样子。
     if (payload === null && alive.current) setAutoPass(before)
   }
 

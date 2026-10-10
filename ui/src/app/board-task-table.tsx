@@ -158,26 +158,19 @@ function TaskRow({
           {task.designImage && (
             <ClampText text={task.designImage} lines={2} className="text-muted-foreground text-xs" />
           )}
-          {task.failure && task.failure.kind !== "semantic" && (
-            <span className="text-destructive text-xs">
+          {/*
+            停点与失败都这么说：标题取 failureTitle 一处（与说明卡逐字一致），后面按这一行需要接上原因。
+            error 那类多给一行日志路径，并且用红字。
+          */}
+          {task.failure && (
+            <span className={task.failure.kind === "error" ? "text-destructive text-xs" : "text-muted-foreground text-xs"}>
               <ClampText
-                text={(task.failure.title || task.failure.stepName) + "：" + task.failure.message}
+                text={failureTitle(task.failure) + (task.failure.message ? " —— " + task.failure.message : "")}
                 lines={2}
               />
-              {task.failure.logPath && (
+              {task.failure.kind === "error" && task.failure.logPath && (
                 <IdentifierText text={task.failure.logPath} className="text-muted-foreground block" />
               )}
-            </span>
-          )}
-          {task.failure && task.failure.kind === "semantic" && (
-            <span className="text-muted-foreground text-xs">
-              <ClampText
-                text={
-                  failureTitle(task.failure) +
-                  (task.failure.message ? " —— " + task.failure.message : "")
-                }
-                lines={2}
-              />
             </span>
           )}
           {task.state === "waiting" && (
