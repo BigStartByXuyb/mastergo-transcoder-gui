@@ -33,6 +33,8 @@ function stub(
     available?: boolean
     onConfirm?: (body: unknown) => void
     confirmError?: { code: string; message: string; hint: string }
+    /** 「自动通过」的当前值：随布局读数一起给（面板不再另取设置）。 */
+    autoPass?: boolean
     /** AI 候选：默认给一组，传 [] 验「模型一组没给」时的提示。 */
     suggestGroups?: LayoutGroup[]
   } = {}
@@ -71,6 +73,8 @@ function stub(
             hasGroups: (options.groups ?? []).length > 0,
             // 后端的口径：控件够不够问 AI 由它给（阈值在 lib/layout-groups.js），界面照它禁用按钮。
             canSuggest: (options.controls ?? CONTROLS).length >= 2
+            ,
+            autoPass: options.autoPass === true
           }
         }),
         { status: 200 }
@@ -113,6 +117,27 @@ describe("LayoutPanel", () => {
     expect(screen.getByText("#1 IconButton · 确定")).toBeTruthy()
     expect(screen.getByText("未分组控件（1）")).toBeTruthy()
     expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("false")
+  })
+
+  // 全局开关的当前值随布局读数一起回来：设置那一页读不到也照样显示（这里把 /api/settings 打掉）。
+  it("「自动通过」的值随布局读数一起给，不依赖设置读得出来", async () => {
+    vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes("/api/settings")) return Promise.resolve(new Response("boom", { status: 500 }))
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            ok: true,
+            layout: { available: true, reason: "", controls: CONTROLS, groups: [], hasGroups: false, canSuggest: true, autoPass: true }
+          }),
+          { status: 200 }
+        )
+      )
+    })
+    render(panel())
+
+    await screen.findByText("布局确认")
+    expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("true")
   })
 
   it("写入分组表并继续：把分组（ref）原样交给 /api/confirm，并从布局那一步续跑", async () => {

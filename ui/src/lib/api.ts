@@ -208,6 +208,8 @@ export type LayoutGroups = {
   hasGroups: boolean
   /** 现在问 AI 有没有意义（控件太少时分不出组）：阈值在后端，界面只管按它禁用按钮。 */
   canSuggest: boolean
+  /** 「自动通过」是全局开关，值随这一页一起读回来（面板不必再取一遍设置）。 */
+  autoPass: boolean
 }
 
 export type ResolvedNode = {

@@ -58,10 +58,15 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
           <>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Switch checked={layout.autoPass} onCheckedChange={(value) => void layout.toggleAutoPass(value)} id="layout-auto-pass" />
+                <Switch
+                  checked={layout.autoPass}
+                  disabled={layout.busy}
+                  onCheckedChange={(value) => void layout.toggleAutoPass(value)}
+                  id="layout-auto-pass"
+                />
                 <Label htmlFor="layout-auto-pass">自动通过</Label>
                 <span className="text-xs text-muted-foreground">
-                  （开着、且「设置 → AI Agent」的自动化层级不是「关」时才自动出分组）
+                  （全局：对所有页生效；自动化层级在「设置 → AI Agent」。没自动出分组时，下面会说清是哪一条没满足）
                 </span>
               </div>
               <div className="flex items-center gap-2">

@@ -63,19 +63,16 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
 
   const load = useCallback(async () => {
     if (!projectRoot || !target) return
-    await runRead(
-      "",
-      () => Promise.all([api.layoutGroups(projectRoot, target), api.settingsGet()]),
-      ([payload, settings]) => {
+    await runRead("", () => api.layoutGroups(projectRoot, target), (payload) => {
       if (!alive.current) return
       setAvailable(payload.layout.available)
       setReason(payload.layout.reason)
       setControls(payload.layout.controls)
       if (!dirty.current) setGroups(payload.layout.groups)
       setCanSuggest(payload.layout.canSuggest)
-      setAutoPass(Boolean(settings.settings.layoutAutoPass))
-      }
-    )
+      // 「自动通过」也随这一页读回来：全局开关的当前值不另取一遍设置（一次读数一件事）。
+      setAutoPass(Boolean(payload.layout.autoPass))
+    })
   }, [alive, projectRoot, target, runRead])
 
   useEffect(() => {

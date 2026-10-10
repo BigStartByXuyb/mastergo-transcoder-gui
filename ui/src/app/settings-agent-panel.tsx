@@ -6,17 +6,21 @@ import { ClampText } from "@/app/clamp-text"
 import { CodexCard } from "@/app/codex-card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { AUTOMATION_LABEL } from "@/lib/task-form"
 import { describeFailure } from "@/lib/describe-failure"
 import { useSettings } from "@/lib/use-settings"
 
 /*
- * Agent 这一页：写盘开关 + 引擎版本（这一页只管 agent 自己的事）。
+ * Agent 这一页：写盘开关 + 自动化层级 + 引擎版本（这一页只管 agent 自己的事）。
  * 跑插件用的运行环境（Node / PowerShell 7）、插件（流水线）与程序自身的更新都在「更新」那一页。
  */
 export function SettingsAgentPanel() {
   const { settings, failure, save } = useSettings()
   const [writing, setWriting] = useState(false)
+  const [savingAutomation, setSavingAutomation] = useState(false)
   const [saveFailure, setSaveFailure] = useState("")
 
   /* 写盘开关是即时生效的单个布尔，不走「保存」按钮。 */
@@ -33,8 +37,53 @@ export function SettingsAgentPanel() {
     }
   }
 
+  /* 自动化层级同样是即时生效的单个值，不走「保存」按钮。它是全局的：所有页与所有任务的停点都按它走。 */
+  async function changeAutomation(value: string) {
+    setSavingAutomation(true)
+    setSaveFailure("")
+    try {
+      await save({ automation: value })
+    } catch (error) {
+      setSaveFailure(describeFailure(error))
+    } finally {
+      setSavingAutomation(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>自动化层级</CardTitle>
+          <CardDescription>
+            全局：所有页面与所有任务的停点都按它走。层级越低，越不会自己往前跑。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="automation">停点怎么办</Label>
+            <Select
+              value={settings?.automation ?? "assist"}
+              onValueChange={(value) => void changeAutomation(value)}
+              disabled={savingAutomation}
+            >
+              <SelectTrigger id="automation" className="w-64">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="off">{AUTOMATION_LABEL.off}</SelectItem>
+                <SelectItem value="assist">{AUTOMATION_LABEL.assist}</SelectItem>
+                <SelectItem value="auto">{AUTOMATION_LABEL.auto}</SelectItem>
+              </SelectContent>
+            </Select>
+            {savingAutomation && <Loader2 className="size-3 animate-spin" />}
+          </div>
+          <p className="text-muted-foreground text-xs">
+            「辅助」自动出候选、你确认后继续；「自动」出完候选直接续跑（看板任务由客户端自己补，不必开着这个页面）。
+          </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Agent 写盘</CardTitle>
@@ -61,7 +110,6 @@ export function SettingsAgentPanel() {
       </Card>
 
       <CodexCard />
-
     </div>
   )
 }
