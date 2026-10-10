@@ -144,6 +144,9 @@ export function usePendingInputs(input: {
     setGlossary((current) => ({ ...current, [text]: value }))
   }, [])
 
+  /** 面板那条提交动作开始时调它：把这条数据线的旧失败清掉，别让它盖住刚发生的提交失败。 */
+  const clearFailure = useCallback(() => setFailure(""), [])
+
   /*
    * 三张表的载荷：只有填了的格子进提交（空名字、空译文不算人填过）。
    * 「按这份清单取、只收非空的」两处共用同一个拼法（稿子不同、清单不同）。
@@ -241,8 +244,7 @@ export function usePendingInputs(input: {
     aiReady,
     busy,
     failure,
-    /** 面板那条提交动作开始时调它：把这条数据线的旧失败清掉，别让它盖住刚发生的提交失败。 */
-    clearFailure: () => setFailure(""),
+    clearFailure,
     reload,
     namingPayload,
     translationsPayload,

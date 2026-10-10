@@ -85,7 +85,7 @@ export function PendingPanel({
    * 面板这里只留「提交并续跑」这条动作的忙位与失败 —— 两处合起来是界面要显示的那一份。
    */
   const inputs = usePendingInputs({ projectRoot, target, taskId, runId, state })
-  const { pending, names, texts, glossary, setName, setText, setGlossaryOf, aiReady } = inputs
+  const { pending, names, texts, glossary, setName, setText, setGlossaryOf, aiReady, clearFailure } = inputs
   const {
     namingPayload,
     translationsPayload,
@@ -138,7 +138,7 @@ export function PendingPanel({
     ) => {
       if (!pending) return
       // 先清掉这条数据线上的旧失败：两处失败合成一句显示，旧的不清会盖住这一次提交的失败。
-      inputs.clearFailure()
+      clearFailure()
       setSubmitBusy(SUBMIT_BUSY)
       setSubmitFailure("")
       try {
@@ -166,7 +166,7 @@ export function PendingPanel({
         setSubmitBusy("")
       }
     },
-    [pending, taskId, runId, allowEmptyLedger, load, onResumed, inputs]
+    [pending, taskId, runId, allowEmptyLedger, load, onResumed, clearFailure]
   )
 
   const submit = useCallback(
