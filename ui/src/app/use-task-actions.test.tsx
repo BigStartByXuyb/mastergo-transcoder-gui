@@ -3,13 +3,21 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { useTaskActions } from "@/app/use-task-actions"
 import type { BoardTask } from "@/lib/api"
+import { drive } from "@/lib/settings-fixtures"
 
 /*
  * 任务上的动作：调后端 → 把后端回的最新看板/运行换到界面 → 失败原话交出去。
  * 六个动作的口径只在这里，页面只接按钮。
  */
 
-const TASK = { id: "t1", jobId: "job-1", workDir: "D:/w", request: { target: "T" }, state: "failed" } as unknown as BoardTask
+// 夹具路径按段拼（settings-fixtures 的 drive）：源码里不出现机器专属的盘符写法。
+const TASK = {
+  id: "t1",
+  jobId: "job-1",
+  workDir: drive("D", "w"),
+  request: { target: "T" },
+  state: "failed"
+} as unknown as BoardTask
 
 function ok(body: unknown) {
   return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))
@@ -52,7 +60,7 @@ describe("useTaskActions", () => {
     let created = ""
     await act(async () => {
       const added = await fx.result.current.start({
-        projectRoot: "D:/p",
+        projectRoot: drive("D", "p"),
         ui: "F4",
         autoMerge: true,
         stopAfter: "",
