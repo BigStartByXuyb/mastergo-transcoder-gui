@@ -93,6 +93,6 @@ export function waitingCounts(pending: Pending | null): {
 } {
   const icons = pending?.icons.available ? pending.icons.waiting : 0
   const translations = pending?.translations.available ? pending.translations.waiting : 0
-  const layout = pending?.layout.available ? pending.layout.waiting : 0
+  const layout = pending?.layout?.available ? pending.layout.waiting : 0
   return { icons, translations, layout, total: icons + translations + layout }
 }
