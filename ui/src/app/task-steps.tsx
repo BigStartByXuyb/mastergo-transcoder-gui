@@ -2,6 +2,7 @@ import { CheckCircle2, Circle, LayoutList, Loader2, MinusCircle, XCircle } from 
 
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import type { StepRow } from "@/lib/step-rows"
 
 /*
  * 步骤条：一条任务的每一步（顺序与标题来自插件自己的步骤契约），每步给状态、耗时与「停在这里」的标记。
@@ -16,20 +17,6 @@ export const STEP_TEXT: Record<string, string> = {
   pending: "未开始",
   failed: "失败",
   skipped: "跳过"
-}
-
-export type StepRow = {
-  id: number
-  name: string
-  title: string
-  status: string
-  seconds: number
-  humanInput: boolean
-  /** 这一步被 AI 补过输入（续跑时记在消费它的那一步上）。 */
-  aiFill: string[]
-  /** 补输入时实际停在哪一步的一句话（与上面那一步常常不是同一步）。 */
-  aiFillNote: string
-  note: string
 }
 
 /** 这一段（步骤）该用哪个图标与颜色：完成 / 失败 / 运行中 / 跳过 / 未开始。 */
@@ -102,3 +89,4 @@ export function StepRail(props: {
 }
 
 export { StepIcon }
+export type { StepRow }

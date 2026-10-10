@@ -1,11 +1,9 @@
 import { GitMerge, Loader2, RotateCw } from "lucide-react"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ClampText } from "@/app/clamp-text"
-import { IdentifierText } from "@/app/identifier-text"
+import { FailureNote } from "@/app/failure-note"
 import { MergeConflicts } from "@/app/merge-conflicts"
 import type { BoardTask, PipelineStep } from "@/lib/api"
 import { boardStateVariant } from "@/lib/board-state"
@@ -34,7 +32,6 @@ type Props = {
 
 export function TaskDetailCard(props: Props) {
   const { task, busy } = props
-  const stoppedAtStep = Boolean(task.failure && task.failure.stepName)
   return (
     <Card>
       <CardHeader>
@@ -87,52 +84,7 @@ export function TaskDetailCard(props: Props) {
             />
           </div>
         )}
-        {task.failure && (
-          <Alert variant={task.failure.kind === "error" ? "destructive" : "default"}>
-            <AlertTitle>
-              {task.failure.kind === "error"
-                ? stoppedAtStep
-                  ? "这一步失败了：" + (task.failure.title || task.failure.stepName)
-                  : "这次运行没跑起来："
-                : "停在语义判断点，不是错误：" + (task.failure.title || task.failure.stepName)}
-            </AlertTitle>
-            <AlertDescription className="flex flex-col gap-2">
-              {task.failure.message && <ClampText text={task.failure.message} />}
-              {task.failure.logPath && (
-                <span className="text-muted-foreground text-xs">
-                  这一步的日志：<IdentifierText text={task.failure.logPath} />
-                </span>
-              )}
-              {props.contractStep ? (
-                <>
-                  <div>
-                    <div className="text-xs font-medium">可能的原因</div>
-                    <ul className="list-disc pl-5 text-xs">
-                      {props.contractStep.Failures.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <div className="text-xs font-medium">修好后怎么继续</div>
-                    <ul className="list-disc pl-5 text-xs">
-                      {props.contractStep.Recovery.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </>
-              ) : null}
-              <span className="text-muted-foreground text-xs">
-                {stoppedAtStep
-                  ? "左边第 " + props.stopStepNumber + " 步标着「停这里」，那一步的界面里也有这份说明。"
-                  : "这一条没有具体某一步可指（流水线还没进入步骤就停下了，通常是链接 / 工程目录 / 插件这类入参问题）："
-                    + "按上面的原话改好，再点「从断点继续」。"
-                }
-              </span>
-            </AlertDescription>
-          </Alert>
-        )}
+        <FailureNote failure={task.failure} contractStep={props.contractStep} stopStepNumber={props.stopStepNumber} />
       </CardContent>
     </Card>
   )

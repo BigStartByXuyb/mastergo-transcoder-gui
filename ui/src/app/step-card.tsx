@@ -2,12 +2,11 @@ import type { ReactNode } from "react"
 
 import { AiFillLine } from "@/app/ai-fill-line"
 import { ClampText } from "@/app/clamp-text"
-import { IdentifierText } from "@/app/identifier-text"
+import { FailureNote } from "@/app/failure-note"
 import { StepIcon, STEP_TEXT, type StepRow } from "@/app/task-steps"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import type { PipelineStep } from "@/lib/api"
+import type { BoardTask, PipelineStep } from "@/lib/api"
 
 /*
  * 一步的界面外壳：这一步是谁、跑到什么状态、停在这里的原因与修法（都在插件契约里），
@@ -18,9 +17,8 @@ export function StepCard(props: {
   row: StepRow
   /** 这一步的契约（可能还没读到契约，那就只显示登记表里有的）。 */
   contractStep: PipelineStep | null
-  /** 这一步的日志路径（停在这里 / 失败在这一步时才有）。 */
-  logPath: string
-  failureMessage: string
+  /** 这一步的停点 / 失败（没有就是 null）：说明由 FailureNote 一处渲染，这里不再排一遍。 */
+  failure: BoardTask["failure"]
   children?: ReactNode
 }) {
   const row = props.row
@@ -48,39 +46,7 @@ export function StepCard(props: {
         {row.aiFill.length > 0 && <AiFillLine filled={row.aiFill} note={row.aiFillNote || undefined} />}
         {row.note && <ClampText text={row.note} className="text-muted-foreground text-xs" />}
 
-        {(failed || props.failureMessage) && (
-          <Alert variant={failed ? "destructive" : "default"}>
-            <AlertTitle>{failed ? "这一步失败了" : "这一步停在语义判断点，不是错误"}</AlertTitle>
-            <AlertDescription className="flex flex-col gap-2">
-              {props.failureMessage && <ClampText text={props.failureMessage} />}
-              {props.logPath && (
-                <span className="text-muted-foreground text-xs">
-                  这一步的日志：<IdentifierText text={props.logPath} />
-                </span>
-              )}
-              {props.contractStep && (
-                <>
-                  <div>
-                    <div className="text-xs font-medium">可能的原因</div>
-                    <ul className="list-disc pl-5 text-xs">
-                      {props.contractStep.Failures.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <div className="text-xs font-medium">修好后怎么继续</div>
-                    <ul className="list-disc pl-5 text-xs">
-                      {props.contractStep.Recovery.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </>
-              )}
-            </AlertDescription>
-          </Alert>
-        )}
+        <FailureNote failure={props.failure} contractStep={props.contractStep} stopStepNumber={row.id} inStepView />
 
         {props.children ?? (
           <p className="text-muted-foreground text-sm">
