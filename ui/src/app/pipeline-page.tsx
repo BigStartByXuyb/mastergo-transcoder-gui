@@ -163,9 +163,15 @@ export function PipelinePage({
       .catch(() => undefined)
   }, [])
 
-  // 从看板点「详情」进来时 URL 带 task=<id>：跟着它切换当前任务。
+  /*
+   * 路由决定这一屏显示什么：带 `task=<id>`（看板点「详情」、或刚「加入看板并开始」）看那个任务；
+   * 不带（侧边栏「+ 新建任务」）就是新建表单。两屏之间不在页内互相跳 —— 换屏走侧边栏/看板。
+   */
   useEffect(() => {
-    if (!taskId) return
+    if (!taskId) {
+      setFormOpen(true)
+      return
+    }
     setCurrentId(taskId)
     setFormOpen(false)
   }, [taskId])
@@ -340,24 +346,6 @@ export function PipelinePage({
         <p className="text-muted-foreground text-sm">
           上面填好点「加入看板并开始」，或在看板点某个任务的「详情」——那是另一屏，按步骤看。
         </p>
-      )}
-
-      {!formOpen && task && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-muted-foreground text-sm">任务详情</span>
-          <Button size="sm" variant="outline" onClick={() => setFormOpen(true)}>
-            新建任务
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              window.location.hash = "board"
-            }}
-          >
-            在看板里看
-          </Button>
-        </div>
       )}
 
       {/*
