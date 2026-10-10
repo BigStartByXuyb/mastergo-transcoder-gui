@@ -22,14 +22,14 @@ import { useValueRunner } from "@/app/use-action-runner"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentityFill } from "@/app/use-identity-fill"
 import { api, type Board } from "@/lib/api"
-import { fillTargets, keepPickedImages, parseBoardItems } from "@/lib/board-items"
+import { fillTargets, keepPickedImages, parseBoardItems, type BoardItem } from "@/lib/board-items"
 import { filterTasks, hasFilters, readBoardFilters, writeBoardFilters, type BoardFilters } from "@/lib/board-filters"
 import { useOnlyEffective } from "@/lib/use-only-effective"
 import { coverageOf, visibleByCoverage, type Coverage } from "@/lib/board-effective"
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
-import { picksForRoute, stageDesignImages } from "@/lib/stage-design-images"
+import { picksForCreated, picksForRoute, stageDesignImages } from "@/lib/stage-design-images"
 import { FINISHED_STATES } from "@/lib/task-state"
 import { useSettings } from "@/lib/use-settings"
 
@@ -110,6 +110,17 @@ export function BoardPage() {
     [run, applyBoard]
   )
 
+  /*
+   * 建完任务之后把先选好的位图逐张暂存（暂存件按任务 id 落键，只能在任务建出来之后做）。
+   * 这一步不抛错：图没跟上不算这次动作失败 —— 原话由 stageDesignImages 给，这里只负责弹出来
+   * （不走 problem：那是「看板没读到最新状态」，标题对不上这件事，而且轮询一到就清）。
+   */
+  async function stagePickedImages(created: string[], items: BoardItem[]) {
+    const picks = picksForRoute(form.mode, picksForCreated(items, created, images))
+    const failure = await stageDesignImages(picks)
+    if (failure) toast.error(failure)
+  }
+
   function addTasks() {
     const items = parseBoardItems(form.links, form.mode)
     if (!form.projectRoot.trim()) {
@@ -131,19 +142,7 @@ export function BoardPage() {
           stopAfter: form.stopAfter.trim(),
           items
         })
-        /*
-         * 先选好的位图在这里跟着任务暂存：暂存件的键是任务 id（后端只有一处定这个键），
-         * 所以只能在任务建出来之后做；created 与 items 同一个次序，一行对一条任务。
-         * 图被后端挡回来只弹一句原话 + 后果（见 ui/src/lib/stage-design-images.ts），任务本身照常跑：
-         * 这条提示不走 problem —— 那是「看板没读到最新状态」，轮询一到就清，且标题对不上这件事。
-         */
-        const picked = items.flatMap((item, index) => {
-          const file = images[item.link]
-          const taskId = added.created[index] ?? ""
-          return file && taskId ? [{ taskId, file }] : []
-        })
-        const stagedFailure = await stageDesignImages(picksForRoute(form.mode, picked))
-        if (stagedFailure) toast.error(stagedFailure)
+        await stagePickedImages(added.created, items)
         return added
       },
       applyBoard
@@ -169,7 +168,7 @@ export function BoardPage() {
   /* 链接或工程改了，上一次的补全结论就不作数了。 */
   function changeForm(next: BoardTaskForm) {
     if (next.links !== form.links || next.projectRoot !== form.projectRoot || next.ui !== form.ui) identity.reset()
-    if (next.links !== form.links) setImages((current) => keepPickedImages(current, next.links, next.mode))
+    if (next.links !== form.links) setImages((current) => keepPickedImages(current, next.links))
     setForm(next)
   }
 

@@ -2,6 +2,12 @@ export type BoardMode = "A" | "B" | "AB"
 
 export type BoardItem = { link: string; target: string; mode: BoardMode }
 
+/* 一行 → 链接与 Target（没有链接时 link 是空串）：拆一行的规则只有这一处。 */
+function lineParts(raw: string): { link: string; target: string } {
+  const [linkPart, targetPart] = raw.trim().split("|")
+  return { link: (linkPart ?? "").trim(), target: (targetPart ?? "").trim() }
+}
+
 /*
  * 看板“一行一个任务”的解析：`链接` 或 `链接 | Target`。
  * 空行跳过；没有链接的行跳过；Target 省略时留空由插件按设计稿推导。
@@ -9,12 +15,9 @@ export type BoardItem = { link: string; target: string; mode: BoardMode }
 export function parseBoardItems(text: string, mode: BoardMode): BoardItem[] {
   const items: BoardItem[] = []
   for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim()
-    if (!line) continue
-    const [linkPart, targetPart] = line.split("|")
-    const link = (linkPart ?? "").trim()
+    const { link, target } = lineParts(raw)
     if (!link) continue
-    items.push({ link, target: (targetPart ?? "").trim(), mode })
+    items.push({ link, target, mode })
   }
   return items
 }
@@ -27,11 +30,8 @@ export function fillTargets(text: string, targets: Map<string, string>): string 
   return text
     .split(/\r?\n/)
     .map((raw) => {
-      const line = raw.trim()
-      if (!line) return raw
-      const [linkPart, targetPart] = line.split("|")
-      const link = (linkPart ?? "").trim()
-      if (!link || (targetPart ?? "").trim()) return raw
+      const { link, target: given } = lineParts(raw)
+      if (!link || given) return raw
       const target = targets.get(link)
       return target ? link + " | " + target : raw
     })
@@ -40,9 +40,14 @@ export function fillTargets(text: string, targets: Map<string, string>): string 
 
 /*
  * 选好的位图按链接记：链接行没了，那一份图跟着走 —— 暂存件是任务的一部分，不留没人认领的文件。
- * 判据与「哪几行算数」同一处（parseBoardItems），所以行怎么改都不会算岔。
+ * 「哪几行有链接」与解析同一处（lineParts），所以行怎么改都不会算岔。
  */
-export function keepPickedImages<T>(images: Record<string, T>, text: string, mode: BoardMode): Record<string, T> {
-  const live = new Set(parseBoardItems(text, mode).map((item) => item.link))
+export function keepPickedImages<T>(images: Record<string, T>, text: string): Record<string, T> {
+  const live = new Set(
+    text
+      .split(/\r?\n/)
+      .map((raw) => lineParts(raw).link)
+      .filter(Boolean)
+  )
   return Object.fromEntries(Object.entries(images).filter(([link]) => live.has(link)))
 }

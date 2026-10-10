@@ -46,6 +46,6 @@ describe("keepPickedImages", () => {
 
   it("按链接记：行还在就留着，行没了就跟着走", () => {
     const picked = { [LINK]: "a.png", [other]: "b.png" }
-    expect(keepPickedImages(picked, LINK, "A")).toEqual({ [LINK]: "a.png" })
+    expect(keepPickedImages(picked, LINK)).toEqual({ [LINK]: "a.png" })
   })
 })

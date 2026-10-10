@@ -27,6 +27,22 @@ export function picksForRoute(mode: string, picks: StagedPick[]): StagedPick[] {
   return modeTakesRoute(mode, "A") ? picks : []
 }
 
+/*
+ * 一行对一条任务：看板建任务时按 items 逐条建（lib/board.js 的 add），created 与 items 同一个次序，
+ * 所以第 i 行的图就是第 i 条任务的。没选图的行、没建出来的任务都跳过。
+ */
+export function picksForCreated(
+  items: { link: string }[],
+  created: string[],
+  images: Record<string, File>
+): StagedPick[] {
+  return items.flatMap((item, index) => {
+    const file = images[item.link]
+    const taskId = created[index] ?? ""
+    return file && taskId ? [{ taskId, file }] : []
+  })
+}
+
 export async function stageDesignImages(picks: StagedPick[]): Promise<string> {
   let firstFailure = ""
   for (const pick of picks) {

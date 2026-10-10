@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { STAGE_FAILED_NOTE, picksForRoute, stageDesignImages } from "@/lib/stage-design-images"
+import { STAGE_FAILED_NOTE, picksForCreated, picksForRoute, stageDesignImages } from "@/lib/stage-design-images"
 
 /*
  * 新建时先选好的位图 → 暂存件（一条任务一份）：走真的 api 层，只把 fetch 换掉。
@@ -66,5 +66,26 @@ describe("picksForRoute", () => {
     expect(picksForRoute("A", picks)).toEqual(picks)
     expect(picksForRoute("AB", picks)).toEqual(picks)
     expect(picksForRoute("B", picks)).toEqual([])
+  })
+})
+
+describe("picksForCreated", () => {
+  const one = { link: "https://a" }
+  const two = { link: "https://b" }
+  const three = { link: "https://c" }
+
+  it("一行对一条任务：created 与 items 同一个次序", () => {
+    const images = { "https://a": file("a"), "https://c": file("c") }
+    expect(picksForCreated([one, two, three], ["t1", "t2", "t3"], images).map((pick) => pick.taskId)).toEqual(["t1", "t3"])
+  })
+
+  it("没选图的行跳过，后面几行照旧", () => {
+    const images = { "https://b": file("b") }
+    expect(picksForCreated([one, two], ["t1", "t2"], images).map((pick) => pick.taskId)).toEqual(["t2"])
+  })
+
+  it("任务没建出来（created 短了）就不送那一行", () => {
+    const images = { "https://a": file("a"), "https://b": file("b") }
+    expect(picksForCreated([one, two], ["t1"], images).map((pick) => pick.taskId)).toEqual(["t1"])
   })
 })

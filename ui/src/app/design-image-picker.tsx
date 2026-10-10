@@ -1,7 +1,7 @@
-import { useRef } from "react"
 import { X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { useFilePick } from "@/app/use-file-pick"
 import { humanSize } from "@/lib/upload-files"
 
 /*
@@ -15,21 +15,17 @@ export function DesignImagePicker(props: {
   file: File | null
   onPick: (file: File | null) => void
 }) {
-  const input = useRef<HTMLInputElement>(null)
+  const picked = useFilePick(props.onPick)
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       <input
-        ref={input}
+        ref={picked.input}
         id={props.id}
         type="file"
         accept="image/png,image/jpeg"
         className="text-xs"
-        onChange={(event) => {
-          props.onPick(event.target.files?.[0] ?? null)
-          // 选同一份文件两次也要能再选一次（input 的 value 不清就只响一次）：与 design-image-card 同一套写法。
-          if (input.current) input.current.value = ""
-        }}
+        onChange={picked.onChange}
       />
       {props.file && (
         <>
