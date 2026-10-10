@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import type { useIdentity } from "@/app/use-identity"
 import type { PipelineStep, PluginSummary } from "@/lib/api"
-import { MODE_HINT, type TaskForm } from "@/lib/task-form"
+import { MODE_HINT, READ_IMAGE_HINT, type TaskForm } from "@/lib/task-form"
 
 /*
  * 新建任务卡片：填链接 / 工程目录 / Target / 区域 / 路线，然后「加入看板并开始」。
@@ -93,6 +93,7 @@ export function NewTaskCard(props: Props) {
                   </SelectContent>
                 </Select>
                 <p className="text-muted-foreground text-xs">{MODE_HINT[form.mode] ?? ""}</p>
+                {form.mode.includes("A") && <p className="text-muted-foreground text-xs">{READ_IMAGE_HINT}</p>}
               </div>
             </FieldGroup>
 

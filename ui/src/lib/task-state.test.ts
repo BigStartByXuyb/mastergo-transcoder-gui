@@ -8,6 +8,7 @@ import {
   canStop,
   hasProducts,
   isBusyState,
+  isInFlight,
   isMerging,
   isSettled,
   occupiesSlot,
@@ -25,7 +26,7 @@ function pending(patch: { icons?: number; translations?: number; layout?: number
     summary: null,
     icons: { available: true, waiting: patch.icons ?? 0 },
     translations: { available: true, waiting: patch.translations ?? 0 },
-    layout: { available: true, waiting: patch.layout ?? 0 }
+    layout: { needsGroups: false, controls: [], waiting: patch.layout ?? 0 }
   } as unknown as Pending
 }
 
@@ -71,10 +72,16 @@ describe("task-state", () => {
     expect(canResume({ state: "failed", workDir: "   " })).toBe(false)
   })
 
+  it("「写回并续跑」只在不在跑时给：排队 / 建目录 / 跑着 / 合并中都不给，等输入的「等待」给", () => {
+    for (const state of ["queued", "preparing", "running", "merging"]) expect(isInFlight(state)).toBe(true)
+    for (const state of ["waiting", "failed", "stopped", "ready", "merged"]) expect(isInFlight(state)).toBe(false)
+  })
+
   it("只数后端给出的待办条数：哪一节为 0 就只算另一节", () => {
     expect(waitingCounts(pending({ icons: 3 }))).toEqual({ icons: 3, translations: 0, layout: 0, total: 3 })
     expect(waitingCounts(pending({ translations: 2 }))).toEqual({ icons: 0, translations: 2, layout: 0, total: 2 })
     expect(waitingCounts(pending({ icons: 2, translations: 5 }))).toEqual({ icons: 2, translations: 5, layout: 0, total: 7 })
+    expect(waitingCounts(pending({ layout: 1 }))).toEqual({ icons: 0, translations: 0, layout: 1, total: 1 })
   })
 
   it("没有待确认清单时全是 0", () => {

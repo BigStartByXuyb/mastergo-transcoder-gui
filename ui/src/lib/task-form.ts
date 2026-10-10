@@ -32,6 +32,13 @@ export const MODE_HINT: Record<string, string> = {
   AB: "AB —— 两条都跑，两次独立运行（先 A 后 B）"
 }
 
+/*
+ * A 路线多一道输入：设计稿位图。图必须与设计稿画板同尺寸，而画板尺寸要等流水线取数之后才知道 ——
+ * 所以它不在新建表单里传，而是任务跑到「取数 + 固化快照」之后在任务详情里传。这句话只有这一处。
+ */
+export const READ_IMAGE_HINT =
+  "A 路线要读设计稿位图：任务跑到「取数 + 固化快照」之后，在任务详情里传（按设计稿原尺寸导出）。"
+
 export const AUTOMATION_LABEL: Record<string, string> = {
   off: "关（不叫模型）",
   assist: "辅助",

@@ -7,7 +7,8 @@ import { INSTALLED_ROOT, INSTALL_PARENT, PLUGIN_SOURCE_BASE, drive, pluginUpdate
 
 /*
  * 插件页：查找顺序（后端给的那七档，界面不重排）+ 一张表（来源 / 版本 / 状态 / 路径 / 操作）。
- * 这一页只读与查看 —— 没有任何「换用某一档」的动作；只有「客户端自带」那一档带管理面板
+ * 表里非「启动参数 / 环境变量」那几档可以手动切换（写 pluginOverride，再点一次取消），
+ * 这是从表上那一列发起的动作；点开某一行是那一档的详情，只有「客户端自带」那一档带管理面板
  * （检查更新 / 下载并安装 / 更新来源）。
  * 档位的名字与那句话都由后端给，界面只渲染：夹具一律用夹具名（真名与那句话以 lib/plugin-root.js 的
  * pluginPlaces() 为准，另有 tests/consistency.test.js 比着 pluginSources() 逐字锁）。
@@ -41,7 +42,7 @@ function source(id: PluginSource["id"], over: Partial<PluginSource> = {}): Plugi
  * 一台同时装着几份的机器：Codex 缓存（正在用）、Claude 缓存、环境变量指到别处、客户端自带；
  * 启动参数那两档没设（照旧列出来，标「没有」）。响应按生产类型写：接口加字段这里就会被 tsc 拦下来。
  */
-function view(options: { activeId?: string; failure?: string; sameRoot?: boolean } = {}): PluginSources {
+function view(options: { activeId?: string; failure?: string; sameRoot?: boolean; override?: string } = {}): PluginSources {
   const activeId = options.activeId ?? "codex-cache"
   const installRoot = options.sameRoot ? CODEX_ROOT : INSTALLED_ROOT
   const sources: PluginSource[] = [
@@ -99,7 +100,7 @@ function view(options: { activeId?: string; failure?: string; sameRoot?: boolean
       failure: options.failure ?? ""
     },
     sources: sources,
-    override: ""
+    override: options.override ?? ""
   }
 }
 
@@ -168,8 +169,39 @@ describe("PluginCard", () => {
     expect(table.getByText("Claude 市场（夹具）")).toBeTruthy()
     expect(table.getByText("客户端自带（夹具）")).toBeTruthy()
     expect(screen.getAllByText("正在用").length).toBe(1)
-    // 只读页：没有任何「换用某一档」的动作。
-    expect(screen.queryByText("用这份")).toBeNull()
+    // 「可切且这一处确实有插件」的档才给「切换」：启动参数 / 环境变量不可切，这份夹具里的两个市场是空的。
+    for (const name of ["Codex 缓存（夹具）", "Claude 缓存（夹具）", "客户端自带（夹具）"]) {
+      const row = table.getByText(name).closest("tr") as HTMLElement
+      expect(within(row).getByRole("button", { name: "切换" })).toBeTruthy()
+    }
+    for (const name of ["启动参数（夹具）", "环境变量（夹具）", "Codex 市场（夹具）", "Claude 市场（夹具）"]) {
+      const row = table.getByText(name).closest("tr") as HTMLElement
+      expect(within(row).queryByRole("button", { name: "切换" })).toBeNull()
+    }
+  })
+
+  it("点某一行的「切换」就把它写成 pluginOverride；当前生效的那一行按钮是「取消切换」", async () => {
+    const posts: { url: string; body: unknown }[] = []
+    stub(view({ activeId: "install", override: "install" }), {
+      onRequest: (url, body) => {
+        if (url.includes("/api/plugin/override")) posts.push({ url, body })
+      }
+    })
+    render(<PluginCard />)
+    const table = within(await screen.findByRole("table"))
+
+    // 正在用的那一行（自带）已经切过去了，按钮说「取消切换」；点一下 = 清掉手动选择。
+    const installRow = table.getByText("客户端自带（夹具）").closest("tr") as HTMLElement
+    fireEvent.click(within(installRow).getByRole("button", { name: "取消切换" }))
+    await waitFor(() => expect(posts.length).toBe(1))
+    expect(posts[0].url).toContain("/api/plugin/override")
+    expect(posts[0].body).toEqual({ override: "" })
+
+    // 切到另一档：交给后端的是那一档的 id。
+    const claudeRow = table.getByText("Claude 缓存（夹具）").closest("tr") as HTMLElement
+    fireEvent.click(within(claudeRow).getByRole("button", { name: "切换" }))
+    await waitFor(() => expect(posts.length).toBe(2))
+    expect(posts[1].body).toEqual({ override: "claude-cache" })
   })
 
   it("顺序条把每一档的处境写出来，同一份插件只算一次", async () => {
@@ -195,7 +227,7 @@ describe("PluginCard", () => {
     expect(within(dialog).getByRole("button", { name: /已是最新版|下载并安装|更新到/ })).toBeTruthy()
   })
 
-  it("点别的行开的是详情：只读信息，不给「用这份」", async () => {
+  it("点别的行开的是详情：展示这一档的处境，切换动作留在表上", async () => {
     stub(view())
     render(<PluginCard />)
     const dialog = await openRow("环境变量（夹具）", "详情…")
@@ -203,7 +235,7 @@ describe("PluginCard", () => {
     // 「这一档归谁管」那句话由后端随来源一起给，界面只渲染。
     expect(within(dialog).getByText(/（夹具的那句话）/)).toBeTruthy()
     expect(within(dialog).getByText(/解析到：/)).toBeTruthy()
-    expect(within(dialog).queryByText("用这份")).toBeNull()
+    expect(within(dialog).queryByText("切换")).toBeNull()
     expect(within(dialog).queryByText("检查更新")).toBeNull()
   })
 

@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useState } from "react"
 import { Plus, Save, Sparkles, Trash2 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -8,156 +7,55 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { useAlive } from "@/app/use-alive"
-import { api, type LayoutControl, type LayoutGroup, type LayoutGroups } from "@/lib/api"
-import { describeFailure } from "@/lib/describe-failure"
+import { useLayoutGroups, type LayoutGroupsInput } from "@/app/use-layout-groups"
+import {
+  addGroup,
+  firstUnderfilledGroup,
+  labelOf,
+  moveMember,
+  removeGroup,
+  removeMember,
+  ungroupedControls
+} from "@/lib/layout-edit"
+import { useState } from "react"
 
 /*
  * 作业A 的布局确认：把控件清单按「组 → 成员」展示，人/AI 调好分组后写回分组表。
  *
- * 数据与写盘口径都在后端 lib/layout-groups.js；AI 候选走 /api/ai/suggest 的 layout-groups。
+ * 控件按清单次序编号（#1 起）：界面上说编号，分组表里存的仍是 DSL ref，对应关系在 ui/src/lib/layout-edit.ts。
+ * 取数、AI 候选与写回在 app/use-layout-groups.ts；写回校验的判据在后端 lib/layout-groups.js。
+ *
  * 「自动通过」默认关：关着时这一块是必须确认的门禁；开着时由自动层级直接按 AI 候选 + 机械推导往下。
  */
 
-function refKey(control: LayoutControl): string {
-  return control.ref
+type LayoutPanelProps = LayoutGroupsInput & {
+  /** 现在能不能写回并续跑：任务已经停下来才给（跑着的时候续跑会起第二次运行）。 */
+  confirmable: boolean
 }
 
-function groupMembers(groups: LayoutGroup[]): Set<string> {
-  const used = new Set<string>()
-  for (const group of groups) for (const ref of group.members) used.add(ref)
-  return used
-}
-
-type LayoutPanelProps = {
-  taskId: string
-  /** 流水线直跑 / 孤儿条目没有 taskId，靠 runId 续跑。 */
-  runId: string
-  projectRoot: string
-  target: string
-  /** 用于在任务推进时重读；看板任务给它 updatedAt，待确认页给空串（不轮询）。 */
-  updatedAt: string
-  progressDone?: number
-}
-
-export function LayoutPanel({ taskId, runId, projectRoot, target, updatedAt, progressDone }: LayoutPanelProps) {
-  const [layout, setLayout] = useState<LayoutGroups | null>(null)
-  const [groups, setGroups] = useState<LayoutGroup[]>([])
-  const [autoPass, setAutoPass] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [failure, setFailure] = useState("")
-  const [saved, setSaved] = useState(false)
+export function LayoutPanel({ confirmable, ...input }: LayoutPanelProps) {
+  const layout = useLayoutGroups(input)
   const [newId, setNewId] = useState("")
   const [newKind, setNewKind] = useState<"column" | "row">("column")
-  const alive = useAlive()
+  const ungrouped = ungroupedControls(layout.controls, layout.groups)
 
-  const load = useCallback(async () => {
-    if (!projectRoot || !target) return
-    try {
-      const [payload, settings] = await Promise.all([api.layoutGroups(projectRoot, target), api.settingsGet()])
-      if (alive.current) {
-        setLayout(payload.layout)
-        setGroups(payload.layout.groups)
-        setAutoPass(Boolean(settings.settings.layoutAutoPass))
-      }
-    } catch (error) {
-      if (alive.current) setFailure(describeFailure(error))
-    }
-  }, [alive, projectRoot, target])
-
-  useEffect(() => {
-    void load()
-  }, [load, updatedAt, progressDone])
-
-  /*
-   * 「自动通过」是门禁开关：写盘失败要照同页别的失败一样说出来，并把开关拨回写盘前的样子 ——
-   * 显示成「开着」而落盘还是关，界面说的就和真实门禁反了。
-   */
-  async function toggleAutoPass(value: boolean) {
-    const before = autoPass
-    setAutoPass(value)
-    setFailure("")
-    try {
-      await api.settingsSave({ layoutAutoPass: value })
-    } catch (error) {
-      if (!alive.current) return
-      setAutoPass(before)
-      setFailure(describeFailure(error))
-    }
-  }
-
-  const controls = layout?.controls ?? []
-  const used = groupMembers(groups)
-  const ungrouped = controls.filter((control) => !used.has(refKey(control)))
-
-  function addMember(groupId: string, ref: string) {
-    setGroups((prev) =>
-      prev.map((group) => {
-        if (group.id !== groupId) return group
-        if (group.members.includes(ref)) return group
-        return { ...group, members: [...group.members, ref] }
-      })
-    )
-  }
-
-  function removeMember(groupId: string, ref: string) {
-    setGroups((prev) =>
-      prev.map((group) => (group.id === groupId ? { ...group, members: group.members.filter((m) => m !== ref) } : group))
-    )
-  }
-
-  function addGroup() {
-    const id = newId.trim()
-    if (!id) return
-    if (groups.some((group) => group.id === id)) {
-      setFailure("组名重复：" + id)
+  function createGroup() {
+    const next = addGroup(layout.groups, newId, newKind)
+    if (next === layout.groups) {
+      layout.setFailure("组名重复或为空：" + newId)
       return
     }
-    setGroups((prev) => [...prev, { id, kind: newKind, members: [] }])
+    layout.setGroups(next)
     setNewId("")
   }
 
-  function removeGroup(id: string) {
-    setGroups((prev) => prev.filter((group) => group.id !== id))
-  }
-
-  async function suggest() {
-    if (controls.length < 2) return
-    setBusy(true)
-    setFailure("")
-    try {
-      const payload = await api.aiLayoutGroups(controls)
-      if (alive.current && payload.groups.length > 0) setGroups(payload.groups)
-    } catch (error) {
-      if (alive.current) setFailure(describeFailure(error))
-    } finally {
-      if (alive.current) setBusy(false)
-    }
-  }
-
   async function save() {
-    const invalid = groups.find((group) => group.members.length < 2)
-    if (invalid) {
-      setFailure("组「" + invalid.id + "」成员不足 2 个，补齐或删掉后再确认。")
+    const underfilled = firstUnderfilledGroup(layout.groups)
+    if (underfilled) {
+      layout.setFailure("组「" + underfilled.id + "」成员不足 2 个，补齐或删掉后再确认。")
       return
     }
-    setBusy(true)
-    setFailure("")
-    setSaved(false)
-    try {
-      // 写回分组表并从 layout 续跑（写入只有 confirm 这一条路）。
-      await api.confirm({ projectRoot, target, taskId, runId, groups, resume: true })
-      if (alive.current) setSaved(true)
-    } catch (error) {
-      if (alive.current) setFailure(describeFailure(error))
-    } finally {
-      if (alive.current) setBusy(false)
-    }
-  }
-
-  function labelOf(control: LayoutControl): string {
-    const text = control.text.trim()
-    return text ? control.controlType + " · " + text : control.controlType
+    await layout.save()
   }
 
   return (
@@ -165,53 +63,58 @@ export function LayoutPanel({ taskId, runId, projectRoot, target, updatedAt, pro
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center gap-2">
           布局确认
-          <Badge variant={layout?.available ? "secondary" : "outline"}>
-            {layout?.available ? "可编辑" : "还没有控件清单"}
-          </Badge>
+          <Badge variant={layout.available ? "secondary" : "outline"}>{layout.available ? "可编辑" : "还没有控件清单"}</Badge>
         </CardTitle>
         <CardDescription>
-          把「同属一行或一列」的控件分成一组；分组表由布局推导消费。自动通过默认关，开着时按 AI 候选直接往下。
+          控件按清单次序编号（#1 起）：把「同属一行或一列」的编号分成一组；分组表由布局推导消费。
+          没有要声明的分组就直接确认（写出空表，按机械判据走）。自动通过默认关，开着且自动化层级不是「关」时，
+          由 AI 候选直接往下。
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {!layout?.available && layout?.reason ? (
+        {!layout.available && layout.reason ? (
           <p className="text-sm text-muted-foreground">{layout.reason}</p>
         ) : (
           <>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Switch checked={autoPass} onCheckedChange={toggleAutoPass} id="layout-auto-pass" />
+                <Switch checked={layout.autoPass} onCheckedChange={(value) => void layout.toggleAutoPass(value)} id="layout-auto-pass" />
                 <Label htmlFor="layout-auto-pass">自动通过</Label>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={suggest} disabled={busy || controls.length < 2}>
+                <Button variant="outline" size="sm" onClick={() => void layout.suggest()} disabled={layout.busy || layout.controls.length < 2}>
                   <Sparkles className="mr-1 h-4 w-4" />
                   AI 辅助
                 </Button>
-                <Button size="sm" onClick={save} disabled={busy}>
+                <Button size="sm" onClick={() => void save()} disabled={layout.busy || !confirmable}>
                   <Save className="mr-1 h-4 w-4" />
                   确认并继续
                 </Button>
               </div>
             </div>
 
-            {failure ? <p className="text-sm text-destructive">{failure}</p> : null}
-            {saved ? <p className="text-sm text-muted-foreground">已确认，正在从布局推导继续。</p> : null}
-            {groups.length === 0 ? (
+            {layout.failure ? <p className="text-sm text-destructive">{layout.failure}</p> : null}
+            {layout.saved ? <p className="text-sm text-muted-foreground">已确认，正在从布局推导继续。</p> : null}
+            {!confirmable ? (
+              <p className="text-sm text-muted-foreground">
+                任务正在跑：先在下面改好分组，等它停在布局确认（或停下来之后）再点「确认并继续」。
+              </p>
+            ) : null}
+            {layout.groups.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 没有要声明的分组就直接确认：写出空分组表，布局推导按机械判据走。
               </p>
             ) : null}
 
             <div className="space-y-3">
-              {groups.map((group) => (
+              {layout.groups.map((group) => (
                 <div
                   key={group.id}
                   className="rounded-md border p-3"
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={(event) => {
                     const ref = event.dataTransfer.getData("text/plain")
-                    if (ref) addMember(group.id, ref)
+                    if (ref) layout.setGroups(moveMember(layout.groups, group.id, ref))
                   }}
                 >
                   <div className="mb-2 flex items-center justify-between">
@@ -220,30 +123,25 @@ export function LayoutPanel({ taskId, runId, projectRoot, target, updatedAt, pro
                       <span className="font-medium">{group.id}</span>
                       <span className="text-xs text-muted-foreground">{group.members.length} 个控件</span>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => removeGroup(group.id)}>
+                    <Button variant="ghost" size="sm" onClick={() => layout.setGroups(removeGroup(layout.groups, group.id))}>
                       <Trash2 className="mr-1 h-3 w-3" />
                       删组
                     </Button>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {group.members.map((ref) => {
-                      const control = controls.find((item) => item.ref === ref)
-                      return (
-                        <Badge key={ref} variant="secondary" className="gap-1">
-                          {control ? labelOf(control) : ref}
-                          <button
-                            type="button"
-                            className="text-muted-foreground hover:text-foreground"
-                            onClick={() => removeMember(group.id, ref)}
-                          >
-                            ×
-                          </button>
-                        </Badge>
-                      )
-                    })}
-                    {group.members.length === 0 ? (
-                      <span className="text-xs text-muted-foreground">把控件拖进来</span>
-                    ) : null}
+                    {group.members.map((ref) => (
+                      <Badge key={ref} variant="secondary" className="gap-1">
+                        {labelOf(layout.controls, ref)}
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-foreground"
+                          onClick={() => layout.setGroups(removeMember(layout.groups, group.id, ref))}
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    ))}
+                    {group.members.length === 0 ? <span className="text-xs text-muted-foreground">把控件拖进来</span> : null}
                   </div>
                 </div>
               ))}
@@ -254,12 +152,12 @@ export function LayoutPanel({ taskId, runId, projectRoot, target, updatedAt, pro
               <div className="flex flex-wrap gap-1.5">
                 {ungrouped.map((control) => (
                   <Badge
-                    key={refKey(control)}
+                    key={control.ref}
                     variant="outline"
                     draggable
                     onDragStart={(event) => event.dataTransfer.setData("text/plain", control.ref)}
                   >
-                    {labelOf(control)}
+                    {labelOf(layout.controls, control.ref)}
                   </Badge>
                 ))}
                 {ungrouped.length === 0 ? <span className="text-xs text-muted-foreground">都分好组了</span> : null}
@@ -269,7 +167,12 @@ export function LayoutPanel({ taskId, runId, projectRoot, target, updatedAt, pro
             <div className="flex items-end gap-2">
               <div className="space-y-1">
                 <Label htmlFor="layout-group-id">新组名</Label>
-                <Input id="layout-group-id" value={newId} onChange={(event) => setNewId(event.target.value)} placeholder="例如 RightTools" />
+                <Input
+                  id="layout-group-id"
+                  value={newId}
+                  onChange={(event) => setNewId(event.target.value)}
+                  placeholder="例如 RightTools"
+                />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="layout-group-kind">方向</Label>
@@ -283,7 +186,7 @@ export function LayoutPanel({ taskId, runId, projectRoot, target, updatedAt, pro
                   </SelectContent>
                 </Select>
               </div>
-              <Button variant="outline" onClick={addGroup} disabled={!newId.trim()}>
+              <Button variant="outline" onClick={createGroup} disabled={!newId.trim()}>
                 <Plus className="mr-1 h-4 w-4" />
                 新增组
               </Button>

@@ -51,6 +51,15 @@ export function occupiesSlot(state: string): boolean {
   return OCCUPIED_STATES.includes(state)
 }
 
+/*
+ * 在跑：占着这一位、又不是停在语义停点上（「等待」那一档正是等人补输入的时候）。
+ * 「写回并续跑」（待确认页与布局确认面板的「确认并继续」）只在不在跑的时候给 ——
+ * 跑着的时候再来一次会起第二次运行。
+ */
+export function isInFlight(state: string): boolean {
+  return occupiesSlot(state) && state !== "waiting"
+}
+
 /* 正在合并：产物已写完、正在回写主工程，这时不给「停止」（停也停不了一半）。 */
 export function isMerging(state: string): boolean {
   return state === "merging"

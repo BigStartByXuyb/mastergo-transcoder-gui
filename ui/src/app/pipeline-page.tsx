@@ -13,7 +13,7 @@ import { useRunLog } from "@/app/use-run-log"
 import { ApiFailure, api, type Board, type Pending, type PipelineStep, type PluginSummary } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { adoptsIdentityWithoutConfirm, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
-import { POLL_MS, canStop, hasProducts, isBusyState, waitingCounts } from "@/lib/task-state"
+import { POLL_MS, canStop, hasProducts, isBusyState, isInFlight, waitingCounts } from "@/lib/task-state"
 
 /*
  * 流水线：新建任务 + 看某个任务的详情。
@@ -309,6 +309,7 @@ export function PipelinePage({
           target={task.request.target}
           updatedAt={task.updatedAt}
           progressDone={task.progress?.done}
+          confirmable={!isInFlight(task.state)}
         />
       )}
 

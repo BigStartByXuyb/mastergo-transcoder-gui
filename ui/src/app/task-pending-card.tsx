@@ -32,7 +32,7 @@ export function TaskPendingCard(props: Props) {
         <div className="flex flex-wrap items-center gap-2 pt-2">
           {counts.icons > 0 && <Badge variant="secondary">图标待办 {counts.icons} 条</Badge>}
           {counts.translations > 0 && <Badge variant="secondary">文案待办 {counts.translations} 条</Badge>}
-          {counts.layout > 0 && <Badge variant="secondary">布局待办</Badge>}
+          {counts.layout > 0 && <Badge variant="secondary">布局待办 {counts.layout} 条</Badge>}
         </div>
       </CardHeader>
       <CardContent>

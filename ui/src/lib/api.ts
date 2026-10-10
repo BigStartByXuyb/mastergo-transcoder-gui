@@ -302,6 +302,8 @@ export type Settings = {
   automation: "off" | "assist" | "auto"
   /** 布局确认的独立开关：默认关（有图无表时停在布局确认等人）；开着才由 AI 自动出分组并续跑。 */
   layoutAutoPass: boolean
+  /** 插件来源的手动选择：来源 id，空串 = 按查找顺序自动选（见 docs/plugin-sources.md）。 */
+  pluginOverride: string
   /** 对话/自动模式的写盘开关：关着时 Codex 只读，开着才允许它直接改工程文件。 */
   agent: { allowWrite: boolean }
   /**
