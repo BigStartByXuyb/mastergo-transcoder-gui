@@ -99,20 +99,15 @@ export function canResume(task: { state: string; workDir: string }): boolean {
 }
 
 /*
- * 待确认条目计数：三节各自的 waiting 由后端 lib/pending.js 算一次（图标那节还含
- * 命名表写歪的旧下标与重名组），这里只取数、不再按 needsXxx 重算一遍；
- * 合计数这一端各加一次（跨语言没法共用这一步），三个加数本身只有那一处算。
+ * 待补全面板自己处理的那两节的条数：各自的 waiting 由后端 lib/pending.js 算一次
+ *（图标那节还含命名表写歪的旧下标与重名组），这里只取数、不再按 needsXxx 重算一遍。
+ * 布局那一节不在这里：它归布局确认面板（后端的 layoutSection），界面不把三节混成一个数。
  */
-export function waitingCounts(pending: Pending | null): {
-  icons: number
-  translations: number
-  layout: number
-  total: number
-} {
-  const icons = pending?.icons.waiting ?? 0
-  const translations = pending?.translations.waiting ?? 0
-  const layout = pending?.layout?.waiting ?? 0
-  return { icons, translations, layout, total: icons + translations + layout }
+export function waitingCounts(pending: Pending | null): { icons: number; translations: number } {
+  return {
+    icons: pending?.icons.waiting ?? 0,
+    translations: pending?.translations.waiting ?? 0
+  }
 }
 
 /*
