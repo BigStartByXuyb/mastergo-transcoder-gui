@@ -10,6 +10,18 @@ import type { BoardTask, PipelineStep } from "@/lib/api"
  * 两者只差一句「到左边第 N 步看」的指引：那是总览里才需要的话（在步骤界面里再说一遍是废话）。
  */
 
+/**
+ * 停点 / 失败那一行的标题：说明卡与看板任务行都用它 —— 同一句措辞只有这一处。
+ * error = 真失败（分「某一步失败」与「还没进步骤就没跑起来」两种），其余是语义停点。
+ */
+export function failureTitle(failure: BoardTask["failure"]): string {
+  if (!failure) return ""
+  if (failure.kind !== "error") return "停在语义判断点，不是错误：" + (failure.title || failure.stepName)
+  return failure.stepName
+    ? "这一步失败了：" + (failure.title || failure.stepName)
+    : "这次运行没跑起来："
+}
+
 export function FailureNote(props: {
   failure: BoardTask["failure"]
   /** 停点那一步的契约（能定位到某一步时才有）：它的 Failures / Recovery 就是插件给的修法。 */
@@ -24,13 +36,7 @@ export function FailureNote(props: {
   const atStep = Boolean(failure.stepName)
   return (
     <Alert variant={failure.kind === "error" ? "destructive" : "default"}>
-      <AlertTitle>
-        {failure.kind === "error"
-          ? atStep
-            ? "这一步失败了：" + (failure.title || failure.stepName)
-            : "这次运行没跑起来："
-          : "停在语义判断点，不是错误：" + (failure.title || failure.stepName)}
-      </AlertTitle>
+      <AlertTitle>{failureTitle(failure)}</AlertTitle>
       <AlertDescription className="flex flex-col gap-2">
         {failure.message && <ClampText text={failure.message} />}
         {failure.logPath && (

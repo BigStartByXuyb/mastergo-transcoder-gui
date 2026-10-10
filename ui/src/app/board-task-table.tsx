@@ -9,6 +9,7 @@ import { areaLabel, projectLabel } from "@/lib/areas"
 import { boardStateVariant } from "@/lib/board-state"
 import type { Coverage } from "@/lib/board-effective"
 import { ClampText } from "@/app/clamp-text"
+import { failureTitle } from "@/app/failure-note"
 import { IdentifierText } from "@/app/identifier-text"
 import { MergeConflicts } from "@/app/merge-conflicts"
 import { canStop, isSettled } from "@/lib/task-state"
@@ -172,8 +173,7 @@ function TaskRow({
             <span className="text-muted-foreground text-xs">
               <ClampText
                 text={
-                  "停在语义判断点，不是错误：" +
-                  (task.failure.title || task.failure.stepName) +
+                  failureTitle(task.failure) +
                   (task.failure.message ? " —— " + task.failure.message : "")
                 }
                 lines={2}

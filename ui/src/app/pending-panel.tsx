@@ -236,6 +236,56 @@ export function PendingPanel({
   )
 
   /*
+   * 叫 AI 出候选 → 预填本地状态 → 交回 {这次要提交的那份输入, 模型给了几条}。
+   * 自动那条路与三个手动按钮都走这三个函数：候选落进 state 的口径只有这一处
+   *（例如命名表里 fromDsl 的处理就在这儿，不再有第二份）。
+   */
+  const fillIconNames = useCallback(async (): Promise<{ value: { index: number; name: string; comment: string; fromDsl?: boolean }[]; count: number }> => {
+    const list = pending?.icons.mustName ?? []
+    const payload = await api.aiIconNames(list)
+    const patch: Record<number, { name: string; comment: string }> = {}
+    for (const item of payload.items) patch[item.index] = { name: item.name, comment: item.comment }
+    setNames((current) => ({ ...current, ...patch }))
+    return {
+      value: list.map((item) => ({
+        index: item.index,
+        name: patch[item.index]?.name ?? "",
+        comment: patch[item.index]?.comment ?? "",
+        ...(item.sourceIsPageRoot ? { fromDsl: true } : {})
+      })),
+      count: payload.items.length
+    }
+  }, [pending])
+
+  const fillTranslations = useCallback(async (): Promise<{ value: Record<string, string>; count: number }> => {
+    const list = pending?.translations.pendingTranslations ?? []
+    const payload = await api.aiTranslations(list.map((item) => item.text))
+    const patch: Record<string, string> = {}
+    for (const item of payload.items) patch[item.text] = item.translation
+    setTexts((current) => ({ ...current, ...patch }))
+    const out: Record<string, string> = {}
+    for (const item of list) {
+      const value = patch[item.text]
+      if (value && value.trim()) out[item.text] = value.trim()
+    }
+    return { value: out, count: payload.items.length }
+  }, [pending])
+
+  const fillGlossary = useCallback(async (): Promise<{ value: Record<string, string>; count: number }> => {
+    const list = pending?.translations.glossaryRequired ?? []
+    const payload = await api.aiGlossary(list.map((item) => item.text))
+    const patch: Record<string, string> = {}
+    for (const item of payload.items) patch[item.text] = item.identifier
+    setGlossary((current) => ({ ...current, ...patch }))
+    const out: Record<string, string> = {}
+    for (const item of list) {
+      const value = patch[item.text]
+      if (value && value.trim()) out[item.text] = value.trim()
+    }
+    return { value: out, count: payload.items.length }
+  }, [pending])
+
+  /*
    * 自动出候选：同一个停点只自动跑一次。
    * 关键在 autoKey —— 用「工程 + 页面 + 待办条数」做指纹，续跑后条数变了才会再来一轮，
    * 否则每次重渲染都会重复打模型。
@@ -257,41 +307,19 @@ export function PendingPanel({
         let translations = translationsPayload()
         let glossaryMap = glossaryPayload()
         if (iconCount > 0) {
-          const payload = await api.aiIconNames(pending.icons.mustName)
-          const patch: Record<number, { name: string; comment: string }> = {}
-          for (const item of payload.items) patch[item.index] = { name: item.name, comment: item.comment }
-          setNames((current) => ({ ...current, ...patch }))
-          naming = pending.icons.mustName.map((item) => ({
-            index: item.index,
-            name: patch[item.index]?.name ?? "",
-            comment: patch[item.index]?.comment ?? "",
-            ...(item.sourceIsPageRoot ? { fromDsl: true } : {})
-          }))
-          toast.success("AI 出了 " + payload.items.length + " 条图标名")
+          const filled = await fillIconNames()
+          naming = filled.value
+          toast.success("AI 出了 " + filled.count + " 条图标名")
         }
         if (langCount > 0) {
-          const payload = await api.aiTranslations(pending.translations.pendingTranslations.map((item) => item.text))
-          const patch: Record<string, string> = {}
-          for (const item of payload.items) patch[item.text] = item.translation
-          setTexts((current) => ({ ...current, ...patch }))
-          translations = {}
-          for (const item of pending.translations.pendingTranslations) {
-            const value = patch[item.text]
-            if (value && value.trim()) translations[item.text] = value.trim()
-          }
-          toast.success("AI 出了 " + payload.items.length + " 条译文")
+          const filled = await fillTranslations()
+          translations = filled.value
+          toast.success("AI 出了 " + filled.count + " 条译文")
         }
         if (glossaryCount > 0) {
-          const payload = await api.aiGlossary(pending.translations.glossaryRequired.map((item) => item.text))
-          const patch: Record<string, string> = {}
-          for (const item of payload.items) patch[item.text] = item.identifier
-          setGlossary((current) => ({ ...current, ...patch }))
-          glossaryMap = {}
-          for (const item of pending.translations.glossaryRequired) {
-            const value = patch[item.text]
-            if (value && value.trim()) glossaryMap[item.text] = value.trim()
-          }
-          toast.success("AI 出了 " + payload.items.length + " 条术语")
+          const filled = await fillGlossary()
+          glossaryMap = filled.value
+          toast.success("AI 出了 " + filled.count + " 条术语")
         }
         // 自动层级：出完候选直接提交并续跑，人只需要在日志里回看。
         if (automation === "auto") await submitWith(true, naming, translations, glossaryMap)
@@ -316,6 +344,9 @@ export function PendingPanel({
     namingPayload,
     translationsPayload,
     glossaryPayload,
+    fillIconNames,
+    fillTranslations,
+    fillGlossary,
     submitWith
   ])
 
@@ -323,13 +354,8 @@ export function PendingPanel({
     if (!pending) return
     setBusy("ai-icons")
     try {
-      const payload = await api.aiIconNames(pending.icons.mustName)
-      setNames((current) => {
-        const next = { ...current }
-        for (const item of payload.items) next[item.index] = { name: item.name, comment: item.comment }
-        return next
-      })
-      toast.success("已填入 " + payload.items.length + " 条")
+      const filled = await fillIconNames()
+      toast.success("已填入 " + filled.count + " 条")
     } catch (error) {
       setFailure("AI 出候选失败（可以人工填）：" + describeFailure(error))
     } finally {
@@ -341,13 +367,8 @@ export function PendingPanel({
     if (!pending) return
     setBusy("ai-lang")
     try {
-      const payload = await api.aiTranslations(pending.translations.pendingTranslations.map((item) => item.text))
-      setTexts((current) => {
-        const next = { ...current }
-        for (const item of payload.items) next[item.text] = item.translation
-        return next
-      })
-      toast.success("已填入 " + payload.items.length + " 条")
+      const filled = await fillTranslations()
+      toast.success("已填入 " + filled.count + " 条")
     } catch (error) {
       setFailure("AI 出候选失败（可以人工填）：" + describeFailure(error))
     } finally {

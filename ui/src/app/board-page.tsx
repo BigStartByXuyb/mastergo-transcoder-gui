@@ -18,6 +18,7 @@ import { BoardTaskTable } from "@/app/board-task-table"
 import { ClampText } from "@/app/clamp-text"
 import { EffectiveToggle } from "@/app/effective-toggle"
 import { Pager } from "@/app/pager"
+import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentityFill } from "@/app/use-identity-fill"
 import { api, type Board } from "@/lib/api"
 import { fillTargets, parseBoardItems } from "@/lib/board-items"
@@ -27,15 +28,15 @@ import { coverageOf, visibleByCoverage, type Coverage } from "@/lib/board-effect
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
-import { FINISHED_STATES, POLL_MS } from "@/lib/task-state"
+import { FINISHED_STATES } from "@/lib/task-state"
 import { useSettings } from "@/lib/use-settings"
 
 // 一页十条：一屏放得下，多出来的翻页。
 const PAGE_SIZE = 10
 
 export function BoardPage() {
-  const [board, setBoard] = useState<Board | null>(null)
-  const [problem, setProblem] = useState("")
+  // 看板快照与这条线上的失败提示都由 use-board-tasks 一处管（取数、轮询、动作回来的替换）。
+  const { board, setBoard, problem, setProblem } = useBoardTasks()
   const [form, setForm] = useState<BoardTaskForm>(readBoardForm)
   const [busy, setBusy] = useState("")
   const [adding, setAdding] = useState(false)
@@ -60,30 +61,6 @@ export function BoardPage() {
   useEffect(() => {
     writeBoardFilters(filters)
   }, [filters])
-
-  useEffect(() => {
-    let alive = true
-    const load = () => {
-      api
-        .board()
-        .then((payload) => {
-          if (!alive) return
-          setBoard(payload.board)
-          setProblem("")
-        })
-        .catch((error) => {
-          if (!alive) return
-          // 轮询失败保留上一份数据：界面不该因为一次抖动就空掉。
-          setProblem(describeFailure(error))
-        })
-    }
-    load()
-    const timer = setInterval(load, POLL_MS)
-    return () => {
-      alive = false
-      clearInterval(timer)
-    }
-  }, [])
 
   /*
    * 合并全部要一个工程：筛选选了哪个工作区就用哪个（人在看哪个就合哪个），

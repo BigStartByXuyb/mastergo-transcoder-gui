@@ -15,6 +15,10 @@ gh pr merge --squash       # 检查全绿之后再合
 
 必须通过：`launcher`、`ci / runtime-tests`、`ci / deterministic-validation`、`ci / semantic-audit`、`ci / final-report`。
 
+PR 上的这几关读的是 **main 上那一份 `.github/workflows/ci.yml`**（触发方式是 `pull_request_target`），
+所以分支里改 `ci_ref`（钉到 cicd 的那个 commit）当场不生效：它要随 PR 进 main 之后才对后续 PR 起作用。
+想在合并前就用新 pin 验一次，在分支上手动跑 `gh workflow run ci.yml --ref <分支名>`（`workflow_dispatch` 读分支那一份）。
+
 ## 发版
 
 合并进 main 只代表代码进了主干；**只有打 tag 才会产出 Release**，客户端的更新是从 Release 拉的。

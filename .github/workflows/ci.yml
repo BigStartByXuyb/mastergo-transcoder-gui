@@ -18,14 +18,14 @@ permissions:
 
 jobs:
   ci:
-    # 取 dab41be 这一版（cicd PR #6 的头）：插件夹具仍按「客户端自带那一份」摆（安装根 plugins/ 下），
-    # 另外几处是这版新修的 —— 审计报告缺 front matter / 缺一级标题 / 版本号写错 / 条数不符 / result 写成小写
-    # 时按正文采信并记备注（不再判 INVALID）、semantic-audit 等 runtime-tests 跑完再取覆盖率产物（不再抢跑）、
-    # 审计 diff 排除生成产物（public/assets 等）。
+    # 取 406511b 这一版（cicd PR #6 的头）：插件夹具仍按「客户端自带那一份」摆（安装根 plugins/ 下），
+    # 另外几处是这版新修的 —— 审计报告缺 front matter / 缺一级标题 / 版本号写错 / 条数不符 / result 写成小写 /
+    # finding 标题没写方括号时按正文采信并记备注（不再判 INVALID，也不再丢 finding）、
+    # semantic-audit 等 runtime-tests 跑完再取覆盖率产物（不再抢跑）、审计 diff 排除生成产物（public/assets 等）。
     # 合并 PR #6 之后这个 commit 就是 main 上的同一个 commit，不用再改。
-    uses: BigStartByXuyb/cicd/.github/workflows/desktop-app.yml@dab41bed2c7044d040469e1ced80ed18280517b3
+    uses: BigStartByXuyb/cicd/.github/workflows/desktop-app.yml@406511b7e4c26e51b46e03e8a6b6d281f44df436
     with:
-      ci_ref: dab41bed2c7044d040469e1ced80ed18280517b3
+      ci_ref: 406511b7e4c26e51b46e03e8a6b6d281f44df436
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}

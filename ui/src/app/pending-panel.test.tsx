@@ -49,11 +49,21 @@ function pending(): Pending {
 }
 
 function stub() {
+  return stubWith({})
+}
+
+/* AI 候选：手动按钮那条路要它回一份候选，验「候选按同一处口径落进输入框」。 */
+function stubWith(options: { iconNames?: { index: number; name: string; comment: string }[] }) {
   vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
     const url = String(input)
     if (url.includes("/api/settings")) {
       return Promise.resolve(
         new Response(JSON.stringify({ ok: true, settings: { automation: "off", layoutAutoPass: false, ai: { hasKey: false, baseUrl: "", model: "" } } }), { status: 200 })
+      )
+    }
+    if (url.includes("/api/ai/suggest")) {
+      return Promise.resolve(
+        new Response(JSON.stringify({ ok: true, items: options.iconNames ?? [{ index: 1, name: "MenuOk", comment: "候选" }] }), { status: 200 })
       )
     }
     return Promise.resolve(new Response(JSON.stringify({ ok: true, pending: pending() }), { status: 200 }))
@@ -95,5 +105,15 @@ describe("PendingPanel", () => {
     const submit = await screen.findByRole("button", { name: /确认并继续/ })
     expect(submit.hasAttribute("disabled")).toBe(false)
     expect(screen.queryByText(/流水线正在跑/)).toBeNull()
+  })
+
+  it("手动叫 AI 出候选：候选按同一处口径填进输入框", async () => {
+    stubWith({ iconNames: [{ index: 1, name: "MenuOk", comment: "菜单项" }] })
+    render(panel("waiting"))
+
+    const ask = await screen.findByRole("button", { name: /让 AI 重新出候选名/ })
+    ask.click()
+    const input = await screen.findByDisplayValue("MenuOk")
+    expect(input).toBeTruthy()
   })
 })
