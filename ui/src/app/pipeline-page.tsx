@@ -3,6 +3,7 @@ import { toast } from "sonner"
 
 import { DoneBoard } from "@/app/done-board"
 import { DesignImageCard } from "@/app/design-image-card"
+import { LayoutPanel } from "@/app/layout-panel"
 import { NewTaskCard } from "@/app/new-task-card"
 import { TaskDetailCard } from "@/app/task-detail-card"
 import { TaskLogCard } from "@/app/task-log-card"
@@ -299,6 +300,8 @@ export function PipelinePage({
         图是按页面名放的，没有 Target 就无从谈起 —— 那种任务根本不显示这一块。
       */}
       {task && task.workDir && task.request.target && task.routes.includes("A") && <DesignImageCard task={task} />}
+
+      {task && task.workDir && task.request.target && task.routes.includes("A") && <LayoutPanel task={task} />}
 
       {task && counts.total > 0 && (
         <TaskPendingCard

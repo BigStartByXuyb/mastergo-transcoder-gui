@@ -175,6 +175,36 @@ export type DesignImage = {
   blocked: string
 }
 
+/**
+ * 作业A 的布局确认：控件清单 + 分组表（口径见后端 lib/layout-groups.js）。
+ * 分组表是「语义输入」之一，人/AI 看图后写，布局推导那一步消费它。
+ */
+export type LayoutControl = {
+  ref: string
+  controlType: string
+  text: string
+  absX: number
+  absY: number
+  w: number
+  h: number
+}
+
+export type LayoutGroup = {
+  id: string
+  kind: "column" | "row"
+  members: string[]
+}
+
+export type LayoutGroups = {
+  available: boolean
+  reason: string
+  controls: LayoutControl[]
+  groups: LayoutGroup[]
+  image: DesignImage["image"]
+  canvas: DesignImage["canvas"]
+  blocked: string
+}
+
 export type ResolvedNode = {
   ref: string
   id: string
@@ -269,6 +299,8 @@ export type Settings = {
   providers: ProviderPreset[]
   ai: { provider: string; baseUrl: string; model: string; hasKey: boolean }
   automation: "off" | "assist" | "auto"
+  /** 布局确认的独立开关：默认关（有图无表时停在布局确认等人）；开着才由 AI 自动出分组并续跑。 */
+  layoutAutoPass: boolean
   /** 对话/自动模式的写盘开关：关着时 Codex 只读，开着才允许它直接改工程文件。 */
   agent: { allowWrite: boolean }
   /**
@@ -379,12 +411,23 @@ export type PendingTranslations = {
   waiting: number
 }
 
+export type PendingLayout = {
+  available: boolean
+  reason: string
+  hasImage: boolean
+  hasGroups: boolean
+  needsGroups: boolean
+  waiting: number
+  controls: LayoutControl[]
+}
+
 export type Pending = {
   projectRoot: string
   target: string
   summary: unknown
   icons: PendingIcons
   translations: PendingTranslations
+  layout: PendingLayout
 }
 
 export type ArtifactEntry = {
@@ -565,7 +608,7 @@ export type PendingQueueEntry = {
   /** 看板任务已经被移除，但工作目录与产物还在。 */
   orphan: boolean
   /** 两节的待办条数，与看板 / 流水线详情同一份口径（图标一节、文案一节）。 */
-  counts: { icons: number; translations: number }
+  counts: { icons: number; translations: number; layout: number }
   total: number
 }
 
@@ -905,6 +948,14 @@ export const api = {
    */
   saveDesignImage: (body: { projectRoot: string; target: string; data: string }) =>
     post<{ ok: true; image: DesignImage }>("/api/design-image", body),
+  /** 作业A 的布局确认：读控件清单 + 现有分组（后端 lib/layout-groups.js）。 */
+  layoutGroups: (projectRoot: string, target: string) =>
+    request<{ ok: true; layout: LayoutGroups }>(
+      "/api/layout-groups?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
+    ),
+  /** 写回分组表（整份替换）：人/AI 调好分组后落盘，再由流水线 -Progress layout 消费。 */
+  saveLayoutGroups: (body: { projectRoot: string; target: string; groups: LayoutGroup[] }) =>
+    post<{ ok: true; layout: LayoutGroups }>("/api/layout-groups", body),
   /** 在文件管理器里打开一个目录（插件页各行的「打开目录」）。打不开时 ok=false，reason 是原话。 */
   openFolder: (path: string) => post<{ ok: boolean; reason: string }>("/api/system/open-folder", { path }),
   pluginUpdateStatus: () => request<{ ok: true; status: PluginUpdateStatus }>("/api/plugin/update/status"),
@@ -965,6 +1016,11 @@ export const api = {
       kind: "glossary",
       texts
     }),
+  aiLayoutGroups: (controls: LayoutControl[]) =>
+    post<{ ok: true; groups: LayoutGroup[] }>("/api/ai/suggest", {
+      kind: "layout-groups",
+      controls
+    }),
   confirm: (body: {
     projectRoot: string
     target: string
@@ -975,6 +1031,7 @@ export const api = {
     naming?: { index: number; name: string; comment: string; fromDsl?: boolean }[]
     translations?: Record<string, string>
     glossary?: Record<string, string>
+    groups?: LayoutGroup[]
     allowEmptyLedger?: boolean
     /** 顺手把命名表里当前不认的旧下标裁掉。 */
     pruneNaming?: boolean

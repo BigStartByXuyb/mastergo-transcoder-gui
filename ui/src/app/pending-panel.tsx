@@ -141,8 +141,9 @@ export function PendingPanel({
   const duplicateCount = duplicateGroups.length
   const langCount = pending?.translations.available ? pending.translations.pendingTranslations.length : 0
   const glossaryCount = pending?.translations.available ? pending.translations.glossaryRequired.length : 0
-  // 本页还缺多少条语义输入：口径在 lib/pending.js 算一次，这里只取数。
-  const { total: waiting } = waitingCounts(pending)
+  // 本页还缺多少条语义输入：布局确认在 layout-panel 单独处理，这里只数图标 + 文案。
+  const counts = waitingCounts(pending)
+  const waiting = counts.icons + counts.translations
 
   /*
    * 「本页没有图标槽位」只有一种情形：插件判定必须登记的候选一条都没有。
