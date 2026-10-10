@@ -132,7 +132,7 @@ export function BoardPage() {
           items
         })
         // 建完任务才暂存（暂存件按任务 id 落键）：门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts。
-        await stagePickedImages(form.mode, picksForCreated(items, added.created, images))
+        await stagePickedImages(form.mode, picksForCreated(added.board, added.created, images))
         return added
       },
       applyBoard

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import type { Board } from "@/lib/api"
 import { STAGE_FAILED_NOTE, picksForCreated, picksForRoute, stagePickedImages } from "@/app/stage-design-images"
 
 /*
@@ -89,18 +90,26 @@ describe("picksForCreated", () => {
   const two = { link: "https://b" }
   const three = { link: "https://c" }
 
-  it("一行对一条任务：created 与 items 同一个次序", () => {
+  /* 看板快照里任务自己带着它的链接：配图按它配，不比次序。 */
+  const board = (rows: { id: string; link: string }[]) =>
+    ({ tasks: rows.map((row) => ({ id: row.id, request: { link: row.link } })) }) as unknown as Board
+
+  it("有图的任务带上那张图，不看次序", () => {
     const images = { "https://a": file("a"), "https://c": file("c") }
-    expect(picksForCreated([one, two, three], ["t1", "t2", "t3"], images).map((pick) => pick.taskId)).toEqual(["t1", "t3"])
+    const snapshot = board([
+      { id: "t3", link: three.link },
+      { id: "t1", link: one.link },
+      { id: "t2", link: two.link }
+    ])
+    expect(picksForCreated(snapshot, ["t1", "t2", "t3"], images).map((pick) => pick.taskId)).toEqual(["t1", "t3"])
   })
 
-  it("没选图的行跳过，后面几行照旧", () => {
+  it("没选图的任务跳过，别的照旧", () => {
     const images = { "https://b": file("b") }
-    expect(picksForCreated([one, two], ["t1", "t2"], images).map((pick) => pick.taskId)).toEqual(["t2"])
-  })
-
-  it("任务没建出来（created 短了）就不送那一行", () => {
-    const images = { "https://a": file("a"), "https://b": file("b") }
-    expect(picksForCreated([one, two], ["t1"], images).map((pick) => pick.taskId)).toEqual(["t1"])
+    const snapshot = board([
+      { id: "t1", link: one.link },
+      { id: "t2", link: two.link }
+    ])
+    expect(picksForCreated(snapshot, ["t1", "t2"], images).map((pick) => pick.taskId)).toEqual(["t2"])
   })
 })

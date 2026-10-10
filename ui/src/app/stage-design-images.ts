@@ -1,6 +1,6 @@
 import { toast } from "sonner"
 
-import { api } from "@/lib/api"
+import { api, type Board } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { modeTakesRoute } from "@/lib/task-form"
 import { fileToBase64 } from "@/lib/upload-files"
@@ -30,18 +30,18 @@ export function picksForRoute(mode: string, picks: StagedPick[]): StagedPick[] {
 }
 
 /*
- * 一行对一条任务：看板建任务时按 items 逐条建（lib/board.js 的 add），created 与 items 同一个次序，
- * 所以第 i 行的图就是第 i 条任务的。没选图的行、没建出来的任务都跳过。
+ * 有图的任务就该带上那张图：配图看**任务自己带的链接**（看板快照里的 request.link 就是建它的那一行），
+ * 不看建任务的次序 —— 同一个链接出现几次就是同一页，那几份图本来就是同一张。没选图的跳过。
  */
 export function picksForCreated(
-  items: { link: string }[],
+  board: Board,
   created: string[],
   images: Record<string, File>
 ): StagedPick[] {
-  return items.flatMap((item, index) => {
-    const file = images[item.link]
-    const taskId = created[index] ?? ""
-    return file && taskId ? [{ taskId, file }] : []
+  const linkOf = new Map(board.tasks.map((task) => [task.id, task.request.link]))
+  return created.flatMap((taskId) => {
+    const file = images[linkOf.get(taskId) ?? ""]
+    return file ? [{ taskId, file }] : []
   })
 }
 
