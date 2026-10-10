@@ -13,7 +13,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import type { useIdentity } from "@/app/use-identity"
 import type { PipelineStep, PluginSummary } from "@/lib/api"
-import { MODE_HINT, READ_IMAGE_HINT, modeTakesRoute, type TaskForm } from "@/lib/task-form"
+import {
+  MODE_HINT,
+  READ_IMAGE_HINT,
+  READ_IMAGE_NO_TARGET_HINT,
+  imageNeedsTarget,
+  modeTakesRoute,
+  type TaskForm
+} from "@/lib/task-form"
 import { humanSize } from "@/lib/upload-files"
 
 /*
@@ -121,6 +128,7 @@ export function NewTaskCard(props: Props) {
                       type="file"
                       accept="image/png,image/jpeg"
                       className="text-xs"
+                      disabled={imageNeedsTarget(form.target)}
                       onChange={(event) => onPickImage(event.target.files?.[0] ?? null)}
                     />
                     {props.stagedImage && (
@@ -134,7 +142,10 @@ export function NewTaskCard(props: Props) {
                       </>
                     )}
                   </div>
-                  <p className="text-muted-foreground text-xs">{READ_IMAGE_HINT}</p>
+                  {/* 两种情形各说一句，不叠着说：Target 空着时先说清它为什么选不了图。 */}
+                  <p className="text-muted-foreground text-xs">
+                    {imageNeedsTarget(form.target) ? READ_IMAGE_NO_TARGET_HINT : READ_IMAGE_HINT}
+                  </p>
                 </div>
               )}
             </FieldGroup>

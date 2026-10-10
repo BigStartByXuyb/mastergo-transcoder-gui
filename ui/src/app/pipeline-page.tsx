@@ -32,7 +32,7 @@ import { api, type PipelineStep, type PluginSummary } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { candidatesForLink } from "@/lib/identity-flow"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
-import { AUTOMATION_LABEL, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
+import { AUTOMATION_LABEL, imageNeedsTarget, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
 import { decideStartIdentity } from "@/lib/task-start"
 import { canStop, hasProducts } from "@/lib/task-state"
 import { fileToBase64 } from "@/lib/upload-files"
@@ -161,8 +161,10 @@ export function PipelinePage({
     /*
      * 先选好的位图在这里暂存（那时画板尺寸还不知道，核不了尺寸）：任务跑到「取数 + 固化快照」之后
      * 由看板那侧核对尺寸再落地。图不合规（不是 PNG/JPEG、太大）按后端原话拦下，不建任务。
+     * Target 空着时不暂存：暂存件按「工程 + Target」落键，空 Target 没有键（表单那边照同一句判据
+     * 不给选图，这里是那条判据的另一半 —— 判据本体在 ui/src/lib/task-form.ts）。
      */
-    if (stagedImage) {
+    if (stagedImage && !imageNeedsTarget(decision.target)) {
       try {
         await api.stageDesignImage({
           projectRoot: form.projectRoot,

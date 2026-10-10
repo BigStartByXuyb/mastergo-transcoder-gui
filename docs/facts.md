@@ -20,4 +20,6 @@
 | 待确认清单的取数 | `ui/src/app/pending-panel.tsx` · `api.pending(` | 面板自己（唯一的取数处） |
 | 面板动作的骨架（置忙 → 清旧错 → 跑 → 收尾） | `ui/src/app/use-action-runner.ts` · `export function useValueRunner(` | `useActionRunner`（同文件）、`use-task-actions.ts`、`use-layout-groups.ts`、`use-plugin-sources.ts`、`use-plugin-update.ts`、设置页四张卡（`update-card` / `codex-card` / `runtime-panel` / `source-dialog`） |
 | 界面唯一的网络出口 | `ui/src/lib/api.ts` · `fetch(` | 所有界面件（别的文件不直接发请求） |
+| 先选的位图能不能落地（要不要先填 Target） | `ui/src/lib/task-form.ts` · `export function imageNeedsTarget(` | 新建任务表单（Target 空着就不给选图）、`ui/src/app/pipeline-page.tsx`（提交前按同一句判据决定要不要暂存） |
+| 「自动补输入并续跑」谁发起 | `ui/src/app/pending-panel.tsx` · `automation === "auto" && !taskId` | 看板任务由服务端发起（`lib/board.js` 的 `autoFillWaiting` → `lib/autofill.js`，同一个 automation 设置，不需要浏览器在场）；面板只对没有看板任务的条目发起 |
 

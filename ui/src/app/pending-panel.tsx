@@ -324,8 +324,13 @@ export function PendingPanel({
           glossaryMap = filled.value
           toast.success("AI 出了 " + filled.count + " 条术语")
         }
-        // 自动层级：出完候选直接提交并续跑，人只需要在日志里回看。
-        if (automation === "auto") await submitWith(true, naming, translations, glossaryMap)
+        /*
+         * 自动层级：出完候选直接提交并续跑，人只需要在日志里回看。
+         * 但看板任务那条不在这里续跑 —— 同一个停点只该有一个发起者：看板任务由服务端负责
+         *（lib/board.js 的 autoFillWaiting → lib/autofill.js，它读同一个 automation 设置，
+         * 而且不需要浏览器在场）；这里只对没有看板任务的条目（流水线直跑 / 孤儿）发起，免得同一个停点起两次运行。
+         */
+        if (automation === "auto" && !taskId) await submitWith(true, naming, translations, glossaryMap)
       } catch (error) {
         // 模型不可用不该把人挡住：退回人工填，把原因写在面板上。
         setFailure("AI 出候选失败（可以人工填）：" + describeFailure(error))
