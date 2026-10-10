@@ -85,7 +85,7 @@ export function PendingPanel({
    * 面板这里只留「提交并续跑」这条动作的忙位与失败 —— 两处合起来是界面要显示的那一份。
    */
   const inputs = usePendingInputs({ projectRoot, target, taskId, runId, state })
-  const { pending, names, texts, glossary, setName, setText, setGlossaryOf, aiReady } = inputs
+  const { pending, names, texts, glossary, setName, setText, setGlossaryOf, aiReady, clearFailure, writeFailure } = inputs
   const {
     namingPayload,
     translationsPayload,
@@ -95,11 +95,11 @@ export function PendingPanel({
     fillGlossary
   } = inputs
   const [submitBusy, setSubmitBusy] = useState("")
-  const [submitFailure, setSubmitFailure] = useState("")
   const [allowEmptyLedger, setAllowEmptyLedger] = useState(true)
   const autoKey = useRef("")
   const busy = inputs.busy || submitBusy
-  const failure = inputs.failure || submitFailure
+  /* 失败只有这一个槽（见 use-pending-inputs 的 writeFailure）：谁开始干活谁先清，不两处合成。 */
+  const failure = inputs.failure
   const load = inputs.reload
 
   const iconTotal = pending?.icons.available ? pending.icons.mustName.length : 0
@@ -137,8 +137,8 @@ export function PendingPanel({
       glossaryMap: Record<string, string>
     ) => {
       if (!pending) return
+      clearFailure()
       setSubmitBusy(SUBMIT_BUSY)
-      setSubmitFailure("")
       try {
         const payload = await api.confirm({
           projectRoot: pending.projectRoot,
@@ -159,12 +159,12 @@ export function PendingPanel({
         await load()
         if (payload.job) onResumed?.({ filled: written, resumedFrom: payload.resumedFrom ?? "" })
       } catch (error) {
-        setSubmitFailure(describeFailure(error))
+        writeFailure(describeFailure(error))
       } finally {
         setSubmitBusy("")
       }
     },
-    [pending, taskId, runId, allowEmptyLedger, load, onResumed]
+    [pending, taskId, runId, allowEmptyLedger, load, onResumed, clearFailure, writeFailure]
   )
 
   const submit = useCallback(
