@@ -117,7 +117,13 @@ export function LayoutPanel({ confirmable, ...input }: LayoutPanelProps) {
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {group.members.map((ref) => (
-                      <Badge key={ref} variant="secondary" className="gap-1">
+                      <Badge
+                        key={ref}
+                        variant="secondary"
+                        className="gap-1"
+                        draggable
+                        onDragStart={(event) => event.dataTransfer.setData("text/plain", ref)}
+                      >
                         {labelOf(layout.controls, ref)}
                         <button
                           type="button"

@@ -30,8 +30,8 @@ export function ungroupedControls(controls: LayoutControl[], groups: LayoutGroup
 }
 
 /*
- * 把控件挪进某一组：这是一次「移动」（控件的归属只有一处），所以先从原组摘掉再放进目标组；
- * 已经在这一组里就不动。它不是校验 —— 表合不合法仍由后端判。
+ * 把控件挪进某一组（组内成员与未分组控件都能拖）：这是一次「移动」（控件的归属只有一处），
+ * 所以先从原组摘掉再放进目标组；已经在这一组里就不动。它不是校验 —— 表合不合法仍由后端判。
  */
 export function moveMember(groups: LayoutGroup[], groupId: string, ref: string): LayoutGroup[] {
   const target = groups.find((group) => group.id === groupId)
