@@ -138,7 +138,15 @@ export function UpdateCard() {
   async function switchTo(version: string) {
     setFailure("")
     if (!supervised) {
-      await act(UPDATE_BUSY.switch(version), () => api.updateApply(version), "已切到 v" + version + "，下次启动生效")
+      /*
+       * 没有监督进程（直接 node server.js 起的开发运行）：写指针之后没人会把它拉起来，
+       * 所以只能下次启动生效 —— 把「为什么」写进这句话，别和客户端里的「点一下就切」混起来。
+       */
+      await act(
+        UPDATE_BUSY.switch(version),
+        () => api.updateApply(version),
+        "已写入指针指向 v" + version + "：这一份是直接起的（没有监督进程），重启客户端之后生效"
+      )
       return
     }
     setSwitching(version)
