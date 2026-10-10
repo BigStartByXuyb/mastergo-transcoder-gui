@@ -14,6 +14,9 @@
 | 每份文档都进索引 | 新增说明文档必须进索引，不然没人找得到 | [`README.md`](README.md) 的索引表 ↔ `docs/*.md`；[`records.md`](records.md) ↔ `docs/records/*.md` |
 | 顶层条目都在结构表里 | 仓库根新增/改名要同一次写进结构表 | [`structure.md`](structure.md) 里用反引号标出的名字（目录表 + 根条目清单）↔ 仓库根实际条目 |
 | 每个模块都有职责头 | 一个模块的职责写在它自己文件头，只有一处 | `lib/`、`shared/`、`scripts/`、`scripts/lib/`、`ui/src/app`、`ui/src/lib` 每个文件：头 30 行里第一段注释（块注释或连续 `//`）去掉空白后 ≥ 30 字 |
+| helper 只一处定义 | 容错读 JSON、Target/工程目录校验这类 helper 只在一处实现，别处只准引用 | `tests/consistency.test.js` 的单实现清单 ↔ `lib/workdir.js`、`lib/name-safety.js`、`lib/layout-groups.js` |
+| 插件切换散文与实现一致 | 来源表能不能手动切换，代码与权威文档要同一次说清 | `lib/plugin-root.js` 的 `canOverride`、`lib/settings.js` 的 `pluginOverride` ↔ [`plugin-sources.md`](plugin-sources.md) |
+| 功能结构表登记模块 | 新增 `lib/` 模块与 `ui/src/app/` 界面件要同一次写进结构表 | [`structure.md`](structure.md) 的「功能结构」表 ↔ 仓库里 `lib/*.js`、`ui/src/app/*` |
 | 门禁定义与实际用例一致 | 门禁本身也只有一处说明 | 本文的表 ↔ `tests/consistency.test.js` 注册的用例名 |
 | 共享模块类型与导出一致 | 共享库的类型声明不跟运行时导出走样 | `shared/versions.cjs` 的导出 ↔ `shared/versions.d.cts` 声明的导出名 |
 

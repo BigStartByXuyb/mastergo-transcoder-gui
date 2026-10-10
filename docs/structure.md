@@ -61,7 +61,7 @@ launch.js ──> lib/launch.js      壳只用自己拥有的两份文件
 | --- | --- | --- | --- |
 | 看板与任务 | `board.js`、`concurrency.js`、`idle.js` | `board-page.tsx`、`board-task-table.tsx`、`done-board.tsx` | `board.test.js`、`board-flow.test.js` |
 | 流水线 | `run.js`、`page-progress.js`、`run-mark.js` | `pipeline-page.tsx`、`task-steps.tsx`、`task-log-card.tsx` | `run.test.js`、`run-failure.test.js`、`resume-after-restart.test.js` |
-| 待确认与语义补全 | `pending.js`、`pending-queue.js`、`confirm.js`、`identity.js`、`autofill.js`、`ai.js` | `pending-panel.tsx`、`identity-fill-panel.tsx`、`review-page.tsx` | `identity.test.js`、`confirm-source.test.js` |
+| 待确认与语义补全 | `pending.js`、`pending-queue.js`、`confirm.js`、`identity.js`、`autofill.js`、`ai.js`、`layout-groups.js` | `pending-panel.tsx`、`identity-fill-panel.tsx`、`review-page.tsx`、`layout-panel.tsx` | `identity.test.js`、`confirm-source.test.js`、`layout-groups.test.js` |
 | 对话 | `chat.js`、`codex.js`、`codex-release.js`、`agent-context.js` | `chat-page.tsx`、`chat-transcript.tsx`、`codex-card.tsx` | `chat.test.js`、`codex.test.js`、`agent-context.test.js` |
 | 控件查询与映射 | `node-controls.js`、`mapping.js`、`resolve-target.js`、`resolve.js`、`project-pages.js`、`design-page-name.js`、`design-image.js`、`artifacts.js`、`xml-chunk.js`、`icon-names.js` | `query-page.tsx`、`mapping-page.tsx`、`design-image-card.tsx` | `node-controls.test.js`、`mapping.test.js`、`resolve-target.test.js`、`project-pages.test.js`、`design-image.test.js` |
 | 插件 | `plugin.js`、`plugin-root.js`、`plugin-update.js`、`plugin-layout.js` | `plugin-card.tsx`、`plugin-source-table.tsx`、`plugin-install-block.tsx` | `plugin-sources.test.js`、`plugin-update.test.js`、`plugin-layout.test.js` |
@@ -70,7 +70,7 @@ launch.js ──> lib/launch.js      壳只用自己拥有的两份文件
 | 设置与凭据 | `settings.js`、`config.js`、`source.js`、`mcp-token.js`、`proxy.js`、`getter.js` | `settings-page.tsx`、`settings-ai-panel.tsx`、`settings-mastergo-panel.tsx`、`settings-agent-panel.tsx`、`source-dialog.tsx` | `settings-templates.test.js`、`mastergo-token.test.js`、`source.test.js`、`proxy.test.js` |
 | 上传与合并 | `uploads.js`、`merge.js`、`limits.js` | `chat-write-dialog.tsx`、`merge-conflicts.tsx` | `uploads.test.js`、`merge.test.js` |
 | 壳与自愈 | `launch.js`、`bootstrap.js`、`log.js` | —（控制台） | `launch.test.js`、`bootstrap.test.js`、`log.test.js` |
-| 通用件 | `errors.js`、`http.js`、`versions.js`、`workdir.js`、`name-safety.js`、`system-open.js`、`pick-folder.js` | `ui/src/lib/*.ts`、`ui/src/app/pager.tsx`、`clamp-text.tsx`、`copy-text.ts`、`pixel-loader.tsx` | `edges.test.js`、`system-open.test.js`、`pick-folder.test.js` |
+| 通用件 | `errors.js`、`http.js`、`versions.js`、`workdir.js`、`name-safety.js`、`system-open.js`、`pick-folder.js`、`routes.js`、`ansi.js` | `ui/src/lib/*.ts`、`ui/src/app/pager.tsx`、`clamp-text.tsx`、`copy-text.ts`、`pixel-loader.tsx` | `edges.test.js`、`system-open.test.js`、`pick-folder.test.js` |
 
 ## 约束与门禁
 

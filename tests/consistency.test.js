@@ -349,6 +349,55 @@ function hasHeaderComment(head) {
   return false;
 }
 
+// 只该有一处实现的 helper / 判据：定义它的那一处是真值源，别处只准 require/import。
+// 加一条 = 加一行；这个 helper 换住处 = 改这一行的 home。
+const SINGLE_IMPL = [
+  { name: "readJsonIfExists", home: "lib/workdir.js", what: "容错读 JSON" },
+  { name: "requirePageTarget", home: "lib/name-safety.js", what: "页面 Target 校验" },
+  { name: "requireProjectRoot", home: "lib/name-safety.js", what: "工程目录校验" },
+  { name: "uniqueMembers", home: "lib/layout-groups.js", what: "分组跨组唯一化" }
+];
+
+function caseSingleImpl() {
+  const files = scannedFiles().filter(function (rel) { return /\.(js|cjs|mjs)$/.test(rel); });
+  for (const fact of SINGLE_IMPL) {
+    // 定义（不是 require/import 的转发）：function X( 或 const X = function / const X = (
+    const defined = new RegExp("(?:^|\\n)\\s*(?:function\\s+" + fact.name + "\\s*\\(|const\\s+" + fact.name + "\\s*=\\s*(?:async\\s*)?(?:function|\\())");
+    const homes = files.filter(function (rel) { return defined.test(read(rel)); });
+    assert.deepStrictEqual(
+      homes,
+      [fact.home],
+      "「" + fact.what + "」(" + fact.name + ") 只该在 " + fact.home + " 定义；别处又写了一份：" + homes.join("、")
+    );
+  }
+}
+
+// 插件来源的手动切换：代码侧能切（canOverride / pluginOverride），文档侧就要同一次写清，旧散文不能留着。
+function casePluginSwitchProse() {
+  const prose = read(TIERS_DOC);
+  assert.ok(!prose.includes("只读与查看"), TIERS_DOC + " 不能再写「只读与查看」：来源表现在支持手动切换");
+  assert.ok(prose.includes("pluginOverride"), TIERS_DOC + " 要写清手动选择（pluginOverride）的优先级与取消方式");
+  assert.ok(read("lib/plugin-root.js").includes("canOverride"), "lib/plugin-root.js 要给出 canOverride 判据");
+  assert.ok(read("lib/settings.js").includes("pluginOverride"), "lib/settings.js 要存 pluginOverride 设置");
+}
+
+// 每个 lib/ 模块都要登记进结构表的功能结构（或通用件）那一栏；界面件太多子组件，不在这一条硬门禁里。
+function caseModulesInStructureTable() {
+  const text = read(STRUCTURE_DOC);
+  const at = function (marker) {
+    const index = text.indexOf(marker);
+    assert.ok(index >= 0, STRUCTURE_DOC + " 里找不到「" + marker + "」");
+    return index;
+  };
+  const table = text.slice(at("## 功能结构"), at("## 约束与门禁"));
+  const missing = [];
+  for (const entry of fs.readdirSync(path.join(ROOT, "lib"), { withFileTypes: true })) {
+    if (!entry.isFile() || !/\.(js|cjs|mjs)$/.test(entry.name) || entry.name.includes(".test.")) continue;
+    if (!table.includes(entry.name)) missing.push("lib/" + entry.name);
+  }
+  assert.deepStrictEqual(missing, [], STRUCTURE_DOC + " 的功能结构表没登记这些模块：" + missing.join("、"));
+}
+
 // 门禁定义也只有一处：docs/gates.md 的表与这里注册的用例一一对应。
 const CASES = [
   ["档位表与代码一一对应", caseTierTableMatchesCode],
@@ -359,6 +408,9 @@ const CASES = [
   ["每份文档都进索引", caseDocsIndexed],
   ["顶层条目都在结构表里", caseRootEntriesRegistered],
   ["每个模块都有职责头", caseModulesHaveHeaderComment],
+  ["helper 只一处定义", caseSingleImpl],
+  ["插件切换散文与实现一致", casePluginSwitchProse],
+  ["功能结构表登记模块", caseModulesInStructureTable],
   ["门禁定义与实际用例一致", caseGateListMatches],
   ["共享模块类型与导出一致", caseSharedTypesMatchExports]
 ];
