@@ -206,6 +206,28 @@ function caseStagedKeepsExisting() {
 }
 
 /* 任务被移除时把还没轮到的暂存件一起收掉：暂存件不在看板上，留着没人认领。 */
+/*
+ * 暂存件落盘之后坏掉（截断 / 内容变了）：不编一个 0×0 当「尺寸不符」报出去，
+ * 就回一句「读不出来」，暂存件留着等人重新传一张。
+ */
+function caseStagedUnreadable() {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-home-"));
+  const staged = designImage.stage({ home: home, taskId: TASK, data: png(1280, 1024).toString("base64") });
+  fs.writeFileSync(staged.path, Buffer.from("这不是位图", "utf8"));
+  const workDir = sandbox();
+
+  assert.deepStrictEqual(
+    designImage.installStaged({ home: home, taskId: TASK, target: TARGET, workDir: workDir }),
+    { unreadable: true },
+    "读不出尺寸就是读不出，不自造 0×0"
+  );
+  assert.ok(fs.existsSync(staged.path), "那一份留着：人重新传一张就覆盖它");
+  assert.strictEqual(designImage.read({ projectRoot: workDir, target: TARGET }).image, null, "读不出就不装");
+
+  fs.rmSync(home, { recursive: true, force: true });
+  fs.rmSync(workDir, { recursive: true, force: true });
+}
+
 function caseDiscardStaged() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-home-"));
   const staged = designImage.stage({ home: home, taskId: TASK, data: png(1280, 1024).toString("base64") });
@@ -235,6 +257,7 @@ try {
     ["新建时先选的图：暂存 → 有画板尺寸后核对落地", caseStageThenInstall],
     ["暂存图尺寸不对：不装、回两边的数、暂存件留着等人重导", caseStagedMismatch],
     ["工作目录里已经有人传过图：暂存件不动它、自己清掉", caseStagedKeepsExisting],
+    ["暂存件坏了：回「读不出尺寸」，不编 0×0", caseStagedUnreadable],
     ["任务没了：暂存件跟着走", caseDiscardStaged]
   ];
   for (const [name, run] of cases) {
