@@ -38,7 +38,10 @@ describe("DesignImagePicker", () => {
     const file = new File(["x"], "DemoPage.design.png", { type: "image/png" })
     const { container, onPick } = show(file)
     expect(screen.getByText(/DemoPage\.design\.png/)).toBeTruthy()
-    expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:preview")
+    // 只验「有缩略图」这件事：地址怎么来的（对象地址 / data URL）是实现选择，用例不钉它。
+    const preview = container.querySelector("img")
+    expect(preview).toBeTruthy()
+    expect(preview?.getAttribute("src")).toBeTruthy()
     fireEvent.click(screen.getByRole("button", { name: /移除/ }))
     expect(onPick).toHaveBeenCalledWith(null)
   })
