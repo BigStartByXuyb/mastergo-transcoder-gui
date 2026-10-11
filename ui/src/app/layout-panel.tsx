@@ -111,7 +111,8 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
               <LayoutCanvas
                 controls={layout.controls}
                 canvas={canvas}
-                imageUrl={api.designImageUrl(input.projectRoot, input.target)}
+                /* 没有图就给空串：画布据此不挂图、也不给「隐藏设计稿」（有没有图由后端一处判）。 */
+                imageUrl={layout.hasImage ? api.designImageUrl(input.projectRoot, input.target) : ""}
                 highlight={hovered}
               />
             ) : null}

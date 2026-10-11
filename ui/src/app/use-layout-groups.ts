@@ -31,6 +31,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
   const [reason, setReason] = useState("")
   const [controls, setControls] = useState<LayoutControl[]>([])
   const [canvas, setCanvas] = useState<{ width: number; height: number } | null>(null)
+  const [hasImage, setHasImage] = useState(false)
   const [groups, setGroups] = useState<LayoutGroup[]>([])
   const [canSuggest, setCanSuggest] = useState(false)
   const [autoPass, setAutoPass] = useState(false)
@@ -70,6 +71,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
       setReason(payload.layout.reason)
       setControls(payload.layout.controls)
       setCanvas(payload.layout.canvas)
+      setHasImage(Boolean(payload.layout.hasImage))
       if (!dirty.current) setGroups(payload.layout.groups)
       setCanSuggest(payload.layout.canSuggest)
       // 「自动通过」也随这一页读回来：全局开关的当前值不另取一遍设置（一次读数一件事）。
@@ -129,6 +131,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
     reason,
     controls,
     canvas,
+    hasImage,
     groups,
     setGroups: applyGroups,
     canSuggest,

@@ -207,6 +207,8 @@ export type LayoutGroups = {
   controls: LayoutControl[]
   /** 画板尺寸（界面把控件坐标换算成百分比用）；固化快照那一步还没跑时是 null。判据在后端。 */
   canvas: { width: number; height: number } | null
+  /** 这一页有没有设计稿位图（画布据此决定给不给「隐藏设计稿」）；判据在后端。 */
+  hasImage: boolean
   groups: LayoutGroup[]
   /** 这一页有没有分组表（空表也算有）：与「表里有什么」同一次读给出。 */
   hasGroups: boolean

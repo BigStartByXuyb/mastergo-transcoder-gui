@@ -145,4 +145,7 @@
 | 2026-10-11 第 21 遍 | REVIEW-002 | 控件编号在画布上又算了一遍（`index + 1`） | 已收 | 画布改用 `ui/src/lib/layout-edit.ts` 的 `numberOf`：编号规则只有那一处 |
 | 2026-10-11 第 21 遍 | REVIEW-003 | 发 `.jpeg` 会落到 `application/octet-stream`（`lib/http.js` 的表里只有 `.jpg`） | 已收 | `CONTENT_TYPES` 补 `.jpeg: image/jpeg`：与 `lib/design-image.js` 认的三个后缀同口径 |
 | 2026-10-11 第 21 遍 | 非阻断 | `imageFile` 回 `{path, name}`，而生产调用方只用 `path` | 已收 | 只回 `path`（用例按 basename 断言） |
+| 2026-10-11 第 22 遍 | REVIEW-001 | 画布判不了「这一页有没有图」：无图页面上留一颗点了没反应的「显示设计稿」，点了还会打一次必然失败的请求 | 已收 | 「有没有图」由面板从这一页的读数里判（`lib/layout-groups.js` 转发 `lib/design-image.js` 的 `hasImage`）；没有图就传空串 `imageUrl` —— 画布不挂图、也不给那颗按钮 |
+| 2026-10-11 第 22 遍 | REVIEW-002 | 新增的发文件路由把「写头 + `createReadStream().pipe`」又抄了一份（三处） | 已收 | `lib/http.js` 新增 `sendFile(response, file)`：静态件、对话附件、设计稿位图三条发文件的路径都走它 |
+| 2026-10-11 第 22 遍 | 非阻断 | `lib/design-image.js` 文件头的「谁在用」没跟上新读者 | 已收 | 补上新路由（发图本身）与 `lib/layout-groups.js` 的转发 |
 
