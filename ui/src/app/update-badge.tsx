@@ -19,7 +19,12 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
   const [failure, setFailure] = useState("")
   const [confirming, setConfirming] = useState(false)
   const hint = props.update
-  const target = hint ? hint.ready || hint.availableVersion : ""
+  /*
+   * 目标版由后端一处给（lib/update.js 的 readState：远端说的那一版与本地已下好可切的那一版取更新的那个）。
+   * 「下没下好」也读后端那一态（download_ready 的定义就是「该动的那一版已经躺在本地」），
+   * 这里不再自己比一遍 —— 后端加一层条件（例如外壳下限挡住）时，顶栏不会继续说「可切」。
+   */
+  const target = hint ? hint.target : ""
 
   /*
    * 状态一变（下载好、切成新版）就把上一次那句收掉：它说的是上一刻的事，留着会让人以为现在还坏着
@@ -29,7 +34,7 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
     function () {
       setFailure("")
     },
-    [hint ? hint.state : "", hint ? hint.ready : ""]
+    [hint ? hint.state : "", hint ? hint.ready : "", hint ? hint.availableVersion : ""]
   )
 
   if (!hint || !target || hint.state === "up_to_date" || hint.state === "error") return null

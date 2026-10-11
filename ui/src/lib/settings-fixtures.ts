@@ -121,6 +121,7 @@ export function healthFixture(version = "0.6.37"): Health {
     update: {
       state: "up_to_date",
       current: version,
+      target: "",
       ready: "",
       busy: "",
       availableVersion: "",
