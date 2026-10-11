@@ -90,20 +90,6 @@ export function versionList(status: UpdateStatus): VersionRow[] {
 
 export type UpdateSummary = { label: string; tone: UpdateTone; note: string }
 
-/*
- * 顶栏那一条要用的目标版：远端清单说的那一版，或本地已经下好、可以切的那一版 —— 取更新的那个。
- * 只认「更新的」是因为两条线可能各自领先：缓存里的远端清单可能比本地这一份旧（安装根刚整包换过、
- * 或启动后还没复查过），那时该给的入口是手上这份更高的、已经能切的。
- * 同一个版本号两边都有时，它就是「已下好」，点一下直接切。
- */
-export function targetVersion(hint: { availableVersion: string; ready: string }): string {
-  const remote = hint.availableVersion
-  const ready = hint.ready
-  if (!remote) return ready
-  if (!ready) return remote
-  return compareVersions(ready, remote) > 0 ? ready : remote
-}
-
 /* 五态翻成用户看得懂的一句话。note 只留给失败原因，不复述状态名，也不解释怎么实现的。 */
 export function describeUpdate(status: UpdateStatus | null): UpdateSummary {
   if (!status) return { label: "读取中…", tone: "outline", note: "" }

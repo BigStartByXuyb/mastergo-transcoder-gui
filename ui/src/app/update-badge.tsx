@@ -6,7 +6,6 @@ import { BusyOverlay } from "@/app/busy-overlay"
 import { ConfirmSwitchDialog } from "@/app/confirm-switch-dialog"
 import type { UpdateHint } from "@/lib/api"
 import { finishDownload } from "@/app/download-actions"
-import { targetVersion } from "@/lib/update-state"
 import { startUpdateDownload } from "@/lib/update-download"
 import { runSwitch } from "@/lib/update-switch"
 
@@ -21,11 +20,11 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
   const [confirming, setConfirming] = useState(false)
   const hint = props.update
   /*
-   * 目标版 = 远端说的那一版与本地已下好可切的那一版里更新的那个（判据在 lib/update-state.ts）。
-   * 「下没下好」必须问**这一个版本**自己 —— 以前问的是全局状态（只要有任意一版下好了就算「已下载」），
+   * 目标版由后端一处给（lib/update.js 的 readState：远端说的那一版与本地已下好可切的那一版取更新的那个）。
+   * 「下没下好」问**这一个版本**自己 —— 以前问的是全局状态（只要有任意一版下好了就算「已下载」），
    * 于是没下过的远端新版会被当成「可切」，点下去切的是另一版，或者干脆被后端拒（和清单对不上）。
    */
-  const target = hint ? targetVersion(hint) : ""
+  const target = hint ? hint.target : ""
 
   /*
    * 状态一变（下载好、切成新版）就把上一次那句收掉：它说的是上一刻的事，留着会让人以为现在还坏着

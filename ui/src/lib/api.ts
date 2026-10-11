@@ -134,6 +134,8 @@ export type UpdateHint = {
   state: string
   /** 正在跑的版本：确认弹窗要说清是升级还是回退。 */
   current: string
+  /** 这条入口该对哪一版动作：远端说的那一版与已下好可切的那一版里更新的那个（算法在后端一处）。 */
+  target: string
   ready: string
   /** 有任务在跑时不能换版本；这里放原因，空串表示空闲。 */
   busy: string

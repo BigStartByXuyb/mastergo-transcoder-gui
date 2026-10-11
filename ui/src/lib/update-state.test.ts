@@ -11,25 +11,12 @@ import {
   describeUpdate,
   isDownloading,
   isTaskDone,
-  targetVersion,
   taskFailureNote,
   taskPercent,
   versionList
 } from "@/lib/update-state"
 
 describe("compareVersions", () => {
-  it("顶栏的目标：远端说的与本地已下好的取更新的那个", () => {
-    expect(targetVersion({ availableVersion: "0.6.12", ready: "" })).toBe("0.6.12")
-    expect(targetVersion({ availableVersion: "", ready: "0.6.12" })).toBe("0.6.12")
-    // 两边同号：这一版就是「已下好」，点一下直接切。
-    expect(targetVersion({ availableVersion: "0.6.12", ready: "0.6.12" })).toBe("0.6.12")
-    // 远端更新：目标是它，点一下是下载它。
-    expect(targetVersion({ availableVersion: "0.6.13", ready: "0.6.12" })).toBe("0.6.13")
-    // 缓存里的远端清单比手上这份旧（刚整包换过、或还没复查）：给手上这份能切的。
-    expect(targetVersion({ availableVersion: "0.6.12", ready: "0.6.13" })).toBe("0.6.13")
-    expect(targetVersion({ availableVersion: "", ready: "" })).toBe("")
-  })
-
   it("按数字段比，段数不齐短的补 0", () => {
     expect(compareVersions("0.10.0", "0.9.0")).toBe(1)
     expect(compareVersions("1.0", "1.0.0")).toBe(0)

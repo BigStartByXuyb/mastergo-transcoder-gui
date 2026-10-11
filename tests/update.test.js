@@ -131,6 +131,7 @@ async function main() {
   assert.deepStrictEqual(hinted, {
     state: "update_available",
     current: "0.1.0",
+    target: "0.2.0",
     ready: "",
     busy: "",
     availableVersion: "0.2.0",
@@ -186,6 +187,27 @@ async function main() {
   assert.strictEqual(repaired.ready, "0.2.0", "重下之后又可切换");
   assert.strictEqual(repaired.state, "download_ready");
   assert.strictEqual(update.hint().state, "download_ready");
+
+  /*
+   * 手上有可切的一份、远端又出了更新的一版：说的该是「有新版」，入口（hint.target）指向远端那一版。
+   * 设置页那句摘要与顶栏那条入口读的是同一处（readState 的 state / target），
+   * 不能一边说「v0.2.0 已就绪」一边说「有新版 v0.3.0」—— 那正是「点红点切的是另一版」的来源。
+   */
+  const newerTree = makeTree({
+    "server.js": "server 0.3.0",
+    "launch.js": "launch",
+    "package.json": "{\"version\":\"0.3.0\"}",
+    "lib/a.js": "a",
+    "public/index.html": "html"
+  });
+  const newerServer = remote(newerTree, "0.3.0");
+  const facingNewer = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: home, home: home, version: "0.1.0", fetchImpl: newerServer.fetchImpl });
+  await facingNewer.check();
+  const facing = facingNewer.status();
+  assert.strictEqual(facing.ready, "0.2.0", "手上那份 0.2.0 仍然可以切");
+  assert.strictEqual(facing.state, "update_available", "远端还有更新的一版，就该说「有新版」");
+  assert.strictEqual(facingNewer.hint().target, "0.3.0", "入口指向远端那一版");
+  assert.strictEqual(facingNewer.hint().ready, "0.2.0", "「已下好」说的还是手上那一份");
 
   // 本地已经是最新时不重复下载：这条分支不能因为判据改名而断掉。
   const alreadyNew = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: next, home: next, version: "0.2.0", fetchImpl: server.fetchImpl });

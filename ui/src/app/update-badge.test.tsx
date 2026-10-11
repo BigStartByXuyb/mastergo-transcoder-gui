@@ -20,6 +20,7 @@ function hint(patch: Partial<UpdateHint> = {}): UpdateHint {
   return {
     state: "update_available",
     current: "0.6.11",
+    target: "0.6.12",
     ready: "",
     busy: "",
     availableVersion: "0.6.12",
@@ -91,7 +92,8 @@ describe("UpdateBadge", () => {
     const onOpenUpdatePage = vi.fn()
     render(
       <UpdateBadge
-        update={hint({ state: "download_ready", ready: "0.6.11", availableVersion: "0.6.12" })}
+        // 后端按「远端说的与已下好可切的取更新的那个」算出 target：远端 0.6.12 更新，入口就指向它。
+        update={hint({ state: "update_available", ready: "0.6.11", availableVersion: "0.6.12", target: "0.6.12" })}
         supervised
         onOpenUpdatePage={onOpenUpdatePage}
       />

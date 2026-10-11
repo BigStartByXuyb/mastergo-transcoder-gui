@@ -96,4 +96,6 @@
 | 2026-10-10 第 39 遍 | REVIEW-001 | 「某链接配哪张图」的解析写了两份，还抄了另一模块的私有哨兵 | 已收 | `picksForCreated` 也走 `pickedForLink` |
 | 2026-10-10 第 40 遍 | REVIEW-001 | 顶栏标注把目标无条件指向远端版，本地已下好更高的那一版时会把旧版当「有新版」 | 已收 | 目标改成「远端说的与本地已下好的取更新的那个」（`ui/src/lib/update-state.ts` 的 `targetVersion`） |
 | 2026-10-10 第 41 遍 | REVIEW-001 | 新缓存的作废漏了 rollback 那条写指针的路 | 已收 | 作废点跟着触发点收成两处：写指针（`writePointer`，切换与回退共用）与写清单（`writeVersionManifest`） |
+| 2026-10-10 第 42 遍 | REVIEW-001 | 安装根整树核验落在探活读路径上、且读不出文件会抛 | 已收 | 缓存先查（连清单也不每次现读）；`lib/bundle-store.js` 的 `verifyDir` 把读不出来当「对不上」，读路径不再抛 |
+| 2026-10-10 第 42 遍 | REVIEW-002 | 「该对哪一版动作」在前端再算一遍，与后端 hint 的单源分叉 | 已收 | 算法收进 `readState`（`targetVersionOf`）：五态与 `hint().target` 同出一处，前端只渲染 |
 
