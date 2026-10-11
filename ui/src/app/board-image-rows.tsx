@@ -1,14 +1,8 @@
 import { DesignImagePicker } from "@/app/design-image-picker"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
-import { pickedForLink, type BoardRow } from "@/lib/board-items"
-import { READ_IMAGE_HINT } from "@/lib/task-form"
-
-/* 行上只给能认出是哪一页的那一段：链接太长，整条铺出来会把这一行挤成一团。 */
-function linkLabel(link: string): string {
-  const match = /[?&]layer_id=([^&]+)/.exec(link)
-  return match ? match[1] : link
-}
+import { linkLabel, pickedForLink, type BoardRow } from "@/lib/board-items"
+import { DESIGN_IMAGE_LABEL, READ_IMAGE_HINT } from "@/lib/task-form"
 
 /*
  * 创建任务弹窗「可选」组里的设计稿位图：一行（一个页面）一个框。
@@ -23,7 +17,7 @@ export function BoardImageRows(props: {
   return (
     <div className="flex flex-col gap-2">
       {/* 这一组下面是每行一个文件框，没有单个可关联的控件，所以不当 Label 用。 */}
-      <div className="text-sm font-medium">设计稿位图</div>
+      <div className="text-sm font-medium">{DESIGN_IMAGE_LABEL}</div>
       <div className="flex flex-col gap-2 rounded-md border px-3 py-2">
         {props.rows.length === 0 && (
           <span className="text-muted-foreground text-xs">先在上面写链接：一行一个页面，一行配一张图。</span>

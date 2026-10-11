@@ -100,10 +100,12 @@ export function BoardNewTaskDialog(props: {
               />
             </div>
             <BoardIdentityFill
-              identity={identity}
+              rows={identity.rows}
+              busy={identity.busy}
               automation={props.automation}
               failure={props.identityFailure}
               onFill={props.onFill}
+              onTake={(row, item) => void identity.take(row, item)}
             />
           </FieldGroup>
         </div>

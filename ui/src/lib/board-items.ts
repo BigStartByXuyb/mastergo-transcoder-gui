@@ -1,3 +1,12 @@
+/*
+ * 行上只给能认出是哪一页的那一段：链接太长，整条铺出来会把这一行挤成一团。
+ * 弹窗里两块（补全结果与位图行）都用它，取标签的规则只有这一处。
+ */
+export function linkLabel(link: string): string {
+  const match = /[?&]layer_id=([^&]+)/.exec(link)
+  return match ? match[1] : link
+}
+
 export type BoardMode = "A" | "B" | "AB"
 
 export type BoardItem = { link: string; target: string; mode: BoardMode }

@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import type { useIdentity } from "@/app/use-identity"
 import type { PipelineStep, PluginSummary } from "@/lib/api"
-import { READ_IMAGE_HINT, modeTakesRoute, type TaskForm } from "@/lib/task-form"
+import { DESIGN_IMAGE_LABEL, READ_IMAGE_HINT, modeTakesRoute, type TaskForm } from "@/lib/task-form"
 
 /*
  * 新建任务卡片：填链接 / 工程目录 / Target / 区域 / 路线，走 A 路线时还能先把设计稿位图选上，
@@ -101,7 +101,7 @@ export function NewTaskCard(props: Props) {
               </div>
               {modeTakesRoute(form.mode, "A") && (
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="run-image">设计稿位图（可选）</Label>
+                  <Label htmlFor="run-image">{DESIGN_IMAGE_LABEL}</Label>
                   <DesignImagePicker id="run-image" file={props.image} onPick={props.onPickImage} />
                   <p className="text-muted-foreground text-xs">{READ_IMAGE_HINT}</p>
                 </div>
