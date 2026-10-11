@@ -137,4 +137,5 @@
 | 2026-10-11 第 15 遍 | REVIEW-001 | 写回续跑的锚点还留了第二条来源：拿失败原话里的步名猜（与「断点只按登记表判」那条判据冲突） | 已收 | 去掉那条兜底：锚点只有两个来源（写回文件所喂的第一步 / 登记表里没跑成的那一步），都没有就只写入、并说清「这次没有可续跑的锚点」；纯函数用例补一条守住 |
 | 2026-10-11 第 16 遍 | REVIEW-001 | 「从哪一步续」仍有两份：「从断点继续」那条 live 路径还按本次失败的步名续 | 已收 | 那条也改读同一处判据（`lib/page-progress.js` 的 `unfinishedStepOf` + `lib/artifacts.js` 的 `stepsOf`）；「已有这一页 → 回到生成 Bundle 清单那一步」这条规则照旧（它是规则，不是猜） |
 | 2026-10-11 第 17 遍 | REVIEW-001 | 「从断点继续」两个入口用不同的 Target 读登记表：未给 Target 的任务（Target 由插件推导）在 live 那条读不到登记表，锚点丢掉 | 已收 | live 那条改按任务自己认回来的 Target 读（`task.request.target || request.target`，口径见 `lib/board.js` 的 `adoptTarget`）；顺带把契约读一次传下去，那句断言两处读两遍 |
+| 2026-10-11 第 18 遍 | REVIEW-001 | 判据台账那一行的「谁在读它」漏了 `routes` 那条 live 续跑 | 已收 | `docs/facts.md` 那行补上 `lib/routes.js` 的 `resumeLive`（连同它按哪个 Target 读登记表的说明） |
 
