@@ -150,4 +150,6 @@
 | 2026-10-11 第 22 遍 | 非阻断 | `lib/design-image.js` 文件头的「谁在用」没跟上新读者 | 已收 | 补上新路由（发图本身）与 `lib/layout-groups.js` 的转发 |
 | 2026-10-11 第 23 遍 | REVIEW-001 | `lib/layout-groups.js` 模块头仍写「有没有图不在这里判」，而 `inspect` 已转发 `canvas` / `hasImage` | 已收 | 模块头改成实况：读数含转发来的画板尺寸与「有没有图」，判据仍只有 `lib/design-image.js` 一处 |
 | 2026-10-11 第 23 遍 | 确定性检查 | `contentTypeOf` 成了没人引用的导出（发文件收成 `sendFile` 之后路由不再直接用它的表） | 已收 | 不再导出 `contentTypeOf`：它只作 `lib/http.js` 内部（`sendFile` 与静态件）的类型表读取 |
+| 2026-10-11 第 24 遍 | REVIEW-001 | 预览地址与图内容无关：换了图 `<img>` 不会重新取（缩略图继续显示上一张） | 已收 | 「图的身份」（大小-修改时间）由 `lib/design-image.js` 一处算（`stampOf`：`read` 的 `image.stamp` 与 `imageStamp()` 同源），并进 `api.designImageUrl(…, stamp)`；位图卡与布局画布都带上它。用例补一条「换一张 → 地址变」 |
+| 2026-10-11 第 24 遍 | 非阻断 | 布局载荷里「有没有图」是布尔、画布又从空串反推；画布的 `total > 0` 是恒真防御 | 已收 | 改成 `imageStamp`（空串＝没有图：一个字段一个意思）；`percent` 去掉恒真那一支 |
 

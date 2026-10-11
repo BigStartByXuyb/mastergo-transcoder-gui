@@ -57,7 +57,8 @@ function state(over: Partial<DesignImage> = {}): DesignImage {
   }
 }
 
-const IMAGE = { path: INPUTS + "\\DemoPage.design.png", name: "DemoPage.design.png", bytes: 2048, width: 1280, height: 1024 }
+/* stamp＝这张图的身份（大小 + 修改时间）：它进预览地址，换了图地址就变（见 lib/design-image.js）。 */
+const IMAGE = { path: INPUTS + "\\DemoPage.design.png", name: "DemoPage.design.png", bytes: 2048, width: 1280, height: 1024, stamp: "2048-1" }
 
 function stub(payload: DesignImage, hooks: { onSave?: (body: unknown) => void; save?: DesignImage | { code: string; message: string; hint: string } } = {}) {
   vi.stubGlobal("fetch", (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -138,6 +139,23 @@ describe("DesignImageCard", () => {
     expect(sent.target).toBe("DemoPage")
     expect(sent.data).toBe(Buffer.from([1, 2, 3, 4]).toString("base64"))
     expect(await screen.findByText("有图")).toBeTruthy()
+  })
+
+  /*
+   * 换一张：预览地址跟着图走。落盘名是固定的 <Target>.design.png，地址若不带图的身份，
+   * 同一个 <img> 的 src 一个字都不变，浏览器不会再取一次 —— 缩略图会停在上一张。
+   */
+  it("换一张：预览地址随图的身份变，同一个 <img> 才会重新取", async () => {
+    stub(state({ image: IMAGE, matches: true }), {
+      save: state({ image: { ...IMAGE, bytes: 4096, stamp: "4096-2" }, matches: true })
+    })
+    render(<DesignImageCard task={task()} />)
+
+    expect((await screen.findByAltText("这一页放着的设计稿位图")).getAttribute("src")).toContain("stamp=2048-1")
+    pick("DemoPage.design.png")
+    await waitFor(() =>
+      expect(screen.getByAltText("这一页放着的设计稿位图").getAttribute("src")).toContain("stamp=4096-2")
+    )
   })
 
   it("后端按原话拒绝时：把那句话与它的修法显示出来", async () => {

@@ -109,7 +109,7 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
               </span>
               {/* 图本身，不只文件名：布局确认里的编号对的是画板哪儿，就得看它。 */}
               <img
-                src={api.designImageUrl(projectRoot, target)}
+                src={api.designImageUrl(projectRoot, target, image.stamp)}
                 alt="这一页放着的设计稿位图"
                 className="max-h-64 w-auto max-w-full rounded-md border"
               />

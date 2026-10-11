@@ -26,7 +26,7 @@ export function LayoutCanvas(props: {
    * 这个开关只管这一块，不往面板外传 —— 面板要的是「号」，图只是参照。
    */
   const [showDesign, setShowDesign] = useState(true)
-  const percent = (value: number, total: number) => (total > 0 ? (value / total) * 100 + "%" : "0%")
+  const percent = (value: number, total: number) => (value / total) * 100 + "%"
   const canvas = props.canvas
 
   return (

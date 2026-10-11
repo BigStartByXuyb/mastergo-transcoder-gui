@@ -39,8 +39,8 @@ function stub(
     suggestGroups?: LayoutGroup[]
     /** 画板尺寸；传 null 验「还没跑到固化快照那一步」时不画布。 */
     canvas?: { width: number; height: number } | null
-    /** 这一页有没有设计稿位图；传 false 验「画布只给编号、不给隐藏按钮」。 */
-    hasImage?: boolean
+    /** 这一页那张图的身份（空串＝没有图）；传 "" 验「画布只给编号、不给隐藏按钮」。 */
+    imageStamp?: string
   } = {}
 ) {
   const available = options.available !== false
@@ -75,7 +75,7 @@ function stub(
             controls: options.controls ?? CONTROLS,
             // 画板尺寸：界面拿它把控件坐标换算成百分比（编号画到图上）；判据在后端。
             canvas: options.canvas === undefined ? { width: 1000, height: 500 } : options.canvas,
-            hasImage: options.hasImage !== false,
+            imageStamp: options.imageStamp === undefined ? "2048-1" : options.imageStamp,
             groups: options.groups ?? [],
             hasGroups: (options.groups ?? []).length > 0,
             // 后端的口径：控件够不够问 AI 由它给（阈值在 lib/layout-groups.js），界面照它禁用按钮。
@@ -138,7 +138,7 @@ describe("LayoutPanel", () => {
   })
 
   it("这一页没传图时：画布照样给编号，但不给那颗「隐藏设计稿」", async () => {
-    stub({ hasImage: false })
+    stub({ imageStamp: "" })
     render(panel())
 
     expect(await screen.findByText("画布")).toBeTruthy()
@@ -168,7 +168,7 @@ describe("LayoutPanel", () => {
         new Response(
           JSON.stringify({
             ok: true,
-            layout: { available: true, reason: "", controls: CONTROLS, groups: [], hasGroups: false, canSuggest: true, autoPass: true }
+            layout: { available: true, reason: "", controls: CONTROLS, canvas: null, imageStamp: "", groups: [], hasGroups: false, canSuggest: true, autoPass: true }
           }),
           { status: 200 }
         )
