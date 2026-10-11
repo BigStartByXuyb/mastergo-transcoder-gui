@@ -161,4 +161,5 @@
 | 2026-10-12 第 28 遍 | REVIEW-001 | 验收记录仍写着「后端层次图每段带上控件号」，与本轮改后的实现相反 | 已收 | 记录改成实况（后端只给层级、号在界面一处算），并把「容器只标方向」一起写进去 |
 | 2026-10-12 第 29 遍 | REVIEW-001 | 层次图选中态分存两处（树组件里一份、面板里一份），换页也不重置 | 已收 | 选中态只由面板一处持有（`treePicked` / `treeRefs`）；树改成受控件（`selected` 进来、`onPick(ref, refs)` 出去）；Target 一变就清 |
 | 2026-10-12 第 29 遍 | REVIEW-002 | 层次图与画布的用例靠 Tailwind 类名断言高亮，绑在样式实现上 | 已收 | DOM 上给语义钩子：画布框 `data-highlighted`、树行 `data-selected`，用例按属性断言 |
+| 2026-10-12 第 30 遍 | REVIEW-001 | 层次图选中态存了两个 state：选中的 ref 与由它派生的高亮 refs | 已收 | 只存「选中了哪一段」（`treePicked`）；要高亮哪些控件由 `ui/src/lib/layout-edit.ts` 的 `refsOfNode` 现算，树组件的 `onPick` 只回 ref |
 

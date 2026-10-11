@@ -42,13 +42,13 @@ const NODES: LayoutTreeNode[] = [
 ]
 
 describe("LayoutTree", () => {
-  it("点一段：把这段的 ref 与「连同下面各段里的控件」一起交出去", () => {
+  it("点一段：把这一段交出去（要描哪些控件由调用方用 refsOfNode 算）", () => {
     const picked = vi.fn()
     render(<LayoutTree nodes={NODES} controls={CONTROLS} selected="" onPick={picked} />)
 
     // 容器那一行显示的是方向（层名在悬停提示里）：点它就是点这一段。
     fireEvent.click(screen.getByText("竖排"))
-    expect(picked).toHaveBeenLastCalledWith("bar", ["a", "b"])
+    expect(picked).toHaveBeenLastCalledWith("bar")
   })
 
   it("选中的那一段标出来（选中态由调用方给，不在组件里另存一份）", () => {

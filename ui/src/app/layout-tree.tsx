@@ -4,17 +4,10 @@ import { cn } from "@/lib/utils"
 
 /*
  * 布局确认里的层次图：把设计稿里「放着控件的那些段」按层级摆出来。
- * 点一段，把这一段（连同它下面的段）里的控件 ref 交给调用方（画布据此描边）——
- * 「谁被选中」由调用方一处持有（这里不另存一份），换页时跟着一起清。
+ * 点一段，把这一段交给调用方：「谁被选中」与「选中那一段里有哪些控件」都由调用方一处算
+ * （ui/src/lib/layout-edit.ts 的 refsOfNode），这里不另存一份，换页时跟着一起清。
  * 号由 numberOf 现算（「控件号＝它在清单里的次序」只有那一处实现），与画布、与面上清单同源。
  */
-
-/* 这一段自己加上它下面所有段里的控件（画布按 ref 描边）。 */
-function refsOf(node: LayoutTreeNode, controls: LayoutControl[]): string[] {
-  const out = numberOf(controls, node.ref) > 0 ? [node.ref] : []
-  for (const child of node.children) out.push(...refsOf(child, controls))
-  return out
-}
 
 /*
  * 一段在树上叫什么：
@@ -35,8 +28,8 @@ export function LayoutTree(props: {
   controls: LayoutControl[]
   /** 现在选中的是哪一段（调用方持有；空串＝没选）。 */
   selected: string
-  /** 点了一段：把 ref 与「这一段连同下面各段里的控件 ref」一起回给调用方。 */
-  onPick: (ref: string, refs: string[]) => void
+  /** 点了一段：把它的 ref 回给调用方（选中态与要描的控件都由调用方一处管）。 */
+  onPick: (ref: string) => void
 }) {
   if (props.nodes.length === 0) return null
 
@@ -52,7 +45,7 @@ export function LayoutTree(props: {
           controls={props.controls}
           depth={0}
           selected={props.selected}
-          onPick={(node) => props.onPick(node.ref, refsOf(node, props.controls))}
+          onPick={(node) => props.onPick(node.ref)}
         />
       </div>
     </div>

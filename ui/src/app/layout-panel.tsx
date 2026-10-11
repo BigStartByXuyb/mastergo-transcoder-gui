@@ -11,7 +11,15 @@ import { LayoutCanvas } from "@/app/layout-canvas"
 import { LayoutTree } from "@/app/layout-tree"
 import { useLayoutGroups, type LayoutGroupsInput } from "@/app/use-layout-groups"
 import { api } from "@/lib/api"
-import { addGroup, labelOf, moveMember, removeGroup, removeMember, ungroupedControls } from "@/lib/layout-edit"
+import {
+  addGroup,
+  labelOf,
+  moveMember,
+  refsOfNode,
+  removeGroup,
+  removeMember,
+  ungroupedControls
+} from "@/lib/layout-edit"
 import { inFlightNote, isInFlight } from "@/lib/task-state"
 import { cn } from "@/lib/utils"
 import { useEffect, useState } from "react"
@@ -39,16 +47,13 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   const [newKind, setNewKind] = useState<"column" | "row">("column")
   /* 鼠标停在哪一组上：那一组的成员在画布上描出来（容器自己的框就盖住它里面的控件）。 */
   const [hoveredGroup, setHoveredGroup] = useState("")
-  /* 层次图上选中的那一段（与它带来的控件高亮）：一处持有，换页时跟着清。 */
+  /* 层次图上选中的那一段：只存「选的是哪一段」，要高亮哪些控件由 refsOfNode 现算。 */
   const [treePicked, setTreePicked] = useState("")
-  const [treeRefs, setTreeRefs] = useState<string[]>([])
-  useEffect(() => {
-    setTreePicked("")
-    setTreeRefs([])
-  }, [input.target])
+  useEffect(() => setTreePicked(""), [input.target])
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
   const canvas = layout.canvas
   const hovered = layout.groups.find((group) => group.id === hoveredGroup)?.members ?? []
+  const treeRefs = refsOfNode(layout.tree, treePicked, layout.controls)
   const highlight = [...new Set([...treeRefs, ...hovered])]
 
   function createGroup() {
@@ -138,11 +143,7 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
                   nodes={layout.tree}
                   controls={layout.controls}
                   selected={treePicked}
-                  onPick={(ref, refs) => {
-                    const next = treePicked === ref ? "" : ref
-                    setTreePicked(next)
-                    setTreeRefs(next ? refs : [])
-                  }}
+                  onPick={(ref) => setTreePicked(treePicked === ref ? "" : ref)}
                 />
               </div>
             ) : null}
