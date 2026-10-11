@@ -9,7 +9,7 @@
 
 const assert = require("assert");
 
-const { createConfirm } = require("../lib/confirm.js");
+const { createConfirm, resolveResumeStep } = require("../lib/confirm.js");
 
 const STEPS = [
   { Id: 7, Name: "ledger", Title: "图标台账", Inputs: ["命名表 Generated/_inputs/<Target>.icon-naming.json（人工/AI 语义输入）"] },
@@ -55,7 +55,7 @@ function makeHarness(contract, registry) {
   const confirm = createConfirm({
     runs: runs,
     // 插件登记表：哪几步真的跑成了（不传就是没跑过/读不出，那时只看文件锚点）。
-    artifacts: { read: () => ({ available: true, steps: registry || [] }) },
+    artifacts: { stepsOf: () => registry || [] },
     pending: {
       writeNaming: (args) => {
         written.push(args);
@@ -241,6 +241,40 @@ function caseAnchorKeepsFileStep() {
   assert.strictEqual(fx.started[0].progress, "ledger");
 }
 
+/* 锚点这个纯函数本身：不写盘、不起运行也能单独验。 */
+function caseResumeStepPure() {
+  const runSteps = [{
+    7: { id: 7, name: "ledger" },
+    8: { id: 8, name: "layout" },
+    9: { id: 9, name: "inputs" }
+  }];
+  assert.strictEqual(
+    resolveResumeStep({
+      wroteTranslations: true,
+      contract: STEPS,
+      registrySteps: [{ id: 8, name: "layout", status: "failed" }],
+      runSteps: runSteps
+    }),
+    "layout",
+    "只补译文时也不跳过没跑成的第 8 步"
+  );
+  assert.strictEqual(
+    resolveResumeStep({ wroteGroups: true, contract: STEPS, registrySteps: [], runSteps: runSteps }),
+    "layout",
+    "写分组表：锚点是吃它的那一步"
+  );
+  assert.strictEqual(
+    resolveResumeStep({ wroteNaming: true, contract: STEPS, registrySteps: [], runSteps: null }),
+    "ledger",
+    "没有来源运行那几步时按契约查步号"
+  );
+  assert.strictEqual(
+    resolveResumeStep({ contract: STEPS, registrySteps: [], runSteps: runSteps }),
+    "",
+    "什么都没写：没有锚点"
+  );
+}
+
 try {
   caseNoSource();
   console.log("  ok  没有来源运行就明说，不猜最近一次");
@@ -260,6 +294,8 @@ try {
   console.log("  ok  锚点不跳过还没跑成的那一步");
   caseAnchorKeepsFileStep();
   console.log("  ok  没跑成的那一步在后头时，锚点仍是写回文件所喂的那一步");
+  caseResumeStepPure();
+  console.log("  ok  锚点纯函数本身可单独验（不写盘、不起运行）");
   console.log("confirm-source.test.js 全部通过");
 }
 catch (error) {

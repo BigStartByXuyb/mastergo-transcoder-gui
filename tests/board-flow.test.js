@@ -373,14 +373,11 @@ async function caseLayoutStepComesFromContract() {
     contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
   ];
   const artifacts = {
-    read: () => ({
-      available: true,
-      steps: [
-        { id: 3, name: "layout", status: "ok", seconds: 1, note: "" },
-        { id: 7, name: "ledger", status: "ok", seconds: 1, note: "" },
-        { id: 8, name: "layoutManifest", status: "ok", seconds: 1, note: "" }
-      ]
-    })
+    stepsOf: () => [
+      { id: 3, name: "layout", status: "ok", seconds: 1, note: "" },
+      { id: 7, name: "ledger", status: "ok", seconds: 1, note: "" },
+      { id: 8, name: "layoutManifest", status: "ok", seconds: 1, note: "" }
+    ]
   };
   const fx = makeBoard({ steps: steps, artifacts: artifacts });
   const added = fx.board.add({ projectRoot: fx.project, items: [{ link: LINK, target: "T1", mode: "A" }] });
@@ -450,7 +447,7 @@ async function caseResumeStepBoundary() {
   fs.rmSync(fresh.home, { recursive: true, force: true });
 
   const artifacts = {
-    read: () => ({ available: true, steps: [{ id: 6, name: "discover", status: "ok", seconds: 1, note: "" }] })
+    stepsOf: () => [{ id: 6, name: "discover", status: "ok", seconds: 1, note: "" }]
   };
   const half = makeBoard({ artifacts: artifacts });
   const halfId = half.board.add({ projectRoot: half.project, items: [{ link: LINK, target: "T1", mode: "B" }] }).created[0];
@@ -493,13 +490,10 @@ async function caseStopRemoveClearAndMerge() {
 
 async function caseProgressStepsAndTargetAdoption() {
   const artifacts = {
-    read: () => ({
-      available: true,
-      steps: [
-        { id: 6, name: "discover", status: "ok", seconds: 1, note: "候选 3" },
-        { id: 7, name: "ledger", status: "skipped", seconds: 0, note: "" }
-      ]
-    })
+    stepsOf: () => [
+      { id: 6, name: "discover", status: "ok", seconds: 1, note: "候选 3" },
+      { id: 7, name: "ledger", status: "skipped", seconds: 0, note: "" }
+    ]
   };
   const fx = makeBoard({ artifacts: artifacts });
   const added = fx.board.add({ projectRoot: fx.project, ui: "F3", items: [{ link: LINK, mode: "B" }] });
