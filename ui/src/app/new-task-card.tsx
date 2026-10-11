@@ -197,4 +197,3 @@ export function NewTaskCard(props: Props) {
   )
 }
 
-/* 一组输入：外面一个框 + 标题行，把「必填 / 可自动补齐 / 可选」在视觉上分开。 */
