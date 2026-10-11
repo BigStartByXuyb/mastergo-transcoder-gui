@@ -49,9 +49,7 @@ export function BoardIdentityFill(props: {
           )}
           {row.kind === "pick" && (
             <>
-              {row.items
-                .filter((item) => item.target)
-                .map((item) => (
+              {row.items.map((item) => (
                   <span key={item.target + item.ui}>
                     <IdentityCandidateButton
                       item={item}
