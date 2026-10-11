@@ -108,9 +108,10 @@ function casePageProgress() {
   assert.strictEqual(pageProgress.isComplete([ok("a"), ok("b")], 0), false, "契约读不到时不猜跑完");
   assert.strictEqual(pageProgress.isComplete(null, 2), false, "没有登记表就是没跑过");
 
-  assert.strictEqual(pageProgress.resumeStepOf([ok("a"), bad("b")]).name, "b", "续跑锚点是第一条没跑成的步骤");
-  assert.strictEqual(pageProgress.resumeStepOf([ok("a")]), null, "全 ok 就没有锚点");
-  assert.strictEqual(pageProgress.resumeStepOf(null), null, "没有登记表就没有锚点");
+  assert.strictEqual(pageProgress.unfinishedStepOf([ok("fetch"), bad("bundle")], CONTRACT), "bundle", "断点是第一条没跑成的步骤");
+  assert.strictEqual(pageProgress.unfinishedStepOf([ok("fetch"), ok("bundle")], CONTRACT), "gates", "都 ok 但契约没跑满：取契约里还没跑到的那一步");
+  assert.strictEqual(pageProgress.unfinishedStepOf([], CONTRACT), "", "登记表里一条都没有：没有断点");
+  assert.strictEqual(pageProgress.unfinishedStepOf(null, CONTRACT), "", "没有登记表就没有断点");
 
   assert.strictEqual(pageProgress.bundleManifestStep(CONTRACT), "bundle", "按契约 Outputs 认生成 Bundle 的那一步");
   assert.strictEqual(pageProgress.bundleManifestStep([{ Id: 1, Name: "fetch", Outputs: ["a.json"] }]), "", "契约里没有就空着");

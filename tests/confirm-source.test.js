@@ -9,7 +9,7 @@
 
 const assert = require("assert");
 
-const { createConfirm } = require("../lib/confirm.js");
+const { createConfirm, resolveResumeStep } = require("../lib/confirm.js");
 
 const STEPS = [
   { Id: 7, Name: "ledger", Title: "图标台账", Inputs: ["命名表 Generated/_inputs/<Target>.icon-naming.json（人工/AI 语义输入）"] },
@@ -21,7 +21,7 @@ const icon = (name) => ({ index: 1, name: name, comment: "" });
 
 // 运行管理器桩：只认登记过的那次运行；status() 记下每一次要过的 id，用来证明没有空 id 的猜测。
 // 这一次运行自己的步骤表取自契约（同一份插件跑出来的），所以换一份契约就是换一次插件版本。
-function makeHarness(contract) {
+function makeHarness(contract, registry) {
   const steps = contract || STEPS;
   // 运行登记表里那一次跑过的步骤（按 id 键）：与契约同源，换一份契约就是换一次插件版本。
   const stepTable = {};
@@ -54,12 +54,17 @@ function makeHarness(contract) {
   };
   const confirm = createConfirm({
     runs: runs,
+    // 插件登记表：哪几步真的跑成了（不传就是没跑过/读不出，那时只看文件锚点）。
+    artifacts: { stepsOf: () => registry || [] },
     pending: {
       writeNaming: (args) => {
         written.push(args);
         return { path: "D:/work/known/Generated/_inputs/T1.icon-naming.json", count: args.items.length };
       },
-      writeTranslations: () => { throw new Error("这条用例不该写译文"); },
+      writeTranslations: (args) => {
+        written.push(args);
+        return { path: "D:/work/known/Generated/_inputs/T1.lang-translations.json", count: Object.keys(args.map).length };
+      },
       writeGlossary: () => { throw new Error("这条用例不该写术语"); },
       writeGroups: (args) => {
         written.push(args);
@@ -199,6 +204,87 @@ function caseAnchorFollowsContract() {
   assert.strictEqual(fx.started[0].progress, "layoutManifest");
 }
 
+/*
+ * 锚点是「刚写入的文件所喂的第一步」与「登记表里第一条没跑成的那一步」里更早的那个：
+ * 第 8 步失败着的时候只补译文，仍从第 8 步续 —— 跳去第 9 步会拿缺的 layoutManifest 去撞插件门禁。
+ */
+function caseAnchorNeverSkipsUnfinished() {
+  const fx = makeHarness(STEPS, [
+    { id: 7, name: "ledger", status: "ok" },
+    { id: 8, name: "layout", status: "failed" }
+  ]);
+  const result = fx.confirm.commit({
+    projectRoot: "D:/work/known",
+    target: "T1",
+    runId: "job-known",
+    translations: { Foo: "Foo EN" }
+  });
+  assert.strictEqual(fx.written.length, 1, "译文照写");
+  assert.strictEqual(result.resumedFrom, "layout", "第 8 步还没跑成，锚点不跳过它");
+  assert.strictEqual(fx.started[0].progress, "layout");
+}
+
+/* 另一个方向：没跑成的那一步在后头时，锚点仍是写回的文件所喂的那一步（它下游要重算）。 */
+function caseAnchorKeepsFileStep() {
+  const fx = makeHarness(STEPS, [
+    { id: 7, name: "ledger", status: "ok" },
+    { id: 8, name: "layout", status: "ok" },
+    { id: 9, name: "inputs", status: "failed" }
+  ]);
+  const result = fx.confirm.commit({
+    projectRoot: "D:/work/known",
+    target: "T1",
+    runId: "job-known",
+    naming: [icon("MenuOk")]
+  });
+  assert.strictEqual(result.resumedFrom, "ledger", "改动喂第 7 步的文件，锚点在第 7 步");
+  assert.strictEqual(fx.started[0].progress, "ledger");
+}
+
+/* 锚点这个纯函数本身：不写盘、不起运行也能单独验。 */
+function caseResumeStepPure() {
+  const runSteps = [{
+    7: { id: 7, name: "ledger" },
+    8: { id: 8, name: "layout" },
+    9: { id: 9, name: "inputs" }
+  }];
+  assert.strictEqual(
+    resolveResumeStep({
+      wroteTranslations: true,
+      contract: STEPS,
+      registrySteps: [{ id: 8, name: "layout", status: "failed" }],
+      runSteps: runSteps
+    }),
+    "layout",
+    "只补译文时也不跳过没跑成的第 8 步"
+  );
+  assert.strictEqual(
+    resolveResumeStep({ wroteGroups: true, contract: STEPS, registrySteps: [], runSteps: runSteps }),
+    "layout",
+    "写分组表：锚点是吃它的那一步"
+  );
+  assert.strictEqual(
+    resolveResumeStep({ wroteNaming: true, contract: STEPS, registrySteps: [], runSteps: null }),
+    "ledger",
+    "没有来源运行那几步时按契约查步号"
+  );
+  assert.strictEqual(
+    resolveResumeStep({ contract: STEPS, registrySteps: [], runSteps: runSteps }),
+    "",
+    "什么都没写：没有锚点"
+  );
+  assert.strictEqual(
+    resolveResumeStep({
+      wroteGroups: true,
+      contract: [{ Id: 8, Name: "layout", Inputs: ["别的文件"] }],
+      registrySteps: [],
+      runSteps: null
+    }),
+    "",
+    "契约里没有吃这个文件的步骤：没有锚点（不拿失败原话里的步名猜）"
+  );
+}
+
 try {
   caseNoSource();
   console.log("  ok  没有来源运行就明说，不猜最近一次");
@@ -214,6 +300,12 @@ try {
   console.log("  ok  空分组表照写（本页没有要声明的分组）");
   caseAnchorFollowsContract();
   console.log("  ok  续跑锚点跟着插件契约的 Inputs 走，不认步骤名");
+  caseAnchorNeverSkipsUnfinished();
+  console.log("  ok  锚点不跳过还没跑成的那一步");
+  caseAnchorKeepsFileStep();
+  console.log("  ok  没跑成的那一步在后头时，锚点仍是写回文件所喂的那一步");
+  caseResumeStepPure();
+  console.log("  ok  锚点纯函数本身可单独验（不写盘、不起运行）");
   console.log("confirm-source.test.js 全部通过");
 }
 catch (error) {

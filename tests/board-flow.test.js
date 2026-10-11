@@ -92,7 +92,7 @@ function makeBoard(options = {}) {
           }
         },
     layout: { register: () => ({ ok: true }) },
-    artifacts: options.artifacts || null,
+    artifacts: options.artifacts || { stepsOf: () => [] },
     home: home
   });
   return { board, home, project, runs, pendingCalls, autoFillCalls };
@@ -120,7 +120,7 @@ function caseLoadMarksDeadTasksStopped() {
     { id: "t2", state: "merged", request: { projectRoot: "D:/p", link: LINK, target: "T" }, workDir: "D:/w" }
   ]));
   const runs = makeRuns();
-  const board = createBoard({ runs: runs.api, pending: null, home: home });
+  const board = createBoard({ runs: runs.api, pending: null, artifacts: { stepsOf: () => [] }, home: home });
   const states = board.snapshot().tasks.map((task) => task.state);
   assert.deepStrictEqual(states, ["stopped", "merged"], "重启后不可能还在跑：running 变 stopped，其它状态保留");
   fs.rmSync(home, { recursive: true, force: true });
@@ -261,7 +261,7 @@ async function caseAutoFillLimitAndRealFailure() {
     pending: { inspect: () => ({ icons: { available: true, needsNaming: true, needsRepair: false, mustName: [1] }, translations: { available: false } }) },
     autoFill: { fill: async () => ({ ok: true, filled: [], job: { id: "job-resumed", request: { progress: "" } } }) },
     layout: { register: () => ({ ok: true }) },
-    artifacts: null,
+    artifacts: { stepsOf: () => [] },
     home: home
   });
   board.start(id);
@@ -373,14 +373,11 @@ async function caseLayoutStepComesFromContract() {
     contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
   ];
   const artifacts = {
-    read: () => ({
-      available: true,
-      steps: [
-        { id: 3, name: "layout", status: "ok", seconds: 1, note: "" },
-        { id: 7, name: "ledger", status: "ok", seconds: 1, note: "" },
-        { id: 8, name: "layoutManifest", status: "ok", seconds: 1, note: "" }
-      ]
-    })
+    stepsOf: () => [
+      { id: 3, name: "layout", status: "ok", seconds: 1, note: "" },
+      { id: 7, name: "ledger", status: "ok", seconds: 1, note: "" },
+      { id: 8, name: "layoutManifest", status: "ok", seconds: 1, note: "" }
+    ]
   };
   const fx = makeBoard({ steps: steps, artifacts: artifacts });
   const added = fx.board.add({ projectRoot: fx.project, items: [{ link: LINK, target: "T1", mode: "A" }] });
@@ -450,7 +447,7 @@ async function caseResumeStepBoundary() {
   fs.rmSync(fresh.home, { recursive: true, force: true });
 
   const artifacts = {
-    read: () => ({ available: true, steps: [{ id: 6, name: "discover", status: "ok", seconds: 1, note: "" }] })
+    stepsOf: () => [{ id: 6, name: "discover", status: "ok", seconds: 1, note: "" }]
   };
   const half = makeBoard({ artifacts: artifacts });
   const halfId = half.board.add({ projectRoot: half.project, items: [{ link: LINK, target: "T1", mode: "B" }] }).created[0];
@@ -493,13 +490,10 @@ async function caseStopRemoveClearAndMerge() {
 
 async function caseProgressStepsAndTargetAdoption() {
   const artifacts = {
-    read: () => ({
-      available: true,
-      steps: [
-        { id: 6, name: "discover", status: "ok", seconds: 1, note: "候选 3" },
-        { id: 7, name: "ledger", status: "skipped", seconds: 0, note: "" }
-      ]
-    })
+    stepsOf: () => [
+      { id: 6, name: "discover", status: "ok", seconds: 1, note: "候选 3" },
+      { id: 7, name: "ledger", status: "skipped", seconds: 0, note: "" }
+    ]
   };
   const fx = makeBoard({ artifacts: artifacts });
   const added = fx.board.add({ projectRoot: fx.project, ui: "F3", items: [{ link: LINK, mode: "B" }] });

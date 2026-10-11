@@ -197,6 +197,7 @@ const artifacts = createArtifacts();
 const confirm = createConfirm({
   runs: runs,
   pending: pending,
+  artifacts: artifacts,
   steps: function () { return readPipelineSteps(PLUGIN.root); }
 });
 const autoFill = createAutoFill({ ai: ai, pending: pending, confirm: confirm, settings: settings });

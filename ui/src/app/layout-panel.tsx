@@ -29,6 +29,8 @@ type LayoutPanelProps = LayoutGroupsInput & {
 export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   const layout = useLayoutGroups(input)
   const confirmable = !isInFlight(state)
+  /* 这一颗按钮的名字只有一处：提示语里说的也就是它（没有来源运行时是「写入分组表」，不续跑）。 */
+  const writeLabel = input.resume ? "写入分组表并继续" : "写入分组表"
   const [newId, setNewId] = useState("")
   const [newKind, setNewKind] = useState<"column" | "row">("column")
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
@@ -46,9 +48,8 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
           <Badge variant={layout.available ? "secondary" : "outline"}>{layout.available ? "可编辑" : "还没有控件清单"}</Badge>
         </CardTitle>
         <CardDescription>
-          控件按清单次序编号（#1 起）：把「同属一行或一列」的编号分成一组；分组表由布局推导消费。
-          没有要声明的分组就直接确认（写出空表，按机械判据走）。成员太少、一个控件进多组这类毛病由后端判，
-          写不进去时它会把原话显示在这里。
+          这张「分组表」只写一件事：哪些控件同属一行（或同一列），以及这个组叫什么 —— 布局推导按它走。
+          带设计稿位图时流水线不替你猜分组：要么在这里声明分组，要么写一张空表说明「本页没有要声明的分组」。
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -76,7 +77,7 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
                 </Button>
                 <Button size="sm" onClick={() => void layout.save()} disabled={layout.busy || !confirmable}>
                   <Save className="mr-1 h-4 w-4" />
-                  {input.resume ? "写入分组表并继续" : "写入分组表"}
+                  {writeLabel}
                 </Button>
               </div>
             </div>
@@ -90,12 +91,13 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
             ) : null}
             {!confirmable ? (
               <p className="text-sm text-muted-foreground">
-                {inFlightNote(input.resume ? "写入分组表并继续" : "写入分组表")}
+                {inFlightNote(writeLabel)}
               </p>
             ) : null}
             {layout.groups.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                没有要声明的分组就直接确认：写出空分组表，布局推导按机械判据走。
+                没有要声明的分组：直接点「{writeLabel}」，它写出空分组表，布局推导按机械判据走；
+                要声明分组：先在下面起个组名、选行或列，再把控件拖进那个组里。
               </p>
             ) : null}
 
@@ -147,7 +149,10 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
             </div>
 
             <div className="rounded-md border border-dashed p-3">
-              <div className="mb-2 text-sm font-medium text-muted-foreground">未分组控件（{ungrouped.length}）</div>
+              <div className="mb-2 flex flex-wrap items-baseline gap-2">
+                <span className="text-sm font-medium text-muted-foreground">未分组控件（{ungrouped.length}）</span>
+                <span className="text-xs text-muted-foreground">拖进上面某个组里</span>
+              </div>
               <div className="flex flex-wrap gap-1.5">
                 {ungrouped.map((control) => (
                   <Badge
