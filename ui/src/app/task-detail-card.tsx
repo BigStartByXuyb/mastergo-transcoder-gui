@@ -53,8 +53,12 @@ export function TaskDetailCard(props: Props) {
           {resumable && (
             <Button size="sm" disabled={busy === "resume"} onClick={props.onResume}>
               {busy === "resume" ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
-              {/* 有断点就写清从哪一步续；被停掉但还没跑过时没有那一步，那就说是重跑。 */}
-              {task.resumeStep ? "从「" + task.resumeStep + "」继续" : "重跑一遍"}
+              /*
+               * 按钮只说「有没有断点」：具体从哪一步续由续跑计划在点下去那一刻算（lib/board.js 的 planResume），
+               * 结果写在完成提示里（use-task-actions）—— 那是唯一一处说「实际从哪儿续」的地方，
+               * 快照里那个步名只是同一判据的展示面，不拿来当承诺。
+               */
+              {task.resumeStep ? "从断点继续" : "重跑一遍"}
             </Button>
           )}
           {(task.state === "ready" || task.state === "conflict") && (
