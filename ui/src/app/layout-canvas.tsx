@@ -57,6 +57,7 @@ export function LayoutCanvas(props: {
         {props.controls.map((control) => (
           <span
             key={control.ref}
+            data-ref={control.ref}
             title={labelOf(props.controls, control.ref)}
             className={cn(
               "absolute border",

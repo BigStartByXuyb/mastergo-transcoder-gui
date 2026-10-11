@@ -150,6 +150,29 @@ describe("LayoutPanel", () => {
     expect(screen.queryByAltText("这一页的设计稿位图")).toBeNull()
   })
 
+  it("点层次图上的一段：那一段里的控件在画布上被描出来，再点一下取消", async () => {
+    stub({
+      tree: [{
+        ref: "1:1",
+        name: "",
+        type: "FRAME",
+        numbers: [],
+        children: [{ ref: "1:9", name: "右侧栏", type: "IconButton", numbers: [1], children: [] }]
+      }]
+    })
+    render(panel())
+    await screen.findByText("画布")
+
+    const marked = () => (document.querySelector('[data-ref="1:9"]') as HTMLElement).className
+    expect(marked()).not.toContain("bg-primary/20")
+
+    fireEvent.click(screen.getByText("右侧栏 · #1"))
+    expect(marked()).toContain("bg-primary/20")
+
+    fireEvent.click(screen.getByText("右侧栏 · #1"))
+    expect(marked()).not.toContain("bg-primary/20")
+  })
+
   it("已有分组按组渲染成员编号，自动通过默认关", async () => {
     stub({ groups: [{ id: "RightTools", kind: "column", members: ["1:9", "1:10"] }] })
     render(panel())
