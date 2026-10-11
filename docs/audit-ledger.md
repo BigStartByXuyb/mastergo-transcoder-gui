@@ -148,4 +148,6 @@
 | 2026-10-11 第 22 遍 | REVIEW-001 | 画布判不了「这一页有没有图」：无图页面上留一颗点了没反应的「显示设计稿」，点了还会打一次必然失败的请求 | 已收 | 「有没有图」由面板从这一页的读数里判（`lib/layout-groups.js` 转发 `lib/design-image.js` 的 `hasImage`）；没有图就传空串 `imageUrl` —— 画布不挂图、也不给那颗按钮 |
 | 2026-10-11 第 22 遍 | REVIEW-002 | 新增的发文件路由把「写头 + `createReadStream().pipe`」又抄了一份（三处） | 已收 | `lib/http.js` 新增 `sendFile(response, file)`：静态件、对话附件、设计稿位图三条发文件的路径都走它 |
 | 2026-10-11 第 22 遍 | 非阻断 | `lib/design-image.js` 文件头的「谁在用」没跟上新读者 | 已收 | 补上新路由（发图本身）与 `lib/layout-groups.js` 的转发 |
+| 2026-10-11 第 23 遍 | REVIEW-001 | `lib/layout-groups.js` 模块头仍写「有没有图不在这里判」，而 `inspect` 已转发 `canvas` / `hasImage` | 已收 | 模块头改成实况：读数含转发来的画板尺寸与「有没有图」，判据仍只有 `lib/design-image.js` 一处 |
+| 2026-10-11 第 23 遍 | 确定性检查 | `contentTypeOf` 成了没人引用的导出（发文件收成 `sendFile` 之后路由不再直接用它的表） | 已收 | 不再导出 `contentTypeOf`：它只作 `lib/http.js` 内部（`sendFile` 与静态件）的类型表读取 |
 
