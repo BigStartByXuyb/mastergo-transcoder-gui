@@ -8,8 +8,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { useLayoutGroups, type LayoutGroupsInput } from "@/app/use-layout-groups"
+import { api } from "@/lib/api"
 import { addGroup, labelOf, moveMember, removeGroup, removeMember, ungroupedControls } from "@/lib/layout-edit"
 import { inFlightNote, isInFlight } from "@/lib/task-state"
+import { cn } from "@/lib/utils"
 import { useState } from "react"
 
 /*
@@ -33,7 +35,14 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   const writeLabel = input.resume ? "写入分组表并继续" : "写入分组表"
   const [newId, setNewId] = useState("")
   const [newKind, setNewKind] = useState<"column" | "row">("column")
+  /* 画布上的设计稿可以盖掉，只看编号：位图卡那边已经说过图在哪，这里要的是「号在哪儿」。 */
+  const [showDesign, setShowDesign] = useState(true)
+  /* 鼠标停在哪一组上：那一组的成员在画布上描出来（容器自己的框就盖住它里面的控件）。 */
+  const [hoveredGroup, setHoveredGroup] = useState("")
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
+  const canvas = layout.canvas
+  const hovered = layout.groups.find((group) => group.id === hoveredGroup)?.members ?? []
+  const percent = (value: number, total: number) => (total > 0 ? (value / total) * 100 + "%" : "0%")
 
   function createGroup() {
     layout.setGroups(addGroup(layout.groups, newId, newKind))
@@ -101,11 +110,61 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
               </p>
             ) : null}
 
+            {canvas ? (
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <span className="text-sm font-medium">画布</span>
+                  <span className="text-muted-foreground text-xs">
+                    框里的号就是下面清单里的号；鼠标停到某个组上，它的成员会在图上描出来。
+                  </span>
+                  <Button size="sm" variant="outline" onClick={() => setShowDesign(!showDesign)}>
+                    {showDesign ? "隐藏设计稿" : "显示设计稿"}
+                  </Button>
+                </div>
+                <div
+                  className={cn("relative w-full overflow-hidden rounded-md border bg-muted/30")}
+                  style={{ aspectRatio: canvas.width + " / " + canvas.height }}
+                >
+                  {showDesign && (
+                    <img
+                      src={api.designImageUrl(input.projectRoot, input.target)}
+                      alt="这一页的设计稿位图"
+                      className="absolute inset-0 size-full object-fill"
+                      /* 图不在了（没传过 / 被删了）就退成只看编号，不挂一张破图。 */
+                      onError={() => setShowDesign(false)}
+                    />
+                  )}
+                  {layout.controls.map((control, index) => (
+                    <span
+                      key={control.ref}
+                      title={labelOf(layout.controls, control.ref)}
+                      className={cn(
+                        "absolute border",
+                        hovered.includes(control.ref) ? "border-primary bg-primary/20" : "border-primary/50"
+                      )}
+                      style={{
+                        left: percent(control.absX, canvas.width),
+                        top: percent(control.absY, canvas.height),
+                        width: percent(control.w, canvas.width),
+                        height: percent(control.h, canvas.height)
+                      }}
+                    >
+                      <span className="bg-background/90 absolute -top-1.5 -left-1 rounded px-0.5 text-[0.6rem] leading-tight tabular-nums">
+                        {index + 1}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             <div className="space-y-3">
               {layout.groups.map((group) => (
                 <div
                   key={group.id}
                   className="rounded-md border p-3"
+                  onMouseEnter={() => setHoveredGroup(group.id)}
+                  onMouseLeave={() => setHoveredGroup("")}
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={(event) => {
                     const ref = event.dataTransfer.getData("text/plain")

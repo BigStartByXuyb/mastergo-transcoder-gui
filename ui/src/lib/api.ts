@@ -205,6 +205,8 @@ export type LayoutGroups = {
   available: boolean
   reason: string
   controls: LayoutControl[]
+  /** 画板尺寸（界面把控件坐标换算成百分比用）；固化快照那一步还没跑时是 null。判据在后端。 */
+  canvas: { width: number; height: number } | null
   groups: LayoutGroup[]
   /** 这一页有没有分组表（空表也算有）：与「表里有什么」同一次读给出。 */
   hasGroups: boolean
@@ -969,6 +971,12 @@ export const api = {
     request<{ ok: true; image: DesignImage }>(
       "/api/design-image?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
     ),
+  /**
+   * 这一页那张设计稿位图的地址（位图卡的预览与布局确认的画布都用它当 <img src>）。
+   * 地址怎么拼只有这一处；没有图时后端回明确错误（那两处也只在有图时显示）。
+   */
+  designImageUrl: (projectRoot: string, target: string) =>
+    "/api/design-image/file?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target),
   /**
    * 存一张设计稿位图（整份替换）。格式按**内容**认，落盘后缀也按它取，所以不用传文件名；
    * 尺寸与画板不一致、内容不是 PNG/JPEG 时，后端按原话拒绝。

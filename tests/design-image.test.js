@@ -52,6 +52,24 @@ function caseSaveAndRead() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+/*
+ * 界面显示那张图本身要的那条路（位图卡的预览、布局确认的画布都拿它当图源）：
+ * 有图给路径，没图明确拒绝 —— 那两处也只在有图时才显示。
+ */
+function caseImageFile() {
+  const root = sandbox();
+  assert.throws(
+    () => designImage.imageFile({ projectRoot: root, target: TARGET }),
+    (error) => error.code === "NO_IMAGE",
+    "还没传图时明确拒绝"
+  );
+  upload(root, png(1280, 1024));
+  const file = designImage.imageFile({ projectRoot: root, target: TARGET });
+  assert.strictEqual(file.name, "DemoPage.design.png", "给的是当前放着的那一张");
+  assert.ok(fs.existsSync(file.path), "路径真的在");
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 /* 只接这两种：JPEG 也要认得出宽高（尺寸这一格与格式那一格都从同一份文件头来）。 */
 function caseJpeg() {
   const root = sandbox();
@@ -249,6 +267,7 @@ function caseDiscardStaged() {
 try {
   const cases = [
     ["存一张 PNG 并读回状态", caseSaveAndRead],
+    ["界面显示的那张图：有图给路径 / 没图明确拒绝", caseImageFile],
     ["JPEG 也认（尺寸与后缀都按内容）", caseJpeg],
     ["换格式只留一张", caseReplace],
     ["拒绝的几种", caseRejections],

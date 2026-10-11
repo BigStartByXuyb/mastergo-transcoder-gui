@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { LayoutPanel } from "@/app/layout-panel"
@@ -37,6 +37,8 @@ function stub(
     autoPass?: boolean
     /** AI 候选：默认给一组，传 [] 验「模型一组没给」时的提示。 */
     suggestGroups?: LayoutGroup[]
+    /** 画板尺寸；传 null 验「还没跑到固化快照那一步」时不画布。 */
+    canvas?: { width: number; height: number } | null
   } = {}
 ) {
   const available = options.available !== false
@@ -69,6 +71,8 @@ function stub(
             available: available,
             reason: available ? "" : "还没有类型判定产物（流水线尚未跑到第 5 步的类型判定）",
             controls: options.controls ?? CONTROLS,
+            // 画板尺寸：界面拿它把控件坐标换算成百分比（编号画到图上）；判据在后端。
+            canvas: options.canvas === undefined ? { width: 1000, height: 500 } : options.canvas,
             groups: options.groups ?? [],
             hasGroups: (options.groups ?? []).length > 0,
             // 后端的口径：控件够不够问 AI 由它给（阈值在 lib/layout-groups.js），界面照它禁用按钮。
@@ -105,6 +109,29 @@ describe("LayoutPanel", () => {
     expect(screen.getByText("未分组控件（3）")).toBeTruthy()
     // 没有分组时给一句出路：空分组表就是「本页没有要声明的分组」。
     expect(screen.getByText(/写出空分组表/)).toBeTruthy()
+  })
+
+  it("画布：编号与清单同源，设计稿能盖掉只看编号", async () => {
+    stub()
+    render(panel())
+
+    expect(await screen.findByText("画布")).toBeTruthy()
+    // 号就是清单里的号（两处读同一份 controls 的次序）。
+    expect(screen.getByText("1")).toBeTruthy()
+    expect(screen.getByText("3")).toBeTruthy()
+    expect(screen.getByAltText("这一页的设计稿位图")).toBeTruthy()
+
+    fireEvent.click(screen.getByText("隐藏设计稿"))
+    expect(screen.queryByAltText("这一页的设计稿位图")).toBeNull()
+    expect(screen.getByText("显示设计稿")).toBeTruthy()
+  })
+
+  it("画板尺寸还不知道时不给画布（固化快照那一步还没跑到）", async () => {
+    stub({ canvas: null })
+    render(panel())
+
+    expect(await screen.findByText("布局确认")).toBeTruthy()
+    expect(screen.queryByText("画布")).toBeNull()
   })
 
   it("已有分组按组渲染成员编号，自动通过默认关", async () => {
