@@ -26,9 +26,10 @@ export type LayoutGroupsInput = {
   progressDone?: number
 }
 
+/* 后端给的那几份清单都按数组读：字段缺了（旧后端 / 半截响应）当空，别让界面当场炸。 */
+const listOf = <T,>(value: T[] | undefined): T[] => (Array.isArray(value) ? value : [])
+
 export function useLayoutGroups(input: LayoutGroupsInput) {
-  /* 后端给的那几份清单都按数组读：字段缺了（旧后端 / 半截响应）当空，别让界面当场炸。 */
-  const listOf = <T,>(value: T[] | undefined): T[] => (Array.isArray(value) ? value : [])
   const [available, setAvailable] = useState(false)
   const [reason, setReason] = useState("")
   const [controls, setControls] = useState<LayoutControl[]>([])
@@ -73,7 +74,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
       setAvailable(payload.layout.available)
       setReason(payload.layout.reason)
       setControls(listOf(payload.layout.controls))
-      setCanvas(payload.layout.canvas)
+      setCanvas(payload.layout.canvas ?? null)
       setImageStamp(String(payload.layout.imageStamp || ""))
       setTree(listOf(payload.layout.tree))
       if (!dirty.current) setGroups(listOf(payload.layout.groups))

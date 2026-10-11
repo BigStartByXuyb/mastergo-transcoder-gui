@@ -168,4 +168,7 @@
 | 2026-10-12 第 33 遍 | REVIEW-001 | 验收记录写的「前端 426 条用例」与本轮实际的 431 条不符 | 已收 | 记录里的数改成本轮实际的 431 条 |
 | 2026-10-12 第 34 遍 | REVIEW-001 | 新加的 `tree` 读数没兜底：类型声明成数组、运行时可能是 undefined | 已收 | `ui/src/app/use-layout-groups.ts` 里三份清单（控件 / 分组 / 层次图）都经同一个 `listOf` 读成数组：字段缺了当空，界面不炸 |
 | 2026-10-12 第 35 遍 | REVIEW-001 | 层次图的「方向」读的 DSL 字段（`flexContainerInfo.flexDirection`）仓内无处佐证、也没有用例覆盖 | 已收 | 注释点名插件那边的同一处读法（`gen-mw-wpf-layout.js` 的 `parent.flex.flexDirection`）；用例夹具改成带 flex 的容器，逐段断言 `flow`（column / row / 自由） |
+| 2026-10-12 第 36 遍 | REVIEW-001 | 注释里说的插件字段路径（`parent.flex.flexDirection`）与代码读的（`flexContainerInfo.flexDirection`）看起来不是同一个，仓内无从互证 | 已收 | 注释把字段链写死：插件那行 `flex: node.flexContainerInfo || null`（第 106 行）先记成 flex，之后按 `flex.flexDirection` 判主轴 —— 同一个字段，不是两条路径 |
+| 2026-10-12 第 36 遍 | 非阻断 | 层次图绑在画布上（`canvas` 空则整栏消失）；「有没有层次图」判两次；「算不算控件」三处重复表达；`listOf` 每次渲染重建且 `canvas` 没走同一道兜底 | 已收 | 面板一处判 `hasTree`（画布与树各自独立渲染）；「算不算控件」收成 `ui/src/lib/layout-edit.ts` 的 `isControl`；`listOf` 提到模块级、`canvas` 也按 `?? null` 收口 |
+| 2026-10-12 第 36 遍 | 非阻断 | `inspect` 无条件构造层次图，而待确认队列 / 自动补输入那两条路不读它 | 独立一轮 | 加一个「要不要带层次图」的开关并让那两条路关掉它；本次不动（它只是每页多算一遍，没有行为影响） |
 

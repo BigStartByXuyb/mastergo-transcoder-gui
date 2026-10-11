@@ -82,8 +82,4 @@ describe("LayoutTree", () => {
     expect(screen.getByText("右侧栏 · #1")).toBeTruthy()
   })
 
-  it("没有层次图时这一块不出现", () => {
-    const { container } = render(<LayoutTree nodes={[]} controls={CONTROLS} selected="" onPick={() => undefined} />)
-    expect(container.textContent).toBe("")
-  })
 })

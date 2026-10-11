@@ -53,6 +53,8 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   useEffect(() => setTreePicked(""), [input.projectRoot, input.target])
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
   const canvas = layout.canvas
+  /* 有没有层次图只有这一处判（摆不摆第二条列、挂不挂这块都读它）。 */
+  const hasTree = layout.tree.length > 0
   const hovered = layout.groups.find((group) => group.id === hoveredGroup)?.members ?? []
   const treeRefs = refsOfNode(layout.tree, treePicked, layout.controls)
   const highlight = [...new Set([...treeRefs, ...hovered])]
@@ -123,29 +125,33 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
               </p>
             ) : null}
 
-            {canvas ? (
+            {canvas || hasTree ? (
               <div
                 className={cn(
                   "grid gap-3",
                   /* 没有层次图时不摆第二条列，免得右边空一条 */
-                  layout.tree.length > 0 && "lg:grid-cols-[minmax(0,1fr)_16rem]"
+                  hasTree && "lg:grid-cols-[minmax(0,1fr)_16rem]"
                 )}
               >
-                <LayoutCanvas
-                  controls={layout.controls}
-                  canvas={canvas}
-                  /* 没有图就给空串：画布据此不挂图、也不给「隐藏设计稿」（图的身份由后端一处给）。 */
-                  imageUrl={
-                    layout.imageStamp ? api.designImageUrl(input.projectRoot, input.target, layout.imageStamp) : ""
-                  }
-                  highlight={highlight}
-                />
-                <LayoutTree
-                  nodes={layout.tree}
-                  controls={layout.controls}
-                  selected={treePicked}
-                  onPick={(ref) => setTreePicked(treePicked === ref ? "" : ref)}
-                />
+                {canvas && (
+                  <LayoutCanvas
+                    controls={layout.controls}
+                    canvas={canvas}
+                    /* 没有图就给空串：画布据此不挂图、也不给「隐藏设计稿」（图的身份由后端一处给）。 */
+                    imageUrl={
+                      layout.imageStamp ? api.designImageUrl(input.projectRoot, input.target, layout.imageStamp) : ""
+                    }
+                    highlight={highlight}
+                  />
+                )}
+                {hasTree && (
+                  <LayoutTree
+                    nodes={layout.tree}
+                    controls={layout.controls}
+                    selected={treePicked}
+                    onPick={(ref) => setTreePicked(treePicked === ref ? "" : ref)}
+                  />
+                )}
               </div>
             ) : null}
 

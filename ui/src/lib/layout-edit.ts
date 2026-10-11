@@ -21,6 +21,11 @@ export function textOf(controls: LayoutControl[], ref: string): string {
   return (controls.find((item) => item.ref === ref)?.text ?? "").trim()
 }
 
+/* 这个 ref 是不是脚本识别出来的控件（清单里有它）。「算不算控件」只有这一处判。 */
+export function isControl(controls: LayoutControl[], ref: string): boolean {
+  return controls.some((item) => item.ref === ref)
+}
+
 /** 一个控件的展示名：编号 + 类型 · value；清单里没有的 ref 照原样显示。 */
 export function labelOf(controls: LayoutControl[], ref: string): string {
   const number = numberOf(controls, ref)
@@ -91,7 +96,7 @@ function findNode(nodes: LayoutTreeNode[], ref: string): LayoutTreeNode | null {
 
 /* 这一段自己（它是控件时）加上它下面所有段里的控件 ref。 */
 function refsUnder(node: LayoutTreeNode, controls: LayoutControl[]): string[] {
-  const out = numberOf(controls, node.ref) > 0 ? [node.ref] : []
+  const out = isControl(controls, node.ref) ? [node.ref] : []
   for (const child of node.children) out.push(...refsUnder(child, controls))
   return out
 }

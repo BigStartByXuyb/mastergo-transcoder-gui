@@ -1,5 +1,5 @@
 import type { LayoutControl, LayoutTreeNode } from "@/lib/api"
-import { numberOf, textOf } from "@/lib/layout-edit"
+import { isControl, numberOf, textOf } from "@/lib/layout-edit"
 import { cn } from "@/lib/utils"
 
 /*
@@ -72,7 +72,7 @@ function Branch(props: {
             className={cn(
               "rounded px-1 py-0.5 text-left text-xs hover:bg-accent",
               props.selected === node.ref && "bg-accent text-accent-foreground",
-              numberOf(props.controls, node.ref) > 0 ? "text-foreground" : "text-muted-foreground"
+              isControl(props.controls, node.ref) ? "text-foreground" : "text-muted-foreground"
             )}
             style={{ paddingLeft: 4 + props.depth * 12 }}
           >
