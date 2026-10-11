@@ -99,13 +99,21 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
         <div className="flex flex-col gap-1">
           <span className="text-muted-foreground text-xs">这一页放着的图</span>
           {image ? (
-            <span className="flex flex-wrap items-center gap-2">
-              <ImageIcon className="size-4" />
-              <span className="font-mono">{image.name}</span>
-              {/* 文件头读不出宽高时（文件坏了、或不是位图）照实说，别显示 0×0。 */}
-              <span>{image.width > 0 ? image.width + "×" + image.height : "这一份读不出尺寸"}</span>
-              <span className="text-muted-foreground text-xs">{humanSize(image.bytes)}</span>
-            </span>
+            <div className="flex flex-col gap-2">
+              <span className="flex flex-wrap items-center gap-2">
+                <ImageIcon className="size-4" />
+                <span className="font-mono">{image.name}</span>
+                {/* 文件头读不出宽高时（文件坏了、或不是位图）照实说，别显示 0×0。 */}
+                <span>{image.width > 0 ? image.width + "×" + image.height : "这一份读不出尺寸"}</span>
+                <span className="text-muted-foreground text-xs">{humanSize(image.bytes)}</span>
+              </span>
+              {/* 图本身，不只文件名：布局确认里的编号对的是画板哪儿，就得看它。 */}
+              <img
+                src={api.designImageUrl(projectRoot, target, image.stamp)}
+                alt="这一页放着的设计稿位图"
+                className="max-h-64 w-auto max-w-full rounded-md border"
+              />
+            </div>
           ) : (
             <span className="text-muted-foreground">
               {state ? "还没有。传上来的话放到 " + state.dir : "请稍等，正在读这一页的目录"}

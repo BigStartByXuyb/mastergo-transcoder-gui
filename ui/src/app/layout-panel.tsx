@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { LayoutCanvas } from "@/app/layout-canvas"
 import { useLayoutGroups, type LayoutGroupsInput } from "@/app/use-layout-groups"
+import { api } from "@/lib/api"
 import { addGroup, labelOf, moveMember, removeGroup, removeMember, ungroupedControls } from "@/lib/layout-edit"
 import { inFlightNote, isInFlight } from "@/lib/task-state"
 import { useState } from "react"
@@ -33,7 +35,11 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   const writeLabel = input.resume ? "写入分组表并继续" : "写入分组表"
   const [newId, setNewId] = useState("")
   const [newKind, setNewKind] = useState<"column" | "row">("column")
+  /* 鼠标停在哪一组上：那一组的成员在画布上描出来（容器自己的框就盖住它里面的控件）。 */
+  const [hoveredGroup, setHoveredGroup] = useState("")
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
+  const canvas = layout.canvas
+  const hovered = layout.groups.find((group) => group.id === hoveredGroup)?.members ?? []
 
   function createGroup() {
     layout.setGroups(addGroup(layout.groups, newId, newKind))
@@ -101,11 +107,25 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
               </p>
             ) : null}
 
+            {canvas ? (
+              <LayoutCanvas
+                controls={layout.controls}
+                canvas={canvas}
+                /* 没有图就给空串：画布据此不挂图、也不给「隐藏设计稿」（图的身份由后端一处给）。 */
+                imageUrl={
+                  layout.imageStamp ? api.designImageUrl(input.projectRoot, input.target, layout.imageStamp) : ""
+                }
+                highlight={hovered}
+              />
+            ) : null}
+
             <div className="space-y-3">
               {layout.groups.map((group) => (
                 <div
                   key={group.id}
                   className="rounded-md border p-3"
+                  onMouseEnter={() => setHoveredGroup(group.id)}
+                  onMouseLeave={() => setHoveredGroup("")}
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={(event) => {
                     const ref = event.dataTransfer.getData("text/plain")

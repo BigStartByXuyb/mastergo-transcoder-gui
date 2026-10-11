@@ -141,4 +141,17 @@
 | 2026-10-11 第 19 遍 | REVIEW-001 | 代码注释里的读者清单与判据台账不一致（`unfinishedStepOf` 只写了两个读者） | 已收 | 注释按「读者名单见 docs/facts.md 那一行」写，并把三条读者都列出来（board 的 resumeOf / routes 的 resumeLive / confirm 的 resolveResumeStep） |
 | 2026-10-11 第 19 遍 | 非阻断 | `confirm.js` 模块头只写了旧口径；`board.js` 的 `stepsOf(task)` 与 `artifacts.stepsOf(query)` 同名易混 | 已收 | 模块头补上「取更早那个」；board 里那份改名 `taskStepsOf`（与 `artifacts.stepsOf` 区分开） |
 | 2026-10-11 第 19 遍 | 非阻断 | `/api/run/status` 仍按 `job.request.target` 读登记表：未给 Target 的任务在这条路上读不到步骤 | 独立一轮 | 要加一个「按 jobId 找看板任务」的入口才谈得上按认回来的 Target 读；本次不动，单独做（`lib/board.js` 加查询 + `lib/routes.js` 那条改读） |
+| 2026-10-11 第 21 遍 | REVIEW-001 | `LayoutPanel` 一个组件同时管分组编辑、清单渲染与画布渲染 | 已收 | 画布抽成 `ui/src/app/layout-canvas.tsx`（受控件：`controls` / `canvas` / `imageUrl` / `highlight`），面板只留编辑与写回；悬停态仍在面板（组框与画布同读它） |
+| 2026-10-11 第 21 遍 | REVIEW-002 | 控件编号在画布上又算了一遍（`index + 1`） | 已收 | 画布改用 `ui/src/lib/layout-edit.ts` 的 `numberOf`：编号规则只有那一处 |
+| 2026-10-11 第 21 遍 | REVIEW-003 | 发 `.jpeg` 会落到 `application/octet-stream`（`lib/http.js` 的表里只有 `.jpg`） | 已收 | `CONTENT_TYPES` 补 `.jpeg: image/jpeg`：与 `lib/design-image.js` 认的三个后缀同口径 |
+| 2026-10-11 第 21 遍 | 非阻断 | `imageFile` 回 `{path, name}`，而生产调用方只用 `path` | 已收 | 只回 `path`（用例按 basename 断言） |
+| 2026-10-11 第 22 遍 | REVIEW-001 | 画布判不了「这一页有没有图」：无图页面上留一颗点了没反应的「显示设计稿」，点了还会打一次必然失败的请求 | 已收 | 「有没有图」由面板从这一页的读数里判（`lib/layout-groups.js` 转发 `lib/design-image.js` 的 `hasImage`）；没有图就传空串 `imageUrl` —— 画布不挂图、也不给那颗按钮 |
+| 2026-10-11 第 22 遍 | REVIEW-002 | 新增的发文件路由把「写头 + `createReadStream().pipe`」又抄了一份（三处） | 已收 | `lib/http.js` 新增 `sendFile(response, file)`：静态件、对话附件、设计稿位图三条发文件的路径都走它 |
+| 2026-10-11 第 22 遍 | 非阻断 | `lib/design-image.js` 文件头的「谁在用」没跟上新读者 | 已收 | 补上新路由（发图本身）与 `lib/layout-groups.js` 的转发 |
+| 2026-10-11 第 23 遍 | REVIEW-001 | `lib/layout-groups.js` 模块头仍写「有没有图不在这里判」，而 `inspect` 已转发 `canvas` / `hasImage` | 已收 | 模块头改成实况：读数含转发来的画板尺寸与「有没有图」，判据仍只有 `lib/design-image.js` 一处 |
+| 2026-10-11 第 23 遍 | 确定性检查 | `contentTypeOf` 成了没人引用的导出（发文件收成 `sendFile` 之后路由不再直接用它的表） | 已收 | 不再导出 `contentTypeOf`：它只作 `lib/http.js` 内部（`sendFile` 与静态件）的类型表读取 |
+| 2026-10-11 第 24 遍 | REVIEW-001 | 预览地址与图内容无关：换了图 `<img>` 不会重新取（缩略图继续显示上一张） | 已收 | 「图的身份」（大小-修改时间）由 `lib/design-image.js` 一处算（`stampOf`：`read` 的 `image.stamp` 与 `imageStamp()` 同源），并进 `api.designImageUrl(…, stamp)`；位图卡与布局画布都带上它。用例补一条「换一张 → 地址变」 |
+| 2026-10-11 第 24 遍 | 非阻断 | 布局载荷里「有没有图」是布尔、画布又从空串反推；画布的 `total > 0` 是恒真防御 | 已收 | 改成 `imageStamp`（空串＝没有图：一个字段一个意思）；`percent` 去掉恒真那一支 |
+| 2026-10-11 第 25 遍 | REVIEW-001 | 发图那条路由只为拿路径，却把整张位图读进了内存（`imageFile` 借 `currentImage`） | 已收 | 「先看哪一张」收成 `currentImagePath`（只看在不在、不读文件）：`currentImage`（要读宽高）/`hasImage`/`imageStamp`/`imageFile` 四条读法共用它，发图那条不再读整张图 |
+| 2026-10-11 第 26 遍 | REVIEW-001 | `inspect` 转发画板尺寸时把同一份 DSL 快照读了第二遍 | 已收 | 快照在 `inspect` 里读一次，传给 `readControls`（控件文本）与 `designImage.readCanvas`（画板尺寸）；`readCanvas` 收可选快照，不传才自己读 |
 

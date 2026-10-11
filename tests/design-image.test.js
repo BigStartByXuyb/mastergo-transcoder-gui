@@ -49,6 +49,27 @@ function caseSaveAndRead() {
   // 认的是内容的真实格式：PNG 落成 .design.png（JPEG 落成 .design.jpg，见下面的换格式用例）。
   assert.strictEqual(saved.image.name, "DemoPage.design.png");
   assert.ok(fs.existsSync(path.join(root, "Generated", "_inputs", "DemoPage.design.png")), "落在 _inputs 下、用约定名");
+  assert.match(saved.image.stamp, /^\d+-\d+$/, "图的身份＝大小-修改时间（预览地址拿它防「换了图地址不变」）");
+  assert.strictEqual(designImage.imageStamp({ projectRoot: root, target: TARGET }), saved.image.stamp, "身份在同一处算（read 与 imageStamp 同源）");
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
+/*
+ * 界面显示那张图本身要的那条路（位图卡的预览、布局确认的画布都拿它当图源）：
+ * 有图给路径，没图明确拒绝 —— 那两处也只在有图时才显示。
+ */
+function caseImageFile() {
+  const root = sandbox();
+  assert.strictEqual(designImage.imageStamp({ projectRoot: root, target: TARGET }), "", "没有图时身份是空串");
+  assert.throws(
+    () => designImage.imageFile({ projectRoot: root, target: TARGET }),
+    (error) => error.code === "NO_IMAGE",
+    "还没传图时明确拒绝"
+  );
+  upload(root, png(1280, 1024));
+  const file = designImage.imageFile({ projectRoot: root, target: TARGET });
+  assert.strictEqual(path.basename(file.path), "DemoPage.design.png", "给的是当前放着的那一张");
+  assert.ok(fs.existsSync(file.path), "路径真的在");
   fs.rmSync(root, { recursive: true, force: true });
 }
 
@@ -249,6 +270,7 @@ function caseDiscardStaged() {
 try {
   const cases = [
     ["存一张 PNG 并读回状态", caseSaveAndRead],
+    ["界面显示的那张图：有图给路径 / 没图明确拒绝", caseImageFile],
     ["JPEG 也认（尺寸与后缀都按内容）", caseJpeg],
     ["换格式只留一张", caseReplace],
     ["拒绝的几种", caseRejections],

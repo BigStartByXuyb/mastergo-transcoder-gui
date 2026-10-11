@@ -170,7 +170,7 @@ export type DesignImage = {
   /** DSL 画板尺寸（也就是「图该有的尺寸」）；固化快照那一步还没跑时是 null。 */
   canvas: { width: number; height: number } | null
   /** 现在放着的那一张；没放过就是 null。 */
-  image: { path: string; name: string; bytes: number; width: number; height: number } | null
+  image: { path: string; name: string; bytes: number; width: number; height: number; stamp: string } | null
   /** 图与画板尺寸是否一致（两边都读得出来时才有意义）。 */
   matches: boolean
   groups: { path: string; exists: boolean }
@@ -205,6 +205,10 @@ export type LayoutGroups = {
   available: boolean
   reason: string
   controls: LayoutControl[]
+  /** 画板尺寸（界面把控件坐标换算成百分比用）；固化快照那一步还没跑时是 null。判据在后端。 */
+  canvas: { width: number; height: number } | null
+  /** 这一页那张图的身份（空串＝没有图）：画布据此挂图并拼预览地址；判据在后端。 */
+  imageStamp: string
   groups: LayoutGroup[]
   /** 这一页有没有分组表（空表也算有）：与「表里有什么」同一次读给出。 */
   hasGroups: boolean
@@ -969,6 +973,14 @@ export const api = {
     request<{ ok: true; image: DesignImage }>(
       "/api/design-image?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
     ),
+  /**
+   * 这一页那张设计稿位图的地址（位图卡的预览与布局确认的画布都用它当 <img src>）。
+   * 地址怎么拼只有这一处；没有图时后端回明确错误（那两处也只在有图时显示）。
+   */
+  designImageUrl: (projectRoot: string, target: string, stamp: string) =>
+    "/api/design-image/file?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target) +
+    /* 图的身份并进地址：换了图（大小 / 修改时间变了）地址就变，<img> 才会重新取一次。 */
+    "&stamp=" + encodeURIComponent(stamp),
   /**
    * 存一张设计稿位图（整份替换）。格式按**内容**认，落盘后缀也按它取，所以不用传文件名；
    * 尺寸与画板不一致、内容不是 PNG/JPEG 时，后端按原话拒绝。
