@@ -29,10 +29,11 @@ export function FailureNote(props: {
   /** 停点那一步在流水线里的序号；0 = 没有具体某一步可指（流水线还没进步骤就停下了）。 */
   stopStepNumber: number
   /**
-   * 这一条还能不能「从断点继续」（判据在 ui/src/lib/task-state.ts 的 canResume）：
-   * 没断点时这里的建议不能叫人去点那个按钮（界面上它也不出现）。
+   * 这一条还能不能「从断点继续」（判据在 ui/src/lib/task-state.ts 的 canResume）。
+   * 只有总览那份（不传 inStepView 的调用方）在「没有具体某一步」那一支里读它；
+   * 步骤视图不用传 —— 那边这一支不渲染（要判断也得先拿到整条任务，那是页面的事）。
    */
-  resumable: boolean
+  resumable?: boolean
   /** 挂在步骤界面里（不再写「到左边那一步看」）。 */
   inStepView?: boolean
 }) {

@@ -1,5 +1,6 @@
 import { Loader2, Sparkles } from "lucide-react"
 
+import { IdentityCandidateButton } from "@/app/identity-candidate-button"
 import type { FillRow } from "@/app/use-identity-fill"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -51,15 +52,14 @@ export function BoardIdentityFill(props: {
               {row.items
                 .filter((item) => item.target)
                 .map((item) => (
-                  <Button
-                    key={item.target + item.ui}
-                    size="sm"
-                    variant={item.needsSemanticName ? "outline" : "default"}
-                    disabled={item.needsSemanticName || props.busy !== ""}
-                    onClick={() => props.onTake(row, item)}
-                  >
-                    {item.needsSemanticName ? "还缺语义名" : item.target + (item.ui ? " · " + item.ui : "")}
-                  </Button>
+                  <span key={item.target + item.ui}>
+                    <IdentityCandidateButton
+                      item={item}
+                      busy={props.busy !== ""}
+                      label={item.target + (item.ui ? " · " + item.ui : "")}
+                      onTake={() => props.onTake(row, item)}
+                    />
+                  </span>
                 ))}
               {row.reason && <span className="text-amber-600">{row.reason}</span>}
             </>
