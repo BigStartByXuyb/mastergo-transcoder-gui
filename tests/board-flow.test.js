@@ -218,7 +218,7 @@ async function caseSemanticStopAndAutoFill() {
       mode: "mtslg-iocontrol",
       label: "B",
       state: "failed",
-      failure: { stepId: 7, stepName: "ledger", message: "缺少命名表", resume: "", detail: "", contract: { Title: "图标台账" } },
+      failure: { stepId: 7, stepName: "ledger", message: "缺少命名表", resume: "", detail: "" },
       steps: {}
     }]
   }, task.workDir);

@@ -261,7 +261,6 @@ export type RunFailure = {
   resume: string
   /** 失败摘要后面那几行：真正的原因常常写在这里（例如「目标文件已存在，未覆盖: …」）。 */
   detail: string
-  contract: PipelineStep | null
 }
 
 export type RunEntry = {
