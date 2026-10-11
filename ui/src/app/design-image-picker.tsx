@@ -16,8 +16,13 @@ import { humanSize } from "@/lib/upload-files"
 /* 默认那句：新建任务那张表单上只一个框，说一句「点加号选一张」有用。 */
 const DEFAULT_EMPTY_HINT = "点加号选一张"
 
+/*
+ * 磁贴：点它（label）开选择框；文件框本身用 sr-only 藏在里面 —— 视觉上不可见但**能聚焦**，
+ * 所以 Tab 能到、回车 / 空格能开（Tailwind 的 hidden 是 display:none，会把这个入口整段掐掉）。
+ * 聚焦时由 focus-within 把边框点亮：焦点在里面的文件框上，看得见的是这个磁贴。
+ */
 const TILE_CLASS =
-  "flex size-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-dashed border-input text-muted-foreground hover:border-primary hover:text-primary"
+  "relative flex size-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-dashed border-input text-muted-foreground hover:border-primary hover:text-primary focus-within:border-primary focus-within:text-primary"
 
 export function DesignImagePicker(props: {
   id: string
@@ -49,7 +54,7 @@ export function DesignImagePicker(props: {
           id={props.id}
           type="file"
           accept={IMAGE_ACCEPT}
-          className="hidden"
+          className="sr-only"
           onChange={picked.onChange}
         />
         {preview ? <img src={preview} alt="" className="size-full object-cover" /> : <Plus className="size-5" />}
