@@ -30,4 +30,5 @@
 | 某一版能不能用在这一台上（外壳下限） | `lib/update.js` · `function usableHere(` | 「这一份可以切过去」（`switchable`：选版与版本表逐行都读它，清单都按 `manifestOf` 取）；与 `apply` 前那一刻的 `versionBlocked` 同源 |
 | 「自动补输入并续跑」谁发起 | `ui/src/app/pending-panel.tsx` · `automation === "auto" && !taskId` | 看板任务由服务端发起（`lib/board.js` 的 `autoFillWaiting` → `lib/autofill.js`，同一个 automation 设置，不需要浏览器在场）；面板只对没有看板任务的条目发起 |
 | 位图落地要等的那一步怎么说 | `lib/design-image.js` · `const NO_CANVAS_REASON =` | 界面那一块照后端给的原话显示（`/api/design-image` 的 `blocked`）；表单的指引不提步骤名，只说「流水线产出画板尺寸之后」 |
+| 本地记住的值什么时候写回 | `ui/src/app/use-remembered.ts` · `export function useRemembered<` | 两张「新建任务」表单（`ui/src/app/pipeline-page.tsx`、`board-page.tsx`）、看板筛选（`board-page.tsx`）、只看生效（`ui/src/app/use-only-effective.ts`） |
 

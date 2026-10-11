@@ -4,7 +4,7 @@
  * 这一页的主体是任务表；工程、模式、链接只在要加任务时填，收进「创建任务」弹窗。
  * 上面一排筛选（工作区 / 区域 / 状态），列表按页给，一页十条，页面本身不往下拖。
  */
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { GitMerge, Loader2, Play, Plus } from "lucide-react"
 import { toast } from "sonner"
 
@@ -21,10 +21,11 @@ import { Pager } from "@/app/pager"
 import { useValueRunner } from "@/app/use-action-runner"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentityFill } from "@/app/use-identity-fill"
+import { useOnlyEffective } from "@/app/use-only-effective"
+import { useRemembered } from "@/app/use-remembered"
 import { api, type Board } from "@/lib/api"
 import { fillTargets, keepPickedImages, parseBoardItems, withPickedImage } from "@/lib/board-items"
-import { filterTasks, hasFilters, readBoardFilters, writeBoardFilters, type BoardFilters } from "@/lib/board-filters"
-import { useOnlyEffective } from "@/lib/use-only-effective"
+import { filterTasks, hasFilters, readBoardFilters, writeBoardFilters } from "@/lib/board-filters"
 import { coverageOf, visibleByCoverage, type Coverage } from "@/lib/board-effective"
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
@@ -39,13 +40,13 @@ const PAGE_SIZE = 10
 export function BoardPage() {
   // 看板快照与这条线上的失败提示都由 use-board-tasks 一处管（取数、轮询、动作回来的替换）。
   const { board, setBoard, problem, setProblem } = useBoardTasks()
-  const [form, setForm] = useState<BoardTaskForm>(readBoardForm)
+  const [form, setForm] = useRemembered(readBoardForm, writeBoardForm)
   const [busy, setBusy] = useState("")
   const [adding, setAdding] = useState(false)
   /** 创建任务时先选好的设计稿位图：一行（一个页面）一份，按链接记；文件不进 localStorage。 */
   const [images, setImages] = useState<Record<string, File>>({})
   const [page, setPage] = useState(1)
-  const [filters, setFilters] = useState<BoardFilters>(readBoardFilters)
+  const [filters, setFilters] = useRemembered(readBoardFilters, writeBoardFilters)
   // 「只看生效」与区域页共用一份记忆；它不属于创建任务那张表单。
   const { onlyEffective, setOnlyEffective } = useOnlyEffective()
   const [identityFailure, setIdentityFailure] = useState("")
@@ -57,14 +58,6 @@ export function BoardPage() {
     onFilled: (targets) => setForm((current) => ({ ...current, links: fillTargets(current.links, targets) })),
     onFailure: setIdentityFailure
   })
-
-  useEffect(() => {
-    writeBoardForm(form)
-  }, [form])
-
-  useEffect(() => {
-    writeBoardFilters(filters)
-  }, [filters])
 
   /*
    * 合并全部要一个工程：筛选选了哪个工作区就用哪个（人在看哪个就合哪个），

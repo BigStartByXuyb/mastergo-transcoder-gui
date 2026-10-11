@@ -83,7 +83,7 @@ launch.js ──> lib/launch.js      壳只用自己拥有的两份文件
 | 设置与凭据 | `settings.js`、`config.js`、`source.js`、`mcp-token.js`、`proxy.js`、`getter.js` | `settings-page.tsx`、`settings-ai-panel.tsx`、`settings-mastergo-panel.tsx`、`settings-agent-panel.tsx`、`source-dialog.tsx`、`tab-button.tsx` | `settings-templates.test.js`、`mastergo-token.test.js`、`source.test.js`、`proxy.test.js` |
 | 上传与合并 | `uploads.js`、`merge.js`、`limits.js` | `chat-write-dialog.tsx`、`merge-conflicts.tsx` | `uploads.test.js`、`merge.test.js` |
 | 壳与自愈 | `launch.js`、`bootstrap.js`、`log.js` | —（控制台） | `launch.test.js`、`bootstrap.test.js`、`log.test.js` |
-| 通用件 | `errors.js`、`http.js`、`versions.js`、`workdir.js`、`name-safety.js`、`system-open.js`、`pick-folder.js`、`routes.js`、`ansi.js` | `ui/src/lib/*.ts`、`ui/src/app/pager.tsx`、`clamp-text.tsx`、`copy-text.ts`、`pixel-loader.tsx`、`app-shell.tsx`、`busy-action-button.tsx`、`busy-overlay.tsx`、`identifier-text.tsx`、`pixel-mascot.tsx`、`use-action-runner.ts`、`use-alive.ts`、`use-file-pick.ts` | `edges.test.js`、`system-open.test.js`、`pick-folder.test.js` |
+| 通用件 | `errors.js`、`http.js`、`versions.js`、`workdir.js`、`name-safety.js`、`system-open.js`、`pick-folder.js`、`routes.js`、`ansi.js` | `ui/src/lib/*.ts`、`ui/src/app/pager.tsx`、`clamp-text.tsx`、`copy-text.ts`、`pixel-loader.tsx`、`app-shell.tsx`、`busy-action-button.tsx`、`busy-overlay.tsx`、`identifier-text.tsx`、`pixel-mascot.tsx`、`use-action-runner.ts`、`use-alive.ts`、`use-file-pick.ts`、`use-remembered.ts`、`use-only-effective.ts` | `edges.test.js`、`system-open.test.js`、`pick-folder.test.js` |
 
 ## 约束与门禁
 

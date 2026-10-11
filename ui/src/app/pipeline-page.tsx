@@ -24,6 +24,7 @@ import { StepRail } from "@/app/task-steps"
 import { ClampText } from "@/app/clamp-text"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentity } from "@/app/use-identity"
+import { useRemembered } from "@/app/use-remembered"
 import { useRunLog } from "@/app/use-run-log"
 import { useTaskActions } from "@/app/use-task-actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -51,7 +52,8 @@ export function PipelinePage({
   const [currentId, setCurrentId] = useState(taskId)
   const [failure, setFailure] = useState("")
   const [automation, setAutomation] = useState("assist")
-  const [form, setForm] = useState<TaskForm>(() => readTaskForm())
+  /* 填过的值改一下就写回本地（写回时机只有 app/use-remembered.ts 一处）：填一半切走再回来还在。 */
+  const [form, setForm] = useRemembered(readTaskForm, writeTaskForm)
   /** 详情区现在看哪一步（空串 = 任务总览）。 */
   const [step, setStep] = useState("")
   /*
@@ -137,7 +139,6 @@ export function PipelinePage({
 
   // 开始 = 新建看板任务 + 启动它；看板负责建工作目录、并发与合并。
   async function start() {
-    writeTaskForm(form)
     const decision = await decideStartIdentity({
       link: form.link,
       projectRoot: form.projectRoot,
