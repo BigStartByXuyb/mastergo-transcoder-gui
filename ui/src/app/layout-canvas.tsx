@@ -58,6 +58,8 @@ export function LayoutCanvas(props: {
           <span
             key={control.ref}
             data-ref={control.ref}
+            /* 被描出来没有：语义钩子（用例按它断言，不绑样式类名）。 */
+            data-highlighted={props.highlight.includes(control.ref)}
             title={labelOf(props.controls, control.ref)}
             className={cn(
               "absolute border",

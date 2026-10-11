@@ -14,7 +14,7 @@ import { api } from "@/lib/api"
 import { addGroup, labelOf, moveMember, removeGroup, removeMember, ungroupedControls } from "@/lib/layout-edit"
 import { inFlightNote, isInFlight } from "@/lib/task-state"
 import { cn } from "@/lib/utils"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 /*
  * 作业A 的布局确认：把控件清单按「组 → 成员」展示，人/AI 调好分组后写回分组表。
@@ -39,8 +39,13 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   const [newKind, setNewKind] = useState<"column" | "row">("column")
   /* 鼠标停在哪一组上：那一组的成员在画布上描出来（容器自己的框就盖住它里面的控件）。 */
   const [hoveredGroup, setHoveredGroup] = useState("")
-  /* 层次图上选中的那一段里有哪些控件：与组的悬浮高亮并成一处，再交给画布。 */
+  /* 层次图上选中的那一段（与它带来的控件高亮）：一处持有，换页时跟着清。 */
+  const [treePicked, setTreePicked] = useState("")
   const [treeRefs, setTreeRefs] = useState<string[]>([])
+  useEffect(() => {
+    setTreePicked("")
+    setTreeRefs([])
+  }, [input.target])
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
   const canvas = layout.canvas
   const hovered = layout.groups.find((group) => group.id === hoveredGroup)?.members ?? []
@@ -129,7 +134,16 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
                   }
                   highlight={highlight}
                 />
-                <LayoutTree nodes={layout.tree} controls={layout.controls} onPick={setTreeRefs} />
+                <LayoutTree
+                  nodes={layout.tree}
+                  controls={layout.controls}
+                  selected={treePicked}
+                  onPick={(ref, refs) => {
+                    const next = treePicked === ref ? "" : ref
+                    setTreePicked(next)
+                    setTreeRefs(next ? refs : [])
+                  }}
+                />
               </div>
             ) : null}
 

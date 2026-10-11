@@ -42,20 +42,23 @@ const NODES: LayoutTreeNode[] = [
 ]
 
 describe("LayoutTree", () => {
-  it("点一段：把这段连同下面的段里的控件交出去；再点一下取消", () => {
+  it("点一段：把这段的 ref 与「连同下面各段里的控件」一起交出去", () => {
     const picked = vi.fn()
-    render(<LayoutTree nodes={NODES} controls={CONTROLS} onPick={picked} />)
+    render(<LayoutTree nodes={NODES} controls={CONTROLS} selected="" onPick={picked} />)
 
     // 容器那一行显示的是方向（层名在悬停提示里）：点它就是点这一段。
     fireEvent.click(screen.getByText("竖排"))
-    expect(picked).toHaveBeenLastCalledWith(["a", "b"])
+    expect(picked).toHaveBeenLastCalledWith("bar", ["a", "b"])
+  })
 
-    fireEvent.click(screen.getByText("竖排"))
-    expect(picked).toHaveBeenLastCalledWith([])
+  it("选中的那一段标出来（选中态由调用方给，不在组件里另存一份）", () => {
+    render(<LayoutTree nodes={NODES} controls={CONTROLS} selected="bar" onPick={() => undefined} />)
+    expect(screen.getByText("竖排").getAttribute("data-selected")).toBe("true")
+    expect(screen.getByText("自由布局").getAttribute("data-selected")).toBe("false")
   })
 
   it("一段自己放着的号显示在它那一行上", () => {
-    render(<LayoutTree nodes={NODES} controls={CONTROLS} onPick={() => undefined} />)
+    render(<LayoutTree nodes={NODES} controls={CONTROLS} selected="" onPick={() => undefined} />)
     expect(screen.getByText("IconButton · #1")).toBeTruthy()
     expect(screen.getByText("TextBlock · #3")).toBeTruthy()
     // 容器只说方向（设计稿的自动布局），不显示「容器 194」这种层名；层名在悬停提示里。
@@ -65,7 +68,7 @@ describe("LayoutTree", () => {
   })
 
   it("没有层次图时这一块不出现", () => {
-    const { container } = render(<LayoutTree nodes={[]} controls={CONTROLS} onPick={() => undefined} />)
+    const { container } = render(<LayoutTree nodes={[]} controls={CONTROLS} selected="" onPick={() => undefined} />)
     expect(container.textContent).toBe("")
   })
 })

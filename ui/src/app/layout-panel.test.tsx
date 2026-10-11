@@ -163,14 +163,14 @@ describe("LayoutPanel", () => {
     render(panel())
     await screen.findByText("画布")
 
-    const marked = () => (document.querySelector('[data-ref="1:9"]') as HTMLElement).className
-    expect(marked()).not.toContain("bg-primary/20")
+    const marked = () => document.querySelector('[data-ref="1:9"][data-highlighted="true"]')
+    expect(marked()).toBeNull()
 
     fireEvent.click(screen.getByText("右侧栏 · #1"))
-    expect(marked()).toContain("bg-primary/20")
+    expect(marked()).toBeTruthy()
 
     fireEvent.click(screen.getByText("右侧栏 · #1"))
-    expect(marked()).not.toContain("bg-primary/20")
+    expect(marked()).toBeNull()
   })
 
   it("已有分组按组渲染成员编号，自动通过默认关", async () => {
