@@ -1,94 +1,153 @@
-import type { LayoutControl, LayoutTreeNode } from "@/lib/api"
-import { isControl, numberOf, textOf } from "@/lib/layout-edit"
+import type { DerivedLayout, LayoutControl } from "@/lib/api"
+import { controlOf, numberOf, textOf } from "@/lib/layout-edit"
 import { cn } from "@/lib/utils"
 
 /*
- * 布局确认里的层次图：把设计稿里「放着控件的那些段」按层级摆出来。
- * 点一段，把这一段交给调用方：「谁被选中」与「选中那一段里有哪些控件」都由调用方一处算
- * （ui/src/lib/layout-edit.ts 的 refsOfNode），这里不另存一份，换页时跟着一起清。
- * 号由 numberOf 现算（「控件号＝它在清单里的次序」只有那一处实现），与画布、与面上清单同源。
+ * 布局树：作业A **第 8 步推出来的布局**（分区 → 行/列 → 格子），不是设计稿原始层级 ——
+ * 这一栏要回答的是「它把这一页分成了什么」；设计稿原本长什么样，画布那侧看得出来。
+ *
+ * 点一行，把这一行盖住的控件在画布上描出来（key → refs 只有 refsOfDerived 一处）。
+ * 控件那一行显示它的 value（没有 value 就退回控件类型）+ 它在清单里的号；号由 numberOf 现算。
  */
 
-/*
- * 一段在树上叫什么：
- *   控件 —— **先显示 value**（设计稿里那段文本，与下面清单同一个来源），没有 value 才退回控件层名 / 类型，
- *   末尾带它的号：人是按 value 认控件的；
- *   容器 —— 只说方向（横排 / 竖排 / 自由布局）：设计稿里的层名（「容器 194」这种）没有信息量，
- *   真要找它原始那层叫什么，鼠标停上去的提示里有（title）。
- */
-const FLOW_LABEL: Record<string, string> = { row: "横排", column: "竖排", "": "自由布局" }
+const UNRESOLVED_KEY = "unresolved"
 
-function nodeLabel(node: LayoutTreeNode, controls: LayoutControl[]): string {
-  // 「算不算控件」只有一处判（isControl）；号才是 numberOf 的事。
-  if (isControl(controls, node.ref)) {
-    return (textOf(controls, node.ref) || node.name || node.type || node.ref) + " · #" + numberOf(controls, node.ref)
+/* 一行在树上的 key：分区 / 分区里的某一行 / 某个控件 / 没归宿那一段。 */
+function regionKey(id: string): string {
+  return "region:" + id
+}
+function rowKey(id: string, row: number): string {
+  return regionKey(id) + "#row:" + row
+}
+function controlKey(ref: string): string {
+  return "ref:" + ref
+}
+
+/* 这一行盖住哪几个控件（画布按 ref 描边）：key → refs 只有这一处。 */
+export function refsOfDerived(derived: DerivedLayout, key: string): string[] {
+  if (!key) return []
+  if (key === UNRESOLVED_KEY) return derived.unresolved.map((item) => item.ref)
+  if (key.startsWith("ref:")) return [key.slice("ref:".length)]
+  const inRow = /^region:(.+)#row:(\d+)$/.exec(key)
+  if (inRow) {
+    const region = derived.regions.find((item) => item.id === inRow[1])
+    return region ? region.cells.filter((cell) => cell.row === Number(inRow[2])).map((cell) => cell.ref) : []
   }
-  return FLOW_LABEL[node.flow]
+  const region = derived.regions.find((item) => regionKey(item.id) === key)
+  return region ? region.cells.map((cell) => cell.ref) : []
+}
+
+/* 一个控件在树上的名字：value 优先，没有就退回控件类型；末尾带它在清单里的号。 */
+function controlLabel(controls: LayoutControl[], ref: string): string {
+  const control = controlOf(controls, ref)
+  const head = textOf(controls, ref) || (control ? control.controlType : ref)
+  const number = numberOf(controls, ref)
+  return number > 0 ? head + " · #" + number : head
 }
 
 export function LayoutTree(props: {
-  nodes: LayoutTreeNode[]
+  derived: DerivedLayout
   controls: LayoutControl[]
-  /** 现在选中的是哪一段（调用方持有；空串＝没选）。 */
+  /** 现在选中的是哪一行（调用方持有；空串＝没选）。 */
   selected: string
-  /** 点了一段：把它的 ref 回给调用方（选中态与要描的控件都由调用方一处管）。 */
-  onPick: (ref: string) => void
+  /** 点了一行：把它的 key 回给调用方（选中态与要描的控件都由调用方一处管）。 */
+  onPick: (key: string) => void
 }) {
+  if (!props.derived.available) {
+    return <p className="text-muted-foreground text-xs">{props.derived.reason || "还没有推导产物。"}</p>
+  }
+
+  const line = (lineProps: { label: string; lineKey: string; depth: number; strong?: boolean }) => (
+    <button
+      type="button"
+      data-selected={props.selected === lineProps.lineKey}
+      onClick={() => props.onPick(lineProps.lineKey)}
+      className={cn(
+        "rounded px-1 py-0.5 text-left text-xs hover:bg-accent",
+        props.selected === lineProps.lineKey && "bg-accent text-accent-foreground",
+        lineProps.strong ? "text-foreground" : "text-muted-foreground"
+      )}
+      style={{ paddingLeft: 4 + lineProps.depth * 12 }}
+    >
+      {lineProps.label}
+    </button>
+  )
+
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <div className="flex flex-wrap items-baseline gap-2">
-        <span className="text-sm font-medium">层次图</span>
-        <span className="text-muted-foreground text-xs">点一段：它里面的控件在画布上描出来，再点一下取消。</span>
+        <span className="text-sm font-medium">布局树</span>
+        <span className="text-muted-foreground text-xs">
+          布局那一步推出来的分区 → 行/列 → 格子；点一行，它会盖住的控件在画布上描出来。
+        </span>
       </div>
       <div className="max-h-80 overflow-auto rounded-md border p-2">
-        <Branch
-          nodes={props.nodes}
-          controls={props.controls}
-          depth={0}
-          selected={props.selected}
-          onPick={(node) => props.onPick(node.ref)}
-        />
+        <div className="flex flex-col gap-1">
+          {props.derived.regions.map((region) => (
+            <div key={region.id} className="flex flex-col gap-0.5">
+              {line({
+                lineKey: regionKey(region.id),
+                depth: 0,
+                strong: true,
+                label:
+                  region.name +
+                  " · " +
+                  (region.emit ? "发射" : "只注册") +
+                  " · " +
+                  region.rows +
+                  " 行 × " +
+                  region.columns +
+                  " 列"
+              })}
+              {[...new Set(region.cells.map((cell) => cell.row))]
+                .sort((left, right) => left - right)
+                .map((row) => (
+                  <div key={row} className="flex flex-col gap-0.5">
+                    {line({ lineKey: rowKey(region.id, row), depth: 1, label: "第 " + row + " 行" })}
+                    {region.cells
+                      .filter((cell) => cell.row === row)
+                      .map((cell) =>
+                        line({
+                          lineKey: controlKey(cell.ref),
+                          depth: 2,
+                          strong: true,
+                          label:
+                            controlLabel(props.controls, cell.ref) +
+                            "（第 " +
+                            cell.column +
+                            " 列" +
+                            (cell.rowSpan > 1 || cell.columnSpan > 1
+                              ? "，跨 " + cell.rowSpan + " 行 × " + cell.columnSpan + " 列"
+                              : "") +
+                            "）"
+                        })
+                      )}
+                  </div>
+                ))}
+            </div>
+          ))}
+          {props.derived.unresolved.length > 0 && (
+            <div className="flex flex-col gap-0.5">
+              {line({
+                lineKey: UNRESOLVED_KEY,
+                depth: 0,
+                strong: true,
+                label: "没归宿的 " + props.derived.unresolved.length + " 个"
+              })}
+              {props.derived.unresolved.map((item) => (
+                <span
+                  key={item.ref}
+                  className="text-muted-foreground text-xs"
+                  style={{ paddingLeft: 16 }}
+                  title={item.reason}
+                >
+                  {controlLabel(props.controls, item.ref)}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
-  )
-}
-
-function Branch(props: {
-  nodes: LayoutTreeNode[]
-  controls: LayoutControl[]
-  depth: number
-  selected: string
-  onPick: (node: LayoutTreeNode) => void
-}) {
-  return (
-    <ul className="flex flex-col gap-0.5">
-      {props.nodes.map((node) => (
-        <li key={node.ref} className="flex flex-col gap-0.5">
-          <button
-            type="button"
-            title={node.name ? node.name + "（" + node.ref + "）" : node.ref}
-            data-selected={props.selected === node.ref}
-            onClick={() => props.onPick(node)}
-            className={cn(
-              "rounded px-1 py-0.5 text-left text-xs hover:bg-accent",
-              props.selected === node.ref && "bg-accent text-accent-foreground",
-              isControl(props.controls, node.ref) ? "text-foreground" : "text-muted-foreground"
-            )}
-            style={{ paddingLeft: 4 + props.depth * 12 }}
-          >
-            {nodeLabel(node, props.controls)}
-          </button>
-          {node.children.length > 0 && (
-            <Branch
-              nodes={node.children}
-              controls={props.controls}
-              depth={props.depth + 1}
-              selected={props.selected}
-              onPick={props.onPick}
-            />
-          )}
-        </li>
-      ))}
-    </ul>
   )
 }

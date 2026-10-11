@@ -201,18 +201,37 @@ export type LayoutGroup = {
   members: string[]
 }
 
-/*
- * 布局确认里的层次图：设计稿里「自己就是控件、或下面放着控件」的那一段。
- * 只给层级事实（ref / 名字 / 类型）；控件号不在这里 —— 号是「它在控件清单里的次序」，
- * 界面拿同一份清单现算（ui/src/lib/layout-edit.ts 的 numberOf），与画布、面上清单必然一致。
- */
-export type LayoutTreeNode = {
+/** 推导结果里的一个格子：某控件落在哪一行哪一列、跨几行几列（坐标从 1 起）。 */
+export type LayoutCell = {
   ref: string
+  row: number
+  column: number
+  rowSpan: number
+  columnSpan: number
+}
+
+/** 推导结果里的一个分区：名字 / 角色 / 发不发射 + 它的网格尺寸与格子。 */
+export type LayoutRegion = {
+  id: string
   name: string
-  type: string
-  /** 这一段的布局方向（取自设计稿的自动布局）：row / column；空串＝按坐标摆的自由布局。 */
-  flow: "row" | "column" | ""
-  children: LayoutTreeNode[]
+  role: string
+  emit: boolean
+  rows: number
+  columns: number
+  cells: LayoutCell[]
+}
+
+/*
+ * 推导出来的布局（作业A 第 8 步的产物，界面那栏「布局树」显示的就是它 —— 不是设计稿原始层级）：
+ *   分区 → 行/列 → 格子（每个格子一个控件）；
+ *   unresolved 是既没进分组表、也没被机械判据收走的散条目（从同一趟的报告里取）。
+ * 这一步没跑过时 available:false，reason 是给界面看的那句话。
+ */
+export type DerivedLayout = {
+  available: boolean
+  reason: string
+  regions: LayoutRegion[]
+  unresolved: { ref: string; reason: string }[]
 }
 
 export type LayoutGroups = {
@@ -223,8 +242,8 @@ export type LayoutGroups = {
   canvas: { width: number; height: number } | null
   /** 这一页那张图的身份（空串＝没有图）：画布据此挂图并拼预览地址；判据在后端。 */
   imageStamp: string
-  /** 层次图（点一段就在画布上描出它下面的控件）；层级来自 DSL 快照，号与控件清单同源。 */
-  tree: LayoutTreeNode[]
+  /** 推导出来的布局（分区 → 行/列 → 格子）：跑完布局那一步才有；界面据此摆「布局树」。 */
+  derived: DerivedLayout
   groups: LayoutGroup[]
   /** 这一页有没有分组表（空表也算有）：与「表里有什么」同一次读给出。 */
   hasGroups: boolean
