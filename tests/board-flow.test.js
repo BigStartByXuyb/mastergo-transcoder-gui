@@ -435,6 +435,35 @@ async function caseRemovalDropsStagedImage() {
   fs.rmSync(fx.home, { recursive: true, force: true });
 }
 
+/*
+ * 「能不能从断点继续」两支的边界：登记表里一条都没有＝没有断点（还没跑过，续＝从头再跑）；
+ * 跑过几步且都 ok、但契约没跑满（跑到一半断了）＝断点是契约里还没跑过的那一步。
+ */
+async function caseResumeStepBoundary() {
+  const fresh = makeBoard();
+  const freshId = fresh.board.add({ projectRoot: fresh.project, items: [{ link: LINK, target: "T1", mode: "B" }] }).created[0];
+  assert.strictEqual(
+    fresh.board.snapshot().tasks.find((task) => task.id === freshId).resumeStep,
+    "",
+    "还没跑过：没有断点"
+  );
+  fs.rmSync(fresh.home, { recursive: true, force: true });
+
+  const artifacts = {
+    read: () => ({ available: true, steps: [{ id: 6, name: "discover", status: "ok", seconds: 1, note: "" }] })
+  };
+  const half = makeBoard({ artifacts: artifacts });
+  const halfId = half.board.add({ projectRoot: half.project, items: [{ link: LINK, target: "T1", mode: "B" }] }).created[0];
+  half.board.start(halfId);
+  await waitForTask(half.board, halfId, hasJob, "启动完成");
+  assert.strictEqual(
+    half.board.snapshot().tasks.find((task) => task.id === halfId).resumeStep,
+    "图标台账",
+    "跑过一步且都 ok、契约没跑满：断点是契约里还没跑过的那一步"
+  );
+  fs.rmSync(half.home, { recursive: true, force: true });
+}
+
 async function caseStopRemoveClearAndMerge() {
   const fx = makeBoard();
   const added = fx.board.add({ projectRoot: fx.project, items: [{ link: LINK, target: "T1", mode: "B" }, { link: LINK + "&b=1", target: "T2", mode: "B" }] });
@@ -506,6 +535,7 @@ async function main() {
     ["先选的设计稿位图：尺寸不符写在行上、条件解除自清", caseStagedImageNotice],
     ["任务离开看板（移除 / 清理 / 清空区域）：暂存件跟着走", caseRemovalDropsStagedImage],
     ["「哪一步吃布局输入」按契约的 Inputs 判，不认步骤名", caseLayoutStepComesFromContract],
+    ["「能不能续、续哪一步」的两支边界（没跑过 / 跑到一半）", caseResumeStepBoundary],
     ["停止 / 移除 / 清理 / 合并前置校验", caseStopRemoveClearAndMerge],
     ["进度、步骤视图与 Target 认领", caseProgressStepsAndTargetAdoption]
   ];
