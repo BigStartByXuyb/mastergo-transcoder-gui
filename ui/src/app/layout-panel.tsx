@@ -49,7 +49,8 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   const [hoveredGroup, setHoveredGroup] = useState("")
   /* 层次图上选中的那一段：只存「选的是哪一段」，要高亮哪些控件由 refsOfNode 现算。 */
   const [treePicked, setTreePicked] = useState("")
-  useEffect(() => setTreePicked(""), [input.target])
+  /* 换一页（工程目录或 Target 变了）就把树上选中的那一段清掉：同一页的身份是这两个一起。 */
+  useEffect(() => setTreePicked(""), [input.projectRoot, input.target])
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
   const canvas = layout.canvas
   const hovered = layout.groups.find((group) => group.id === hoveredGroup)?.members ?? []
