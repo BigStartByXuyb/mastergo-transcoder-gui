@@ -61,7 +61,7 @@ export function NewTaskCard(props: Props) {
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {/* 三组各成一个框：必填 / 可自动补齐 / 可选。 */}
+        {/* 三组各成一个框：必填参数 / 可自动生成参数 / 可选参数（标题与提示语在 field-group.tsx 一处）。 */}
         <div className="grid items-start gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-4">
             <FieldGroup {...FIELD_GROUPS.required}>
@@ -106,6 +106,18 @@ export function NewTaskCard(props: Props) {
                   <p className="text-muted-foreground text-xs">{READ_IMAGE_HINT}</p>
                 </div>
               )}
+              {/* 与看板弹窗同一排法：一条带说明的开关行，不是光秃秃一个开关。 */}
+              <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2">
+                <div className="leading-tight">
+                  <div className="text-sm">替换已有产物</div>
+                  <div className="text-muted-foreground text-xs">工程里已有同名页面时覆盖它；默认不替换，同名就停。</div>
+                </div>
+                <Switch
+                  id="run-overwrite"
+                  checked={form.overwrite}
+                  onCheckedChange={(checked) => onForm({ overwrite: checked })}
+                />
+              </div>
             </FieldGroup>
           </div>
 
@@ -162,14 +174,6 @@ export function NewTaskCard(props: Props) {
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Switch
-              id="run-overwrite"
-              checked={form.overwrite}
-              onCheckedChange={(checked) => onForm({ overwrite: checked })}
-            />
-            <Label htmlFor="run-overwrite">替换已有产物（默认不替换，同名就停）</Label>
-          </div>
           <div className="ml-auto flex items-center gap-2">
             {canStop && (
               <Button variant="outline" disabled={busy !== ""} onClick={onStop}>

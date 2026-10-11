@@ -58,7 +58,7 @@ export function BoardNewTaskDialog(props: {
         </DialogHeader>
 
         {/* 三组的标题与提示语与新建任务那张表单同源（ui/src/app/field-group.tsx 的 FIELD_GROUPS）。 */}
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid items-start gap-4 sm:grid-cols-2">
           <FieldGroup {...FIELD_GROUPS.required}>
             <div className="flex flex-col gap-2">
               <Label htmlFor="board-project">工程目录</Label>
