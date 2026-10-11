@@ -278,6 +278,23 @@ async function main() {
   await assert.rejects(function () { return gatedUpdate.stage("0.2.1"); }, /要求客户端至少/);
   assert.strictEqual(gatedUpdate.status().state, "error", "拒绝之后界面要显示原因");
 
+  /*
+   * 手上有一份可切的、远端最新那版却被外壳下限挡住：入口给的是手上这份 —— 被挡住的那版不是这条入口
+   * 能动的（先升外壳的事在设置页那句 blockedNote 里说），拿它当目标等于把手上可切的那份顶掉。
+   */
+  const holdHome = makeTree({ "server.js": "旧客户端", "package.json": "{\"version\":\"0.1.0\"}" });
+  const hold = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: holdHome, home: holdHome, version: "0.1.0", fetchImpl: server.fetchImpl });
+  await hold.check();
+  await hold.stage("0.2.0");
+  await settle(hold);
+  const holdGated = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: holdHome, home: holdHome, version: "0.1.0", fetchImpl: gated.fetchImpl });
+  await holdGated.check();
+  const holdState = holdGated.status();
+  assert.strictEqual(holdState.available.blocked.code, "CLIENT_TOO_OLD", "远端那版确实被挡住");
+  assert.strictEqual(holdState.ready, "0.2.0", "手上那份仍然可切");
+  assert.strictEqual(holdGated.hint().target, "0.2.0", "入口给手上这份，不给被挡住的那版");
+  assert.strictEqual(holdState.state, "download_ready", "状态与入口同出一处");
+
   // 远端没有这一版就下不了 / 没下过就点切换。
   const blank = makeTree({ "server.js": "空白", "package.json": "{\"version\":\"0.1.0\"}" });
   const blankUpdate = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: blank, home: blank, version: "0.1.0", fetchImpl: server.fetchImpl });
