@@ -1,4 +1,5 @@
 import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 
 /*
  * 一条带说明的开关行（左边「名字 + 一句话」，右边开关）：两张建任务表单共用这一份 ——
@@ -19,10 +20,11 @@ export function SwitchRow(props: {
 }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2">
-      <div className="leading-tight">
-        <div className="text-sm">{props.label}</div>
-        <div className="text-muted-foreground text-xs">{props.hint}</div>
-      </div>
+      {/* 说明文字用 Label 指到开关上：点文字也能切换，开关也有可访问名（与 effective-toggle 同一写法）。 */}
+      <Label htmlFor={props.id} className="flex flex-col items-start gap-1 leading-tight">
+        <span className="text-sm">{props.label}</span>
+        <span className="text-muted-foreground text-xs font-normal">{props.hint}</span>
+      </Label>
       <Switch id={props.id} checked={props.checked} onCheckedChange={props.onChange} />
     </div>
   )
