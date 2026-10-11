@@ -29,6 +29,8 @@ type LayoutPanelProps = LayoutGroupsInput & {
 export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   const layout = useLayoutGroups(input)
   const confirmable = !isInFlight(state)
+  /* 这一颗按钮的名字只有一处：提示语里说的也就是它（没有来源运行时是「写入分组表」，不续跑）。 */
+  const writeLabel = input.resume ? "写入分组表并继续" : "写入分组表"
   const [newId, setNewId] = useState("")
   const [newKind, setNewKind] = useState<"column" | "row">("column")
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
@@ -75,7 +77,7 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
                 </Button>
                 <Button size="sm" onClick={() => void layout.save()} disabled={layout.busy || !confirmable}>
                   <Save className="mr-1 h-4 w-4" />
-                  {input.resume ? "写入分组表并继续" : "写入分组表"}
+                  {writeLabel}
                 </Button>
               </div>
             </div>
@@ -89,12 +91,12 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
             ) : null}
             {!confirmable ? (
               <p className="text-sm text-muted-foreground">
-                {inFlightNote(input.resume ? "写入分组表并继续" : "写入分组表")}
+                {inFlightNote(writeLabel)}
               </p>
             ) : null}
             {layout.groups.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                没有要声明的分组：直接点「写入分组表并继续」，它写出空分组表，布局推导按机械判据走；
+                没有要声明的分组：直接点「{writeLabel}」，它写出空分组表，布局推导按机械判据走；
                 要声明分组：先在下面起个组名、选行或列，再把控件拖进那个组里。
               </p>
             ) : null}

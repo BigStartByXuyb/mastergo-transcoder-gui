@@ -215,7 +215,7 @@ function caseResolveConflict(fx) {
   }], null, 2));
 
   const runs = stubRuns();
-  const board = createBoard({ runs: runs, pending: null, home: home });
+  const board = createBoard({ runs: runs, pending: null, artifacts: { stepsOf: () => [] }, home: home });
   const task = () => taskOf(board, "conflict-task");
   assert.deepStrictEqual(task().resolutions, {}, "新任务的裁决是空的");
 
@@ -280,7 +280,7 @@ async function main() {
         project: project,
         runs: runs,
         board: function () {
-          return createBoard({ runs: runs, pending: null, home: home });
+          return createBoard({ runs: runs, pending: null, artifacts: { stepsOf: () => [] }, home: home });
         }
       };
       await run(fx);

@@ -92,7 +92,7 @@ function makeBoard(options = {}) {
           }
         },
     layout: { register: () => ({ ok: true }) },
-    artifacts: options.artifacts || null,
+    artifacts: options.artifacts || { stepsOf: () => [] },
     home: home
   });
   return { board, home, project, runs, pendingCalls, autoFillCalls };
@@ -120,7 +120,7 @@ function caseLoadMarksDeadTasksStopped() {
     { id: "t2", state: "merged", request: { projectRoot: "D:/p", link: LINK, target: "T" }, workDir: "D:/w" }
   ]));
   const runs = makeRuns();
-  const board = createBoard({ runs: runs.api, pending: null, home: home });
+  const board = createBoard({ runs: runs.api, pending: null, artifacts: { stepsOf: () => [] }, home: home });
   const states = board.snapshot().tasks.map((task) => task.state);
   assert.deepStrictEqual(states, ["stopped", "merged"], "重启后不可能还在跑：running 变 stopped，其它状态保留");
   fs.rmSync(home, { recursive: true, force: true });
@@ -261,7 +261,7 @@ async function caseAutoFillLimitAndRealFailure() {
     pending: { inspect: () => ({ icons: { available: true, needsNaming: true, needsRepair: false, mustName: [1] }, translations: { available: false } }) },
     autoFill: { fill: async () => ({ ok: true, filled: [], job: { id: "job-resumed", request: { progress: "" } } }) },
     layout: { register: () => ({ ok: true }) },
-    artifacts: null,
+    artifacts: { stepsOf: () => [] },
     home: home
   });
   board.start(id);
