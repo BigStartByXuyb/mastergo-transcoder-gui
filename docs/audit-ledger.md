@@ -167,4 +167,5 @@
 | 2026-10-12 第 32 遍 | REVIEW-001 | 层次图选中态只在 Target 变化时重置：换工程目录而 Target 同名时会留着上一次的选中 | 已收 | 重置改成跟「工程目录 + Target」这一对走（同一页的身份是这两个一起） |
 | 2026-10-12 第 33 遍 | REVIEW-001 | 验收记录写的「前端 426 条用例」与本轮实际的 431 条不符 | 已收 | 记录里的数改成本轮实际的 431 条 |
 | 2026-10-12 第 34 遍 | REVIEW-001 | 新加的 `tree` 读数没兜底：类型声明成数组、运行时可能是 undefined | 已收 | `ui/src/app/use-layout-groups.ts` 里三份清单（控件 / 分组 / 层次图）都经同一个 `listOf` 读成数组：字段缺了当空，界面不炸 |
+| 2026-10-12 第 35 遍 | REVIEW-001 | 层次图的「方向」读的 DSL 字段（`flexContainerInfo.flexDirection`）仓内无处佐证、也没有用例覆盖 | 已收 | 注释点名插件那边的同一处读法（`gen-mw-wpf-layout.js` 的 `parent.flex.flexDirection`）；用例夹具改成带 flex 的容器，逐段断言 `flow`（column / row / 自由） |
 

@@ -39,9 +39,16 @@ function sandbox() {
         nodes: [
           {
             type: "FRAME", id: "root", layoutStyle: { width: 1280, height: 1024 },
+            flexContainerInfo: { flexDirection: "column" },
             children: [
-              { type: "INSTANCE", id: "a", text: [{ text: "A" }] },
-              { type: "INSTANCE", id: "b", text: [{ text: "B" }] },
+              {
+                type: "FRAME", id: "row", layoutStyle: { width: 300, height: 80 },
+                flexContainerInfo: { flexDirection: "row" },
+                children: [
+                  { type: "INSTANCE", id: "a", text: [{ text: "A" }] },
+                  { type: "INSTANCE", id: "b", text: [{ text: "B" }] }
+                ]
+              },
               { type: "TEXT", id: "c", text: [{ text: "C" }] }
             ]
           }
@@ -77,14 +84,22 @@ function main() {
         ref: "root",
         name: "",
         type: "FRAME",
-        flow: "",
+        flow: "column",
         children: [
-          { ref: "a", name: "", type: "INSTANCE", flow: "", children: [] },
-          { ref: "b", name: "", type: "INSTANCE", flow: "", children: [] },
+          {
+            ref: "row",
+            name: "",
+            type: "FRAME",
+            flow: "row",
+            children: [
+              { ref: "a", name: "", type: "INSTANCE", flow: "", children: [] },
+              { ref: "b", name: "", type: "INSTANCE", flow: "", children: [] }
+            ]
+          },
           { ref: "c", name: "", type: "TEXT", flow: "", children: [] }
         ]
       }],
-      "层次图：祖先留着、不是控件又没下文的段剪掉"
+      "层次图：祖先留着、不是控件又没下文的段剪掉；方向取自设计稿的 flexContainerInfo"
     );
     // 树里的控件 ref 与清单一一对应：树上只出现「脚本识别出来的那些控件」，多一个少一个都不行。
     const inTree = [];
