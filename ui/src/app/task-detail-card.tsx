@@ -61,6 +61,17 @@ export function TaskDetailCard(props: Props) {
             </Button>
           )}
         </div>
+        {/*
+         * 没断点的那种失败（插件还没开始跑就被输入挡下）不给「从断点继续」：点了只会用同一份输入
+         * 把同一句原话再报一遍。这里只说清要改哪一样、去哪儿改 —— 出口是看板那条「创建任务」。
+         */}
+        {task.state === "failed" && !canResume(task) && (
+          <p className="text-muted-foreground text-sm">
+            这一条还没进入流水线的任何一步就停下了：要改的是输入（MasterGo 链接 / 页面 Target），
+            而不是点「继续」。按上面的原话改好之后，把这一条删掉，到看板「创建任务」里填同一条链接，
+            用「按链接补 Target / 区域」把页面名认回来，再加入看板。
+          </p>
+        )}
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {props.allStepsDone && (task.state === "ready" || task.state === "conflict") && (

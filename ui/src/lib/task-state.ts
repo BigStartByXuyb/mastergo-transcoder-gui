@@ -93,9 +93,19 @@ export function canStop(state: string): boolean {
  * 能不能「从断点继续」：只在这三种停法上有意义 —— 失败、等语义输入、被停掉。
  * 跑完的没有断点，排队中的还没跑过（那是「开始」）。
  * 工作目录是续跑要用的：插件登记表与产物都在那儿，没有它续起来只是空跑。
+ *
+ * 失败还要分两种：跑到某一步才失败（failure.stepName 有值，那一步就是断点，续得下去）；
+ * 与「还没进入任何一步就没跑起来」（链接 / 页面名这类输入不对，插件根本没开始跑）——
+ * 后者没有断点：再点「继续」只会拿同一份输入把同一句错再报一遍，所以要先把输入改对。
  */
-export function canResume(task: { state: string; workDir: string }): boolean {
-  return RESUMABLE_STATES.includes(task.state) && Boolean(task.workDir.trim())
+export function canResume(task: {
+  state: string
+  workDir: string
+  failure?: { stepName?: string } | null
+}): boolean {
+  if (!RESUMABLE_STATES.includes(task.state) || !task.workDir.trim()) return false
+  if (task.state !== "failed") return true
+  return Boolean(task.failure && task.failure.stepName)
 }
 
 /*

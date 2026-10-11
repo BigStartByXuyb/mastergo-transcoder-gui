@@ -1,9 +1,9 @@
 import { Loader2, Play, RefreshCw, Square } from "lucide-react"
-import type { ReactNode } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ClampText } from "@/app/clamp-text"
 import { DesignImagePicker } from "@/app/design-image-picker"
+import { FieldGroup } from "@/app/field-group"
 import { IdentityFillPanel } from "@/app/identity-fill-panel"
 import { ModeField } from "@/app/mode-field"
 import { Badge } from "@/components/ui/badge"
@@ -198,14 +198,3 @@ export function NewTaskCard(props: Props) {
 }
 
 /* 一组输入：外面一个框 + 标题行，把「必填 / 可自动补齐 / 可选」在视觉上分开。 */
-function FieldGroup(props: { title: string; hint: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-3 rounded-lg border px-3 py-3">
-      <div className="flex flex-wrap items-baseline gap-2">
-        <span className="text-sm font-medium">{props.title}</span>
-        <span className="text-muted-foreground text-xs">{props.hint}</span>
-      </div>
-      {props.children}
-    </section>
-  )
-}

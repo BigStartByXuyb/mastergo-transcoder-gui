@@ -4,6 +4,7 @@ import type { useIdentityFill } from "@/app/use-identity-fill"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DesignImagePicker } from "@/app/design-image-picker"
+import { FieldGroup } from "@/app/field-group"
 import { ModeField } from "@/app/mode-field"
 import {
   Dialog,
@@ -62,34 +63,103 @@ export function BoardNewTaskDialog(props: {
           </DialogDescription>
         </DialogHeader>
 
+        {/* 三组与新建任务那张表单同构：必填 / 可自动补齐 / 可选（位图属于「可选」）。 */}
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="board-project">工程目录</Label>
-            <Input
-              id="board-project"
-              spellCheck={false}
-              placeholder="工程根目录的绝对路径"
-              value={form.projectRoot}
-              onChange={(event) => props.onChange({ ...form, projectRoot: event.target.value })}
+          <FieldGroup title="必填" hint="不填跑不了">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="board-project">工程目录</Label>
+              <Input
+                id="board-project"
+                spellCheck={false}
+                placeholder="工程根目录的绝对路径"
+                value={form.projectRoot}
+                onChange={(event) => props.onChange({ ...form, projectRoot: event.target.value })}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="board-links">MasterGo 链接</Label>
+              <Textarea
+                id="board-links"
+                rows={5}
+                spellCheck={false}
+                placeholder={"https://mastergo.com/goto/xxxx?file=…&layer_id=…\nhttps://mastergo.com/goto/yyyy?file=…&layer_id=… | F3Align"}
+                value={form.links}
+                onChange={(event) => props.onChange({ ...form, links: event.target.value })}
+              />
+            </div>
+            <ModeField
+              label="默认模式"
+              value={form.mode}
+              onChange={(mode) => props.onChange({ ...form, mode: mode as BoardTaskForm["mode"] })}
             />
-          </div>
+          </FieldGroup>
+
+          <FieldGroup title="可自动补齐" hint="留空就按工程登记表解析；也可以让它按设计页名补">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="board-ui">Ui 前缀</Label>
+              <Input
+                id="board-ui"
+                spellCheck={false}
+                placeholder="例如 F1；Target 推不出来时必填"
+                value={form.ui}
+                onChange={(event) => props.onChange({ ...form, ui: event.target.value })}
+              />
+            </div>
+            {/* 补 Target / 区域：按每一行取设计页名与候选，写进工程登记表后回填到链接行。 */}
+            <div className="flex flex-col gap-2 rounded-md border px-3 py-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" disabled={identity.busy !== ""} onClick={props.onFill}>
+                  {identity.busy === "fill" ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                  按链接补 Target / 区域
+                </Button>
+                <span className="text-muted-foreground text-xs">
+                  按链接取设计页名，再按工程既有区域约定给候选；能定的写进工程登记表并填回这一行。
+                  当前自动化层级：{AUTOMATION_LABEL[props.automation] ?? props.automation}
+                </span>
+              </div>
+              {identity.rows.map((row) => (
+                <div key={row.link} className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="text-muted-foreground max-w-56 min-w-0 truncate font-mono" title={row.link}>
+                    {linkLabel(row.link)}
+                  </span>
+                  {row.kind === "filled" && (
+                    <>
+                      <Badge variant="secondary">
+                        {row.target}
+                        {row.ui ? " · UI " + row.ui : ""}
+                      </Badge>
+                      <span className="text-muted-foreground">{row.basis}</span>
+                    </>
+                  )}
+                  {row.kind === "pick" && (
+                    <>
+                      {row.items
+                        .filter((item) => item.target)
+                        .map((item) => (
+                          <Button
+                            key={item.target + item.ui}
+                            size="sm"
+                            variant={item.needsSemanticName ? "outline" : "default"}
+                            disabled={item.needsSemanticName || identity.busy !== ""}
+                            onClick={() => void identity.take(row, item)}
+                          >
+                            {item.needsSemanticName ? "还缺语义名" : item.target + (item.ui ? " · " + item.ui : "")}
+                          </Button>
+                        ))}
+                      {row.reason && <span className="text-amber-600">{row.reason}</span>}
+                    </>
+                  )}
+                  {row.kind === "none" && <span className="text-amber-600">{row.reason}</span>}
+                </div>
+              ))}
+              {props.identityFailure && <p className="text-destructive text-xs">{props.identityFailure}</p>}
+            </div>
+          </FieldGroup>
+        </div>
+
+        <FieldGroup title="可选" hint="不填就走默认">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="board-ui">Ui 前缀</Label>
-            <Input
-              id="board-ui"
-              spellCheck={false}
-              placeholder="例如 F1；Target 推不出来时必填"
-              value={form.ui}
-              onChange={(event) => props.onChange({ ...form, ui: event.target.value })}
-            />
-          </div>
-          <ModeField
-            label="默认模式"
-            value={form.mode}
-            onChange={(mode) => props.onChange({ ...form, mode: mode as BoardTaskForm["mode"] })}
-          />
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="board-stop">停在某一步（可选）</Label>
+            <Label htmlFor="board-stop">停在某一步</Label>
             <Input
               id="board-stop"
               spellCheck={false}
@@ -98,122 +168,62 @@ export function BoardNewTaskDialog(props: {
               onChange={(event) => props.onChange({ ...form, stopAfter: event.target.value })}
             />
           </div>
-          <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2">
-            <div className="leading-tight">
-              <div className="text-sm">跑完自动合并</div>
-              <div className="text-muted-foreground text-xs">冲突时停下等人。</div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2">
+              <div className="leading-tight">
+                <div className="text-sm">跑完自动合并</div>
+                <div className="text-muted-foreground text-xs">冲突时停下等人。</div>
+              </div>
+              <Switch
+                checked={form.autoMerge}
+                onCheckedChange={(value) => props.onChange({ ...form, autoMerge: value })}
+              />
             </div>
-            <Switch
-              checked={form.autoMerge}
-              onCheckedChange={(value) => props.onChange({ ...form, autoMerge: value })}
-            />
-          </div>
-          <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2">
-            <div className="leading-tight">
-              <div className="text-sm">替换已有产物</div>
-              <div className="text-muted-foreground text-xs">工程里已有同名页面时覆盖它。</div>
+            <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2">
+              <div className="leading-tight">
+                <div className="text-sm">替换已有产物</div>
+                <div className="text-muted-foreground text-xs">工程里已有同名页面时覆盖它。</div>
+              </div>
+              <Switch
+                checked={form.overwrite}
+                onCheckedChange={(value) => props.onChange({ ...form, overwrite: value })}
+              />
             </div>
-            <Switch
-              checked={form.overwrite}
-              onCheckedChange={(value) => props.onChange({ ...form, overwrite: value })}
-            />
           </div>
-        </div>
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="board-links">MasterGo 链接</Label>
-          <Textarea
-            id="board-links"
-            rows={6}
-            spellCheck={false}
-            placeholder={"https://mastergo.com/goto/xxxx?file=…&layer_id=…\nhttps://mastergo.com/goto/yyyy?file=…&layer_id=… | F3Align"}
-            value={form.links}
-            onChange={(event) => props.onChange({ ...form, links: event.target.value })}
-          />
-        </div>
-
-        {/* 一行一个页面：走 A 路线时每行各配一张设计稿位图（一个任务一份，见 ui/src/app/stage-design-images.ts）。 */}
-        {modeTakesRoute(form.mode, "A") && (
-          <div className="flex flex-col gap-2">
-            {/* 这一组下面是每行一个文件框，没有单个可关联的控件，所以不当 Label 用。 */}
-            <div className="text-sm font-medium">设计稿位图（可选）</div>
-            <div className="flex flex-col gap-2 rounded-md border px-3 py-2">
-              {rows.length === 0 && (
-                <span className="text-muted-foreground text-xs">先在上面写链接：一行一个页面，一行配一张图。</span>
-              )}
-              {rows.map((row) => (
-                <div key={row.line} className="flex flex-wrap items-center gap-2">
-                  <span className="text-muted-foreground text-xs">第 {row.line} 行</span>
-                  {/* 这一行的链接就是它自己那个选图框的标签（一行一个页面）。 */}
-                  <Label
-                    htmlFor={"board-image-" + row.line}
-                    className="text-muted-foreground max-w-40 min-w-0 truncate font-mono text-xs font-normal"
-                    title={row.link}
-                  >
-                    {linkLabel(row.link)}
-                  </Label>
-                  {row.target && <Badge variant="secondary">{row.target}</Badge>}
-                  <DesignImagePicker
-                    id={"board-image-" + row.line}
-                    file={pickedForLink(props.images, row.link)}
-                    onPick={(file) => props.onPickImage(row.link, file)}
-                  />
-                </div>
-              ))}
+          {/* 一行一个页面：走 A 路线时每行各配一张设计稿位图（一个任务一份，见 ui/src/app/stage-design-images.ts）。 */}
+          {modeTakesRoute(form.mode, "A") && (
+            <div className="flex flex-col gap-2">
+              {/* 这一组下面是每行一个文件框，没有单个可关联的控件，所以不当 Label 用。 */}
+              <div className="text-sm font-medium">设计稿位图</div>
+              <div className="flex flex-col gap-2 rounded-md border px-3 py-2">
+                {rows.length === 0 && (
+                  <span className="text-muted-foreground text-xs">先在上面写链接：一行一个页面，一行配一张图。</span>
+                )}
+                {rows.map((row) => (
+                  <div key={row.line} className="flex flex-wrap items-center gap-2">
+                    <span className="text-muted-foreground text-xs">第 {row.line} 行</span>
+                    {/* 这一行的链接就是它自己那个选图框的标签（一行一个页面）。 */}
+                    <Label
+                      htmlFor={"board-image-" + row.line}
+                      className="text-muted-foreground max-w-40 min-w-0 truncate font-mono text-xs font-normal"
+                      title={row.link}
+                    >
+                      {linkLabel(row.link)}
+                    </Label>
+                    {row.target && <Badge variant="secondary">{row.target}</Badge>}
+                    <DesignImagePicker
+                      id={"board-image-" + row.line}
+                      file={pickedForLink(props.images, row.link)}
+                      onPick={(file) => props.onPickImage(row.link, file)}
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="text-muted-foreground text-xs">{READ_IMAGE_HINT}</p>
             </div>
-            <p className="text-muted-foreground text-xs">{READ_IMAGE_HINT}</p>
-          </div>
-        )}
-
-        {/* 补 Target / 区域：按每一行取设计页名与候选，写进工程登记表后回填到链接行。 */}
-        <div className="flex flex-col gap-2 rounded-md border px-3 py-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="outline" disabled={identity.busy !== ""} onClick={props.onFill}>
-              {identity.busy === "fill" ? <Loader2 className="animate-spin" /> : <Sparkles />}
-              按链接补 Target / 区域
-            </Button>
-            <span className="text-muted-foreground text-xs">
-              按链接取设计页名，再按工程既有区域约定给候选；能定的写进工程登记表并填回这一行。
-              当前自动化层级：{AUTOMATION_LABEL[props.automation] ?? props.automation}
-            </span>
-          </div>
-          {identity.rows.map((row) => (
-            <div key={row.link} className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="text-muted-foreground max-w-56 min-w-0 truncate font-mono" title={row.link}>
-                {linkLabel(row.link)}
-              </span>
-              {row.kind === "filled" && (
-                <>
-                  <Badge variant="secondary">
-                    {row.target}
-                    {row.ui ? " · UI " + row.ui : ""}
-                  </Badge>
-                  <span className="text-muted-foreground">{row.basis}</span>
-                </>
-              )}
-              {row.kind === "pick" && (
-                <>
-                  {row.items
-                    .filter((item) => item.target)
-                    .map((item) => (
-                      <Button
-                        key={item.target + item.ui}
-                        size="sm"
-                        variant={item.needsSemanticName ? "outline" : "default"}
-                        disabled={item.needsSemanticName || identity.busy !== ""}
-                        onClick={() => void identity.take(row, item)}
-                      >
-                        {item.needsSemanticName ? "还缺语义名" : item.target + (item.ui ? " · " + item.ui : "")}
-                      </Button>
-                    ))}
-                  {row.reason && <span className="text-amber-600">{row.reason}</span>}
-                </>
-              )}
-              {row.kind === "none" && <span className="text-amber-600">{row.reason}</span>}
-            </div>
-          ))}
-          {props.identityFailure && <p className="text-destructive text-xs">{props.identityFailure}</p>}
-        </div>
+          )}
+        </FieldGroup>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => props.onOpenChange(false)}>
