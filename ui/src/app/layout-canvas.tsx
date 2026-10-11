@@ -54,14 +54,16 @@ export function LayoutCanvas(props: {
             onError={() => setShowDesign(false)}
           />
         )}
-        {props.controls.map((control) => (
+        {props.controls.map((control) => {
+          const on = props.highlight.includes(control.ref)
+          return (
           <span
             key={control.ref}
+            data-ref={control.ref}
+            /* 被描出来没有：语义钩子（用例按它断言，不绑样式类名）。 */
+            data-highlighted={on}
             title={labelOf(props.controls, control.ref)}
-            className={cn(
-              "absolute border",
-              props.highlight.includes(control.ref) ? "border-primary bg-primary/20" : "border-primary/50"
-            )}
+            className={cn("absolute border", on ? "border-primary bg-primary/20" : "border-primary/50")}
             style={{
               left: percent(control.absX, canvas.width),
               top: percent(control.absY, canvas.height),
@@ -73,7 +75,8 @@ export function LayoutCanvas(props: {
               {numberOf(props.controls, control.ref)}
             </span>
           </span>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

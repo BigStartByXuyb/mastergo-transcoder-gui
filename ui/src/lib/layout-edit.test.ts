@@ -5,11 +5,14 @@ import {
   labelOf,
   moveMember,
   numberOf,
+  refsOfNode,
   removeGroup,
   removeMember,
-  ungroupedControls
+  textOf,
+  ungroupedControls,
+  valueOf
 } from "@/lib/layout-edit"
-import type { LayoutControl, LayoutGroup } from "@/lib/api"
+import type { LayoutControl, LayoutGroup, LayoutTreeNode } from "@/lib/api"
 
 /*
  * 布局确认面板的纯逻辑：编号、未分组清单、分组的增删改。写回校验的判据在后端，这里不重复。
@@ -32,6 +35,13 @@ describe("layout-edit", () => {
     expect(labelOf(CONTROLS, "9:9")).toBe("9:9")
   })
 
+  it("控件的 value 就是清单里那段文本（空白当没有），取不到给空串", () => {
+    expect(valueOf(CONTROLS[0])).toBe("确定")
+    expect(textOf(CONTROLS, "1:9")).toBe("确定")
+    expect(textOf(CONTROLS, "1:10")).toBe("")
+    expect(textOf(CONTROLS, "9:9")).toBe("")
+  })
+
   it("未分组清单＝没进任何组的控件", () => {
     expect(ungroupedControls(CONTROLS, GROUPS).map((item) => item.ref)).toEqual(["1:11"])
     expect(ungroupedControls(CONTROLS, []).length).toBe(3)
@@ -52,6 +62,34 @@ describe("layout-edit", () => {
     expect(addGroup(GROUPS, " TopBar ", "row").map((group) => group.id)).toEqual(["RightTools", "TopBar"])
     expect(addGroup(GROUPS, "   ", "row")).toEqual(GROUPS)
     expect(removeGroup(GROUPS, "RightTools")).toEqual([])
+  })
+
+  it("树上某一段里的控件：找得到就收它自己与下面各段里的控件，找不到给空", () => {
+    const TREE: LayoutTreeNode[] = [
+      {
+        ref: "1:1",
+        name: "",
+        type: "FRAME",
+        flow: "",
+        children: [
+          {
+            ref: "1:2",
+            name: "",
+            type: "FRAME",
+            flow: "column",
+            children: [
+              { ref: "1:9", name: "", type: "IconButton", flow: "", children: [] },
+              { ref: "1:10", name: "", type: "IconButton", flow: "", children: [] }
+            ]
+          },
+          { ref: "1:11", name: "", type: "TextBlock", flow: "", children: [] }
+        ]
+      }
+    ]
+    expect(refsOfNode(TREE, "1:2", CONTROLS)).toEqual(["1:9", "1:10"])
+    expect(refsOfNode(TREE, "1:1", CONTROLS)).toEqual(["1:9", "1:10", "1:11"])
+    expect(refsOfNode(TREE, "", CONTROLS)).toEqual([])
+    expect(refsOfNode(TREE, "9:9", CONTROLS)).toEqual([])
   })
 
 })

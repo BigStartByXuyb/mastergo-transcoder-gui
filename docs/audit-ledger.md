@@ -154,4 +154,28 @@
 | 2026-10-11 第 24 遍 | 非阻断 | 布局载荷里「有没有图」是布尔、画布又从空串反推；画布的 `total > 0` 是恒真防御 | 已收 | 改成 `imageStamp`（空串＝没有图：一个字段一个意思）；`percent` 去掉恒真那一支 |
 | 2026-10-11 第 25 遍 | REVIEW-001 | 发图那条路由只为拿路径，却把整张位图读进了内存（`imageFile` 借 `currentImage`） | 已收 | 「先看哪一张」收成 `currentImagePath`（只看在不在、不读文件）：`currentImage`（要读宽高）/`hasImage`/`imageStamp`/`imageFile` 四条读法共用它，发图那条不再读整张图 |
 | 2026-10-11 第 26 遍 | REVIEW-001 | `inspect` 转发画板尺寸时把同一份 DSL 快照读了第二遍 | 已收 | 快照在 `inspect` 里读一次，传给 `readControls`（控件文本）与 `designImage.readCanvas`（画板尺寸）；`readCanvas` 收可选快照，不传才自己读 |
+| 2026-10-11 第 27 遍 | REVIEW-001 | 层次图节点 `numbers` 的文档契约与实现语义相反（说的「直接持有」与实际的「自身是控件」不一致） | 已收 | 干脆去掉 `numbers`：后端只给层级（ref / 名字 / 类型 / 方向），号由界面按同一份清单现算 |
+| 2026-10-11 第 27 遍 | REVIEW-002 | 控件编号规则后端与前端各一份，注释却说唯一判据在前端 | 已收 | 后端不再算号（同上）：`ui/src/lib/layout-edit.ts` 的 `numberOf` 是唯一一处，画布 / 层次图 / 面上清单三处的号必然一致 |
+| 2026-10-11 第 27 遍 | 非阻断 | 空层次图时右边空一列；`useMemo` 依赖恒变形同没缓存；`data-ref` 只被用例读 | 已收 | 没有层次图就不摆第二列；去掉那个 memo（直接算）；`data-ref` 保留当测试钩子（审计认可） |
+| 2026-10-11 第 27 遍 | 用户新要求 | 容器显示设计稿层名（「容器 194」）没有信息量 | 已收 | 容器只显示方向 —— 取自设计稿自己的自动布局（`flexContainerInfo.flexDirection`）：横排 / 竖排 / 自由布局；层名与 ref 挪到悬停提示 |
+| 2026-10-12 第 28 遍 | REVIEW-001 | 验收记录仍写着「后端层次图每段带上控件号」，与本轮改后的实现相反 | 已收 | 记录改成实况（后端只给层级、号在界面一处算），并把「容器只标方向」一起写进去 |
+| 2026-10-12 第 29 遍 | REVIEW-001 | 层次图选中态分存两处（树组件里一份、面板里一份），换页也不重置 | 已收 | 选中态只由面板一处持有（`treePicked` / `treeRefs`）；树改成受控件（`selected` 进来、`onPick(ref, refs)` 出去）；Target 一变就清 |
+| 2026-10-12 第 29 遍 | REVIEW-002 | 层次图与画布的用例靠 Tailwind 类名断言高亮，绑在样式实现上 | 已收 | DOM 上给语义钩子：画布框 `data-highlighted`、树行 `data-selected`，用例按属性断言 |
+| 2026-10-12 第 30 遍 | REVIEW-001 | 层次图选中态存了两个 state：选中的 ref 与由它派生的高亮 refs | 已收 | 只存「选中了哪一段」（`treePicked`）；要高亮哪些控件由 `ui/src/lib/layout-edit.ts` 的 `refsOfNode` 现算，树组件的 `onPick` 只回 ref |
+| 2026-10-12 第 31 遍 | REVIEW-001 | 验收记录把新用例说成覆盖了它并未覆盖的两件事（「再点一下取消」已挪到面板；号也不是后端给的） | 已收 | 记录按用例实际覆盖改写，并把「按 value 显示 / 容器只标方向 / 树里控件与清单一一对应」一起写进去 |
+| 2026-10-12 第 31 遍 | 用户新要求 | 层次图上的名字应该用 value（没有 value 才退回控件名） | 已收 | `ui/src/lib/layout-edit.ts` 加 `textOf`（value 只在这一处取，清单与树同源）：树上的控件行先显示 value、末尾带号；容器行照旧只显示方向 |
+| 2026-10-12 第 32 遍 | REVIEW-001 | 层次图选中态只在 Target 变化时重置：换工程目录而 Target 同名时会留着上一次的选中 | 已收 | 重置改成跟「工程目录 + Target」这一对走（同一页的身份是这两个一起） |
+| 2026-10-12 第 33 遍 | REVIEW-001 | 验收记录里的前端用例数与本轮实测不符 | 已收 | 记录里的数改成本轮实测的那个 |
+| 2026-10-12 第 34 遍 | REVIEW-001 | 新加的 `tree` 读数没兜底：类型声明成数组、运行时可能是 undefined | 已收 | `ui/src/app/use-layout-groups.ts` 里三份清单（控件 / 分组 / 层次图）都经同一个 `listOf` 读成数组：字段缺了当空，界面不炸 |
+| 2026-10-12 第 35 遍 | REVIEW-001 | 层次图的「方向」读的 DSL 字段（`flexContainerInfo.flexDirection`）仓内无处佐证、也没有用例覆盖 | 已收 | 注释点名插件那边的同一处读法（`gen-mw-wpf-layout.js` 的 `parent.flex.flexDirection`）；用例夹具改成带 flex 的容器，逐段断言 `flow`（column / row / 自由） |
+| 2026-10-12 第 36 遍 | REVIEW-001 | 注释里说的插件字段路径（`parent.flex.flexDirection`）与代码读的（`flexContainerInfo.flexDirection`）看起来不是同一个，仓内无从互证 | 已收 | 注释只陈述本仓能自证的那句，并把字段链点明：插件那份 `gen-mw-wpf-layout.js` 第 106 行 `flex: node.flexContainerInfo || null` 先记成 flex，之后按 `flex.flexDirection` 判主轴 |
+| 2026-10-12 第 36 遍 | 非阻断 | 层次图绑在画布上（`canvas` 空则整栏消失）；「有没有层次图」判两次；「算不算控件」三处重复表达；`listOf` 每次渲染重建且 `canvas` 没走同一道兜底 | 已收 | 面板一处判 `hasTree`（画布与树各自独立渲染）；「算不算控件」收成 `ui/src/lib/layout-edit.ts` 的 `isControl`；`listOf` 提到模块级、`canvas` 也按 `?? null` 收口 |
+| 2026-10-12 第 36 遍 | 非阻断 | `inspect` 无条件构造层次图，而待确认队列 / 自动补输入那两条路不读它 | 独立一轮 | 加一个「要不要带层次图」的开关并让那两条路关掉它；本次不动（它只是每页多算一遍，没有行为影响） |
+| 2026-10-12 第 37 遍 | REVIEW-001 | 复核台账第 33 遍自己写死的前端用例数与验收记录 / 实测对不上 | 已收 | 台账那行改成不写死数字（「改成本轮实测的那个」）—— 数只有验收记录一处给 |
+| 2026-10-12 第 37 遍 | REVIEW-002 | 层次图行标签还在用 `numberOf(...) > 0` 判「算不算控件」 | 已收 | 改用 `isControl`（那个谓词只有这一处）；号仍由 `numberOf` 现算 |
+| 2026-10-12 第 38 遍 | REVIEW-001 | 「有没有层次图」在面板（`hasTree`）与树组件（`nodes.length === 0` 早退）里各判一次 | 已收 | 只留面板那一处（摆不摆第二条列、挂不挂这块都由它定）；组件里的早退删掉 |
+| 2026-10-12 第 38 遍 | REVIEW-002 | 「算不算控件」在同模块里仍有第二份（`labelOf` 自己 `controls.find`） | 已收 | 加 `controlOf`（找那一条只有这一处）：`isControl` / `numberOf` / `textOf` / `labelOf` 都从它走 |
+| 2026-10-12 第 39 遍 | REVIEW-001 | 控件 value 仍有两处实现（`textOf` 与 `labelOf` 各 trim 一遍），注释却写「只有这一处取」 | 已收 | 取 value 收成 `valueOf(control)`：`textOf` 按 ref 找那一条再调它，`labelOf` 直接调它 |
+| 2026-10-12 第 40 遍 | REVIEW-001 | 台账第 36 遍的「已收」写的是字段链，而注释实际仍写 `parent.flex.flexDirection`（那次补丁没落地） | 已收 | 注释按台账那句落地（字段链 + 仓内路径 `plugins/mastergo-wpf-transcoder/<版本>/…/gen-mw-wpf-layout.js`）；台账那行也与之对齐 |
+| 2026-10-12 第 40 遍 | 非阻断 | `numberOf` 一次调用里扫两遍（`controlOf` + `indexOf`）；画布「要不要描」一次渲染算两遍 | 已收 | `numberOf` 回到一遍 `findIndex`；画布把 `on` 算一次、属性与类名共用 |
 

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import { useValueRunner } from "@/app/use-action-runner"
 import { useAlive } from "@/app/use-alive"
-import { api, type LayoutControl, type LayoutGroup } from "@/lib/api"
+import { api, type LayoutControl, type LayoutGroup, type LayoutTreeNode } from "@/lib/api"
 
 /*
  * 布局确认的数据动作：读控件清单与现有分组、叫 AI 出候选、把分组写回去并从布局那一步续跑。
@@ -26,12 +26,16 @@ export type LayoutGroupsInput = {
   progressDone?: number
 }
 
+/* 后端给的那几份清单都按数组读：字段缺了（旧后端 / 半截响应）当空，别让界面当场炸。 */
+const listOf = <T,>(value: T[] | undefined): T[] => (Array.isArray(value) ? value : [])
+
 export function useLayoutGroups(input: LayoutGroupsInput) {
   const [available, setAvailable] = useState(false)
   const [reason, setReason] = useState("")
   const [controls, setControls] = useState<LayoutControl[]>([])
   const [canvas, setCanvas] = useState<{ width: number; height: number } | null>(null)
   const [imageStamp, setImageStamp] = useState("")
+  const [tree, setTree] = useState<LayoutTreeNode[]>([])
   const [groups, setGroups] = useState<LayoutGroup[]>([])
   const [canSuggest, setCanSuggest] = useState(false)
   const [autoPass, setAutoPass] = useState(false)
@@ -69,10 +73,11 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
       if (!alive.current) return
       setAvailable(payload.layout.available)
       setReason(payload.layout.reason)
-      setControls(payload.layout.controls)
-      setCanvas(payload.layout.canvas)
+      setControls(listOf(payload.layout.controls))
+      setCanvas(payload.layout.canvas ?? null)
       setImageStamp(String(payload.layout.imageStamp || ""))
-      if (!dirty.current) setGroups(payload.layout.groups)
+      setTree(listOf(payload.layout.tree))
+      if (!dirty.current) setGroups(listOf(payload.layout.groups))
       setCanSuggest(payload.layout.canSuggest)
       // 「自动通过」也随这一页读回来：全局开关的当前值不另取一遍设置（一次读数一件事）。
       setAutoPass(Boolean(payload.layout.autoPass))
@@ -132,6 +137,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
     controls,
     canvas,
     imageStamp,
+    tree,
     groups,
     setGroups: applyGroups,
     canSuggest,

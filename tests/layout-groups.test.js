@@ -39,9 +39,16 @@ function sandbox() {
         nodes: [
           {
             type: "FRAME", id: "root", layoutStyle: { width: 1280, height: 1024 },
+            flexContainerInfo: { flexDirection: "column" },
             children: [
-              { type: "INSTANCE", id: "a", text: [{ text: "A" }] },
-              { type: "INSTANCE", id: "b", text: [{ text: "B" }] },
+              {
+                type: "FRAME", id: "row", layoutStyle: { width: 300, height: 80 },
+                flexContainerInfo: { flexDirection: "row" },
+                children: [
+                  { type: "INSTANCE", id: "a", text: [{ text: "A" }] },
+                  { type: "INSTANCE", id: "b", text: [{ text: "B" }] }
+                ]
+              },
               { type: "TEXT", id: "c", text: [{ text: "C" }] }
             ]
           }
@@ -67,9 +74,43 @@ function main() {
     // 读图状态不在这里（lib/design-image.js 一处）；hasGroups 与 canSuggest 都由后端给
     // （hasGroups 与 tables 同一次读，界面照 canSuggest 禁用「AI 辅助」）。
     // canvas 是画板尺寸（界面拿它把控件坐标换算成百分比，把编号画到图上），判据仍在 design-image 那一处。
-    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "canSuggest", "canvas", "controls", "groups", "hasGroups", "imageStamp", "reason"]);
+    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "canSuggest", "canvas", "controls", "groups", "hasGroups", "imageStamp", "reason", "tree"]);
     assert.deepStrictEqual(info.canvas, { width: 1280, height: 1024 }, "画板尺寸取 DSL 快照根节点");
     assert.strictEqual(info.imageStamp, "", "还没传图：图的身份是空串（判据在 lib/design-image.js 的 imageStamp）");
+    // 层次图：只留「自己就是控件、或下面放着控件」的段与它们的祖先；号由界面按同一份清单现算。
+    assert.deepStrictEqual(
+      info.tree,
+      [{
+        ref: "root",
+        name: "",
+        type: "FRAME",
+        flow: "column",
+        children: [
+          {
+            ref: "row",
+            name: "",
+            type: "FRAME",
+            flow: "row",
+            children: [
+              { ref: "a", name: "", type: "INSTANCE", flow: "", children: [] },
+              { ref: "b", name: "", type: "INSTANCE", flow: "", children: [] }
+            ]
+          },
+          { ref: "c", name: "", type: "TEXT", flow: "", children: [] }
+        ]
+      }],
+      "层次图：祖先留着、不是控件又没下文的段剪掉；方向取自设计稿的 flexContainerInfo"
+    );
+    // 树里的控件 ref 与清单一一对应：树上只出现「脚本识别出来的那些控件」，多一个少一个都不行。
+    const inTree = [];
+    const collect = function (nodes) {
+      nodes.forEach(function (node) {
+        if (info.controls.some(function (control) { return control.ref === node.ref; })) inTree.push(node.ref);
+        collect(node.children);
+      });
+    };
+    collect(info.tree);
+    assert.deepStrictEqual(inTree.sort(), info.controls.map(function (control) { return control.ref; }).sort());
     assert.strictEqual(info.canSuggest, true, "三个控件够分组");
     assert.strictEqual(info.hasGroups, false, "还没写过分组表");
   }

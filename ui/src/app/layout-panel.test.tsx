@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { LayoutPanel } from "@/app/layout-panel"
-import type { LayoutControl, LayoutGroup } from "@/lib/api"
+import type { LayoutControl, LayoutGroup, LayoutTreeNode } from "@/lib/api"
 import { drive } from "@/lib/settings-fixtures"
 
 /*
@@ -41,6 +41,8 @@ function stub(
     canvas?: { width: number; height: number } | null
     /** 这一页那张图的身份（空串＝没有图）；传 "" 验「画布只给编号、不给隐藏按钮」。 */
     imageStamp?: string
+    /** 层次图；默认空（画布那块在不给树时只有画布）。 */
+    tree?: LayoutTreeNode[]
   } = {}
 ) {
   const available = options.available !== false
@@ -76,6 +78,7 @@ function stub(
             // 画板尺寸：界面拿它把控件坐标换算成百分比（编号画到图上）；判据在后端。
             canvas: options.canvas === undefined ? { width: 1000, height: 500 } : options.canvas,
             imageStamp: options.imageStamp === undefined ? "2048-1" : options.imageStamp,
+            tree: options.tree ?? [],
             groups: options.groups ?? [],
             hasGroups: (options.groups ?? []).length > 0,
             // 后端的口径：控件够不够问 AI 由它给（阈值在 lib/layout-groups.js），界面照它禁用按钮。
@@ -147,6 +150,30 @@ describe("LayoutPanel", () => {
     expect(screen.queryByAltText("这一页的设计稿位图")).toBeNull()
   })
 
+  it("点层次图上的一段：那一段里的控件在画布上被描出来，再点一下取消", async () => {
+    stub({
+      tree: [{
+        ref: "1:1",
+        name: "",
+        type: "FRAME",
+        flow: "",
+        children: [{ ref: "1:9", name: "右侧栏", type: "IconButton", flow: "", children: [] }]
+      }]
+    })
+    render(panel())
+    await screen.findByText("画布")
+
+    const marked = () => document.querySelector('[data-ref="1:9"][data-highlighted="true"]')
+    expect(marked()).toBeNull()
+
+    // 树上控件那一行先显示 value（「确定」是这张夹具里 #1 的文本），末尾带号。
+    fireEvent.click(screen.getByText("确定 · #1"))
+    expect(marked()).toBeTruthy()
+
+    fireEvent.click(screen.getByText("确定 · #1"))
+    expect(marked()).toBeNull()
+  })
+
   it("已有分组按组渲染成员编号，自动通过默认关", async () => {
     stub({ groups: [{ id: "RightTools", kind: "column", members: ["1:9", "1:10"] }] })
     render(panel())
@@ -168,7 +195,7 @@ describe("LayoutPanel", () => {
         new Response(
           JSON.stringify({
             ok: true,
-            layout: { available: true, reason: "", controls: CONTROLS, canvas: null, imageStamp: "", groups: [], hasGroups: false, canSuggest: true, autoPass: true }
+            layout: { available: true, reason: "", controls: CONTROLS, canvas: null, imageStamp: "", tree: [], groups: [], hasGroups: false, canSuggest: true, autoPass: true }
           }),
           { status: 200 }
         )

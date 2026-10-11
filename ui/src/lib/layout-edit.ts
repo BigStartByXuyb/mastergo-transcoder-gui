@@ -1,4 +1,4 @@
-import type { LayoutControl, LayoutGroup } from "@/lib/api"
+import type { LayoutControl, LayoutGroup, LayoutTreeNode } from "@/lib/api"
 
 /*
  * 布局确认面板的两件纯逻辑：控件编号（人对编号说话，分组表里存 ref）与分组的增删改。
@@ -7,18 +7,42 @@ import type { LayoutControl, LayoutGroup } from "@/lib/api"
  * 这类校验只有后端 lib/layout-groups.js 一处，界面把后端的原话照实显示（见 app/layout-panel.tsx）。
  */
 
+/*
+ * 清单里那一条控件（没有给 null）。「清单里有没有它 / 拿它的字段」都从这里走 ——
+ * 同一条控件在界面几个地方（画布、层次图、面上清单）读出来的是同一份事实。
+ */
+export function controlOf(controls: LayoutControl[], ref: string): LayoutControl | null {
+  return controls.find((item) => item.ref === ref) ?? null
+}
+
+/* 这个 ref 是不是脚本识别出来的控件（清单里有它）。「算不算控件」只有这一处判。 */
+export function isControl(controls: LayoutControl[], ref: string): boolean {
+  return controlOf(controls, ref) !== null
+}
+
 /** 控件编号＝控件清单里的次序（1 起）；不在清单里的 ref 给 0（清单被换过时不硬编一个号）。 */
 export function numberOf(controls: LayoutControl[], ref: string): number {
   const index = controls.findIndex((item) => item.ref === ref)
   return index < 0 ? 0 : index + 1
 }
 
-/** 一个控件的展示名：编号 + 类型 · 文本；清单里没有的 ref 照原样显示。 */
+/* 一条控件的 value：它在 DSL 里那段文本（去掉两头空白）。「取 value」只有这一处。 */
+export function valueOf(control: LayoutControl): string {
+  return control.text.trim()
+}
+
+/* 按 ref 取 value：清单里没有这个 ref 就给空串。 */
+export function textOf(controls: LayoutControl[], ref: string): string {
+  const control = controlOf(controls, ref)
+  return control ? valueOf(control) : ""
+}
+
+/** 一个控件的展示名：编号 + 类型 · value；清单里没有的 ref 照原样显示。 */
 export function labelOf(controls: LayoutControl[], ref: string): string {
-  const number = numberOf(controls, ref)
-  const control = controls.find((item) => item.ref === ref)
+  const control = controlOf(controls, ref)
   if (!control) return ref
-  const text = control.text.trim()
+  const number = numberOf(controls, ref)
+  const text = valueOf(control)
   return "#" + number + " " + (text ? control.controlType + " · " + text : control.controlType)
 }
 
@@ -58,4 +82,32 @@ export function addGroup(groups: LayoutGroup[], id: string, kind: "column" | "ro
 /** 删掉一个组（组里的控件回到未分组）。 */
 export function removeGroup(groups: LayoutGroup[], id: string): LayoutGroup[] {
   return groups.filter((group) => group.id !== id)
+}
+
+/*
+ * 树上某一段（连同它下面的段）里有哪几个控件：按 ref 找到那一段再往下收。
+ * 与 numberOf 同处 —— 「哪一段里有哪几个控件」只有这一处实现：画布要描的就是它，
+ * 面板只存「选中了哪一段」，高亮哪些控件由它现算（不另存一份）。
+ */
+export function refsOfNode(nodes: LayoutTreeNode[], ref: string, controls: LayoutControl[]): string[] {
+  if (!ref) return []
+  const found = findNode(nodes, ref)
+  return found ? refsUnder(found, controls) : []
+}
+
+/* 按 ref 找那一段（找不到给 null）。 */
+function findNode(nodes: LayoutTreeNode[], ref: string): LayoutTreeNode | null {
+  for (const node of nodes) {
+    if (node.ref === ref) return node
+    const hit = findNode(node.children, ref)
+    if (hit) return hit
+  }
+  return null
+}
+
+/* 这一段自己（它是控件时）加上它下面所有段里的控件 ref。 */
+function refsUnder(node: LayoutTreeNode, controls: LayoutControl[]): string[] {
+  const out = isControl(controls, node.ref) ? [node.ref] : []
+  for (const child of node.children) out.push(...refsUnder(child, controls))
+  return out
 }
