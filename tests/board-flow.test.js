@@ -490,8 +490,8 @@ async function caseProgressStepsAndTargetAdoption() {
   assert.ok(after.progress, "有运行登记表就要给进度");
   assert.strictEqual(after.progress.done, 1, "只把 ok 计入完成（skipped 不算跑过这一步）");
   assert.strictEqual(after.progress.total, 2, "分母是契约里的步骤数");
-  // 「从断点继续」的判据也在这里给：登记表里一步都没跑完时，断点就是下一步（界面读它，不自己猜）。
-  assert.deepStrictEqual(after.resume, { finished: false, step: "ledger" }, "断点由登记表给：下一步是 ledger");
+  // 「从断点继续」的判据也在这里给：登记表里一步都没跑完时，断点就是下一步（界面读它、写在按钮上，不自己猜）。
+  assert.strictEqual(after.resumeStep, "图标台账", "断点由登记表给，给的是那一步在界面上的名字");
   fs.rmSync(fx.home, { recursive: true, force: true });
 }
 

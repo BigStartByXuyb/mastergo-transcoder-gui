@@ -64,24 +64,20 @@ describe("task-state", () => {
   })
 
   it("续跑只给停下来的三种，且必须有工作目录", () => {
-    const atStep = { finished: false, step: "verify" }
-    expect(canResume({ state: "failed", workDir: "work\\page", resume: atStep })).toBe(true)
+    const atStep = "校验结果"
+    expect(canResume({ state: "failed", workDir: "work\\page", resumeStep: atStep })).toBe(true)
     for (const state of ["waiting", "stopped"]) {
-      expect(canResume({ state, workDir: "work\\page", resume: atStep })).toBe(true)
+      expect(canResume({ state, workDir: "work\\page", resumeStep: atStep })).toBe(true)
     }
-    expect(canResume({ state: "merged", workDir: "work\\page", resume: atStep })).toBe(false)
-    expect(canResume({ state: "running", workDir: "work\\page", resume: atStep })).toBe(false)
+    expect(canResume({ state: "merged", workDir: "work\\page", resumeStep: atStep })).toBe(false)
+    expect(canResume({ state: "running", workDir: "work\\page", resumeStep: atStep })).toBe(false)
     expect(canResume({ state: "failed", workDir: "" })).toBe(false)
     expect(canResume({ state: "failed", workDir: "   " })).toBe(false)
   })
 
   it("登记表里一步都没跑过：不给续跑 —— 点了只会把同一句错再报一遍", () => {
-    expect(canResume({ state: "failed", workDir: "work\\page", resume: { finished: false, step: "" } })).toBe(false)
-    expect(canResume({ state: "failed", workDir: "work\\page", resume: null })).toBe(false)
-  })
-
-  it("跑完了就没有断点", () => {
-    expect(canResume({ state: "failed", workDir: "work\\page", resume: { finished: true, step: "" } })).toBe(false)
+    expect(canResume({ state: "failed", workDir: "work\\page", resumeStep: "" })).toBe(false)
+    expect(canResume({ state: "failed", workDir: "work\\page" })).toBe(false)
   })
 
   it("「写回并续跑」只在不在跑时给：排队 / 建目录 / 跑着 / 合并中都不给，等输入的「等待」给", () => {

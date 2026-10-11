@@ -51,7 +51,7 @@ export function TaskDetailCard(props: Props) {
           {canResume(task) && (
             <Button size="sm" disabled={busy === "resume"} onClick={props.onResume}>
               {busy === "resume" ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
-              从断点继续
+              从「{task.resumeStep}」继续
             </Button>
           )}
           {(task.state === "ready" || task.state === "conflict") && (
