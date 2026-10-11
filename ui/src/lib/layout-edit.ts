@@ -7,10 +7,23 @@ import type { LayoutControl, LayoutGroup, LayoutTreeNode } from "@/lib/api"
  * 这类校验只有后端 lib/layout-groups.js 一处，界面把后端的原话照实显示（见 app/layout-panel.tsx）。
  */
 
+/*
+ * 清单里那一条控件（没有给 null）。「清单里有没有它 / 拿它的字段」都从这里走 ——
+ * 同一条控件在界面几个地方（画布、层次图、面上清单）读出来的是同一份事实。
+ */
+export function controlOf(controls: LayoutControl[], ref: string): LayoutControl | null {
+  return controls.find((item) => item.ref === ref) ?? null
+}
+
+/* 这个 ref 是不是脚本识别出来的控件（清单里有它）。「算不算控件」只有这一处判。 */
+export function isControl(controls: LayoutControl[], ref: string): boolean {
+  return controlOf(controls, ref) !== null
+}
+
 /** 控件编号＝控件清单里的次序（1 起）；不在清单里的 ref 给 0（清单被换过时不硬编一个号）。 */
 export function numberOf(controls: LayoutControl[], ref: string): number {
-  const index = controls.findIndex((item) => item.ref === ref)
-  return index < 0 ? 0 : index + 1
+  const control = controlOf(controls, ref)
+  return control ? controls.indexOf(control) + 1 : 0
 }
 
 /*
@@ -18,20 +31,15 @@ export function numberOf(controls: LayoutControl[], ref: string): number {
  * 只有这一处取 —— 清单里那条展示名与层次图上那行都从它取，两处的 value 不会各说各的。
  */
 export function textOf(controls: LayoutControl[], ref: string): string {
-  return (controls.find((item) => item.ref === ref)?.text ?? "").trim()
-}
-
-/* 这个 ref 是不是脚本识别出来的控件（清单里有它）。「算不算控件」只有这一处判。 */
-export function isControl(controls: LayoutControl[], ref: string): boolean {
-  return controls.some((item) => item.ref === ref)
+  return (controlOf(controls, ref)?.text ?? "").trim()
 }
 
 /** 一个控件的展示名：编号 + 类型 · value；清单里没有的 ref 照原样显示。 */
 export function labelOf(controls: LayoutControl[], ref: string): string {
-  const number = numberOf(controls, ref)
-  const control = controls.find((item) => item.ref === ref)
+  const control = controlOf(controls, ref)
   if (!control) return ref
-  const text = textOf(controls, ref)
+  const number = numberOf(controls, ref)
+  const text = control.text.trim()
   return "#" + number + " " + (text ? control.controlType + " · " + text : control.controlType)
 }
 

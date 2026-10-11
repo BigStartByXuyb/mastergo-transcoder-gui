@@ -34,8 +34,6 @@ export function LayoutTree(props: {
   /** 点了一段：把它的 ref 回给调用方（选中态与要描的控件都由调用方一处管）。 */
   onPick: (ref: string) => void
 }) {
-  if (props.nodes.length === 0) return null
-
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <div className="flex flex-wrap items-baseline gap-2">
