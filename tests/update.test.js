@@ -294,6 +294,17 @@ async function main() {
   assert.strictEqual(holdState.ready, "0.2.0", "手上那份仍然可切");
   assert.strictEqual(holdGated.hint().target, "0.2.0", "入口给手上这份，不给被挡住的那版");
   assert.strictEqual(holdState.state, "download_ready", "状态与入口同出一处");
+  /*
+   * 同一版重发时把外壳下限抬高：已经下好的那一份也不再算「可以切过去」——
+   * 远端那份被挡只是明面上的那一半，手上这份同样过不了切换前那一刻的校验。
+   */
+  const reReleased = remote(next, "0.2.0", { minClientVersion: "9.9.9" });
+  const holdRaised = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: holdHome, home: holdHome, version: "0.1.0", fetchImpl: reReleased.fetchImpl });
+  await holdRaised.check();
+  assert.strictEqual(holdRaised.status().available.blocked.code, "CLIENT_TOO_OLD", "远端这一版被抬高了外壳下限");
+  assert.strictEqual(holdRaised.status().ready, "", "已下好的那一份被同一版的下限挡住，不算可切");
+  assert.strictEqual(holdRaised.hint().target, "", "入口也不指它");
+  assert.throws(function () { holdRaised.apply("0.2.0"); }, /要求客户端至少/, "真要点它，切换前那一刻也拒");
 
   // 远端没有这一版就下不了 / 没下过就点切换。
   const blank = makeTree({ "server.js": "空白", "package.json": "{\"version\":\"0.1.0\"}" });
