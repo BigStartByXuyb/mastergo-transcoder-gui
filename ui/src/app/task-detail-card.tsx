@@ -84,7 +84,12 @@ export function TaskDetailCard(props: Props) {
             />
           </div>
         )}
-        <FailureNote failure={task.failure} contractStep={props.contractStep} stopStepNumber={props.stopStepNumber} />
+        <FailureNote
+          failure={task.failure}
+          contractStep={props.contractStep}
+          stopStepNumber={props.stopStepNumber}
+          resumable={canResume(task)}
+        />
       </CardContent>
     </Card>
   )
