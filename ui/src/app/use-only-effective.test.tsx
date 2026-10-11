@@ -1,8 +1,8 @@
 import { act, renderHook } from "@testing-library/react"
 import { beforeEach, describe, expect, it } from "vitest"
 
+import { useOnlyEffective } from "@/app/use-only-effective"
 import { readOnlyEffective } from "@/lib/only-effective"
-import { useOnlyEffective } from "@/lib/use-only-effective"
 
 const KEY = "mastergo-transcoder-gui.onlyEffective"
 
