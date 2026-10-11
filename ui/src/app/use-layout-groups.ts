@@ -27,6 +27,8 @@ export type LayoutGroupsInput = {
 }
 
 export function useLayoutGroups(input: LayoutGroupsInput) {
+  /* 后端给的那几份清单都按数组读：字段缺了（旧后端 / 半截响应）当空，别让界面当场炸。 */
+  const listOf = <T,>(value: T[] | undefined): T[] => (Array.isArray(value) ? value : [])
   const [available, setAvailable] = useState(false)
   const [reason, setReason] = useState("")
   const [controls, setControls] = useState<LayoutControl[]>([])
@@ -70,11 +72,11 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
       if (!alive.current) return
       setAvailable(payload.layout.available)
       setReason(payload.layout.reason)
-      setControls(payload.layout.controls)
+      setControls(listOf(payload.layout.controls))
       setCanvas(payload.layout.canvas)
       setImageStamp(String(payload.layout.imageStamp || ""))
-      setTree(payload.layout.tree)
-      if (!dirty.current) setGroups(payload.layout.groups)
+      setTree(listOf(payload.layout.tree))
+      if (!dirty.current) setGroups(listOf(payload.layout.groups))
       setCanSuggest(payload.layout.canSuggest)
       // 「自动通过」也随这一页读回来：全局开关的当前值不另取一遍设置（一次读数一件事）。
       setAutoPass(Boolean(payload.layout.autoPass))
