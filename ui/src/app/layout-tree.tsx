@@ -1,35 +1,48 @@
 import { useState } from "react"
 
-import type { LayoutTreeNode } from "@/lib/api"
+import type { LayoutControl, LayoutTreeNode } from "@/lib/api"
+import { numberOf } from "@/lib/layout-edit"
 import { cn } from "@/lib/utils"
 
 /*
  * 布局确认里的层次图：把设计稿里「放着控件的那些段」按层级摆出来。
- * 点一段，就把这一段（连同它下面的段）里的控件在画布上描出来 —— 号与画布、与面上清单同源
- * （号由后端按同一份清单的次序算，这里只显示）。
+ * 点一段，就把这一段（连同它下面的段）里的控件在画布上描出来。
+ * 号由 numberOf 现算（「控件号＝它在清单里的次序」只有那一处实现），与画布、与面上清单同源。
  * 选中态只在这里：一次选一段，再点一下取消（不往面板外传，面板只收「要描哪几个控件」）。
  */
 
 /* 这一段自己加上它下面所有段里的控件（画布按 ref 描边）。 */
-function refsOf(node: LayoutTreeNode): string[] {
-  const out = node.numbers.length > 0 ? [node.ref] : []
-  for (const child of node.children) out.push(...refsOf(child))
+function refsOf(node: LayoutTreeNode, controls: LayoutControl[]): string[] {
+  const out = numberOf(controls, node.ref) > 0 ? [node.ref] : []
+  for (const child of node.children) out.push(...refsOf(child, controls))
   return out
 }
 
-/* 一段在树上叫什么：有名字用名字，没有就用类型；再带上这一段自己放着的号。 */
-function nodeLabel(node: LayoutTreeNode): string {
-  const head = node.name || node.type || node.ref
-  return node.numbers.length > 0 ? head + " · #" + node.numbers.join(" #") : head
+/*
+ * 一段在树上叫什么：
+ *   控件 —— 名字（没有就类型）带上它的号；
+ *   容器 —— 只说方向（横排 / 竖排 / 自由布局）：设计稿里的层名（「容器 194」这种）没有信息量，
+ *   真要找它原始那层叫什么，鼠标停上去的提示里有（title）。
+ */
+const FLOW_LABEL: Record<string, string> = { row: "横排", column: "竖排", "": "自由布局" }
+
+function nodeLabel(node: LayoutTreeNode, controls: LayoutControl[]): string {
+  const number = numberOf(controls, node.ref)
+  if (number > 0) return (node.name || node.type || node.ref) + " · #" + number
+  return FLOW_LABEL[node.flow]
 }
 
-export function LayoutTree(props: { nodes: LayoutTreeNode[]; onPick: (refs: string[]) => void }) {
+export function LayoutTree(props: {
+  nodes: LayoutTreeNode[]
+  controls: LayoutControl[]
+  onPick: (refs: string[]) => void
+}) {
   const [selected, setSelected] = useState("")
 
   function pick(node: LayoutTreeNode) {
     const next = selected === node.ref ? "" : node.ref
     setSelected(next)
-    props.onPick(next ? refsOf(node) : [])
+    props.onPick(next ? refsOf(node, props.controls) : [])
   }
 
   if (props.nodes.length === 0) return null
@@ -41,7 +54,7 @@ export function LayoutTree(props: { nodes: LayoutTreeNode[]; onPick: (refs: stri
         <span className="text-muted-foreground text-xs">点一段：它里面的控件在画布上描出来，再点一下取消。</span>
       </div>
       <div className="max-h-80 overflow-auto rounded-md border p-2">
-        <Branch nodes={props.nodes} depth={0} selected={selected} onPick={pick} />
+        <Branch nodes={props.nodes} controls={props.controls} depth={0} selected={selected} onPick={pick} />
       </div>
     </div>
   )
@@ -49,6 +62,7 @@ export function LayoutTree(props: { nodes: LayoutTreeNode[]; onPick: (refs: stri
 
 function Branch(props: {
   nodes: LayoutTreeNode[]
+  controls: LayoutControl[]
   depth: number
   selected: string
   onPick: (node: LayoutTreeNode) => void
@@ -59,19 +73,25 @@ function Branch(props: {
         <li key={node.ref} className="flex flex-col gap-0.5">
           <button
             type="button"
-            title={node.ref}
+            title={node.name ? node.name + "（" + node.ref + "）" : node.ref}
             onClick={() => props.onPick(node)}
             className={cn(
               "rounded px-1 py-0.5 text-left text-xs hover:bg-accent",
               props.selected === node.ref && "bg-accent text-accent-foreground",
-              node.numbers.length > 0 ? "text-foreground" : "text-muted-foreground"
+              numberOf(props.controls, node.ref) > 0 ? "text-foreground" : "text-muted-foreground"
             )}
             style={{ paddingLeft: 4 + props.depth * 12 }}
           >
-            {nodeLabel(node)}
+            {nodeLabel(node, props.controls)}
           </button>
           {node.children.length > 0 && (
-            <Branch nodes={node.children} depth={props.depth + 1} selected={props.selected} onPick={props.onPick} />
+            <Branch
+              nodes={node.children}
+              controls={props.controls}
+              depth={props.depth + 1}
+              selected={props.selected}
+              onPick={props.onPick}
+            />
           )}
         </li>
       ))}

@@ -156,8 +156,8 @@ describe("LayoutPanel", () => {
         ref: "1:1",
         name: "",
         type: "FRAME",
-        numbers: [],
-        children: [{ ref: "1:9", name: "右侧栏", type: "IconButton", numbers: [1], children: [] }]
+        flow: "",
+        children: [{ ref: "1:9", name: "右侧栏", type: "IconButton", flow: "", children: [] }]
       }]
     })
     render(panel())

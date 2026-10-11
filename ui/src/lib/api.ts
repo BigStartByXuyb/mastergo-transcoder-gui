@@ -201,15 +201,17 @@ export type LayoutGroup = {
   members: string[]
 }
 
-/**
- * 布局确认里的层次图：设计稿里「自己放着控件、或下面放着控件」的那一段。
- * numbers 是这一段**直接**放着的控件号（按上面那份清单的次序），children 是它下面的段。
+/*
+ * 布局确认里的层次图：设计稿里「自己就是控件、或下面放着控件」的那一段。
+ * 只给层级事实（ref / 名字 / 类型）；控件号不在这里 —— 号是「它在控件清单里的次序」，
+ * 界面拿同一份清单现算（ui/src/lib/layout-edit.ts 的 numberOf），与画布、面上清单必然一致。
  */
 export type LayoutTreeNode = {
   ref: string
   name: string
   type: string
-  numbers: number[]
+  /** 这一段的布局方向（取自设计稿的自动布局）：row / column；空串＝按坐标摆的自由布局。 */
+  flow: "row" | "column" | ""
   children: LayoutTreeNode[]
 }
 

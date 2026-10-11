@@ -13,7 +13,8 @@ import { useLayoutGroups, type LayoutGroupsInput } from "@/app/use-layout-groups
 import { api } from "@/lib/api"
 import { addGroup, labelOf, moveMember, removeGroup, removeMember, ungroupedControls } from "@/lib/layout-edit"
 import { inFlightNote, isInFlight } from "@/lib/task-state"
-import { useMemo, useState } from "react"
+import { cn } from "@/lib/utils"
+import { useState } from "react"
 
 /*
  * 作业A 的布局确认：把控件清单按「组 → 成员」展示，人/AI 调好分组后写回分组表。
@@ -43,7 +44,7 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
   const canvas = layout.canvas
   const hovered = layout.groups.find((group) => group.id === hoveredGroup)?.members ?? []
-  const highlight = useMemo(() => [...new Set([...treeRefs, ...hovered])], [treeRefs, hovered])
+  const highlight = [...new Set([...treeRefs, ...hovered])]
 
   function createGroup() {
     layout.setGroups(addGroup(layout.groups, newId, newKind))
@@ -112,7 +113,13 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
             ) : null}
 
             {canvas ? (
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_16rem]">
+              <div
+                className={cn(
+                  "grid gap-3",
+                  /* 没有层次图时不摆第二条列，免得右边空一条 */
+                  layout.tree.length > 0 && "lg:grid-cols-[minmax(0,1fr)_16rem]"
+                )}
+              >
                 <LayoutCanvas
                   controls={layout.controls}
                   canvas={canvas}
@@ -122,7 +129,7 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
                   }
                   highlight={highlight}
                 />
-                <LayoutTree nodes={layout.tree} onPick={setTreeRefs} />
+                <LayoutTree nodes={layout.tree} controls={layout.controls} onPick={setTreeRefs} />
               </div>
             ) : null}
 

@@ -70,21 +70,21 @@ function main() {
     assert.deepStrictEqual(Object.keys(info).sort(), ["available", "canSuggest", "canvas", "controls", "groups", "hasGroups", "imageStamp", "reason", "tree"]);
     assert.deepStrictEqual(info.canvas, { width: 1280, height: 1024 }, "画板尺寸取 DSL 快照根节点");
     assert.strictEqual(info.imageStamp, "", "还没传图：图的身份是空串（判据在 lib/design-image.js 的 imageStamp）");
-    // 层次图：只留「自己放着控件、或下面放着控件」的段与它们的祖先，号按同一份清单的次序。
+    // 层次图：只留「自己就是控件、或下面放着控件」的段与它们的祖先；号由界面按同一份清单现算。
     assert.deepStrictEqual(
       info.tree,
       [{
         ref: "root",
         name: "",
         type: "FRAME",
-        numbers: [],
+        flow: "",
         children: [
-          { ref: "a", name: "", type: "INSTANCE", numbers: [1], children: [] },
-          { ref: "b", name: "", type: "INSTANCE", numbers: [2], children: [] },
-          { ref: "c", name: "", type: "TEXT", numbers: [3], children: [] }
+          { ref: "a", name: "", type: "INSTANCE", flow: "", children: [] },
+          { ref: "b", name: "", type: "INSTANCE", flow: "", children: [] },
+          { ref: "c", name: "", type: "TEXT", flow: "", children: [] }
         ]
       }],
-      "层次图：祖先留着、自己没控件又没下文的段剪掉"
+      "层次图：祖先留着、不是控件又没下文的段剪掉"
     );
     assert.strictEqual(info.canSuggest, true, "三个控件够分组");
     assert.strictEqual(info.hasGroups, false, "还没写过分组表");
