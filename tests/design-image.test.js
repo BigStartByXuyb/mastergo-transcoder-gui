@@ -65,7 +65,7 @@ function caseImageFile() {
   );
   upload(root, png(1280, 1024));
   const file = designImage.imageFile({ projectRoot: root, target: TARGET });
-  assert.strictEqual(file.name, "DemoPage.design.png", "给的是当前放着的那一张");
+  assert.strictEqual(path.basename(file.path), "DemoPage.design.png", "给的是当前放着的那一张");
   assert.ok(fs.existsSync(file.path), "路径真的在");
   fs.rmSync(root, { recursive: true, force: true });
 }

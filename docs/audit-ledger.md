@@ -141,4 +141,8 @@
 | 2026-10-11 第 19 遍 | REVIEW-001 | 代码注释里的读者清单与判据台账不一致（`unfinishedStepOf` 只写了两个读者） | 已收 | 注释按「读者名单见 docs/facts.md 那一行」写，并把三条读者都列出来（board 的 resumeOf / routes 的 resumeLive / confirm 的 resolveResumeStep） |
 | 2026-10-11 第 19 遍 | 非阻断 | `confirm.js` 模块头只写了旧口径；`board.js` 的 `stepsOf(task)` 与 `artifacts.stepsOf(query)` 同名易混 | 已收 | 模块头补上「取更早那个」；board 里那份改名 `taskStepsOf`（与 `artifacts.stepsOf` 区分开） |
 | 2026-10-11 第 19 遍 | 非阻断 | `/api/run/status` 仍按 `job.request.target` 读登记表：未给 Target 的任务在这条路上读不到步骤 | 独立一轮 | 要加一个「按 jobId 找看板任务」的入口才谈得上按认回来的 Target 读；本次不动，单独做（`lib/board.js` 加查询 + `lib/routes.js` 那条改读） |
+| 2026-10-11 第 21 遍 | REVIEW-001 | `LayoutPanel` 一个组件同时管分组编辑、清单渲染与画布渲染 | 已收 | 画布抽成 `ui/src/app/layout-canvas.tsx`（受控件：`controls` / `canvas` / `imageUrl` / `highlight`），面板只留编辑与写回；悬停态仍在面板（组框与画布同读它） |
+| 2026-10-11 第 21 遍 | REVIEW-002 | 控件编号在画布上又算了一遍（`index + 1`） | 已收 | 画布改用 `ui/src/lib/layout-edit.ts` 的 `numberOf`：编号规则只有那一处 |
+| 2026-10-11 第 21 遍 | REVIEW-003 | 发 `.jpeg` 会落到 `application/octet-stream`（`lib/http.js` 的表里只有 `.jpg`） | 已收 | `CONTENT_TYPES` 补 `.jpeg: image/jpeg`：与 `lib/design-image.js` 认的三个后缀同口径 |
+| 2026-10-11 第 21 遍 | 非阻断 | `imageFile` 回 `{path, name}`，而生产调用方只用 `path` | 已收 | 只回 `path`（用例按 basename 断言） |
 
