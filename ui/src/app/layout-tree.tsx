@@ -19,8 +19,10 @@ import { cn } from "@/lib/utils"
 const FLOW_LABEL: Record<string, string> = { row: "横排", column: "竖排", "": "自由布局" }
 
 function nodeLabel(node: LayoutTreeNode, controls: LayoutControl[]): string {
-  const number = numberOf(controls, node.ref)
-  if (number > 0) return (textOf(controls, node.ref) || node.name || node.type || node.ref) + " · #" + number
+  // 「算不算控件」只有一处判（isControl）；号才是 numberOf 的事。
+  if (isControl(controls, node.ref)) {
+    return (textOf(controls, node.ref) || node.name || node.type || node.ref) + " · #" + numberOf(controls, node.ref)
+  }
   return FLOW_LABEL[node.flow]
 }
 
