@@ -52,7 +52,8 @@ function buildRow(item: { id: number; name: string; title: string }, run: Regist
 export function stepRowsOf(contract: PipelineStep[], runs: RegisteredStep[]): StepRow[] {
   return contract.map(function (item) {
     const run = runs.find(function (entry) { return entry.name === item.Name; }) ?? null;
-    return buildRow({ id: item.Id, name: item.Name, title: item.Title }, run, contract);
+    // 这一步叫什么与后端同一口径（lib/board.js 的 titleOfStep）：没给 Title 的步骤用步骤名，不留空白。
+    return buildRow({ id: item.Id, name: item.Name, title: item.Title || item.Name }, run, contract);
   });
 }
 

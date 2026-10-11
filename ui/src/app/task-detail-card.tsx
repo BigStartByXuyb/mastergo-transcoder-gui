@@ -32,6 +32,8 @@ type Props = {
 
 export function TaskDetailCard(props: Props) {
   const { task, busy } = props
+  // 同一次渲染里算一遍就够：按钮与失败说明读的是同一个结论。
+  const resumable = canResume(task)
   return (
     <Card>
       <CardHeader>
@@ -48,7 +50,7 @@ export function TaskDetailCard(props: Props) {
           {task.request.projectRoot ? " · 合并回 " + task.request.projectRoot : ""}
         </CardDescription>
         <div className="flex flex-wrap items-center gap-2 pt-2">
-          {canResume(task) && (
+          {resumable && (
             <Button size="sm" disabled={busy === "resume"} onClick={props.onResume}>
               {busy === "resume" ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
               从「{task.resumeStep}」继续
@@ -88,7 +90,7 @@ export function TaskDetailCard(props: Props) {
           failure={task.failure}
           contractStep={props.contractStep}
           stopStepNumber={props.stopStepNumber}
-          resumable={canResume(task)}
+          resumable={resumable}
         />
       </CardContent>
     </Card>
