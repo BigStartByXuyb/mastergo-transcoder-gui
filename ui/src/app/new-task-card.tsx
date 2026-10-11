@@ -3,7 +3,7 @@ import { Loader2, Play, RefreshCw, Square } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ClampText } from "@/app/clamp-text"
 import { DesignImagePicker } from "@/app/design-image-picker"
-import { FieldGroup } from "@/app/field-group"
+import { FIELD_GROUPS, FieldGroup } from "@/app/field-group"
 import { IdentityFillPanel } from "@/app/identity-fill-panel"
 import { ModeField } from "@/app/mode-field"
 import { Badge } from "@/components/ui/badge"
@@ -64,7 +64,7 @@ export function NewTaskCard(props: Props) {
         {/* 三组各成一个框：必填 / 可自动补齐 / 可选。 */}
         <div className="grid items-start gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-4">
-            <FieldGroup title="必填" hint="不填跑不了">
+            <FieldGroup {...FIELD_GROUPS.required}>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="run-link">MasterGo 链接（页面帧或容器）</Label>
                 <Input
@@ -88,7 +88,7 @@ export function NewTaskCard(props: Props) {
               <ModeField label="路线" value={form.mode} onChange={(mode) => onForm({ mode })} />
             </FieldGroup>
 
-            <FieldGroup title="可选" hint="不填就走默认">
+            <FieldGroup {...FIELD_GROUPS.optional}>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="run-stop">停在某一步</Label>
                 <Input
@@ -110,7 +110,7 @@ export function NewTaskCard(props: Props) {
           </div>
 
           <div className="flex flex-col gap-4">
-            <FieldGroup title="可自动补齐" hint="留空就按工程登记表解析；也可以让它按设计页名补">
+            <FieldGroup {...FIELD_GROUPS.autofill}>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="run-target">页面 Target</Label>
                 <Input

@@ -63,23 +63,23 @@ describe("task-state", () => {
     expect(canStop("merged")).toBe(false)
   })
 
-    it("续跑只给停下来的三种，且必须有工作目录", () => {
-      const atStep = { kind: "error", stepName: "verify", title: "", message: "", logPath: "" }
-      expect(canResume({ state: "failed", workDir: "work\\page", failure: atStep })).toBe(true)
-      for (const state of ["waiting", "stopped"]) {
-        expect(canResume({ state, workDir: "work\\page" })).toBe(true)
-      }
-      expect(canResume({ state: "merged", workDir: "work\\page" })).toBe(false)
-      expect(canResume({ state: "running", workDir: "work\\page" })).toBe(false)
-      expect(canResume({ state: "failed", workDir: "" })).toBe(false)
-      expect(canResume({ state: "failed", workDir: "   " })).toBe(false)
-    })
+  it("续跑只给停下来的三种，且必须有工作目录", () => {
+    const atStep = { kind: "error", stepName: "verify", title: "", message: "", logPath: "" }
+    expect(canResume({ state: "failed", workDir: "work\\page", failure: atStep })).toBe(true)
+    for (const state of ["waiting", "stopped"]) {
+      expect(canResume({ state, workDir: "work\\page" })).toBe(true)
+    }
+    expect(canResume({ state: "merged", workDir: "work\\page" })).toBe(false)
+    expect(canResume({ state: "running", workDir: "work\\page" })).toBe(false)
+    expect(canResume({ state: "failed", workDir: "" })).toBe(false)
+    expect(canResume({ state: "failed", workDir: "   " })).toBe(false)
+  })
 
-    it("失败但没进入任何一步（输入不对）：不给续跑 —— 点了只会把同一句错再报一遍", () => {
-      const noStep = { kind: "error", stepName: "", title: "", message: "命令行同时给了 -Target 与 -LayerId…", logPath: "" }
-      expect(canResume({ state: "failed", workDir: "work\\page", failure: noStep })).toBe(false)
-      expect(canResume({ state: "failed", workDir: "work\\page", failure: null })).toBe(false)
-    })
+  it("失败但没进入任何一步：不给续跑 —— 点了只会把同一句错再报一遍", () => {
+    const noStep = { kind: "error", stepName: "", title: "", message: "命令行同时给了 -Target 与 -LayerId…", logPath: "" }
+    expect(canResume({ state: "failed", workDir: "work\\page", failure: noStep })).toBe(false)
+    expect(canResume({ state: "failed", workDir: "work\\page", failure: null })).toBe(false)
+  })
 
   it("「写回并续跑」只在不在跑时给：排队 / 建目录 / 跑着 / 合并中都不给，等输入的「等待」给", () => {
     for (const state of ["queued", "preparing", "running", "merging"]) expect(isInFlight(state)).toBe(true)
