@@ -261,7 +261,6 @@ export type RunFailure = {
   resume: string
   /** 失败摘要后面那几行：真正的原因常常写在这里（例如「目标文件已存在，未覆盖: …」）。 */
   detail: string
-  contract: PipelineStep | null
 }
 
 export type RunEntry = {
@@ -554,6 +553,13 @@ export type BoardTask = {
   progress: BoardProgress | null
   /** 这一页的流程：步骤来自插件自己的运行登记表，续跑会接着写同一份。 */
   steps: BoardTaskStep[]
+  /**
+   * 还有没有断点可续、续的是哪一步：这一步的标题，空串＝没有断点（后端按插件登记表算出来）。
+   * 界面那条按钮只用它定给不给入口、以及说是「继续」还是「重跑一遍」；
+   * 实际从哪一步续由后端在点下去那一刻按当时的情况算（那次运行还在就按它那一步，否则按登记表），
+   * 结果写在完成提示里 —— 快照里这个步名不拿来当承诺。
+   */
+  resumeStep: string
   /** 吃布局输入（设计稿位图 / 分组表）的那一步叫什么：任务详情把位图卡片与布局确认挂在这一步上。 */
   layoutStep: string
   aiFills: BoardAiFill[]

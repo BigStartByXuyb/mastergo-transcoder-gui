@@ -48,6 +48,9 @@ export function modeTakesRoute(mode: string, route: "A" | "B"): boolean {
 export const READ_IMAGE_HINT =
   "A 路线要读设计稿位图（按设计稿原尺寸导出）：现在选好就跟着任务一起暂存，流水线产出画板尺寸之后自动核对落地；也可以等那一步在任务详情里传。"
 
+/* 这一项的标题：新建任务表单与看板弹窗都读它（两张表单对同一项说法一致）。 */
+export const DESIGN_IMAGE_LABEL = "设计稿位图"
+
 export const AUTOMATION_LABEL: Record<string, string> = {
   off: "关（不叫模型）",
   assist: "辅助",

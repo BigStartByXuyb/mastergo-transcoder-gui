@@ -55,6 +55,7 @@ export function StepCard({
         {row.aiFill.length > 0 && <AiFillLine filled={row.aiFill} note={row.aiFillNote || undefined} />}
         {row.note && <ClampText text={row.note} className="text-muted-foreground text-xs" />}
 
+        {/* 步骤界面里不写「去哪儿继续」那句（inStepView）：那一支不渲染，resumable 也不用传。 */}
         <FailureNote failure={failure} contractStep={contractStep} stopStepNumber={row.id} inStepView />
 
         {children}

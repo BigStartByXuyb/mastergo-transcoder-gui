@@ -52,7 +52,8 @@ function buildRow(item: { id: number; name: string; title: string }, run: Regist
 export function stepRowsOf(contract: PipelineStep[], runs: RegisteredStep[]): StepRow[] {
   return contract.map(function (item) {
     const run = runs.find(function (entry) { return entry.name === item.Name; }) ?? null;
-    return buildRow({ id: item.Id, name: item.Name, title: item.Title }, run, contract);
+    // 这一步叫什么与后端同一口径（lib/board.js 的 titleOfStep）：没给 Title 的步骤用步骤名，不留空白。
+    return buildRow({ id: item.Id, name: item.Name, title: item.Title || item.Name }, run, contract);
   });
 }
 
@@ -65,5 +66,6 @@ export function stepRowOf(contract: PipelineStep[], runs: RegisteredStep[], name
   const run = runs.find(function (entry) { return entry.name === name; }) ?? null;
   // 契约里没有那一步（还没读到契约 / 那一步不在契约里）：用登记表那一行造标题，合成路径仍是上面那一条。
   const fallback = { id: run ? run.id : 0, name: name, title: name };
-  return buildRow(item ? { id: item.Id, name: item.Name, title: item.Title } : fallback, run, contract);
+  // 与 stepRowsOf 同一口径：没给 Title 的步骤用步骤名（后端 lib/board.js 的 titleOfStep 也是这么取的）。
+  return buildRow(item ? { id: item.Id, name: item.Name, title: item.Title || item.Name } : fallback, run, contract);
 }

@@ -1,6 +1,7 @@
 import { Loader2, Sparkles } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { IdentityCandidateButton } from "@/app/identity-candidate-button"
 import { ProjectPagesPicker, type TargetPick } from "@/app/project-pages-picker"
 import type { IdentityInputs } from "@/app/use-identity"
 import type { IdentityCandidate, ProjectPages } from "@/lib/api"
@@ -61,14 +62,12 @@ export function IdentityFillPanel(props: {
         <div className="flex flex-col gap-1">
           {state.candidates.map((item, index) => (
             <div key={index} className="flex flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                variant={item.needsSemanticName ? "outline" : "default"}
-                disabled={!item.target || item.needsSemanticName || state.busy !== ""}
-                onClick={() => actions.onApply(item)}
-              >
-                {item.needsSemanticName ? "还缺语义名" : item.target}
-              </Button>
+              <IdentityCandidateButton
+                item={item}
+                busy={state.busy !== ""}
+                label={item.target}
+                onTake={() => actions.onApply(item)}
+              />
               <span>
                 {item.ui ? "UI " + item.ui + " · " : ""}
                 {item.basis}

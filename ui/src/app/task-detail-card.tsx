@@ -32,6 +32,8 @@ type Props = {
 
 export function TaskDetailCard(props: Props) {
   const { task, busy } = props
+  // 同一次渲染里算一遍就够：按钮与失败说明读的是同一个结论。
+  const resumable = canResume(task)
   return (
     <Card>
       <CardHeader>
@@ -48,10 +50,15 @@ export function TaskDetailCard(props: Props) {
           {task.request.projectRoot ? " · 合并回 " + task.request.projectRoot : ""}
         </CardDescription>
         <div className="flex flex-wrap items-center gap-2 pt-2">
-          {canResume(task) && (
+          {/*
+            按钮只说「有没有断点」：具体从哪一步续由续跑计划在点下去那一刻算（lib/board.js 的 planResume），
+            结果写在完成提示里（use-task-actions）—— 那是唯一一处说「实际从哪儿续」的地方，
+            快照里那个步名只是同一判据的展示面，不拿来当承诺。
+          */}
+          {resumable && (
             <Button size="sm" disabled={busy === "resume"} onClick={props.onResume}>
               {busy === "resume" ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
-              从断点继续
+              {task.resumeStep ? "从断点继续" : "重跑一遍"}
             </Button>
           )}
           {(task.state === "ready" || task.state === "conflict") && (
@@ -84,7 +91,12 @@ export function TaskDetailCard(props: Props) {
             />
           </div>
         )}
-        <FailureNote failure={task.failure} contractStep={props.contractStep} stopStepNumber={props.stopStepNumber} />
+        <FailureNote
+          failure={task.failure}
+          contractStep={props.contractStep}
+          stopStepNumber={props.stopStepNumber}
+          resumable={resumable}
+        />
       </CardContent>
     </Card>
   )

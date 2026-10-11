@@ -28,6 +28,12 @@ export function FailureNote(props: {
   contractStep: PipelineStep | null
   /** 停点那一步在流水线里的序号；0 = 没有具体某一步可指（流水线还没进步骤就停下了）。 */
   stopStepNumber: number
+  /**
+   * 这一条还能不能「从断点继续」（判据在 ui/src/lib/task-state.ts 的 canResume）。
+   * 只有总览那份（不传 inStepView 的调用方）在「没有具体某一步」那一支里读它；
+   * 步骤视图不用传 —— 那边这一支不渲染（要判断也得先拿到整条任务，那是页面的事）。
+   */
+  resumable?: boolean
   /** 挂在步骤界面里（不再写「到左边那一步看」）。 */
   inStepView?: boolean
 }) {
@@ -68,8 +74,16 @@ export function FailureNote(props: {
           <span className="text-muted-foreground text-xs">
             {atStep
               ? "左边第 " + props.stopStepNumber + " 步标着「停这里」，那一步的界面里也有这份说明。"
-              : "这一条没有具体某一步可指（流水线还没进入步骤就停下了，通常是链接 / 工程目录 / 插件这类入参问题）："
-                + "按上面的原话改好，再点「从断点继续」。"}
+              : props.resumable
+                ? "这一条没有具体某一步可指：按上面的原话把要改的那一处改好，再点上面那个继续的按钮。"
+                : /*
+                   * 没进步骤就停下＝没有断点可续：只说要改的是「原话里指出的那一处」，不替它归因 ——
+                   * 入参不对（链接 / 页面名 / 工程目录）与起不来（运行时、插件）都会停在这一支
+                   * （lib/run.js 起子进程失败、进步骤前退出都写成 stepName 为空）。
+                   */
+                  "这一条没有具体某一步可指：这次运行还没进入任何步骤就结束了，没有断点可续。"
+                  + "按上面的原话把该改的那一处改好（是入参就改链接 / 页面名 / 工程目录，是起不来就看运行时与插件），"
+                  + "再把这一条删掉，重新加一条（侧边栏「+ 新建任务」，或在看板「创建任务」里）。"}
           </span>
         )}
       </AlertDescription>

@@ -33,6 +33,7 @@ function task(
     autoMerge: true,
     progress: null,
     steps: [],
+    resumeStep: "",
     layoutStep: "",
     aiFills: [],
     failure: null,
