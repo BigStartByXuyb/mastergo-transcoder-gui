@@ -94,18 +94,17 @@ export function canStop(state: string): boolean {
  * 跑完的没有断点，排队中的还没跑过（那是「开始」）。
  * 工作目录是续跑要用的：插件登记表与产物都在那儿，没有它续起来只是空跑。
  *
- * 失败还要分两种：跑到某一步才失败（failure.stepName 有值，那一步就是断点，续得下去）；
- * 与「还没进入任何一步就没跑起来」（链接 / 页面名这类输入不对，插件根本没开始跑）——
- * 后者没有断点：再点「继续」只会拿同一份输入把同一句错再报一遍，所以要先把输入改对。
+ * 「有没有断点」由后端按插件登记表算（task.resume，见 lib/board.js 的 resumeOf）：
+ * 登记表里一步都没跑过（resume.step 为空）就没有断点 —— 那时「继续」只是拿同一份输入从头再跑一遍，
+ * 失败原话里带步骤名也说明不了什么（子进程起不来那种失败也会带名字）。界面不自己猜。
  */
 export function canResume(task: {
   state: string
   workDir: string
-  failure?: { stepName?: string } | null
+  resume?: { finished: boolean; step: string } | null
 }): boolean {
   if (!RESUMABLE_STATES.includes(task.state) || !task.workDir.trim()) return false
-  if (task.state !== "failed") return true
-  return Boolean(task.failure && task.failure.stepName)
+  return Boolean(task.resume && !task.resume.finished && task.resume.step)
 }
 
 /*

@@ -554,6 +554,11 @@ export type BoardTask = {
   progress: BoardProgress | null
   /** 这一页的流程：步骤来自插件自己的运行登记表，续跑会接着写同一份。 */
   steps: BoardTaskStep[]
+  /**
+   * 这一条还能不能「从断点继续」、从哪一步续（后端按插件登记表算出来）：
+   * step 为空＝登记表里一步都没跑过，那就没有断点可续（那时候「续」只是从头再跑一遍）。
+   */
+  resume: { finished: boolean; step: string }
   /** 吃布局输入（设计稿位图 / 分组表）的那一步叫什么：任务详情把位图卡片与布局确认挂在这一步上。 */
   layoutStep: string
   aiFills: BoardAiFill[]
