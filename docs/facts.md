@@ -26,7 +26,7 @@
 | 「这一份与清单对不上的是哪几个文件」 | `lib/update.js` · `function mismatchedFiles(` | 切换前的校验（同文件的 `apply`）、安装根那一份的核验（`installRootIsVersion`） |
 | 「本地这一份」（安装根那一棵树）算不算它声称的那一版 | `lib/update.js` · `function installRootIsVersion(` | `stagedReachable`（设置页与探活都读它）；结论缓存（含「核不出来」那种），作废只有两处、跟着触发点走：写指针（`writePointer`，切换与回退共用）与写下一版的清单（`writeVersionManifest`，检查与下载共用）；读盘出错不抛、按「认它」处理 |
 | 顶栏那条入口该对哪一版动作 | `lib/update.js` · `function targetVersionOf(` | `readState`（五态与它同出一处）、`hint()` 的 `target`（顶栏只渲染，不自己比一遍）；被外壳下限挡住的那一版不参与 |
-| 这一条还能不能「从断点继续」、从哪一步续 | `lib/board.js` · `function resumeOf(` | 看板快照的 `task.resumeStep`（`publicTask`，空串＝没有断点：界面那条按钮据此给不给、以及说是「继续」还是「重跑一遍」）与续跑计划（`planResume`：点下去那一刻算实际从哪一步续，结果写在完成提示里） |
+| 这一条还能不能「从断点继续」、从哪一步续 | `lib/board.js` · `function resumeOf(` | 看板快照的 `task.resumeStep`（`publicTask`，空串＝没有断点：界面那条按钮据此给不给、以及说是「继续」还是「重跑一遍」）；实际从哪一步续由续跑那条路在点下去那一刻算（那次运行还在就按它那一步，否则按登记表），结果写在完成提示里 |
 | 某一版能不能用在这一台上（外壳下限） | `lib/update.js` · `function usableHere(` | 「这一份可以切过去」（`switchable`：选版与版本表逐行都读它，清单都按 `manifestOf` 取）；与 `apply` 前那一刻的 `versionBlocked` 同源 |
 | 「自动补输入并续跑」谁发起 | `ui/src/app/pending-panel.tsx` · `automation === "auto" && !taskId` | 看板任务由服务端发起（`lib/board.js` 的 `autoFillWaiting` → `lib/autofill.js`，同一个 automation 设置，不需要浏览器在场）；面板只对没有看板任务的条目发起 |
 | 位图落地要等的那一步怎么说 | `lib/design-image.js` · `const NO_CANVAS_REASON =` | 界面那一块照后端给的原话显示（`/api/design-image` 的 `blocked`）；表单的指引不提步骤名，只说「流水线产出画板尺寸之后」 |
