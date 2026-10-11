@@ -175,4 +175,5 @@
 | 2026-10-12 第 37 遍 | REVIEW-002 | 层次图行标签还在用 `numberOf(...) > 0` 判「算不算控件」 | 已收 | 改用 `isControl`（那个谓词只有这一处）；号仍由 `numberOf` 现算 |
 | 2026-10-12 第 38 遍 | REVIEW-001 | 「有没有层次图」在面板（`hasTree`）与树组件（`nodes.length === 0` 早退）里各判一次 | 已收 | 只留面板那一处（摆不摆第二条列、挂不挂这块都由它定）；组件里的早退删掉 |
 | 2026-10-12 第 38 遍 | REVIEW-002 | 「算不算控件」在同模块里仍有第二份（`labelOf` 自己 `controls.find`） | 已收 | 加 `controlOf`（找那一条只有这一处）：`isControl` / `numberOf` / `textOf` / `labelOf` 都从它走 |
+| 2026-10-12 第 39 遍 | REVIEW-001 | 控件 value 仍有两处实现（`textOf` 与 `labelOf` 各 trim 一遍），注释却写「只有这一处取」 | 已收 | 取 value 收成 `valueOf(control)`：`textOf` 按 ref 找那一条再调它，`labelOf` 直接调它 |
 

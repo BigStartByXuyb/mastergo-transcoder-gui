@@ -9,7 +9,8 @@ import {
   removeGroup,
   removeMember,
   textOf,
-  ungroupedControls
+  ungroupedControls,
+  valueOf
 } from "@/lib/layout-edit"
 import type { LayoutControl, LayoutGroup, LayoutTreeNode } from "@/lib/api"
 
@@ -35,6 +36,7 @@ describe("layout-edit", () => {
   })
 
   it("控件的 value 就是清单里那段文本（空白当没有），取不到给空串", () => {
+    expect(valueOf(CONTROLS[0])).toBe("确定")
     expect(textOf(CONTROLS, "1:9")).toBe("确定")
     expect(textOf(CONTROLS, "1:10")).toBe("")
     expect(textOf(CONTROLS, "9:9")).toBe("")
