@@ -53,7 +53,8 @@ export function TaskDetailCard(props: Props) {
           {resumable && (
             <Button size="sm" disabled={busy === "resume"} onClick={props.onResume}>
               {busy === "resume" ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
-              从「{task.resumeStep}」继续
+              {/* 有断点就写清从哪一步续；被停掉但还没跑过时没有那一步，那就说是重跑。 */}
+              {task.resumeStep ? "从「" + task.resumeStep + "」继续" : "重跑一遍"}
             </Button>
           )}
           {(task.state === "ready" || task.state === "conflict") && (

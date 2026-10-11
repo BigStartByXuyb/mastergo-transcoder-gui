@@ -80,6 +80,11 @@ describe("task-state", () => {
     expect(canResume({ state: "failed", workDir: "work\\page" })).toBe(false)
   })
 
+  it("被停掉 / 等输入但还没跑过：照旧给入口（再点一次是从起点重跑，不是死循环）", () => {
+    expect(canResume({ state: "stopped", workDir: "work\\page", resumeStep: "" })).toBe(true)
+    expect(canResume({ state: "waiting", workDir: "work\\page", resumeStep: "" })).toBe(true)
+  })
+
   it("「写回并续跑」只在不在跑时给：排队 / 建目录 / 跑着 / 合并中都不给，等输入的「等待」给", () => {
     for (const state of ["queued", "preparing", "running", "merging"]) expect(isInFlight(state)).toBe(true)
     for (const state of ["waiting", "failed", "stopped", "ready", "merged"]) expect(isInFlight(state)).toBe(false)
