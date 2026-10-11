@@ -6,6 +6,7 @@ import { DesignImagePicker } from "@/app/design-image-picker"
 import { FIELD_GROUPS, FieldGroup } from "@/app/field-group"
 import { IdentityFillPanel } from "@/app/identity-fill-panel"
 import { ModeField } from "@/app/mode-field"
+import { SWITCH_ROWS, SwitchRow } from "@/app/switch-row"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -106,18 +107,13 @@ export function NewTaskCard(props: Props) {
                   <p className="text-muted-foreground text-xs">{READ_IMAGE_HINT}</p>
                 </div>
               )}
-              {/* 与看板弹窗同一排法：一条带说明的开关行，不是光秃秃一个开关。 */}
-              <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2">
-                <div className="leading-tight">
-                  <div className="text-sm">替换已有产物</div>
-                  <div className="text-muted-foreground text-xs">工程里已有同名页面时覆盖它；默认不替换，同名就停。</div>
-                </div>
-                <Switch
-                  id="run-overwrite"
-                  checked={form.overwrite}
-                  onCheckedChange={(checked) => onForm({ overwrite: checked })}
-                />
-              </div>
+              {/* 与看板弹窗同一排法与同一句话（ui/src/app/switch-row.tsx）。 */}
+              <SwitchRow
+                id="run-overwrite"
+                {...SWITCH_ROWS.overwrite}
+                checked={form.overwrite}
+                onChange={(checked) => onForm({ overwrite: checked })}
+              />
             </FieldGroup>
           </div>
 
