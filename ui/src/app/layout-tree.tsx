@@ -1,5 +1,5 @@
 import type { LayoutControl, LayoutTreeNode } from "@/lib/api"
-import { numberOf } from "@/lib/layout-edit"
+import { numberOf, textOf } from "@/lib/layout-edit"
 import { cn } from "@/lib/utils"
 
 /*
@@ -11,7 +11,8 @@ import { cn } from "@/lib/utils"
 
 /*
  * 一段在树上叫什么：
- *   控件 —— 名字（没有就类型）带上它的号；
+ *   控件 —— **先显示 value**（设计稿里那段文本，与下面清单同一个来源），没有 value 才退回控件层名 / 类型，
+ *   末尾带它的号：人是按 value 认控件的；
  *   容器 —— 只说方向（横排 / 竖排 / 自由布局）：设计稿里的层名（「容器 194」这种）没有信息量，
  *   真要找它原始那层叫什么，鼠标停上去的提示里有（title）。
  */
@@ -19,7 +20,7 @@ const FLOW_LABEL: Record<string, string> = { row: "横排", column: "竖排", ""
 
 function nodeLabel(node: LayoutTreeNode, controls: LayoutControl[]): string {
   const number = numberOf(controls, node.ref)
-  if (number > 0) return (node.name || node.type || node.ref) + " · #" + number
+  if (number > 0) return (textOf(controls, node.ref) || node.name || node.type || node.ref) + " · #" + number
   return FLOW_LABEL[node.flow]
 }
 

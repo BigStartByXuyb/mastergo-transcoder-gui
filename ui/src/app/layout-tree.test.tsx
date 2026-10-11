@@ -59,12 +59,27 @@ describe("LayoutTree", () => {
 
   it("一段自己放着的号显示在它那一行上", () => {
     render(<LayoutTree nodes={NODES} controls={CONTROLS} selected="" onPick={() => undefined} />)
-    expect(screen.getByText("IconButton · #1")).toBeTruthy()
-    expect(screen.getByText("TextBlock · #3")).toBeTruthy()
+    // 控件先显示 value（与下面清单同一个来源），末尾带号。
+    expect(screen.getByText("确定 · #1")).toBeTruthy()
+    expect(screen.getByText("标题 · #3")).toBeTruthy()
     // 容器只说方向（设计稿的自动布局），不显示「容器 194」这种层名；层名在悬停提示里。
     expect(screen.getByText("竖排")).toBeTruthy()
     expect(screen.getByText("自由布局")).toBeTruthy()
     expect(screen.getByTitle("RightTools（bar）")).toBeTruthy()
+  })
+
+  it("没有 value 的控件：退回它的层名（还是没有就用类型）", () => {
+    const nodes: LayoutTreeNode[] = [
+      {
+        ref: "root",
+        name: "",
+        type: "FRAME",
+        flow: "",
+        children: [{ ref: "1:9", name: "右侧栏", type: "IconButton", flow: "", children: [] }]
+      }
+    ]
+    render(<LayoutTree nodes={nodes} controls={[control("1:9", "IconButton", "  ")]} selected="" onPick={() => undefined} />)
+    expect(screen.getByText("右侧栏 · #1")).toBeTruthy()
   })
 
   it("没有层次图时这一块不出现", () => {

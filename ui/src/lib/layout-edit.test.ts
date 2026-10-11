@@ -8,6 +8,7 @@ import {
   refsOfNode,
   removeGroup,
   removeMember,
+  textOf,
   ungroupedControls
 } from "@/lib/layout-edit"
 import type { LayoutControl, LayoutGroup, LayoutTreeNode } from "@/lib/api"
@@ -31,6 +32,12 @@ describe("layout-edit", () => {
     expect(labelOf(CONTROLS, "1:9")).toBe("#1 IconButton · 确定")
     expect(labelOf(CONTROLS, "1:10")).toBe("#2 IconButton")
     expect(labelOf(CONTROLS, "9:9")).toBe("9:9")
+  })
+
+  it("控件的 value 就是清单里那段文本（空白当没有），取不到给空串", () => {
+    expect(textOf(CONTROLS, "1:9")).toBe("确定")
+    expect(textOf(CONTROLS, "1:10")).toBe("")
+    expect(textOf(CONTROLS, "9:9")).toBe("")
   })
 
   it("未分组清单＝没进任何组的控件", () => {

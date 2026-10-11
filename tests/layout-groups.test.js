@@ -86,6 +86,16 @@ function main() {
       }],
       "层次图：祖先留着、不是控件又没下文的段剪掉"
     );
+    // 树里的控件 ref 与清单一一对应：树上只出现「脚本识别出来的那些控件」，多一个少一个都不行。
+    const inTree = [];
+    const collect = function (nodes) {
+      nodes.forEach(function (node) {
+        if (info.controls.some(function (control) { return control.ref === node.ref; })) inTree.push(node.ref);
+        collect(node.children);
+      });
+    };
+    collect(info.tree);
+    assert.deepStrictEqual(inTree.sort(), info.controls.map(function (control) { return control.ref; }).sort());
     assert.strictEqual(info.canSuggest, true, "三个控件够分组");
     assert.strictEqual(info.hasGroups, false, "还没写过分组表");
   }

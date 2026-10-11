@@ -166,10 +166,11 @@ describe("LayoutPanel", () => {
     const marked = () => document.querySelector('[data-ref="1:9"][data-highlighted="true"]')
     expect(marked()).toBeNull()
 
-    fireEvent.click(screen.getByText("右侧栏 · #1"))
+    // 树上控件那一行先显示 value（「确定」是这张夹具里 #1 的文本），末尾带号。
+    fireEvent.click(screen.getByText("确定 · #1"))
     expect(marked()).toBeTruthy()
 
-    fireEvent.click(screen.getByText("右侧栏 · #1"))
+    fireEvent.click(screen.getByText("确定 · #1"))
     expect(marked()).toBeNull()
   })
 

@@ -162,4 +162,6 @@
 | 2026-10-12 第 29 遍 | REVIEW-001 | 层次图选中态分存两处（树组件里一份、面板里一份），换页也不重置 | 已收 | 选中态只由面板一处持有（`treePicked` / `treeRefs`）；树改成受控件（`selected` 进来、`onPick(ref, refs)` 出去）；Target 一变就清 |
 | 2026-10-12 第 29 遍 | REVIEW-002 | 层次图与画布的用例靠 Tailwind 类名断言高亮，绑在样式实现上 | 已收 | DOM 上给语义钩子：画布框 `data-highlighted`、树行 `data-selected`，用例按属性断言 |
 | 2026-10-12 第 30 遍 | REVIEW-001 | 层次图选中态存了两个 state：选中的 ref 与由它派生的高亮 refs | 已收 | 只存「选中了哪一段」（`treePicked`）；要高亮哪些控件由 `ui/src/lib/layout-edit.ts` 的 `refsOfNode` 现算，树组件的 `onPick` 只回 ref |
+| 2026-10-12 第 31 遍 | REVIEW-001 | 验收记录把新用例说成覆盖了它并未覆盖的两件事（「再点一下取消」已挪到面板；号也不是后端给的） | 已收 | 记录按用例实际覆盖改写，并把「按 value 显示 / 容器只标方向 / 树里控件与清单一一对应」一起写进去 |
+| 2026-10-12 第 31 遍 | 用户新要求 | 层次图上的名字应该用 value（没有 value 才退回控件名） | 已收 | `ui/src/lib/layout-edit.ts` 加 `textOf`（value 只在这一处取，清单与树同源）：树上的控件行先显示 value、末尾带号；容器行照旧只显示方向 |
 

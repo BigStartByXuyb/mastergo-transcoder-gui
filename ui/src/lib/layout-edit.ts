@@ -13,12 +13,20 @@ export function numberOf(controls: LayoutControl[], ref: string): number {
   return index < 0 ? 0 : index + 1
 }
 
-/** 一个控件的展示名：编号 + 类型 · 文本；清单里没有的 ref 照原样显示。 */
+/*
+ * 一个控件的 value：就是它在 DSL 里那段文本（界面要「按 value 认控件」时读它）。
+ * 只有这一处取 —— 清单里那条展示名与层次图上那行都从它取，两处的 value 不会各说各的。
+ */
+export function textOf(controls: LayoutControl[], ref: string): string {
+  return (controls.find((item) => item.ref === ref)?.text ?? "").trim()
+}
+
+/** 一个控件的展示名：编号 + 类型 · value；清单里没有的 ref 照原样显示。 */
 export function labelOf(controls: LayoutControl[], ref: string): string {
   const number = numberOf(controls, ref)
   const control = controls.find((item) => item.ref === ref)
   if (!control) return ref
-  const text = control.text.trim()
+  const text = textOf(controls, ref)
   return "#" + number + " " + (text ? control.controlType + " · " + text : control.controlType)
 }
 
