@@ -8,11 +8,12 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { LayoutCanvas } from "@/app/layout-canvas"
+import { LayoutTree } from "@/app/layout-tree"
 import { useLayoutGroups, type LayoutGroupsInput } from "@/app/use-layout-groups"
 import { api } from "@/lib/api"
 import { addGroup, labelOf, moveMember, removeGroup, removeMember, ungroupedControls } from "@/lib/layout-edit"
 import { inFlightNote, isInFlight } from "@/lib/task-state"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
 /*
  * 作业A 的布局确认：把控件清单按「组 → 成员」展示，人/AI 调好分组后写回分组表。
@@ -37,9 +38,12 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   const [newKind, setNewKind] = useState<"column" | "row">("column")
   /* 鼠标停在哪一组上：那一组的成员在画布上描出来（容器自己的框就盖住它里面的控件）。 */
   const [hoveredGroup, setHoveredGroup] = useState("")
+  /* 层次图上选中的那一段里有哪些控件：与组的悬浮高亮并成一处，再交给画布。 */
+  const [treeRefs, setTreeRefs] = useState<string[]>([])
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
   const canvas = layout.canvas
   const hovered = layout.groups.find((group) => group.id === hoveredGroup)?.members ?? []
+  const highlight = useMemo(() => [...new Set([...treeRefs, ...hovered])], [treeRefs, hovered])
 
   function createGroup() {
     layout.setGroups(addGroup(layout.groups, newId, newKind))
@@ -108,15 +112,18 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
             ) : null}
 
             {canvas ? (
-              <LayoutCanvas
-                controls={layout.controls}
-                canvas={canvas}
-                /* 没有图就给空串：画布据此不挂图、也不给「隐藏设计稿」（图的身份由后端一处给）。 */
-                imageUrl={
-                  layout.imageStamp ? api.designImageUrl(input.projectRoot, input.target, layout.imageStamp) : ""
-                }
-                highlight={hovered}
-              />
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_16rem]">
+                <LayoutCanvas
+                  controls={layout.controls}
+                  canvas={canvas}
+                  /* 没有图就给空串：画布据此不挂图、也不给「隐藏设计稿」（图的身份由后端一处给）。 */
+                  imageUrl={
+                    layout.imageStamp ? api.designImageUrl(input.projectRoot, input.target, layout.imageStamp) : ""
+                  }
+                  highlight={highlight}
+                />
+                <LayoutTree nodes={layout.tree} onPick={setTreeRefs} />
+              </div>
             ) : null}
 
             <div className="space-y-3">

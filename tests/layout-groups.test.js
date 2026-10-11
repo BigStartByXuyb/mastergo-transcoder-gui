@@ -67,9 +67,25 @@ function main() {
     // 读图状态不在这里（lib/design-image.js 一处）；hasGroups 与 canSuggest 都由后端给
     // （hasGroups 与 tables 同一次读，界面照 canSuggest 禁用「AI 辅助」）。
     // canvas 是画板尺寸（界面拿它把控件坐标换算成百分比，把编号画到图上），判据仍在 design-image 那一处。
-    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "canSuggest", "canvas", "controls", "groups", "hasGroups", "imageStamp", "reason"]);
+    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "canSuggest", "canvas", "controls", "groups", "hasGroups", "imageStamp", "reason", "tree"]);
     assert.deepStrictEqual(info.canvas, { width: 1280, height: 1024 }, "画板尺寸取 DSL 快照根节点");
     assert.strictEqual(info.imageStamp, "", "还没传图：图的身份是空串（判据在 lib/design-image.js 的 imageStamp）");
+    // 层次图：只留「自己放着控件、或下面放着控件」的段与它们的祖先，号按同一份清单的次序。
+    assert.deepStrictEqual(
+      info.tree,
+      [{
+        ref: "root",
+        name: "",
+        type: "FRAME",
+        numbers: [],
+        children: [
+          { ref: "a", name: "", type: "INSTANCE", numbers: [1], children: [] },
+          { ref: "b", name: "", type: "INSTANCE", numbers: [2], children: [] },
+          { ref: "c", name: "", type: "TEXT", numbers: [3], children: [] }
+        ]
+      }],
+      "层次图：祖先留着、自己没控件又没下文的段剪掉"
+    );
     assert.strictEqual(info.canSuggest, true, "三个控件够分组");
     assert.strictEqual(info.hasGroups, false, "还没写过分组表");
   }

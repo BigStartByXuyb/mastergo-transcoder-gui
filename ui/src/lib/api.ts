@@ -201,6 +201,18 @@ export type LayoutGroup = {
   members: string[]
 }
 
+/**
+ * 布局确认里的层次图：设计稿里「自己放着控件、或下面放着控件」的那一段。
+ * numbers 是这一段**直接**放着的控件号（按上面那份清单的次序），children 是它下面的段。
+ */
+export type LayoutTreeNode = {
+  ref: string
+  name: string
+  type: string
+  numbers: number[]
+  children: LayoutTreeNode[]
+}
+
 export type LayoutGroups = {
   available: boolean
   reason: string
@@ -209,6 +221,8 @@ export type LayoutGroups = {
   canvas: { width: number; height: number } | null
   /** 这一页那张图的身份（空串＝没有图）：画布据此挂图并拼预览地址；判据在后端。 */
   imageStamp: string
+  /** 层次图（点一段就在画布上描出它下面的控件）；层级来自 DSL 快照，号与控件清单同源。 */
+  tree: LayoutTreeNode[]
   groups: LayoutGroup[]
   /** 这一页有没有分组表（空表也算有）：与「表里有什么」同一次读给出。 */
   hasGroups: boolean
