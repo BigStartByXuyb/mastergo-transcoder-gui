@@ -22,8 +22,8 @@ export function isControl(controls: LayoutControl[], ref: string): boolean {
 
 /** 控件编号＝控件清单里的次序（1 起）；不在清单里的 ref 给 0（清单被换过时不硬编一个号）。 */
 export function numberOf(controls: LayoutControl[], ref: string): number {
-  const control = controlOf(controls, ref)
-  return control ? controls.indexOf(control) + 1 : 0
+  const index = controls.findIndex((item) => item.ref === ref)
+  return index < 0 ? 0 : index + 1
 }
 
 /* 一条控件的 value：它在 DSL 里那段文本（去掉两头空白）。「取 value」只有这一处。 */
