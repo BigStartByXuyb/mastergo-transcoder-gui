@@ -138,4 +138,7 @@
 | 2026-10-11 第 16 遍 | REVIEW-001 | 「从哪一步续」仍有两份：「从断点继续」那条 live 路径还按本次失败的步名续 | 已收 | 那条也改读同一处判据（`lib/page-progress.js` 的 `unfinishedStepOf` + `lib/artifacts.js` 的 `stepsOf`）；「已有这一页 → 回到生成 Bundle 清单那一步」这条规则照旧（它是规则，不是猜） |
 | 2026-10-11 第 17 遍 | REVIEW-001 | 「从断点继续」两个入口用不同的 Target 读登记表：未给 Target 的任务（Target 由插件推导）在 live 那条读不到登记表，锚点丢掉 | 已收 | live 那条改按任务自己认回来的 Target 读（`task.request.target || request.target`，口径见 `lib/board.js` 的 `adoptTarget`）；顺带把契约读一次传下去，那句断言两处读两遍 |
 | 2026-10-11 第 18 遍 | REVIEW-001 | 判据台账那一行的「谁在读它」漏了 `routes` 那条 live 续跑 | 已收 | `docs/facts.md` 那行补上 `lib/routes.js` 的 `resumeLive`（连同它按哪个 Target 读登记表的说明） |
+| 2026-10-11 第 19 遍 | REVIEW-001 | 代码注释里的读者清单与判据台账不一致（`unfinishedStepOf` 只写了两个读者） | 已收 | 注释按「读者名单见 docs/facts.md 那一行」写，并把三条读者都列出来（board 的 resumeOf / routes 的 resumeLive / confirm 的 resolveResumeStep） |
+| 2026-10-11 第 19 遍 | 非阻断 | `confirm.js` 模块头只写了旧口径；`board.js` 的 `stepsOf(task)` 与 `artifacts.stepsOf(query)` 同名易混 | 已收 | 模块头补上「取更早那个」；board 里那份改名 `taskStepsOf`（与 `artifacts.stepsOf` 区分开） |
+| 2026-10-11 第 19 遍 | 非阻断 | `/api/run/status` 仍按 `job.request.target` 读登记表：未给 Target 的任务在这条路上读不到步骤 | 独立一轮 | 要加一个「按 jobId 找看板任务」的入口才谈得上按认回来的 Target 读；本次不动，单独做（`lib/board.js` 加查询 + `lib/routes.js` 那条改读） |
 
