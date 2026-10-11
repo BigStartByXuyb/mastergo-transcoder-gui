@@ -6,6 +6,7 @@ import type { useIdentityFill } from "@/app/use-identity-fill"
 import { Button } from "@/components/ui/button"
 import { FIELD_GROUPS, FieldGroup } from "@/app/field-group"
 import { ModeField } from "@/app/mode-field"
+import { SWITCH_ROWS, SwitchRow } from "@/app/switch-row"
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,6 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import type { BoardTaskForm } from "@/lib/board-form"
 import { parseBoardRows } from "@/lib/board-items"
@@ -58,7 +58,7 @@ export function BoardNewTaskDialog(props: {
         </DialogHeader>
 
         {/* 三组的标题与提示语与新建任务那张表单同源（ui/src/app/field-group.tsx 的 FIELD_GROUPS）。 */}
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid items-start gap-4 sm:grid-cols-2">
           <FieldGroup {...FIELD_GROUPS.required}>
             <div className="flex flex-col gap-2">
               <Label htmlFor="board-project">工程目录</Label>
@@ -122,26 +122,19 @@ export function BoardNewTaskDialog(props: {
             />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2">
-              <div className="leading-tight">
-                <div className="text-sm">跑完自动合并</div>
-                <div className="text-muted-foreground text-xs">冲突时停下等人。</div>
-              </div>
-              <Switch
-                checked={form.autoMerge}
-                onCheckedChange={(value) => props.onChange({ ...form, autoMerge: value })}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2">
-              <div className="leading-tight">
-                <div className="text-sm">替换已有产物</div>
-                <div className="text-muted-foreground text-xs">工程里已有同名页面时覆盖它。</div>
-              </div>
-              <Switch
-                checked={form.overwrite}
-                onCheckedChange={(value) => props.onChange({ ...form, overwrite: value })}
-              />
-            </div>
+            {/* 排法与说法与新建任务那张表单同源（ui/src/app/switch-row.tsx）。 */}
+            <SwitchRow
+              id="board-auto-merge"
+              {...SWITCH_ROWS.autoMerge}
+              checked={form.autoMerge}
+              onChange={(value) => props.onChange({ ...form, autoMerge: value })}
+            />
+            <SwitchRow
+              id="board-overwrite"
+              {...SWITCH_ROWS.overwrite}
+              checked={form.overwrite}
+              onChange={(value) => props.onChange({ ...form, overwrite: value })}
+            />
           </div>
 
           {/* 一行一个页面：走 A 路线时每行各配一张设计稿位图（一个任务一份）。 */}

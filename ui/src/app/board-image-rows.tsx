@@ -37,6 +37,7 @@ export function BoardImageRows(props: {
             <DesignImagePicker
               id={"board-image-" + row.line}
               file={pickedForLink(props.images, row.link)}
+              emptyHint=""
               onPick={(file) => props.onPickImage(row.link, file)}
             />
           </div>

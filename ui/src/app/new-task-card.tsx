@@ -6,12 +6,12 @@ import { DesignImagePicker } from "@/app/design-image-picker"
 import { FIELD_GROUPS, FieldGroup } from "@/app/field-group"
 import { IdentityFillPanel } from "@/app/identity-fill-panel"
 import { ModeField } from "@/app/mode-field"
+import { SWITCH_ROWS, SwitchRow } from "@/app/switch-row"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import type { useIdentity } from "@/app/use-identity"
 import type { PipelineStep, PluginSummary } from "@/lib/api"
 import { DESIGN_IMAGE_LABEL, READ_IMAGE_HINT, modeTakesRoute, type TaskForm } from "@/lib/task-form"
@@ -61,7 +61,7 @@ export function NewTaskCard(props: Props) {
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {/* 三组各成一个框：必填 / 可自动补齐 / 可选。 */}
+        {/* 三组各成一个框：必填参数 / 可自动生成参数 / 可选参数（标题与提示语在 field-group.tsx 一处）。 */}
         <div className="grid items-start gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-4">
             <FieldGroup {...FIELD_GROUPS.required}>
@@ -106,6 +106,13 @@ export function NewTaskCard(props: Props) {
                   <p className="text-muted-foreground text-xs">{READ_IMAGE_HINT}</p>
                 </div>
               )}
+              {/* 与看板弹窗同一排法与同一句话（ui/src/app/switch-row.tsx）。 */}
+              <SwitchRow
+                id="run-overwrite"
+                {...SWITCH_ROWS.overwrite}
+                checked={form.overwrite}
+                onChange={(checked) => onForm({ overwrite: checked })}
+              />
             </FieldGroup>
           </div>
 
@@ -162,14 +169,6 @@ export function NewTaskCard(props: Props) {
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Switch
-              id="run-overwrite"
-              checked={form.overwrite}
-              onCheckedChange={(checked) => onForm({ overwrite: checked })}
-            />
-            <Label htmlFor="run-overwrite">替换已有产物（默认不替换，同名就停）</Label>
-          </div>
           <div className="ml-auto flex items-center gap-2">
             {canStop && (
               <Button variant="outline" disabled={busy !== ""} onClick={onStop}>
