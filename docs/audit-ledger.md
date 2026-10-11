@@ -106,4 +106,5 @@
 | 2026-10-10 第 45 遍 | REVIEW-001 | `verifyDir` 的「读不出来当对不上」把写路径的 IO 故障说成内容不符 | 已收 | `verifyDir` 恢复严格（读盘出错照原样抛）；读路径自己兜（`installRootIsVersion` 的 try/catch：核不出来就认它，并记下结论） |
 | 2026-10-10 第 46 遍 | REVIEW-001 | 目标版不认「外壳下限挡住」，会把已就绪可切的那一份顶掉 | 已收 | `targetVersionOf` 先看 `blocked`：被挡住的那版不参与（先升外壳那件事在设置页的 `blockedNote` 里说），并补一条「手上有可切的 + 远端被挡住」的用例 |
 | 2026-10-10 第 47 遍 | REVIEW-001 | 外壳下限只判了远端那份，已下好可切的那份没判 | 已收 | 判据收进 `usableHere`（与 `apply` 的 `versionBlocked` 同源），`readyVersion` 挑「可切」时也过它；补「同一版重发抬高下限」的用例 |
+| 2026-10-10 第 48 遍 | BLOCK-001 | 「某一版可不可以切」有两处判据：版本表逐行那份没过外壳下限 | 已收 | 收成 `switchable`（找得到 + 没被判对不上 + 过得了外壳下限）：`readyVersion` 与 `status().staged[].ready` 同读它，用例补上逐行断言 |
 

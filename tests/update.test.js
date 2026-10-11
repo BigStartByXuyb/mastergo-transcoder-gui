@@ -303,6 +303,11 @@ async function main() {
   await holdRaised.check();
   assert.strictEqual(holdRaised.status().available.blocked.code, "CLIENT_TOO_OLD", "远端这一版被抬高了外壳下限");
   assert.strictEqual(holdRaised.status().ready, "", "已下好的那一份被同一版的下限挡住，不算可切");
+  assert.strictEqual(
+    holdRaised.status().staged.find(function (item) { return item.version === "0.2.0"; }).ready,
+    false,
+    "版本表那一行也不该说它可以切（两处读同一条判据）"
+  );
   assert.strictEqual(holdRaised.hint().target, "", "入口也不指它");
   assert.throws(function () { holdRaised.apply("0.2.0"); }, /要求客户端至少/, "真要点它，切换前那一刻也拒");
 
