@@ -21,8 +21,8 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
   const hint = props.update
   /*
    * 目标版由后端一处给（lib/update.js 的 readState：远端说的那一版与本地已下好可切的那一版取更新的那个）。
-   * 「下没下好」问**这一个版本**自己 —— 以前问的是全局状态（只要有任意一版下好了就算「已下载」），
-   * 于是没下过的远端新版会被当成「可切」，点下去切的是另一版，或者干脆被后端拒（和清单对不上）。
+   * 「下没下好」也读后端那一态（download_ready 的定义就是「该动的那一版已经躺在本地」），
+   * 这里不再自己比一遍 —— 后端加一层条件（例如外壳下限挡住）时，顶栏不会继续说「可切」。
    */
   const target = hint ? hint.target : ""
 
@@ -39,7 +39,7 @@ export function UpdateBadge(props: { update: UpdateHint | undefined; supervised:
 
   if (!hint || !target || hint.state === "up_to_date" || hint.state === "error") return null
 
-  const downloaded = hint.ready === target
+  const downloaded = hint.state === "download_ready"
 
   async function open() {
     if (!hint) return
