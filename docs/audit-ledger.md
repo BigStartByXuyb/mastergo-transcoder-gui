@@ -152,4 +152,5 @@
 | 2026-10-11 第 23 遍 | 确定性检查 | `contentTypeOf` 成了没人引用的导出（发文件收成 `sendFile` 之后路由不再直接用它的表） | 已收 | 不再导出 `contentTypeOf`：它只作 `lib/http.js` 内部（`sendFile` 与静态件）的类型表读取 |
 | 2026-10-11 第 24 遍 | REVIEW-001 | 预览地址与图内容无关：换了图 `<img>` 不会重新取（缩略图继续显示上一张） | 已收 | 「图的身份」（大小-修改时间）由 `lib/design-image.js` 一处算（`stampOf`：`read` 的 `image.stamp` 与 `imageStamp()` 同源），并进 `api.designImageUrl(…, stamp)`；位图卡与布局画布都带上它。用例补一条「换一张 → 地址变」 |
 | 2026-10-11 第 24 遍 | 非阻断 | 布局载荷里「有没有图」是布尔、画布又从空串反推；画布的 `total > 0` 是恒真防御 | 已收 | 改成 `imageStamp`（空串＝没有图：一个字段一个意思）；`percent` 去掉恒真那一支 |
+| 2026-10-11 第 25 遍 | REVIEW-001 | 发图那条路由只为拿路径，却把整张位图读进了内存（`imageFile` 借 `currentImage`） | 已收 | 「先看哪一张」收成 `currentImagePath`（只看在不在、不读文件）：`currentImage`（要读宽高）/`hasImage`/`imageStamp`/`imageFile` 四条读法共用它，发图那条不再读整张图 |
 
