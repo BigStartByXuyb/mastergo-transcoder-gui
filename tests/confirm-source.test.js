@@ -273,6 +273,16 @@ function caseResumeStepPure() {
     "",
     "什么都没写：没有锚点"
   );
+  assert.strictEqual(
+    resolveResumeStep({
+      wroteGroups: true,
+      contract: [{ Id: 8, Name: "layout", Inputs: ["别的文件"] }],
+      registrySteps: [],
+      runSteps: null
+    }),
+    "",
+    "契约里没有吃这个文件的步骤：没有锚点（不拿失败原话里的步名猜）"
+  );
 }
 
 try {
