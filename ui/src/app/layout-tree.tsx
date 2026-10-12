@@ -1,5 +1,5 @@
 import type { DerivedLayout, LayoutControl } from "@/lib/api"
-import { controlOf, numberOf, textOf } from "@/lib/layout-edit"
+import { controlKey, controlOf, numberOf, regionKey, rowKey, textOf, UNRESOLVED_KEY } from "@/lib/layout-edit"
 import { cn } from "@/lib/utils"
 
 /*
@@ -9,33 +9,6 @@ import { cn } from "@/lib/utils"
  * 点一行，把这一行盖住的控件在画布上描出来（key → refs 只有 refsOfDerived 一处）。
  * 控件那一行显示它的 value（没有 value 就退回控件类型）+ 它在清单里的号；号由 numberOf 现算。
  */
-
-const UNRESOLVED_KEY = "unresolved"
-
-/* 一行在树上的 key：分区 / 分区里的某一行 / 某个控件 / 没归宿那一段。 */
-function regionKey(id: string): string {
-  return "region:" + id
-}
-function rowKey(id: string, row: number): string {
-  return regionKey(id) + "#row:" + row
-}
-function controlKey(ref: string): string {
-  return "ref:" + ref
-}
-
-/* 这一行盖住哪几个控件（画布按 ref 描边）：key → refs 只有这一处。 */
-export function refsOfDerived(derived: DerivedLayout, key: string): string[] {
-  if (!key) return []
-  if (key === UNRESOLVED_KEY) return derived.unresolved.map((item) => item.ref)
-  if (key.startsWith("ref:")) return [key.slice("ref:".length)]
-  const inRow = /^region:(.+)#row:(\d+)$/.exec(key)
-  if (inRow) {
-    const region = derived.regions.find((item) => item.id === inRow[1])
-    return region ? region.cells.filter((cell) => cell.row === Number(inRow[2])).map((cell) => cell.ref) : []
-  }
-  const region = derived.regions.find((item) => regionKey(item.id) === key)
-  return region ? region.cells.map((cell) => cell.ref) : []
-}
 
 /* 一个控件在树上的名字：value 优先，没有就退回控件类型；末尾带它在清单里的号。 */
 function controlLabel(controls: LayoutControl[], ref: string): string {

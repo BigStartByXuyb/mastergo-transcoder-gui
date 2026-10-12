@@ -204,7 +204,7 @@ describe("LayoutPanel", () => {
         new Response(
           JSON.stringify({
             ok: true,
-            layout: { available: true, reason: "", controls: CONTROLS, canvas: null, imageStamp: "", tree: [], groups: [], hasGroups: false, canSuggest: true, autoPass: true }
+            layout: { available: true, reason: "", controls: CONTROLS, canvas: null, imageStamp: "", derived: { available: false, reason: "", regions: [], unresolved: [] }, groups: [], hasGroups: false, canSuggest: true, autoPass: true }
           }),
           { status: 200 }
         )

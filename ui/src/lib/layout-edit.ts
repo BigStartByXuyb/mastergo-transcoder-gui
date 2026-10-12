@@ -1,4 +1,4 @@
-import type { LayoutControl, LayoutGroup } from "@/lib/api"
+import type { DerivedLayout, LayoutControl, LayoutGroup } from "@/lib/api"
 
 /*
  * 布局确认面板的两件纯逻辑：控件编号（人对编号说话，分组表里存 ref）与分组的增删改。
@@ -77,5 +77,36 @@ export function addGroup(groups: LayoutGroup[], id: string, kind: "column" | "ro
 /** 删掉一个组（组里的控件回到未分组）。 */
 export function removeGroup(groups: LayoutGroup[], id: string): LayoutGroup[] {
   return groups.filter((group) => group.id !== id)
+}
+
+/*
+ * 布局树上那一行的 key（分区 / 分区里的某一行 / 某个控件 / 没归宿那一段）与「这一行盖住哪几个控件」。
+ * 纯逻辑，与分组编辑同处：界面按 key 记住选了哪一行，要描的控件由 refsOfDerived 现算（不另存一份）。
+ */
+export const UNRESOLVED_KEY = "unresolved"
+
+export function regionKey(id: string): string {
+  return "region:" + id
+}
+
+export function rowKey(id: string, row: number): string {
+  return regionKey(id) + "#row:" + row
+}
+
+export function controlKey(ref: string): string {
+  return "ref:" + ref
+}
+
+export function refsOfDerived(derived: DerivedLayout, key: string): string[] {
+  if (!key) return []
+  if (key === UNRESOLVED_KEY) return derived.unresolved.map((item) => item.ref)
+  if (key.startsWith("ref:")) return [key.slice("ref:".length)]
+  const inRow = /^region:(.+)#row:(\d+)$/.exec(key)
+  if (inRow) {
+    const region = derived.regions.find((item) => item.id === inRow[1])
+    return region ? region.cells.filter((cell) => cell.row === Number(inRow[2])).map((cell) => cell.ref) : []
+  }
+  const region = derived.regions.find((item) => regionKey(item.id) === key)
+  return region ? region.cells.map((cell) => cell.ref) : []
 }
 

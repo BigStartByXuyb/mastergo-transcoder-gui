@@ -1,8 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
-import { LayoutTree, refsOfDerived } from "@/app/layout-tree"
+import { LayoutTree } from "@/app/layout-tree"
 import type { DerivedLayout, LayoutControl } from "@/lib/api"
+import { refsOfDerived } from "@/lib/layout-edit"
 
 /*
  * 布局树：显示的是**推导出来的**布局（分区 → 行/列 → 格子），不是设计稿原始层级。

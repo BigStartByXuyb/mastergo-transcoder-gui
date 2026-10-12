@@ -8,10 +8,18 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { LayoutCanvas } from "@/app/layout-canvas"
-import { LayoutTree, refsOfDerived } from "@/app/layout-tree"
+import { LayoutTree } from "@/app/layout-tree"
 import { useLayoutGroups, type LayoutGroupsInput } from "@/app/use-layout-groups"
 import { api } from "@/lib/api"
-import { addGroup, labelOf, moveMember, removeGroup, removeMember, ungroupedControls } from "@/lib/layout-edit"
+import {
+  addGroup,
+  labelOf,
+  moveMember,
+  refsOfDerived,
+  removeGroup,
+  removeMember,
+  ungroupedControls
+} from "@/lib/layout-edit"
 import { inFlightNote, isInFlight } from "@/lib/task-state"
 import { cn } from "@/lib/utils"
 import { useEffect, useState } from "react"
@@ -115,25 +123,28 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
               </p>
             ) : null}
 
-            {canvas ? (
-              <div
-                className={cn("grid gap-3", "lg:grid-cols-[minmax(0,1fr)_16rem]")}
-              >
-                <LayoutCanvas
-                  controls={layout.controls}
-                  canvas={canvas}
-                  /* 没有图就给空串：画布据此不挂图、也不给「隐藏设计稿」（图的身份由后端一处给）。 */
-                  imageUrl={
-                    layout.imageStamp ? api.designImageUrl(input.projectRoot, input.target, layout.imageStamp) : ""
-                  }
-                  highlight={highlight}
-                />
-                <LayoutTree
-                  derived={layout.derived}
-                  controls={layout.controls}
-                  selected={treePicked}
-                  onPick={(key) => setTreePicked(treePicked === key ? "" : key)}
-                />
+            {/* 画布与布局树各自独立：画板尺寸还不知道时，布局树（推导结果）照样要能看。 */}
+            {canvas || layout.derived.available ? (
+              <div className={cn("grid gap-3", canvas && "lg:grid-cols-[minmax(0,1fr)_16rem]")}>
+                {canvas && (
+                  <LayoutCanvas
+                    controls={layout.controls}
+                    canvas={canvas}
+                    /* 没有图就给空串：画布据此不挂图、也不给「隐藏设计稿」（图的身份由后端一处给）。 */
+                    imageUrl={
+                      layout.imageStamp ? api.designImageUrl(input.projectRoot, input.target, layout.imageStamp) : ""
+                    }
+                    highlight={highlight}
+                  />
+                )}
+                {layout.derived.available && (
+                  <LayoutTree
+                    derived={layout.derived}
+                    controls={layout.controls}
+                    selected={treePicked}
+                    onPick={(key) => setTreePicked(treePicked === key ? "" : key)}
+                  />
+                )}
               </div>
             ) : null}
 
