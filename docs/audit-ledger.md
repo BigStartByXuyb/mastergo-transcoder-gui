@@ -183,4 +183,6 @@
 | 2026-10-12 第 42 遍 | REVIEW-001 | 布局树又被绑回画布：画板尺寸读不出时整栏（含布局树）都不渲染 | 已收 | 画布与布局树各自独立判断：有画板尺寸才画布，有推导产物就摆树；两者都有才分两列 |
 | 2026-10-12 第 42 遍 | REVIEW-002 | 字段改名 `tree` → `derived` 漏了一处测试夹具 | 已收 | 那处内联载荷改成 `derived`（缺 → 还没跑过那份空读视图） |
 | 2026-10-12 第 42 遍 | REVIEW-003 | key → refs 的纯逻辑搬进了视图模块，面板从视图模块 import 纯函数 | 已收 | `regionKey` / `rowKey` / `controlKey` / `refsOfDerived` 挪进 `ui/src/lib/layout-edit.ts`（与分组编辑那几件纯逻辑同处），视图只渲染 |
+| 2026-10-12 第 43 遍 | REVIEW-001 | 「第 k 行有哪些格子」在视图与纯逻辑里各算一遍 | 已收 | 收成 `ui/src/lib/layout-edit.ts` 的 `cellsInRow` / `rowsOfRegion`：树按它摆行，`refsOfDerived` 按它收 ref |
+| 2026-10-12 第 43 遍 | REVIEW-002 | `derived` 没照本模块「字段缺了当空」的约定读：半截响应（有 available 没 regions）会让面板崩 | 已收 | 同一道兜底做成 `derivedOf`（available 收成布尔、regions / unresolved 走 `listOf`、reason 收成串），读的时候都过它 |
 

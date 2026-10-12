@@ -1,5 +1,15 @@
 import type { DerivedLayout, LayoutControl } from "@/lib/api"
-import { controlKey, controlOf, numberOf, regionKey, rowKey, textOf, UNRESOLVED_KEY } from "@/lib/layout-edit"
+import {
+  cellsInRow,
+  controlKey,
+  controlOf,
+  numberOf,
+  regionKey,
+  rowKey,
+  rowsOfRegion,
+  textOf,
+  UNRESOLVED_KEY
+} from "@/lib/layout-edit"
 import { cn } from "@/lib/utils"
 
 /*
@@ -73,31 +83,27 @@ export function LayoutTree(props: {
                   region.columns +
                   " 列"
               })}
-              {[...new Set(region.cells.map((cell) => cell.row))]
-                .sort((left, right) => left - right)
-                .map((row) => (
-                  <div key={row} className="flex flex-col gap-0.5">
-                    {line({ lineKey: rowKey(region.id, row), depth: 1, label: "第 " + row + " 行" })}
-                    {region.cells
-                      .filter((cell) => cell.row === row)
-                      .map((cell) =>
-                        line({
-                          lineKey: controlKey(cell.ref),
-                          depth: 2,
-                          strong: true,
-                          label:
-                            controlLabel(props.controls, cell.ref) +
-                            "（第 " +
-                            cell.column +
-                            " 列" +
-                            (cell.rowSpan > 1 || cell.columnSpan > 1
-                              ? "，跨 " + cell.rowSpan + " 行 × " + cell.columnSpan + " 列"
-                              : "") +
-                            "）"
-                        })
-                      )}
-                  </div>
-                ))}
+              {rowsOfRegion(region).map((row) => (
+                <div key={row} className="flex flex-col gap-0.5">
+                  {line({ lineKey: rowKey(region.id, row), depth: 1, label: "第 " + row + " 行" })}
+                  {cellsInRow(region, row).map((cell) =>
+                    line({
+                      lineKey: controlKey(cell.ref),
+                      depth: 2,
+                      strong: true,
+                      label:
+                        controlLabel(props.controls, cell.ref) +
+                        "（第 " +
+                        cell.column +
+                        " 列" +
+                        (cell.rowSpan > 1 || cell.columnSpan > 1
+                          ? "，跨 " + cell.rowSpan + " 行 × " + cell.columnSpan + " 列"
+                          : "") +
+                        "）"
+                    })
+                  )}
+                </div>
+              ))}
             </div>
           ))}
           {props.derived.unresolved.length > 0 && (

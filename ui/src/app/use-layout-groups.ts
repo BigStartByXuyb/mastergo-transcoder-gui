@@ -32,6 +32,17 @@ const listOf = <T,>(value: T[] | undefined): T[] => (Array.isArray(value) ? valu
 /* 还没拿到推导结果时的那份空读视图（字段缺了也走它）。 */
 const EMPTY_DERIVED: DerivedLayout = { available: false, reason: "", regions: [], unresolved: [] }
 
+/* 推导结果按同一道兜底读：字段缺了 / 半截响应（有 available 没 regions）都按空处理，界面不炸。 */
+const derivedOf = (value: DerivedLayout | undefined): DerivedLayout =>
+  value
+    ? {
+        available: Boolean(value.available),
+        reason: String(value.reason ?? ""),
+        regions: listOf(value.regions),
+        unresolved: listOf(value.unresolved)
+      }
+    : EMPTY_DERIVED
+
 export function useLayoutGroups(input: LayoutGroupsInput) {
   const [available, setAvailable] = useState(false)
   const [reason, setReason] = useState("")
@@ -79,7 +90,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
       setControls(listOf(payload.layout.controls))
       setCanvas(payload.layout.canvas ?? null)
       setImageStamp(String(payload.layout.imageStamp || ""))
-      setDerived(payload.layout.derived ?? EMPTY_DERIVED)
+      setDerived(derivedOf(payload.layout.derived))
       if (!dirty.current) setGroups(listOf(payload.layout.groups))
       setCanSuggest(payload.layout.canSuggest)
       // 「自动通过」也随这一页读回来：全局开关的当前值不另取一遍设置（一次读数一件事）。

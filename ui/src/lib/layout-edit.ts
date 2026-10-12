@@ -1,4 +1,4 @@
-import type { DerivedLayout, LayoutControl, LayoutGroup } from "@/lib/api"
+import type { DerivedLayout, LayoutCell, LayoutControl, LayoutGroup, LayoutRegion } from "@/lib/api"
 
 /*
  * 布局确认面板的两件纯逻辑：控件编号（人对编号说话，分组表里存 ref）与分组的增删改。
@@ -104,9 +104,19 @@ export function refsOfDerived(derived: DerivedLayout, key: string): string[] {
   const inRow = /^region:(.+)#row:(\d+)$/.exec(key)
   if (inRow) {
     const region = derived.regions.find((item) => item.id === inRow[1])
-    return region ? region.cells.filter((cell) => cell.row === Number(inRow[2])).map((cell) => cell.ref) : []
+    return region ? cellsInRow(region, Number(inRow[2])).map((cell) => cell.ref) : []
   }
   const region = derived.regions.find((item) => regionKey(item.id) === key)
   return region ? region.cells.map((cell) => cell.ref) : []
+}
+
+/* 一个分区里落在第 k 行的格子：树按行摆、refsOfDerived 按行收，两处同一条判据。 */
+export function cellsInRow(region: LayoutRegion, row: number): LayoutCell[] {
+  return region.cells.filter((cell) => cell.row === row)
+}
+
+/* 一个分区里有哪些行（去重、从小到大）：树按它摆行。 */
+export function rowsOfRegion(region: LayoutRegion): number[] {
+  return [...new Set(region.cells.map((cell) => cell.row))].sort((left, right) => left - right)
 }
 
