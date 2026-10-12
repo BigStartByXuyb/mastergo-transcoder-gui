@@ -126,7 +126,7 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
             {/*
              * 画布与布局树各自独立：画板尺寸还不知道时，布局树（推导结果）照样要能看。
              * 「有没有推导产物」只在 LayoutTree 里判（没有时它显示后端给的那句原因）——面板不再自己判一遍。
-             */
+             */}
             <div className={cn("grid gap-3", canvas && "lg:grid-cols-[minmax(0,1fr)_16rem]")}>
               {canvas && (
                 <LayoutCanvas
