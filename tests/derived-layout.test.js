@@ -196,6 +196,21 @@ function caseUnresolved() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+/* 报告那条出口也剥容器那层标记：两路 ref 交给界面时是同一副样子。 */
+function caseReportRefStripped() {
+  const root = sandbox();
+  fs.writeFileSync(productFile(root), JSON.stringify({ regions: [] }), "utf8");
+  fs.writeFileSync(
+    reportFile(root),
+    JSON.stringify({ unresolved: [{ ref: "synth:1872:59913", reason: "单条目栏：几何判不出它跟谁同组" }] }),
+    "utf8"
+  );
+  assert.deepStrictEqual(read(root).unresolved, [
+    { ref: "1872:59913", reason: "单条目栏：几何判不出它跟谁同组" }
+  ]);
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 /* 一格读不出行列坐标（半截写盘 / 字段名变了）：不拿 0 顶上，照「没归宿」说给界面。 */
 function caseCellWithoutPosition() {
   const root = sandbox();
@@ -309,6 +324,7 @@ try {
     ["分区与格子归一（只注册 / 缺字段 / 缺网格）", caseRegions],
     ["格子里还套着格子（子网格照带出去）", caseNestedCells],
     ["没归宿的从同趟报告取", caseUnresolved],
+    ["报告那条出口也剥容器标记", caseReportRefStripped],
     ["一格读不出坐标：照「没归宿」说，不拿 0 顶上", caseCellWithoutPosition],
     ["摆不进树的容器：里面的控件跟着记出去", caseContainerWithoutPosition],
     ["跨度按至少 1 归一", caseSpans]

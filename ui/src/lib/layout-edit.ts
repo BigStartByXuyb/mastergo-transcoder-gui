@@ -2,7 +2,7 @@ import type { DerivedLayout, LayoutCell, LayoutChild, LayoutControl, LayoutGroup
 
 /*
  * 布局确认面板的纯逻辑：控件怎么认（编号 / 展示名 / 未找到时按 ref）、分组的增删改，
- * 以及布局树那两个口径（行 key 的拼法与解析、一个分区有哪些行、哪些格子盖住某一行）。
+ * 以及布局树那两个口径（每行 key 的拼法与解析、一个分区分成哪几组、哪些格子盖住某一组）。
  *
  * 这里只做「界面自己怎么算」这件事，不做「表合不合法」的判断 —— 成员至少 2 个、一个 ref 只能进一个分组
  * 这类校验只有后端 lib/layout-groups.js 一处，界面把后端的原话照实显示（见 app/layout-panel.tsx）。
@@ -86,13 +86,13 @@ export function removeGroup(groups: LayoutGroup[], id: string): LayoutGroup[] {
 }
 
 /*
- * 布局树上那一行的 key（分区 / 分区里的某一行 / 某个控件 / 没归宿那一段）与「这一行盖住哪几个控件」。
+ * 布局树上那一行的 key（分区 / 分区里的第几组 / 某一格 / 没归宿那一段）与「这一行盖住哪几个控件」。
  * 纯逻辑，与分组编辑同处：界面按 key 记住选了哪一行，要描的控件由 refsOfDerived 现算（不另存一份）。
  */
 export const UNRESOLVED_KEY = "unresolved"
 
 /*
- * key 的拼法：分区 → 第几组（分区里的某一行）→ 格子路径（每段一个 ref，套几层就有几段），
+ * key 的拼法：分区 → 第几组（组＝分区里的某一行）→ 格子路径（每段一个 ref，套几层就有几段），
  * 按下面三处接起来（拼装与解析都只认这三处）。
  * 前提：ref 与分区 id 里不含这些片段（产物的 ref 形如 `1872:59913`，分区 id 形如 `work-area`）。
  */
