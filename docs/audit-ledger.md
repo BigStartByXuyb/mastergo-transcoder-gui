@@ -190,4 +190,6 @@
 | 2026-10-12 第 45 遍 | REVIEW-002 | `inspect` 无条件构造界面专用的 `derived`，待办队列与自动补输入并不读它 | 已收 | `inspect(query, options)`：`withDerived:false` 时给同一形状的空读数；`lib/pending.js` 那条逐页调用的路走它 |
 | 2026-10-12 第 46 遍 | REVIEW-001 | 布局树行 key 的格式在「生产」（`rowKey`）与「解析」（正则）两处各写一遍 | 已收 | 分隔收成 `ROW_SEP` 一处：`rowKey` 按它拼、`refsOfDerived` 按它切 |
 | 2026-10-12 第 46 遍 | REVIEW-002 | 推导载荷里的 `role` 没人读，注释却说界面要它 | 已收 | 去掉 `role`（界面要的是名字与发射/只注册），注释跟着改 |
+| 2026-10-12 第 47 遍 | REVIEW-001 | 「没有推导产物」那份空读数在同一文件里写了两遍 | 已收 | `readDerivedLayout` 的早退改用同一份 `EMPTY_DERIVED`（只补 reason） |
+| 2026-10-12 第 47 遍 | REVIEW-002 | `LayoutTree` 一次渲染里摊平四层结构、展示文案内联在 JSX 里 | 已收 | 行数据收成 `linesOfDerived`（纯函数：key / 缩进 / 加粗 / 文案），渲染只一遍 map；没归宿那几条的原因留在悬停提示里 |
 

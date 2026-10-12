@@ -26,6 +26,43 @@ function controlLabel(controls: LayoutControl[], ref: string): string {
   return number > 0 ? head + " · #" + number : head
 }
 
+/* 树上的每一行（纯数据）：key / 缩进 / 是否加粗 / 文案 —— 从哪里来（分区/行/控件/没归宿）只在这一处拼。 */
+type TreeLine = { key: string; depth: number; strong: boolean; label: string }
+
+function linesOfDerived(derived: DerivedLayout, controls: LayoutControl[]): TreeLine[] {
+  const lines: TreeLine[] = []
+  for (const region of derived.regions) {
+    lines.push({
+      key: regionKey(region.id),
+      depth: 0,
+      strong: true,
+      label:
+        region.name + " · " + (region.emit ? "发射" : "只注册") + " · " + region.rows + " 行 × " + region.columns + " 列"
+    })
+    for (const row of rowsOfRegion(region)) {
+      lines.push({ key: rowKey(region.id, row), depth: 1, strong: false, label: "第 " + row + " 行" })
+      for (const cell of cellsInRow(region, row)) {
+        lines.push({
+          key: controlKey(cell.ref),
+          depth: 2,
+          strong: true,
+          label:
+            controlLabel(controls, cell.ref) +
+            "（第 " +
+            cell.column +
+            " 列" +
+            (cell.rowSpan > 1 || cell.columnSpan > 1 ? "，跨 " + cell.rowSpan + " 行 × " + cell.columnSpan + " 列" : "") +
+            "）"
+        })
+      }
+    }
+  }
+  if (derived.unresolved.length > 0) {
+    lines.push({ key: UNRESOLVED_KEY, depth: 0, strong: true, label: "没归宿的 " + derived.unresolved.length + " 个" })
+  }
+  return lines
+}
+
 export function LayoutTree(props: {
   derived: DerivedLayout
   controls: LayoutControl[]
@@ -38,22 +75,7 @@ export function LayoutTree(props: {
     return <p className="text-muted-foreground text-xs">{props.derived.reason || "还没有推导产物。"}</p>
   }
 
-  const line = (lineProps: { label: string; lineKey: string; depth: number; strong?: boolean }) => (
-    <button
-      key={lineProps.lineKey}
-      type="button"
-      data-selected={props.selected === lineProps.lineKey}
-      onClick={() => props.onPick(lineProps.lineKey)}
-      className={cn(
-        "rounded px-1 py-0.5 text-left text-xs hover:bg-accent",
-        props.selected === lineProps.lineKey && "bg-accent text-accent-foreground",
-        lineProps.strong ? "text-foreground" : "text-muted-foreground"
-      )}
-      style={{ paddingLeft: 4 + lineProps.depth * 12 }}
-    >
-      {lineProps.label}
-    </button>
-  )
+  const lines = linesOfDerived(props.derived, props.controls)
 
   return (
     <div className="flex min-w-0 flex-col gap-2">
@@ -65,65 +87,28 @@ export function LayoutTree(props: {
       </div>
       <div className="max-h-80 overflow-auto rounded-md border p-2">
         <div className="flex flex-col gap-1">
-          {props.derived.regions.map((region) => (
-            <div key={region.id} className="flex flex-col gap-0.5">
-              {line({
-                lineKey: regionKey(region.id),
-                depth: 0,
-                strong: true,
-                label:
-                  region.name +
-                  " · " +
-                  (region.emit ? "发射" : "只注册") +
-                  " · " +
-                  region.rows +
-                  " 行 × " +
-                  region.columns +
-                  " 列"
-              })}
-              {rowsOfRegion(region).map((row) => (
-                <div key={row} className="flex flex-col gap-0.5">
-                  {line({ lineKey: rowKey(region.id, row), depth: 1, label: "第 " + row + " 行" })}
-                  {cellsInRow(region, row).map((cell) =>
-                    line({
-                      lineKey: controlKey(cell.ref),
-                      depth: 2,
-                      strong: true,
-                      label:
-                        controlLabel(props.controls, cell.ref) +
-                        "（第 " +
-                        cell.column +
-                        " 列" +
-                        (cell.rowSpan > 1 || cell.columnSpan > 1
-                          ? "，跨 " + cell.rowSpan + " 行 × " + cell.columnSpan + " 列"
-                          : "") +
-                        "）"
-                    })
-                  )}
-                </div>
-              ))}
-            </div>
+          {lines.map((line) => (
+            <button
+              key={line.key}
+              type="button"
+              data-selected={props.selected === line.key}
+              onClick={() => props.onPick(line.key)}
+              className={cn(
+                "rounded px-1 py-0.5 text-left text-xs hover:bg-accent",
+                props.selected === line.key && "bg-accent text-accent-foreground",
+                line.strong ? "text-foreground" : "text-muted-foreground"
+              )}
+              style={{ paddingLeft: 4 + line.depth * 12 }}
+            >
+              {line.label}
+            </button>
           ))}
-          {props.derived.unresolved.length > 0 && (
-            <div className="flex flex-col gap-0.5">
-              {line({
-                lineKey: UNRESOLVED_KEY,
-                depth: 0,
-                strong: true,
-                label: "没归宿的 " + props.derived.unresolved.length + " 个"
-              })}
-              {props.derived.unresolved.map((item) => (
-                <span
-                  key={item.ref}
-                  className="text-muted-foreground text-xs"
-                  style={{ paddingLeft: 16 }}
-                  title={item.reason}
-                >
-                  {controlLabel(props.controls, item.ref)}
-                </span>
-              ))}
-            </div>
-          )}
+          {/* 没归宿那几条的下面是插件给的原因（鼠标停上去看），不进树的行里。 */}
+          {props.derived.unresolved.map((item) => (
+            <span key={item.ref} className="text-muted-foreground text-xs" style={{ paddingLeft: 16 }} title={item.reason}>
+              {controlLabel(props.controls, item.ref)}
+            </span>
+          ))}
         </div>
       </div>
     </div>
