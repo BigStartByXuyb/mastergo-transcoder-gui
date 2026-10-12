@@ -161,11 +161,16 @@ export function refsOfDerived(derived: DerivedLayout | null, key: string): strin
   return hit ? unique(hit.refs) : []
 }
 
-/* 一个格子盖住哪几行（含跨行）：行区间只有这一处；跨度由后端归一成至少 1（lib/derived-layout.js），这里直接用。 */
+/* 一段跨度铺成连续的序号（起、跨几格）：行与列各用一次，写法只有这一处。 */
+function indicesOf(from: number, count: number): number[] {
+  const out: number[] = []
+  for (let at = from; at < from + count; at += 1) out.push(at)
+  return out
+}
+
+/* 一个格子盖住哪几行（含跨行）：跨度由后端归一成至少 1（lib/derived-layout.js），这里直接用。 */
 function rowRangeOf(cell: LayoutCell): number[] {
-  const rows: number[] = []
-  for (let row = cell.row; row < cell.row + cell.rowSpan; row += 1) rows.push(row)
-  return rows
+  return indicesOf(cell.row, cell.rowSpan)
 }
 
 /* 一个分区里盖住第 k 行的格子（跨行的格子每一行都算盖住）：都读 rowRangeOf。 */
@@ -196,10 +201,7 @@ export function groupsOf(region: LayoutRegion): DerivedGroup[] {
 
 /** 这个分区占几行几列（都按格子算：行＝有格子的行数，列＝格子盖住的列数）—— 与树上的摆法同一处口径。 */
 export function shapeOfRegion(region: LayoutRegion): { rows: number; columns: number } {
-  const columns = new Set<number>()
-  for (const cell of region.cells) {
-    for (let column = cell.column; column < cell.column + cell.columnSpan; column += 1) columns.add(column)
-  }
+  const columns = new Set(region.cells.flatMap((cell) => indicesOf(cell.column, cell.columnSpan)))
   return { rows: rowsOfRegion(region).length, columns: columns.size }
 }
 

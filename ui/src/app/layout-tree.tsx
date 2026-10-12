@@ -69,9 +69,9 @@ function linesOfDerived(derived: DerivedLayout, controls: LayoutControl[]): Tree
      * 每一组展开的是「从这一行起始的格子」—— 跨行的只在它起始的那一组里展开一次（跨了几行已经写在标签里），
      * 否则一个跨 6 行的容器会把整棵子树在 6 个组里各复制一遍。点某一组时画布上照旧会描出盖住它的控件。
      */
-    groupsOf(region).forEach(({ group, starting }) => {
-      /* 一「组」是分区里的一行：这一行里不止一个格子时，它们在那一行里左右排（横排）。 */
-      const across = starting.length > 1 ? "（横排）" : ""
+    groupsOf(region).forEach(({ group, covering, starting }) => {
+      /* 一「组」是分区里的一行：这一行里不止一个格子时（含从上面跨下来的），它们在那一行里左右排。 */
+      const across = covering.length > 1 ? "（横排）" : ""
       lines.push({ key: groupKey(region.id, group), depth: 1, strong: false, label: "组 #" + group + across })
       for (const cell of starting) pushCell(lines, region.id, group, [], cell, 2, controls)
     })
