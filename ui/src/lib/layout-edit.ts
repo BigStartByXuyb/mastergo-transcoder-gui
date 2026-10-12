@@ -28,7 +28,7 @@ function valueOf(control: LayoutControl): string {
 }
 
 /* 一个控件拿什么当名字：value 优先，没有才退回控件类型（两个都没有就用 ref）。
- * 「按哪个字段认这个控件」只有这一处 —— 清单那条展示名与布局树那一行都从它取。 */
+ * 「按哪个字段认这个控件」只有这一处 —— 布局树那一行按它显示；面上那份清单摆的是「类型 · value」（见 labelOf）。 */
 export function displayNameOf(controls: LayoutControl[], ref: string): string {
   const control = controlOf(controls, ref)
   if (!control) return ref
@@ -119,8 +119,8 @@ export function controlLineKey(regionId: string, row: number, ref: string): stri
   return rowKey(regionId, row) + CONTROL_SEP + controlKey(ref)
 }
 
-export function refsOfDerived(derived: DerivedLayout, key: string): string[] {
-  if (!key) return []
+export function refsOfDerived(derived: DerivedLayout | null, key: string): string[] {
+  if (!derived || !key) return []
   if (key === UNRESOLVED_KEY) return derived.unresolved.map((item) => item.ref)
   // 控件行可能带「分区 + 行」前缀（跨行的格子每行一条）：只看最后那一段。
   const tail = key.slice(key.lastIndexOf(CONTROL_SEP) + 1)

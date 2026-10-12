@@ -63,19 +63,22 @@ function linesOfDerived(derived: DerivedLayout, controls: LayoutControl[]): Tree
 }
 
 export function LayoutTree(props: {
-  derived: DerivedLayout
+  /** 推导结果；还没读到这一页时是 null（这块不摆）。 */
+  derived: DerivedLayout | null
   controls: LayoutControl[]
   /** 现在选中的是哪一行（调用方持有；空串＝没选）。 */
   selected: string
   /** 点了一行：把它的 key 回给调用方（选中态与要描的控件都由调用方一处管）。 */
   onPick: (key: string) => void
 }) {
+  if (!props.derived) return null
+
   /*
    * 不可用时只说后端给的那句（措辞只有 lib/derived-layout.js 一处，界面不另拟一份）；
-   * 还没读到时没有这句，就先不摆这块。
+   * 到这一支就是后端说的「还没有产物」，reason 一定在。
    */
   if (!props.derived.available) {
-    return props.derived.reason ? <p className="text-muted-foreground text-xs">{props.derived.reason}</p> : null
+    return <p className="text-muted-foreground text-xs">{props.derived.reason}</p>
   }
 
   const lines = linesOfDerived(props.derived, props.controls)

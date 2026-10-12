@@ -49,6 +49,11 @@ const DERIVED: DerivedLayout = {
 }
 
 describe("LayoutTree", () => {
+  it("还没读到这一页（null）：这块不摆", () => {
+    const { container } = render(<LayoutTree derived={null} controls={CONTROLS} selected="" onPick={() => undefined} />)
+    expect(container.innerHTML).toBe("")
+  })
+
   it("没有推导产物时：只说一句原因，不摆空的树", () => {
     const { container } = render(
       <LayoutTree
@@ -106,6 +111,8 @@ describe("LayoutTree", () => {
     expect(refsOfDerived(DERIVED, "region:work-area#row:1/ref:1:9")).toEqual(["1:9"])
     expect(refsOfDerived(DERIVED, "unresolved")).toEqual(["1:12"])
     expect(refsOfDerived(DERIVED, "")).toEqual([])
+    // 还没有读数（null）：什么都描不出来。
+    expect(refsOfDerived(null, "region:work-area")).toEqual([])
   })
 
   it("跨行的格子：它盖住的每一行都算有它，行列表也把它铺开", () => {

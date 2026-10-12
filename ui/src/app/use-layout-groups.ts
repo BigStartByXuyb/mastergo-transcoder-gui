@@ -8,6 +8,9 @@ import { api, type DerivedLayout, type LayoutControl, type LayoutGroup } from "@
  * 布局确认的数据动作：读控件清单与现有分组、叫 AI 出候选、把分组写回去并从布局那一步续跑。
  * 面板（app/layout-panel.tsx）只管开关与渲染；分组的增删改是 ui/src/lib/layout-edit.ts 的纯逻辑；
  * 写回校验与「哪些算可用」的判据在后端 lib/layout-groups.js。
+ *
+ * 读回来的三份（控件清单 / 分组表 / 推导结果）形状由后端一处保证（lib/layout-groups.js 的 inspect），
+ * 这里不逐字段判空：契约对不上时当场暴露，不静默降级成空数据。
  */
 
 export type LayoutGroupsInput = {
@@ -26,22 +29,14 @@ export type LayoutGroupsInput = {
   progressDone?: number
 }
 
-/* 读不到推导结果时的空读数：与后端给的那一份同形（available:false 时界面只说 reason）。 */
-const EMPTY_DERIVED: DerivedLayout = { available: false, reason: "", regions: [], unresolved: [] }
-
-/*
- * 推导结果的落点：还没读到（载入中）与这一份字段没给都回同一份空读数 —— 面板要渲染的这份对象必须存在。
- * 内层字段（regions / cells / unresolved）的形状由后端 lib/derived-layout.js 一处保证，前端不逐字段再归一。
- */
-const derivedOf = (value: DerivedLayout | undefined): DerivedLayout => value ?? EMPTY_DERIVED
-
 export function useLayoutGroups(input: LayoutGroupsInput) {
   const [available, setAvailable] = useState(false)
   const [reason, setReason] = useState("")
   const [controls, setControls] = useState<LayoutControl[]>([])
   const [canvas, setCanvas] = useState<{ width: number; height: number } | null>(null)
   const [imageStamp, setImageStamp] = useState("")
-  const [derived, setDerived] = useState<DerivedLayout>(EMPTY_DERIVED)
+  /* 还没读到这一页时是 null（布局树那块不摆）；读回来就是后端给的那一份。 */
+  const [derived, setDerived] = useState<DerivedLayout | null>(null)
   const [groups, setGroups] = useState<LayoutGroup[]>([])
   const [canSuggest, setCanSuggest] = useState(false)
   const [autoPass, setAutoPass] = useState(false)
@@ -82,7 +77,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
       setControls(payload.layout.controls)
       setCanvas(payload.layout.canvas ?? null)
       setImageStamp(String(payload.layout.imageStamp || ""))
-      setDerived(derivedOf(payload.layout.derived))
+      setDerived(payload.layout.derived ?? null)
       if (!dirty.current) setGroups(payload.layout.groups)
       setCanSuggest(payload.layout.canSuggest)
       // 「自动通过」也随这一页读回来：全局开关的当前值不另取一遍设置（一次读数一件事）。
