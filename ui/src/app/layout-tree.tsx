@@ -6,6 +6,7 @@ import {
   groupKey,
   numberOf,
   regionKey,
+  shapeOfRegion,
   UNRESOLVED_KEY
 } from "@/lib/layout-edit"
 import { cn } from "@/lib/utils"
@@ -55,18 +56,23 @@ function pushCell(
 function linesOfDerived(derived: DerivedLayout, controls: LayoutControl[]): TreeLine[] {
   const lines: TreeLine[] = []
   for (const region of derived.regions) {
+    const shape = shapeOfRegion(region)
+    /* 行列都按格子算（与下面摆出来的组、格子同一处口径）；一个格子都没有的分区就不写这两数。 */
+    const size = shape.rows > 0 ? " · " + shape.rows + " 行 × " + shape.columns + " 列" : ""
     lines.push({
       key: regionKey(region.id),
       depth: 0,
       strong: true,
-      label: region.name + " · " + (region.emit ? "发射" : "只注册")
+      label: region.name + " · " + (region.emit ? "发射" : "只注册") + size
     })
     /*
      * 每一组展开的是「从这一行起始的格子」—— 跨行的只在它起始的那一组里展开一次（跨了几行已经写在标签里），
      * 否则一个跨 6 行的容器会把整棵子树在 6 个组里各复制一遍。点某一组时画布上照旧会描出盖住它的控件。
      */
-    groupsOf(region).forEach(({ group, starting }) => {
-      lines.push({ key: groupKey(region.id, group), depth: 1, strong: false, label: "组 #" + group })
+    groupsOf(region).forEach(({ group, covering, starting }) => {
+      /* 一「组」是分区里的一行：这一行里不止一个格子时（含从上面跨下来的），它们在那一行里左右排。 */
+      const across = covering.length > 1 ? "（横排）" : ""
+      lines.push({ key: groupKey(region.id, group), depth: 1, strong: false, label: "组 #" + group + across })
       for (const cell of starting) pushCell(lines, region.id, group, [], cell, 2, controls)
     })
   }

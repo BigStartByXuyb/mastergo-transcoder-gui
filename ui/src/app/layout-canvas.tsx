@@ -36,10 +36,14 @@ export function LayoutCanvas(props: {
         <span className="text-muted-foreground text-xs">
           框里的号就是下面清单里的号；鼠标停到某个组上，它的成员会在图上描出来。
         </span>
-        {props.imageUrl && (
+        {props.imageUrl ? (
           <Button size="sm" variant="outline" onClick={() => setShowDesign(!showDesign)}>
             {showDesign ? "隐藏设计稿" : "显示设计稿"}
           </Button>
+        ) : (
+          <span className="text-muted-foreground text-xs">
+            这一页还没有设计稿位图：画布上只有编号。要对着原图看，先在设计稿位图那一栏传一张。
+          </span>
         )}
       </div>
       <div

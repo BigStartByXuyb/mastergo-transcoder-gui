@@ -2,7 +2,8 @@ import type { DerivedLayout, LayoutCell, LayoutChild, LayoutControl, LayoutGroup
 
 /*
  * 布局确认面板的纯逻辑：控件怎么认（编号 / 展示名 / 未找到时按 ref）、分组的增删改，
- * 以及布局树那两个口径（每行 key 的拼法与解析、一个分区分成哪几组、哪些格子盖住某一组）。
+ * 以及布局树那几个口径（每行 key 的拼法与解析、一个分区分成哪几组、哪些格子盖住某一组、
+ * 一个分区占几行几列）。
  *
  * 这里只做「界面自己怎么算」这件事，不做「表合不合法」的判断 —— 成员至少 2 个、一个 ref 只能进一个分组
  * 这类校验只有后端 lib/layout-groups.js 一处，界面把后端的原话照实显示（见 app/layout-panel.tsx）。
@@ -161,11 +162,16 @@ export function refsOfDerived(derived: DerivedLayout | null, key: string): strin
   return hit ? unique(hit.refs) : []
 }
 
-/* 一个格子盖住哪几行（含跨行）：行区间只有这一处；跨度由后端归一成至少 1（lib/derived-layout.js），这里直接用。 */
+/* 一段跨度铺成连续的序号（起、跨几格）：行与列各用一次，写法只有这一处。 */
+function indicesOf(from: number, count: number): number[] {
+  const out: number[] = []
+  for (let at = from; at < from + count; at += 1) out.push(at)
+  return out
+}
+
+/* 一个格子盖住哪几行（含跨行）：跨度由后端归一成至少 1（lib/derived-layout.js），这里直接用。 */
 function rowRangeOf(cell: LayoutCell): number[] {
-  const rows: number[] = []
-  for (let row = cell.row; row < cell.row + cell.rowSpan; row += 1) rows.push(row)
-  return rows
+  return indicesOf(cell.row, cell.rowSpan)
 }
 
 /* 一个分区里盖住第 k 行的格子（跨行的格子每一行都算盖住）：都读 rowRangeOf。 */
@@ -192,5 +198,11 @@ export function groupsOf(region: LayoutRegion): DerivedGroup[] {
     const covering = cellsInRow(region, row)
     return { group: index + 1, row: row, covering: covering, starting: covering.filter((cell) => cell.row === row) }
   })
+}
+
+/** 这个分区占几行几列（都按格子算：行＝有格子的行数，列＝格子盖住的列数）—— 与树上的摆法同一处口径。 */
+export function shapeOfRegion(region: LayoutRegion): { rows: number; columns: number } {
+  const columns = new Set(region.cells.flatMap((cell) => indicesOf(cell.column, cell.columnSpan)))
+  return { rows: rowsOfRegion(region).length, columns: columns.size }
 }
 
