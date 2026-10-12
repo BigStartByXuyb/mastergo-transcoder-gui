@@ -178,4 +178,6 @@
 | 2026-10-12 第 39 遍 | REVIEW-001 | 控件 value 仍有两处实现（`textOf` 与 `labelOf` 各 trim 一遍），注释却写「只有这一处取」 | 已收 | 取 value 收成 `valueOf(control)`：`textOf` 按 ref 找那一条再调它，`labelOf` 直接调它 |
 | 2026-10-12 第 40 遍 | REVIEW-001 | 台账第 36 遍的「已收」写的是字段链，而注释实际仍写 `parent.flex.flexDirection`（那次补丁没落地） | 已收 | 注释按台账那句落地（字段链 + 仓内路径 `plugins/mastergo-wpf-transcoder/<版本>/…/gen-mw-wpf-layout.js`）；台账那行也与之对齐 |
 | 2026-10-12 第 40 遍 | 非阻断 | `numberOf` 一次调用里扫两遍（`controlOf` + `indexOf`）；画布「要不要描」一次渲染算两遍 | 已收 | `numberOf` 回到一遍 `findIndex`；画布把 `on` 算一次、属性与类名共用 |
+| 2026-10-12 第 41 遍 | REVIEW-001 | 布局树的控件行缺 React key（列表渲染会按位置复用节点） | 已收 | 那一行由 `line()` 统一产出并带上 `key={lineKey}` |
+| 2026-10-12 第 41 遍 | REVIEW-002 | 重构后 `isControl` 成了无人引用的导出 | 已收 | 删掉（找那一条控件的判据只剩 `controlOf`） |
 

@@ -15,11 +15,6 @@ export function controlOf(controls: LayoutControl[], ref: string): LayoutControl
   return controls.find((item) => item.ref === ref) ?? null
 }
 
-/* 这个 ref 是不是脚本识别出来的控件（清单里有它）。「算不算控件」只有这一处判。 */
-export function isControl(controls: LayoutControl[], ref: string): boolean {
-  return controlOf(controls, ref) !== null
-}
-
 /** 控件编号＝控件清单里的次序（1 起）；不在清单里的 ref 给 0（清单被换过时不硬编一个号）。 */
 export function numberOf(controls: LayoutControl[], ref: string): number {
   const index = controls.findIndex((item) => item.ref === ref)

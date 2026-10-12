@@ -59,6 +59,7 @@ export function LayoutTree(props: {
 
   const line = (lineProps: { label: string; lineKey: string; depth: number; strong?: boolean }) => (
     <button
+      key={lineProps.lineKey}
       type="button"
       data-selected={props.selected === lineProps.lineKey}
       onClick={() => props.onPick(lineProps.lineKey)}
