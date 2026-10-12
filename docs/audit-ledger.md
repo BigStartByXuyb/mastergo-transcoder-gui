@@ -185,4 +185,5 @@
 | 2026-10-12 第 42 遍 | REVIEW-003 | key → refs 的纯逻辑搬进了视图模块，面板从视图模块 import 纯函数 | 已收 | `regionKey` / `rowKey` / `controlKey` / `refsOfDerived` 挪进 `ui/src/lib/layout-edit.ts`（与分组编辑那几件纯逻辑同处），视图只渲染 |
 | 2026-10-12 第 43 遍 | REVIEW-001 | 「第 k 行有哪些格子」在视图与纯逻辑里各算一遍 | 已收 | 收成 `ui/src/lib/layout-edit.ts` 的 `cellsInRow` / `rowsOfRegion`：树按它摆行，`refsOfDerived` 按它收 ref |
 | 2026-10-12 第 43 遍 | REVIEW-002 | `derived` 没照本模块「字段缺了当空」的约定读：半截响应（有 available 没 regions）会让面板崩 | 已收 | 同一道兜底做成 `derivedOf`（available 收成布尔、regions / unresolved 走 `listOf`、reason 收成串），读的时候都过它 |
+| 2026-10-12 第 44 遍 | REVIEW-001 | 两列的判据只看画板尺寸：布局树缺席时右列空着 | 已收 | 分两列只在「两块都在」时；只有一块就用整宽 |
 

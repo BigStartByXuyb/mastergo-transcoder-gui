@@ -125,7 +125,8 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
 
             {/* 画布与布局树各自独立：画板尺寸还不知道时，布局树（推导结果）照样要能看。 */}
             {canvas || layout.derived.available ? (
-              <div className={cn("grid gap-3", canvas && "lg:grid-cols-[minmax(0,1fr)_16rem]")}>
+              /* 分两列只在两块都在时：只有一块的时候别留一条空列。 */
+              <div className={cn("grid gap-3", canvas && layout.derived.available && "lg:grid-cols-[minmax(0,1fr)_16rem]")}>
                 {canvas && (
                   <LayoutCanvas
                     controls={layout.controls}
