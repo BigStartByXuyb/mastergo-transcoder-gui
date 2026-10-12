@@ -132,17 +132,22 @@ export function refsOfDerived(derived: DerivedLayout, key: string): string[] {
   return region ? region.cells.map((cell) => cell.ref) : []
 }
 
-/* 一个分区里盖住第 k 行的格子（跨行的格子每一行都算盖住）：树按行摆、refsOfDerived 按行收，同一条判据。 */
+/* 一个格子盖住哪几行（含跨行）：行区间只有这一处。 */
+export function rowRangeOf(cell: LayoutCell): number[] {
+  const rows: number[] = []
+  for (let row = cell.row; row < cell.row + Math.max(1, cell.rowSpan); row += 1) rows.push(row)
+  return rows
+}
+
+/* 一个分区里盖住第 k 行的格子（跨行的格子每一行都算盖住）：树按行摆、refsOfDerived 按行收，都读 rowRangeOf。 */
 export function cellsInRow(region: LayoutRegion, row: number): LayoutCell[] {
-  return region.cells.filter((cell) => row >= cell.row && row < cell.row + Math.max(1, cell.rowSpan))
+  return region.cells.filter((cell) => rowRangeOf(cell).includes(row))
 }
 
 /* 一个分区里有哪些行（把跨行的格子铺开、去重、从小到大）：树按它摆行。 */
 export function rowsOfRegion(region: LayoutRegion): number[] {
   const rows = new Set<number>()
-  for (const cell of region.cells) {
-    for (let row = cell.row; row < cell.row + Math.max(1, cell.rowSpan); row += 1) rows.add(row)
-  }
+  for (const cell of region.cells) for (const row of rowRangeOf(cell)) rows.add(row)
   return [...rows].sort((left, right) => left - right)
 }
 
