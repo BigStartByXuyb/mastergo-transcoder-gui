@@ -135,4 +135,12 @@ describe("refsOfDerived", () => {
     expect(refsOfDerived(spanning, "region:work-area#g2")).toEqual(["1:9"])
     expect(refsOfDerived(spanning, "region:work-area#g3")).toEqual([])
   })
+
+  it("没归宿那条出口也剥掉合成容器那层前缀（画布按裸 ref 认框）", () => {
+    const withContainer: DerivedLayout = {
+      ...DERIVED,
+      unresolved: [{ ref: "synth:9:9", reason: "单条目栏：几何判不出它跟谁同组" }]
+    }
+    expect(refsOfDerived(withContainer, "unresolved")).toEqual(["9:9"])
+  })
 })

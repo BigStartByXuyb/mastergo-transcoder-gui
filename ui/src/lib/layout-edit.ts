@@ -166,7 +166,8 @@ function unique(refs: string[]): string[] {
 
 export function refsOfDerived(derived: DerivedLayout | null, key: string): string[] {
   if (!derived || !key) return []
-  if (key === UNRESOLVED_KEY) return derived.unresolved.map((item) => item.ref)
+  // 交出去给画布的 ref 一律剥掉合成容器那层前缀（画布按控件清单里的裸 ref 认框）。
+  if (key === UNRESOLVED_KEY) return unique(derived.unresolved.map((item) => bareRef(item.ref)))
   // 段一：[分区] 或 [分区 + 第几组]；后面的段都是「这一组的格子往下走的路径」。
   const [head, ...tail] = key.split(CONTROL_SEP)
   const [regionPart, groupPart] = head.split(GROUP_SEP)
@@ -177,9 +178,12 @@ export function refsOfDerived(derived: DerivedLayout | null, key: string): strin
     if (!part.startsWith(REF_PREFIX)) return []
     path.push(part.slice(REF_PREFIX.length))
   }
-  // 没有组号＝整个分区；有组号＝那一组盖住的格子（第几组对应哪一行只有 groupsOf 一处说了算）。
-  const covering = groupPart === undefined ? [] : (groupsOf(region)[Number(groupPart) - 1]?.covering ?? [])
-  const cells = groupPart === undefined ? region.cells : covering
+  // 没有组号＝整个分区；有组号＝那一组盖住的格子（第几组对应哪一行只有 groupsOf 一处说了算，越界就是空）。
+  let cells = region.cells
+  if (groupPart !== undefined) {
+    const group = groupsOf(region)[Number(groupPart) - 1]
+    cells = group ? group.covering : []
+  }
   if (path.length === 0) return unique(refsOfCells(cells))
   const hit = cellAt(cells, path)
   return hit ? unique(refsOfCell(hit)) : []
