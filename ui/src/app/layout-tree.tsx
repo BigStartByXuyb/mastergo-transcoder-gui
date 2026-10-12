@@ -1,33 +1,56 @@
-import type { DerivedLayout, LayoutControl } from "@/lib/api"
+import type { DerivedLayout, LayoutChild, LayoutControl } from "@/lib/api"
 import {
-  cellsInRow,
   controlLineKey,
   displayNameOf,
+  groupsOf,
+  groupKey,
   numberOf,
   regionKey,
-  rowKey,
-  rowsOfRegion,
   UNRESOLVED_KEY
 } from "@/lib/layout-edit"
 import { cn } from "@/lib/utils"
 
 /*
- * 布局树：作业A **第 8 步推出来的布局**（分区 → 行/列 → 格子），不是设计稿原始层级 ——
- * 这一栏要回答的是「它把这一页分成了什么」；设计稿原本长什么样，画布那侧看得出来。
+ * 布局树：作业A **第 8 步推出来的布局**，摆成正常的树 —— 分区 → 组（分区里的某一行）→ 格子 → 格子里的格子。
  *
- * 点一行，把这一行盖住的控件在画布上描出来（key → refs 只有 refsOfDerived 一处）。
- * 控件那一行显示它的 value（没有 value 就退回控件类型）+ 它在清单里的号；号由 numberOf 现算。
+ * 每一行都带得起「人怎么指它」的名字：控件行是它的号加名字（#6 Camera；清单里没有的按产物给的类型或 ref 显示），
+ * 组行是它在这个分区里的号（组 #2）。
+ * 点一行，把它盖住的控件在画布上描出来（key → refs 只有 refsOfDerived 一处）。
  */
 
-/* 一个控件在树上的名字：名字取自 displayNameOf（value 优先），末尾带它在清单里的号。 */
-function controlLabel(controls: LayoutControl[], ref: string): string {
-  const head = displayNameOf(controls, ref)
+/* 一个控件在树上的名字：清单里有它就用清单的（号 + value），没有就退回产物给的类型，再没有才是 ref。 */
+function nameOf(controls: LayoutControl[], ref: string, controlType: string): string {
   const number = numberOf(controls, ref)
-  return number > 0 ? head + " · #" + number : head
+  if (number > 0) return "#" + number + " " + displayNameOf(controls, ref)
+  return controlType || displayNameOf(controls, ref)
 }
 
-/* 树上的每一行（纯数据）：key / 缩进 / 是否加粗 / 文案 —— 从哪里来（分区/行/控件/没归宿）只在这一处拼。 */
+/* 一个格子在树上的文案：名字 + 它是容器 / 跨了几行几列（两样都是产物说的事实）。 */
+function cellLabel(controls: LayoutControl[], cell: LayoutChild): string {
+  const marks: string[] = []
+  if (cell.container) marks.push("容器")
+  if (cell.rowSpan > 1 || cell.columnSpan > 1) marks.push("跨 " + cell.rowSpan + " 行 × " + cell.columnSpan + " 列")
+  const name = nameOf(controls, cell.ref, cell.controlType)
+  return marks.length > 0 ? name + "（" + marks.join("，") + "）" : name
+}
+
+/* 树上的每一行（纯数据）：key / 缩进 / 是否加粗 / 文案 —— 从哪里来（分区/组/格子/没归宿）只在这一处拼。 */
 type TreeLine = { key: string; depth: number; strong: boolean; label: string }
+
+/* 一格连同它里面装着的那几层：套几层就往下摆几层。 */
+function pushCell(
+  lines: TreeLine[],
+  regionId: string,
+  group: number,
+  path: string[],
+  cell: LayoutChild,
+  depth: number,
+  controls: LayoutControl[]
+) {
+  const next = [...path, cell.ref]
+  lines.push({ key: controlLineKey(regionId, group, next), depth: depth, strong: true, label: cellLabel(controls, cell) })
+  for (const child of cell.children) pushCell(lines, regionId, group, next, child, depth + 1, controls)
+}
 
 function linesOfDerived(derived: DerivedLayout, controls: LayoutControl[]): TreeLine[] {
   const lines: TreeLine[] = []
@@ -38,23 +61,14 @@ function linesOfDerived(derived: DerivedLayout, controls: LayoutControl[]): Tree
       strong: true,
       label: region.name + " · " + (region.emit ? "发射" : "只注册")
     })
-    for (const row of rowsOfRegion(region)) {
-      lines.push({ key: rowKey(region.id, row), depth: 1, strong: false, label: "第 " + row + " 行" })
-      for (const cell of cellsInRow(region, row)) {
-        lines.push({
-          key: controlLineKey(region.id, row, cell.ref),
-          depth: 2,
-          strong: true,
-          label:
-            controlLabel(controls, cell.ref) +
-            "（第 " +
-            cell.column +
-            " 列" +
-            (cell.rowSpan > 1 || cell.columnSpan > 1 ? "，跨 " + cell.rowSpan + " 行 × " + cell.columnSpan + " 列" : "") +
-            "）"
-        })
-      }
-    }
+    /*
+     * 每一组展开的是「从这一行起始的格子」—— 跨行的只在它起始的那一组里展开一次（跨了几行已经写在标签里），
+     * 否则一个跨 6 行的容器会把整棵子树在 6 个组里各复制一遍。点某一组时画布上照旧会描出盖住它的控件。
+     */
+    groupsOf(region).forEach(({ group, starting }) => {
+      lines.push({ key: groupKey(region.id, group), depth: 1, strong: false, label: "组 #" + group })
+      for (const cell of starting) pushCell(lines, region.id, group, [], cell, 2, controls)
+    })
   }
   if (derived.unresolved.length > 0) {
     lines.push({ key: UNRESOLVED_KEY, depth: 0, strong: true, label: "没归宿的 " + derived.unresolved.length + " 个" })
@@ -88,7 +102,7 @@ export function LayoutTree(props: {
       <div className="flex flex-wrap items-baseline gap-2">
         <span className="text-sm font-medium">布局树</span>
         <span className="text-muted-foreground text-xs">
-          布局那一步推出来的分区 → 行/列 → 格子；点一行，它会盖住的控件在画布上描出来。
+          布局那一步推出来的分区 → 组（它推出来的某一行）→ 格子；点一行，它会盖住的控件在画布上描出来。
         </span>
       </div>
       <div className="max-h-80 overflow-auto rounded-md border p-2">
@@ -117,7 +131,7 @@ export function LayoutTree(props: {
               style={{ paddingLeft: 16 }}
               title={item.reason}
             >
-              {controlLabel(props.controls, item.ref)}
+              {nameOf(props.controls, item.ref, "")}
             </span>
           ))}
         </div>

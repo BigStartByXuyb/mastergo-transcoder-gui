@@ -1,8 +1,8 @@
-import type { DerivedLayout, LayoutCell, LayoutControl, LayoutGroup, LayoutRegion } from "@/lib/api"
+import type { DerivedLayout, LayoutCell, LayoutChild, LayoutControl, LayoutGroup, LayoutRegion } from "@/lib/api"
 
 /*
  * 布局确认面板的纯逻辑：控件怎么认（编号 / 展示名 / 未找到时按 ref）、分组的增删改，
- * 以及布局树那两个口径（行 key 的拼法与解析、一个分区有哪些行、哪些格子盖住某一行）。
+ * 以及布局树那两个口径（每行 key 的拼法与解析、一个分区分成哪几组、哪些格子盖住某一组）。
  *
  * 这里只做「界面自己怎么算」这件事，不做「表合不合法」的判断 —— 成员至少 2 个、一个 ref 只能进一个分组
  * 这类校验只有后端 lib/layout-groups.js 一处，界面把后端的原话照实显示（见 app/layout-panel.tsx）。
@@ -86,51 +86,79 @@ export function removeGroup(groups: LayoutGroup[], id: string): LayoutGroup[] {
 }
 
 /*
- * 布局树上那一行的 key（分区 / 分区里的某一行 / 某个控件 / 没归宿那一段）与「这一行盖住哪几个控件」。
+ * 布局树上那一行的 key（分区 / 分区里的第几组 / 某一格 / 没归宿那一段）与「这一行盖住哪几个控件」。
  * 纯逻辑，与分组编辑同处：界面按 key 记住选了哪一行，要描的控件由 refsOfDerived 现算（不另存一份）。
  */
 export const UNRESOLVED_KEY = "unresolved"
 
 /*
- * 行 key 的拼法：分区 → 行 → 控件，三段按下面三个分隔符接起来（拼装与解析都只认这三个常量）。
- * 前提：ref 与分区 id 里不含这些片段（产物的 ref 形如 `1:9`，分区 id 形如 `work-area`）。
+ * key 的拼法：分区 → 第几组（组＝分区里的某一行）→ 格子路径（每段一个 ref，套几层就有几段），
+ * 按下面三处接起来（拼装与解析都只认这三处）。
+ * 前提：ref 与分区 id 里不含这些片段（产物的 ref 形如 `1872:59913`，分区 id 形如 `work-area`）。
  */
-/* 「分区里的某一行」那段 key 的分隔：生产（rowKey）与解析（refsOfDerived）只认这一处。 */
-const ROW_SEP = "#row:"
+/* 「分区里的第几组」那段 key 的分隔：拼（groupKey）与解（refsOfDerived）只认这一处。 */
+const GROUP_SEP = "#group:"
 /* 「某个控件」那段 key 的前缀：同样只认这一处。 */
 const REF_PREFIX = "ref:"
-/* 控件行 key 里「分区 + 行」与「控件」两段的分隔：同样只认这一处。 */
+/* key 里两段之间的分隔：同样只认这一处。 */
 const CONTROL_SEP = "/"
 
 export function regionKey(id: string): string {
   return "region:" + id
 }
 
-export function rowKey(id: string, row: number): string {
-  return regionKey(id) + ROW_SEP + row
+export function groupKey(id: string, group: number): string {
+  return regionKey(id) + GROUP_SEP + group
 }
 
 function controlKey(ref: string): string {
   return REF_PREFIX + ref
 }
 
-/* 树上一条控件行的 key：带上「分区 + 行」，因为跨行的格子会在多行里各出现一次（同一条 ref 会有多条行）。 */
-export function controlLineKey(regionId: string, row: number, ref: string): string {
-  return rowKey(regionId, row) + CONTROL_SEP + controlKey(ref)
+/* 树上一条格子行的 key：分区 + 第几组 + 从这一组下去的路径（套着的几层各占一段）。 */
+export function controlLineKey(regionId: string, group: number, path: string[]): string {
+  return groupKey(regionId, group) + path.map((ref) => CONTROL_SEP + controlKey(ref)).join("")
+}
+
+/* 按路径找那一格：每段是那一层里的一个 ref。 */
+function cellAt(cells: LayoutChild[], path: string[]): LayoutChild | null {
+  const hit = cells.find((cell) => cell.ref === path[0])
+  if (!hit) return null
+  return path.length === 1 ? hit : cellAt(hit.children, path.slice(1))
+}
+
+/* 这几格在画布上盖住的控件 ref：读视图已经把每一格（连同它里面装着的）摊好了，这里只收集。 */
+function refsOfCells(cells: LayoutChild[]): string[] {
+  return cells.flatMap((cell) => cell.refs)
+}
+
+/* 要描的控件是一份集合：同一格可能从两条路进来，去重只在这里做。 */
+function unique(refs: string[]): string[] {
+  return [...new Set(refs)]
 }
 
 export function refsOfDerived(derived: DerivedLayout | null, key: string): string[] {
   if (!derived || !key) return []
-  if (key === UNRESOLVED_KEY) return derived.unresolved.map((item) => item.ref)
-  // 控件行可能带「分区 + 行」前缀（跨行的格子每行一条）：只看最后那一段。
-  const tail = key.slice(key.lastIndexOf(CONTROL_SEP) + 1)
-  if (tail.startsWith(REF_PREFIX)) return [tail.slice(REF_PREFIX.length)]
-  // 剩下两种 key 都是「分区」开头：带 ROW_SEP 的是分区里的一行，不带的是整个分区。
-  const [regionPart, rowPart] = key.split(ROW_SEP)
+  if (key === UNRESOLVED_KEY) return unique(derived.unresolved.map((item) => item.ref))
+  // 段一：[分区] 或 [分区 + 第几组]；后面的段都是「这一组的格子往下走的路径」。
+  const [head, ...tail] = key.split(CONTROL_SEP)
+  const [regionPart, groupPart] = head.split(GROUP_SEP)
   const region = derived.regions.find((item) => regionKey(item.id) === regionPart)
   if (!region) return []
-  const cells = rowPart === undefined ? region.cells : cellsInRow(region, Number(rowPart))
-  return cells.map((cell) => cell.ref)
+  const path: string[] = []
+  for (const part of tail) {
+    if (!part.startsWith(REF_PREFIX)) return []
+    path.push(part.slice(REF_PREFIX.length))
+  }
+  // 没有组号＝整个分区；有组号＝那一组盖住的格子（第几组对应哪一行只有 groupsOf 一处说了算，越界就是空）。
+  let cells = region.cells
+  if (groupPart !== undefined) {
+    const group = groupsOf(region)[Number(groupPart) - 1]
+    cells = group ? group.covering : []
+  }
+  if (path.length === 0) return unique(refsOfCells(cells))
+  const hit = cellAt(cells, path)
+  return hit ? unique(hit.refs) : []
 }
 
 /* 一个格子盖住哪几行（含跨行）：行区间只有这一处；跨度由后端归一成至少 1（lib/derived-layout.js），这里直接用。 */
@@ -140,15 +168,29 @@ function rowRangeOf(cell: LayoutCell): number[] {
   return rows
 }
 
-/* 一个分区里盖住第 k 行的格子（跨行的格子每一行都算盖住）：树按行摆、refsOfDerived 按行收，都读 rowRangeOf。 */
-export function cellsInRow(region: LayoutRegion, row: number): LayoutCell[] {
+/* 一个分区里盖住第 k 行的格子（跨行的格子每一行都算盖住）：都读 rowRangeOf。 */
+function cellsInRow(region: LayoutRegion, row: number): LayoutCell[] {
   return region.cells.filter((cell) => rowRangeOf(cell).includes(row))
 }
 
-/* 一个分区里有哪些行（把跨行的格子铺开、去重、从小到大）：树按它摆行。 */
-export function rowsOfRegion(region: LayoutRegion): number[] {
+/* 一个分区里有哪些行（把跨行的格子铺开、去重、从小到大）。 */
+function rowsOfRegion(region: LayoutRegion): number[] {
   const rows = new Set<number>()
   for (const cell of region.cells) for (const row of rowRangeOf(cell)) rows.add(row)
   return [...rows].sort((left, right) => left - right)
+}
+
+/*
+ * 一个分区里的组：组号（1 起）＝第几个「有格子的行」—— 树上的「组 #k」与 key 里的组号都按这一处算。
+ *   covering —— 盖住这一行的格子（跨行过来的也算：点这一组时画布上要描这些）；
+ *   starting —— 从这一行起始的格子（树只展开这些，跨行的不在别的组里重复一遍）。
+ */
+type DerivedGroup = { group: number; row: number; covering: LayoutCell[]; starting: LayoutCell[] }
+
+export function groupsOf(region: LayoutRegion): DerivedGroup[] {
+  return rowsOfRegion(region).map((row, index) => {
+    const covering = cellsInRow(region, row)
+    return { group: index + 1, row: row, covering: covering, starting: covering.filter((cell) => cell.row === row) }
+  })
 }
 
