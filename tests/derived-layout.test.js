@@ -328,7 +328,9 @@ function caseSpans() {
             columns: [1],
             cells: [
               { ref: "1:9", row: 1, column: 1, rowSpan: 0, columnSpan: -2 },
-              { ref: "1:10", row: 2, column: 1, rowSpan: 2, columnSpan: 3 }
+              { ref: "1:10", row: 2, column: 1, rowSpan: 2, columnSpan: 3 },
+              /* 数字串与布尔不算数（与坐标同一条类型口径）。 */
+              { ref: "1:11", row: 3, column: 1, rowSpan: "2", columnSpan: true }
             ]
           }
         }
@@ -336,7 +338,11 @@ function caseSpans() {
     }),
     "utf8"
   );
-  assert.deepStrictEqual(read(root).regions[0].cells, [cell("1:9", "", 1, 1), cell("1:10", "", 2, 1, 2, 3)]);
+  assert.deepStrictEqual(read(root).regions[0].cells, [
+    cell("1:9", "", 1, 1),
+    cell("1:10", "", 2, 1, 2, 3),
+    cell("1:11", "", 3, 1)
+  ]);
   fs.rmSync(root, { recursive: true, force: true });
 }
 
