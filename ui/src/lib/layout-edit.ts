@@ -112,10 +112,17 @@ export function controlKey(ref: string): string {
   return REF_PREFIX + ref
 }
 
+/* 树上一条控件行的 key：带上「分区 + 行」，因为跨行的格子会在多行里各出现一次（同一条 ref 会有多条行）。 */
+export function controlLineKey(regionId: string, row: number, ref: string): string {
+  return rowKey(regionId, row) + "/" + controlKey(ref)
+}
+
 export function refsOfDerived(derived: DerivedLayout, key: string): string[] {
   if (!key) return []
   if (key === UNRESOLVED_KEY) return derived.unresolved.map((item) => item.ref)
-  if (key.startsWith(REF_PREFIX)) return [key.slice(REF_PREFIX.length)]
+  // 控件行可能带「分区 + 行」前缀（跨行的格子每行一条）：只看最后那一段。
+  const tail = key.slice(key.lastIndexOf("/") + 1)
+  if (tail.startsWith(REF_PREFIX)) return [tail.slice(REF_PREFIX.length)]
   if (key.includes(ROW_SEP)) {
     const [regionPart, rowPart] = key.split(ROW_SEP)
     const region = derived.regions.find((item) => regionKey(item.id) === regionPart)

@@ -100,6 +100,8 @@ describe("LayoutTree", () => {
     expect(refsOfDerived(DERIVED, "region:work-area#row:2")).toEqual(["1:11"])
     expect(refsOfDerived(DERIVED, "region:top-strip")).toEqual([])
     expect(refsOfDerived(DERIVED, "ref:1:9")).toEqual(["1:9"])
+    // 跨行的格子那条行 key 带「分区 + 行」前缀，解析时只看最后一段。
+    expect(refsOfDerived(DERIVED, "region:work-area#row:1/ref:1:9")).toEqual(["1:9"])
     expect(refsOfDerived(DERIVED, "unresolved")).toEqual(["1:11"])
     expect(refsOfDerived(DERIVED, "")).toEqual([])
   })

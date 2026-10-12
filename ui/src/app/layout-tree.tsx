@@ -1,7 +1,7 @@
 import type { DerivedLayout, LayoutControl } from "@/lib/api"
 import {
   cellsInRow,
-  controlKey,
+  controlLineKey,
   displayNameOf,
   numberOf,
   regionKey,
@@ -43,7 +43,7 @@ function linesOfDerived(derived: DerivedLayout, controls: LayoutControl[]): Tree
       lines.push({ key: rowKey(region.id, row), depth: 1, strong: false, label: "第 " + row + " 行" })
       for (const cell of cellsInRow(region, row)) {
         lines.push({
-          key: controlKey(cell.ref),
+          key: controlLineKey(region.id, row, cell.ref),
           depth: 2,
           strong: true,
           label:
@@ -104,8 +104,13 @@ export function LayoutTree(props: {
             </button>
           ))}
           {/* 没归宿那几条的下面是插件给的原因（鼠标停上去看），不进树的行里。 */}
-          {props.derived.unresolved.map((item) => (
-            <span key={item.ref} className="text-muted-foreground text-xs" style={{ paddingLeft: 16 }} title={item.reason}>
+          {props.derived.unresolved.map((item, index) => (
+            <span
+              key={index + ":" + item.ref}
+              className="text-muted-foreground text-xs"
+              style={{ paddingLeft: 16 }}
+              title={item.reason}
+            >
               {controlLabel(props.controls, item.ref)}
             </span>
           ))}
