@@ -125,19 +125,18 @@ export function refsOfDerived(derived: DerivedLayout | null, key: string): strin
   // 控件行可能带「分区 + 行」前缀（跨行的格子每行一条）：只看最后那一段。
   const tail = key.slice(key.lastIndexOf(CONTROL_SEP) + 1)
   if (tail.startsWith(REF_PREFIX)) return [tail.slice(REF_PREFIX.length)]
-  if (key.includes(ROW_SEP)) {
-    const [regionPart, rowPart] = key.split(ROW_SEP)
-    const region = derived.regions.find((item) => regionKey(item.id) === regionPart)
-    return region ? cellsInRow(region, Number(rowPart)).map((cell) => cell.ref) : []
-  }
-  const region = derived.regions.find((item) => regionKey(item.id) === key)
-  return region ? region.cells.map((cell) => cell.ref) : []
+  // 剩下两种 key 都是「分区」开头：带 ROW_SEP 的是分区里的一行，不带的是整个分区。
+  const [regionPart, rowPart] = key.split(ROW_SEP)
+  const region = derived.regions.find((item) => regionKey(item.id) === regionPart)
+  if (!region) return []
+  const cells = rowPart === undefined ? region.cells : cellsInRow(region, Number(rowPart))
+  return cells.map((cell) => cell.ref)
 }
 
-/* 一个格子盖住哪几行（含跨行）：行区间只有这一处。 */
+/* 一个格子盖住哪几行（含跨行）：行区间只有这一处；跨度由后端归一成至少 1（lib/derived-layout.js），这里直接用。 */
 function rowRangeOf(cell: LayoutCell): number[] {
   const rows: number[] = []
-  for (let row = cell.row; row < cell.row + Math.max(1, cell.rowSpan); row += 1) rows.push(row)
+  for (let row = cell.row; row < cell.row + cell.rowSpan; row += 1) rows.push(row)
   return rows
 }
 

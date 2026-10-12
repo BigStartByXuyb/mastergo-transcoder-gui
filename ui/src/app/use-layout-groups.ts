@@ -10,7 +10,7 @@ import { api, type DerivedLayout, type LayoutControl, type LayoutGroup } from "@
  * 写回校验与「哪些算可用」的判据在后端 lib/layout-groups.js。
  *
  * 读回来的三份（控件清单 / 分组表 / 推导结果）形状由后端一处保证（lib/layout-groups.js 的 inspect），
- * 这里不逐字段判空：契约对不上时当场暴露，不静默降级成空数据。
+ * 这里不逐字段判空：契约对不上时当场暴露，不静默降级成空数据（推导结果没给时按「还没读到」处理）。
  */
 
 export type LayoutGroupsInput = {

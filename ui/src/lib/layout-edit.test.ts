@@ -6,11 +6,12 @@ import {
   labelOf,
   moveMember,
   numberOf,
+  refsOfDerived,
   removeGroup,
   removeMember,
   ungroupedControls
 } from "@/lib/layout-edit"
-import type { LayoutControl, LayoutGroup } from "@/lib/api"
+import type { DerivedLayout, LayoutControl, LayoutGroup } from "@/lib/api"
 
 /*
  * 布局确认面板的纯逻辑：编号、未分组清单、分组的增删改。写回校验的判据在后端，这里不重复。
@@ -22,6 +23,26 @@ function control(ref: string, controlType = "IconButton", text = ""): LayoutCont
 
 const CONTROLS = [control("1:9", "IconButton", "确定"), control("1:10", "IconButton"), control("1:11", "TextBlock", "标题")]
 const GROUPS: LayoutGroup[] = [{ id: "RightTools", kind: "column", members: ["1:9", "1:10"] }]
+
+/* 一份推导结果（分区 → 行/列 → 格子 + 没归宿的那几条），与视图用例里那份同形。 */
+const DERIVED: DerivedLayout = {
+  available: true,
+  reason: "",
+  regions: [
+    { id: "top-strip", name: "顶部栏", emit: false, cells: [] },
+    {
+      id: "work-area",
+      name: "工作区",
+      emit: true,
+      cells: [
+        { ref: "1:9", row: 1, column: 2, rowSpan: 1, columnSpan: 1 },
+        { ref: "1:10", row: 1, column: 3, rowSpan: 1, columnSpan: 1 },
+        { ref: "1:11", row: 2, column: 1, rowSpan: 1, columnSpan: 1 }
+      ]
+    }
+  ],
+  unresolved: [{ ref: "1:12", reason: "单条目栏：几何判不出它跟谁同组" }]
+}
 
 describe("layout-edit", () => {
   it("编号按清单次序，清单里没有的 ref 不编号、照原样显示", () => {
@@ -61,5 +82,42 @@ describe("layout-edit", () => {
     expect(addGroup(GROUPS, " TopBar ", "row").map((group) => group.id)).toEqual(["RightTools", "TopBar"])
     expect(addGroup(GROUPS, "   ", "row")).toEqual(GROUPS)
     expect(removeGroup(GROUPS, "RightTools")).toEqual([])
+  })
+})
+
+/* 树上那一行的 key 怎么拼、怎么解回要描的控件：断言的是 key 的拼法契约本身。 */
+describe("refsOfDerived", () => {
+  it("四种 key：整个分区 / 分区里的一行 / 单个控件 / 没归宿", () => {
+    expect(refsOfDerived(DERIVED, "region:work-area")).toEqual(["1:9", "1:10", "1:11"])
+    expect(refsOfDerived(DERIVED, "region:work-area#row:1")).toEqual(["1:9", "1:10"])
+    expect(refsOfDerived(DERIVED, "region:work-area#row:2")).toEqual(["1:11"])
+    expect(refsOfDerived(DERIVED, "region:top-strip")).toEqual([])
+    expect(refsOfDerived(DERIVED, "ref:1:9")).toEqual(["1:9"])
+    // 控件行带「分区 + 行」前缀（跨行的格子每行一条），解析时只看最后一段。
+    expect(refsOfDerived(DERIVED, "region:work-area#row:1/ref:1:9")).toEqual(["1:9"])
+    expect(refsOfDerived(DERIVED, "unresolved")).toEqual(["1:12"])
+    // 空 key / 认不出的分区 / 还没有读数：都描不出东西。
+    expect(refsOfDerived(DERIVED, "")).toEqual([])
+    expect(refsOfDerived(DERIVED, "region:nope")).toEqual([])
+    expect(refsOfDerived(null, "region:work-area")).toEqual([])
+  })
+
+  it("跨行的格子：它盖住的每一行都算有它", () => {
+    const spanning: DerivedLayout = {
+      available: true,
+      reason: "",
+      regions: [
+        {
+          id: "work-area",
+          name: "工作区",
+          emit: true,
+          cells: [{ ref: "1:9", row: 2, column: 1, rowSpan: 2, columnSpan: 1 }]
+        }
+      ],
+      unresolved: []
+    }
+    expect(refsOfDerived(spanning, "region:work-area#row:1")).toEqual([])
+    expect(refsOfDerived(spanning, "region:work-area#row:2")).toEqual(["1:9"])
+    expect(refsOfDerived(spanning, "region:work-area#row:3")).toEqual(["1:9"])
   })
 })

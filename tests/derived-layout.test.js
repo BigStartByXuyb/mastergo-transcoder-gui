@@ -126,13 +126,80 @@ function caseUnresolved() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+/* 一格读不出行列坐标（半截写盘 / 字段名变了）：不拿 0 顶上，照「没归宿」说给界面。 */
+function caseCellWithoutPosition() {
+  const root = sandbox();
+  fs.writeFileSync(
+    productFile(root),
+    JSON.stringify({
+      regions: [
+        {
+          id: "work-area",
+          name: "工作区",
+          emit: true,
+          grid: {
+            rows: [1],
+            columns: [1],
+            cells: [
+              { ref: "1:9", row: 1, column: 1 },
+              { ref: "1:10", column: 2 },
+              { ref: "1:11", row: 0, column: 0 }
+            ]
+          }
+        }
+      ]
+    }),
+    "utf8"
+  );
+  const state = read(root);
+  assert.deepStrictEqual(state.regions[0].cells, [{ ref: "1:9", row: 1, column: 1, rowSpan: 1, columnSpan: 1 }]);
+  assert.deepStrictEqual(state.unresolved, [
+    { ref: "1:10", reason: "推导产物里这一格没有行列坐标（坐标从 1 起）" },
+    { ref: "1:11", reason: "推导产物里这一格没有行列坐标（坐标从 1 起）" }
+  ]);
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
+/* 跨度：没给或给得不合法都按 1 —— 跨度只在这一处归一，界面直接用。 */
+function caseSpans() {
+  const root = sandbox();
+  fs.writeFileSync(
+    productFile(root),
+    JSON.stringify({
+      regions: [
+        {
+          id: "work-area",
+          name: "工作区",
+          emit: true,
+          grid: {
+            rows: [1],
+            columns: [1],
+            cells: [
+              { ref: "1:9", row: 1, column: 1, rowSpan: 0, columnSpan: -2 },
+              { ref: "1:10", row: 2, column: 1, rowSpan: 2, columnSpan: 3 }
+            ]
+          }
+        }
+      ]
+    }),
+    "utf8"
+  );
+  assert.deepStrictEqual(read(root).regions[0].cells, [
+    { ref: "1:9", row: 1, column: 1, rowSpan: 1, columnSpan: 1 },
+    { ref: "1:10", row: 2, column: 1, rowSpan: 2, columnSpan: 3 }
+  ]);
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 try {
   const cases = [
     ["这一步还没跑过：说一句原因，不摆空的树", caseNoProduct],
     ["产物在但读不出 regions：按没有算", caseBrokenProduct],
     ["不读产物时的空读数", caseEmptyDerived],
     ["分区与格子归一（只注册 / 缺字段 / 缺网格）", caseRegions],
-    ["没归宿的从同趟报告取", caseUnresolved]
+    ["没归宿的从同趟报告取", caseUnresolved],
+    ["一格读不出坐标：照「没归宿」说，不拿 0 顶上", caseCellWithoutPosition],
+    ["跨度按至少 1 归一", caseSpans]
   ];
   for (const [name, run] of cases) {
     run();

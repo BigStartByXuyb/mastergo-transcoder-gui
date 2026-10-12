@@ -33,4 +33,5 @@
 | 本地记住的值什么时候写回 | `ui/src/app/use-remembered.ts` · `export function useRemembered<` | 两张「新建任务」表单（`ui/src/app/pipeline-page.tsx`、`board-page.tsx`）、看板筛选（`board-page.tsx`）、只看生效（`ui/src/app/use-only-effective.ts`） |
 | 布局树行 key 的三种分隔符 | `ui/src/lib/layout-edit.ts` · `const ROW_SEP =`、`const REF_PREFIX =`、`const CONTROL_SEP =` | 树上每行 key 的拼接（`rowKey` / `controlLineKey`）与解析（`refsOfDerived`） |
 | 推导产物与同趟报告的路径拼法 | `lib/workdir.js` · `function wpfLayoutPath(`、`function wpfLayoutReportPath(` | `lib/derived-layout.js` 的 `read`（读视图只出去事实，不自己拼路径） |
+| 格子坐标与跨度的归一（坐标从 1 起、跨度至少 1） | `lib/derived-layout.js` · `const NO_POSITION_REASON =`、`function positionOf(`、`function spanOf(` | 布局树的格子（界面直接用；读不出坐标的照「没归宿」暴露，不拿 0 顶上） |
 

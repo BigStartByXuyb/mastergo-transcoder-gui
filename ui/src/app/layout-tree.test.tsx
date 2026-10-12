@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest"
 
 import { LayoutTree } from "@/app/layout-tree"
 import type { DerivedLayout, LayoutControl } from "@/lib/api"
-import { refsOfDerived } from "@/lib/layout-edit"
 
 /*
  * 布局树：显示的是**推导出来的**布局（分区 → 行/列 → 格子），不是设计稿原始层级。
@@ -101,21 +100,7 @@ describe("LayoutTree", () => {
     expect(picked).toHaveBeenLastCalledWith("unresolved")
   })
 
-  it("key → 要描的控件：分区给全部分区里的，行给那一行的，单个控件给一个，没归宿给那几条", () => {
-    expect(refsOfDerived(DERIVED, "region:work-area")).toEqual(["1:9", "1:10", "1:11"])
-    expect(refsOfDerived(DERIVED, "region:work-area#row:1")).toEqual(["1:9", "1:10"])
-    expect(refsOfDerived(DERIVED, "region:work-area#row:2")).toEqual(["1:11"])
-    expect(refsOfDerived(DERIVED, "region:top-strip")).toEqual([])
-    expect(refsOfDerived(DERIVED, "ref:1:9")).toEqual(["1:9"])
-    // 跨行的格子那条行 key 带「分区 + 行」前缀，解析时只看最后一段。
-    expect(refsOfDerived(DERIVED, "region:work-area#row:1/ref:1:9")).toEqual(["1:9"])
-    expect(refsOfDerived(DERIVED, "unresolved")).toEqual(["1:12"])
-    expect(refsOfDerived(DERIVED, "")).toEqual([])
-    // 还没有读数（null）：什么都描不出来。
-    expect(refsOfDerived(null, "region:work-area")).toEqual([])
-  })
-
-  it("跨行的格子：它盖住的每一行都算有它，行列表也把它铺开", () => {
+  it("跨行的格子：它盖住的每一行都列出来", () => {
     const spanning: DerivedLayout = {
       available: true,
       reason: "",
@@ -129,9 +114,6 @@ describe("LayoutTree", () => {
       ],
       unresolved: []
     }
-    expect(refsOfDerived(spanning, "region:work-area#row:1")).toEqual([])
-    expect(refsOfDerived(spanning, "region:work-area#row:2")).toEqual(["1:9"])
-    expect(refsOfDerived(spanning, "region:work-area#row:3")).toEqual(["1:9"])
     render(<LayoutTree derived={spanning} controls={CONTROLS} selected="" onPick={() => undefined} />)
     expect(screen.getByText("第 2 行")).toBeTruthy()
     expect(screen.getByText("第 3 行")).toBeTruthy()
