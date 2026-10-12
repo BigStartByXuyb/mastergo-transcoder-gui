@@ -36,8 +36,7 @@ function linesOfDerived(derived: DerivedLayout, controls: LayoutControl[]): Tree
       key: regionKey(region.id),
       depth: 0,
       strong: true,
-      label:
-        region.name + " · " + (region.emit ? "发射" : "只注册") + " · " + region.rows + " 行 × " + region.columns + " 列"
+      label: region.name + " · " + (region.emit ? "发射" : "只注册")
     })
     for (const row of rowsOfRegion(region)) {
       lines.push({ key: rowKey(region.id, row), depth: 1, strong: false, label: "第 " + row + " 行" })

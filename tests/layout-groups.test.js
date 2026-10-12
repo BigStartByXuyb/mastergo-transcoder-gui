@@ -119,13 +119,11 @@ function main() {
     assert.strictEqual(info.derived.available, true);
     assert.strictEqual(info.derived.reason, "");
     assert.deepStrictEqual(info.derived.regions, [
-      { id: "top", name: "顶部栏", emit: false, rows: 1, columns: 1, cells: [] },
+      { id: "top", name: "顶部栏", emit: false, cells: [] },
       {
         id: "work",
         name: "工作区",
         emit: true,
-        rows: 2,
-        columns: 3,
         cells: [
           { ref: "a", row: 1, column: 2, rowSpan: 1, columnSpan: 1 },
           { ref: "c", row: 2, column: 1, rowSpan: 2, columnSpan: 1 }

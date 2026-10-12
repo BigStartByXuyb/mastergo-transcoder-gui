@@ -89,24 +89,18 @@ function caseRegions() {
   assert.strictEqual(state.available, true);
   assert.strictEqual(state.reason, "");
 
-  const strip = state.regions[0];
-  assert.strictEqual(strip.name, "顶部栏");
-  assert.strictEqual(strip.emit, false, "只注册的分区照实标出来");
-  assert.strictEqual(strip.rows, 1);
-  assert.strictEqual(strip.columns, 1);
-
-  const area = state.regions[1];
-  assert.strictEqual(area.name, "work-area", "没有名字就用 id 当名字");
-  assert.strictEqual(area.emit, true, "没写 emit 的按发射算");
-  assert.strictEqual(area.rows, 2, "行数列数按网格维度数");
-  assert.strictEqual(area.columns, 3);
-  assert.deepStrictEqual(area.cells[0], { ref: "1:9", row: 1, column: 2, rowSpan: 1, columnSpan: 1 });
-  assert.deepStrictEqual(area.cells[1], { ref: "1:10", row: 1, column: 3, rowSpan: 2, columnSpan: 1 });
-
-  const bare = state.regions[2];
-  assert.strictEqual(bare.rows, 0, "网格缺了就是 0 行 0 列，没有格子");
-  assert.strictEqual(bare.columns, 0);
-  assert.deepStrictEqual(bare.cells, []);
+  // 出去的就是这四样：名字 / 发不发射 / 格子；网格维度不往界面搬（有哪几行由界面按格子现算）。
+  assert.deepStrictEqual(state.regions[0], { id: "top-strip", name: "顶部栏", emit: false, cells: [] });
+  assert.deepStrictEqual(state.regions[1], {
+    id: "work-area",
+    name: "work-area",
+    emit: true,
+    cells: [
+      { ref: "1:9", row: 1, column: 2, rowSpan: 1, columnSpan: 1 },
+      { ref: "1:10", row: 1, column: 3, rowSpan: 2, columnSpan: 1 }
+    ]
+  });
+  assert.deepStrictEqual(state.regions[2], { id: "no-grid", name: "no-grid", emit: true, cells: [] }, "网格缺了就是没有格子");
 
   fs.rmSync(root, { recursive: true, force: true });
 }

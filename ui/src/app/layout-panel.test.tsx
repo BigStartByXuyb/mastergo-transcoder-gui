@@ -159,8 +159,6 @@ describe("LayoutPanel", () => {
             id: "work-area",
             name: "工作区",
             emit: true,
-            rows: 1,
-            columns: 1,
             cells: [{ ref: "1:9", row: 1, column: 1, rowSpan: 1, columnSpan: 1 }]
           }
         ],

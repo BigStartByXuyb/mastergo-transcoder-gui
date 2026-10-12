@@ -9,6 +9,7 @@ import { refsOfDerived } from "@/lib/layout-edit"
  * 布局树：显示的是**推导出来的**布局（分区 → 行/列 → 格子），不是设计稿原始层级。
  * 点一行把这一行盖住的控件交出去（画布据此描边）；没有推导产物时只说一句原因。
  * 控件那一行按 value 显示（没有 value 退回控件类型），末尾带清单里的号。
+ * 分区行只说名字与发射/只注册；有哪几行一律从格子推（`rowsOfRegion`），不另报一个行数。
  */
 
 function control(ref: string, controlType: string, text: string): LayoutControl {
@@ -29,16 +30,12 @@ const DERIVED: DerivedLayout = {
       id: "top-strip",
       name: "顶部栏",
       emit: false,
-      rows: 1,
-      columns: 1,
       cells: []
     },
     {
       id: "work-area",
       name: "工作区",
       emit: true,
-      rows: 2,
-      columns: 3,
       cells: [
         { ref: "1:9", row: 1, column: 2, rowSpan: 1, columnSpan: 1 },
         { ref: "1:10", row: 1, column: 3, rowSpan: 1, columnSpan: 1 },
@@ -66,8 +63,8 @@ describe("LayoutTree", () => {
   it("分区 / 行 / 格子各就各位，控件按 value 显示并带号", () => {
     render(<LayoutTree derived={DERIVED} controls={CONTROLS} selected="" onPick={() => undefined} />)
 
-    expect(screen.getByText("顶部栏 · 只注册 · 1 行 × 1 列")).toBeTruthy()
-    expect(screen.getByText("工作区 · 发射 · 2 行 × 3 列")).toBeTruthy()
+    expect(screen.getByText("顶部栏 · 只注册")).toBeTruthy()
+    expect(screen.getByText("工作区 · 发射")).toBeTruthy()
     expect(screen.getByText("第 1 行")).toBeTruthy()
     expect(screen.getByText("第 2 行")).toBeTruthy()
     expect(screen.getByText("确定 · #1（第 2 列）")).toBeTruthy()
@@ -75,6 +72,8 @@ describe("LayoutTree", () => {
     expect(screen.getByText("IconButton · #2（第 3 列）")).toBeTruthy()
     expect(screen.getByText("标题 · #3（第 1 列）")).toBeTruthy()
     expect(screen.getByText("没归宿的 1 个")).toBeTruthy()
+    // 行只从格子推：顶部栏没有格子，一行都不列，整棵树只有工作区那两行。
+    expect(screen.getAllByText(/^第 \d+ 行$/).length).toBe(2)
   })
 
   it("点一行：把这一行盖住的控件交出去（分区 / 行 / 单个控件 / 没归宿各一条路）", () => {
@@ -84,7 +83,7 @@ describe("LayoutTree", () => {
     fireEvent.click(screen.getByText("第 1 行"))
     expect(picked).toHaveBeenLastCalledWith("region:work-area#row:1")
 
-    fireEvent.click(screen.getByText("工作区 · 发射 · 2 行 × 3 列"))
+    fireEvent.click(screen.getByText("工作区 · 发射"))
     expect(picked).toHaveBeenLastCalledWith("region:work-area")
 
     fireEvent.click(screen.getByText("标题 · #3（第 1 列）"))
@@ -116,8 +115,6 @@ describe("LayoutTree", () => {
           id: "work-area",
           name: "工作区",
           emit: true,
-          rows: 3,
-          columns: 1,
           cells: [{ ref: "1:9", row: 2, column: 1, rowSpan: 2, columnSpan: 1 }]
         }
       ],
@@ -135,7 +132,7 @@ describe("LayoutTree", () => {
 
   it("选中的那一行标出来（选中态由调用方给，不在组件里另存一份）", () => {
     render(<LayoutTree derived={DERIVED} controls={CONTROLS} selected="region:work-area" onPick={() => undefined} />)
-    expect(screen.getByText("工作区 · 发射 · 2 行 × 3 列").getAttribute("data-selected")).toBe("true")
+    expect(screen.getByText("工作区 · 发射").getAttribute("data-selected")).toBe("true")
     expect(screen.getByText("第 1 行").getAttribute("data-selected")).toBe("false")
   })
 })

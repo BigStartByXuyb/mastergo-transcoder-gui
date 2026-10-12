@@ -1,15 +1,16 @@
 import type { DerivedLayout, LayoutCell, LayoutControl, LayoutGroup, LayoutRegion } from "@/lib/api"
 
 /*
- * 布局确认面板的两件纯逻辑：控件编号（人对编号说话，分组表里存 ref）与分组的增删改。
+ * 布局确认面板的纯逻辑：控件怎么认（编号 / 展示名 / 未找到时按 ref）、分组的增删改，
+ * 以及布局树那两个口径（行 key 的拼法与解析、一个分区有哪些行、哪些格子盖住某一行）。
  *
- * 这里只做「人怎么改」这件事，不做「表合不合法」的判断 —— 成员至少 2 个、一个 ref 只能进一个分组
+ * 这里只做「界面自己怎么算」这件事，不做「表合不合法」的判断 —— 成员至少 2 个、一个 ref 只能进一个分组
  * 这类校验只有后端 lib/layout-groups.js 一处，界面把后端的原话照实显示（见 app/layout-panel.tsx）。
  */
 
 /*
  * 清单里那一条控件（没有给 null）。「清单里有没有它 / 拿它的字段」都从这里走 ——
- * 同一条控件在界面几个地方（画布、层次图、面上清单）读出来的是同一份事实。
+ * 同一条控件在界面几个地方（画布、布局树、面上清单）读出来的是同一份事实。
  */
 function controlOf(controls: LayoutControl[], ref: string): LayoutControl | null {
   return controls.find((item) => item.ref === ref) ?? null
