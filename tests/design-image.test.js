@@ -73,6 +73,24 @@ function caseImageFile() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+/* 发给模型看的那张图（data URL）：没有图给空串，有图按文件头认格式，图坏了就抛（不静默退成「没有图」）。 */
+function caseDataUrl() {
+  const root = sandbox();
+  assert.strictEqual(designImage.dataUrl({ projectRoot: root, target: TARGET }), "", "还没有图时给空串");
+  upload(root, jpeg(1280, 1024), "shot.jpeg");
+  const url = designImage.dataUrl({ projectRoot: root, target: TARGET });
+  assert.match(url, /^data:image\/jpeg;base64,/, "格式按文件头认（名字是 .jpeg 也照内容给 MIME）");
+  assert.ok(url.split(",")[1].length > 0, "带上真字节");
+  // 图坏了（内容不是 PNG / JPEG）：抛出来，别让这一步静默退成「只按几何猜」。
+  fs.writeFileSync(path.join(root, "Generated", "_inputs", TARGET + ".design.jpg"), Buffer.from("这不是位图", "utf8"));
+  assert.throws(
+    () => designImage.dataUrl({ projectRoot: root, target: TARGET }),
+    (error) => error.code === "BAD_IMAGE",
+    "读不出格式就抛 BAD_IMAGE"
+  );
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 /* 只接这两种：JPEG 也要认得出宽高（尺寸这一格与格式那一格都从同一份文件头来）。 */
 function caseJpeg() {
   const root = sandbox();
@@ -271,6 +289,7 @@ try {
   const cases = [
     ["存一张 PNG 并读回状态", caseSaveAndRead],
     ["界面显示的那张图：有图给路径 / 没图明确拒绝", caseImageFile],
+    ["发给模型看的那张图：data URL", caseDataUrl],
     ["JPEG 也认（尺寸与后缀都按内容）", caseJpeg],
     ["换格式只留一张", caseReplace],
     ["拒绝的几种", caseRejections],
