@@ -32,7 +32,10 @@ function read(root) {
   return derivedLayout.read({ projectRoot: root, target: TARGET });
 }
 
-/* 期望里的一个顶层格子：顶层带行列，产物之外的那几样（类型 / 子网格 / 容器标记）缺省时是空串、空表与 false。 */
+/*
+ * 期望里的一个顶层格子：与界面那侧的夹具（ui/src/lib/layout-fixtures.ts）同形，只是这里用 JS 写。
+ * 顶层带行列，产物之外的那几样（类型 / 子网格 / 容器标记）缺省时是空串、空表与 false。
+ */
 function cell(ref, controlType, row, column, rowSpan, columnSpan, children, container) {
   const kids = children || [];
   return {
