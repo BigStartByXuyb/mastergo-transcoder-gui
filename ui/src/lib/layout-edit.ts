@@ -2,7 +2,8 @@ import type { DerivedLayout, LayoutCell, LayoutChild, LayoutControl, LayoutGroup
 
 /*
  * 布局确认面板的纯逻辑：控件怎么认（编号 / 展示名 / 未找到时按 ref）、分组的增删改，
- * 以及布局树那两个口径（每行 key 的拼法与解析、一个分区分成哪几组、哪些格子盖住某一组）。
+ * 以及布局树那几个口径（每行 key 的拼法与解析、一个分区分成哪几组、哪些格子盖住某一组、
+ * 一个分区占几行几列）。
  *
  * 这里只做「界面自己怎么算」这件事，不做「表合不合法」的判断 —— 成员至少 2 个、一个 ref 只能进一个分组
  * 这类校验只有后端 lib/layout-groups.js 一处，界面把后端的原话照实显示（见 app/layout-panel.tsx）。
