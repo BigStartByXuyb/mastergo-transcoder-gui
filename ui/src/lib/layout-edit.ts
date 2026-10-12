@@ -32,13 +32,23 @@ export function textOf(controls: LayoutControl[], ref: string): string {
   return control ? valueOf(control) : ""
 }
 
-/** 一个控件的展示名：编号 + 类型 · value；清单里没有的 ref 照原样显示。 */
+/* 一个控件拿什么当名字：value 优先，没有才退回控件类型（两个都没有就用 ref）。
+ * 「按哪个字段认这个控件」只有这一处 —— 清单那条展示名与布局树那一行都从它取。 */
+export function displayNameOf(controls: LayoutControl[], ref: string): string {
+  const control = controlOf(controls, ref)
+  return textOf(controls, ref) || (control ? control.controlType : "") || ref
+}
+
+/*
+ * 一个控件的展示名（面上那份清单用）：编号 + 类型 · value —— 面上看得出控件类型；
+ * 布局树那行用 displayNameOf（value 领头，方便按 value 找）。
+ * 两处取的是同两个原语（controlOf / valueOf），只有摆法不同。
+ */
 export function labelOf(controls: LayoutControl[], ref: string): string {
   const control = controlOf(controls, ref)
   if (!control) return ref
-  const number = numberOf(controls, ref)
-  const text = valueOf(control)
-  return "#" + number + " " + (text ? control.controlType + " · " + text : control.controlType)
+  const value = valueOf(control)
+  return "#" + numberOf(controls, ref) + " " + (value ? control.controlType + " · " + value : control.controlType)
 }
 
 /** 还没进任何一组的控件（按清单次序）。 */

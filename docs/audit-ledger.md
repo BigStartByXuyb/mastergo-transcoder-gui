@@ -186,4 +186,6 @@
 | 2026-10-12 第 43 遍 | REVIEW-001 | 「第 k 行有哪些格子」在视图与纯逻辑里各算一遍 | 已收 | 收成 `ui/src/lib/layout-edit.ts` 的 `cellsInRow` / `rowsOfRegion`：树按它摆行，`refsOfDerived` 按它收 ref |
 | 2026-10-12 第 43 遍 | REVIEW-002 | `derived` 没照本模块「字段缺了当空」的约定读：半截响应（有 available 没 regions）会让面板崩 | 已收 | 同一道兜底做成 `derivedOf`（available 收成布尔、regions / unresolved 走 `listOf`、reason 收成串），读的时候都过它 |
 | 2026-10-12 第 44 遍 | REVIEW-001 | 两列的判据只看画板尺寸：布局树缺席时右列空着 | 已收 | 分两列只在「两块都在」时；只有一块就用整宽 |
+| 2026-10-12 第 45 遍 | REVIEW-001 | 控件展示名有两份实现：视图里的 `controlLabel` 与纯逻辑里的 `labelOf` | 已收 | 「按哪个字段认这个控件」收成 `displayNameOf`（value 优先）；清单那条仍摆「类型 · value」（面上要能看出类型），树那行用名字领头 —— 两处取同两个原语（`controlOf` / `valueOf`） |
+| 2026-10-12 第 45 遍 | REVIEW-002 | `inspect` 无条件构造界面专用的 `derived`，待办队列与自动补输入并不读它 | 已收 | `inspect(query, options)`：`withDerived:false` 时给同一形状的空读数；`lib/pending.js` 那条逐页调用的路走它 |
 

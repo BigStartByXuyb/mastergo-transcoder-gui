@@ -2,12 +2,11 @@ import type { DerivedLayout, LayoutControl } from "@/lib/api"
 import {
   cellsInRow,
   controlKey,
-  controlOf,
+  displayNameOf,
   numberOf,
   regionKey,
   rowKey,
   rowsOfRegion,
-  textOf,
   UNRESOLVED_KEY
 } from "@/lib/layout-edit"
 import { cn } from "@/lib/utils"
@@ -20,10 +19,9 @@ import { cn } from "@/lib/utils"
  * 控件那一行显示它的 value（没有 value 就退回控件类型）+ 它在清单里的号；号由 numberOf 现算。
  */
 
-/* 一个控件在树上的名字：value 优先，没有就退回控件类型；末尾带它在清单里的号。 */
+/* 一个控件在树上的名字：名字取自 displayNameOf（value 优先），末尾带它在清单里的号。 */
 function controlLabel(controls: LayoutControl[], ref: string): string {
-  const control = controlOf(controls, ref)
-  const head = textOf(controls, ref) || (control ? control.controlType : ref)
+  const head = displayNameOf(controls, ref)
   const number = numberOf(controls, ref)
   return number > 0 ? head + " · #" + number : head
 }
