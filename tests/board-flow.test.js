@@ -235,6 +235,57 @@ async function caseSemanticStopAndAutoFill() {
   fs.rmSync(fx.home, { recursive: true, force: true });
 }
 
+/*
+ * 这一步的输入自己读不出来（例如位图坏了）：整句写在行上（含怎么做），并且不占自动补输入的额度 ——
+ * 「补不了」与「模型补不出来」是两件事，前者等人换输入。
+ */
+async function caseAutoFillBlockedByInput() {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-blocked-"));
+  const project = makeProject();
+  const runs = makeRuns();
+  const id = "task-blocked-input";
+  const reason = "这一页那张设计稿位图读不出格式：重新导出成 PNG / JPEG 再传一张。";
+  write(path.join(home, "board.json"), JSON.stringify([{
+    id: id,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    state: "queued",
+    request: { mode: "B", link: LINK, target: "T1", ui: "F3", projectRoot: project, fileId: "204689197363903", layerId: "1872:60904", overwrite: false, allowEmptyLedger: false, stopAfter: "" },
+    workDir: "",
+    baseDir: "",
+    jobId: "",
+    autoMerge: false,
+    autoFillCount: 0,
+    failure: null,
+    merge: null,
+    error: ""
+  }]));
+  const board = createBoard({
+    runs: runs.api,
+    pending: { inspect: () => ({ icons: { available: true, needsNaming: true, needsRepair: false, mustName: [1] }, translations: { available: false } }) },
+    autoFill: { fill: async () => ({ ok: false, blocked: true, reason: reason }) },
+    layout: { register: () => ({ ok: true }) },
+    artifacts: { stepsOf: () => [] },
+    home: home
+  });
+  board.start(id);
+  const task = await waitForTask(board, id, hasJob, '启动完成');
+  runs.seed(task.jobId, {
+    id: task.jobId,
+    state: "failed",
+    request: {},
+    runs: [{ mode: "mtslg-iocontrol", label: "B", state: "failed", failure: { stepId: 7, stepName: "ledger", message: "缺少命名表", resume: "", detail: "" }, steps: {} }]
+  }, task.workDir);
+  await sleep(TICK + 300);
+  const after = board.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(after.state, "waiting");
+  assert.strictEqual(after.error, reason, "整句（含怎么做）写在行上");
+  const stored = JSON.parse(fs.readFileSync(path.join(home, "board.json"), "utf8"));
+  assert.strictEqual(stored[0].autoFillCount, 0, "没到模型那一步：不占自动补输入的额度");
+  fs.rmSync(home, { recursive: true, force: true });
+  fs.rmSync(project, { recursive: true, force: true });
+}
+
 async function caseAutoFillLimitAndRealFailure() {
   // 补输入次数已经在盘上顶到上限：下一次停在语义停点时要交回给人，而不是继续补。
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-limit-"));
@@ -526,6 +577,7 @@ async function main() {
     ["tick 同步：跑完自动合并", caseTickSyncsReadyAndMerges],
     ["语义停点与自动补输入", caseSemanticStopAndAutoFill],
     ["补输入到上限与真失败", caseAutoFillLimitAndRealFailure],
+    ["输入读不出来（位图坏了）：整句写回、不占额度", caseAutoFillBlockedByInput],
     ["先选的设计稿位图：尺寸不符写在行上、条件解除自清", caseStagedImageNotice],
     ["任务离开看板（移除 / 清理 / 清空区域）：暂存件跟着走", caseRemovalDropsStagedImage],
     ["「哪一步吃布局输入」按契约的 Inputs 判，不认步骤名", caseLayoutStepComesFromContract],

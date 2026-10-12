@@ -423,7 +423,8 @@ const SINGLE_IMPL = [
   { name: "readJsonIfExists", home: "lib/workdir.js", what: "容错读 JSON" },
   { name: "requirePageTarget", home: "lib/name-safety.js", what: "页面 Target 校验" },
   { name: "requireProjectRoot", home: "lib/name-safety.js", what: "工程目录校验" },
-  { name: "uniqueMembers", home: "lib/layout-groups.js", what: "分组跨组唯一化" }
+  { name: "uniqueMembers", home: "lib/layout-groups.js", what: "分组跨组唯一化" },
+  { name: "failureSentence", home: "lib/errors.js", what: "单串形态的失败整句（原因 + 怎么做）" }
 ];
 
 function caseSingleImpl() {
