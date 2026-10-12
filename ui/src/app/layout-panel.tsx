@@ -15,7 +15,7 @@ import {
   addGroup,
   labelOf,
   moveMember,
-  refsOfNode,
+  refsOfDerived,
   removeGroup,
   removeMember,
   ungroupedControls
@@ -47,16 +47,14 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   const [newKind, setNewKind] = useState<"column" | "row">("column")
   /* 鼠标停在哪一组上：那一组的成员在画布上描出来（容器自己的框就盖住它里面的控件）。 */
   const [hoveredGroup, setHoveredGroup] = useState("")
-  /* 层次图上选中的那一段：只存「选的是哪一段」，要高亮哪些控件由 refsOfNode 现算。 */
+  /* 布局树上选中的那一行：只存「选的是哪一行」，要高亮哪些控件由 refsOfDerived 现算。 */
   const [treePicked, setTreePicked] = useState("")
-  /* 换一页（工程目录或 Target 变了）就把树上选中的那一段清掉：同一页的身份是这两个一起。 */
+  /* 换一页（工程目录或 Target 变了）就把树上选中的那一行清掉：同一页的身份是这两个一起。 */
   useEffect(() => setTreePicked(""), [input.projectRoot, input.target])
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
   const canvas = layout.canvas
-  /* 有没有层次图只有这一处判（摆不摆第二条列、挂不挂这块都读它）。 */
-  const hasTree = layout.tree.length > 0
   const hovered = layout.groups.find((group) => group.id === hoveredGroup)?.members ?? []
-  const treeRefs = refsOfNode(layout.tree, treePicked, layout.controls)
+  const treeRefs = refsOfDerived(layout.derived, treePicked)
   const highlight = [...new Set([...treeRefs, ...hovered])]
 
   function createGroup() {
@@ -125,35 +123,29 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
               </p>
             ) : null}
 
-            {canvas || hasTree ? (
-              <div
-                className={cn(
-                  "grid gap-3",
-                  /* 没有层次图时不摆第二条列，免得右边空一条 */
-                  hasTree && "lg:grid-cols-[minmax(0,1fr)_16rem]"
-                )}
-              >
-                {canvas && (
-                  <LayoutCanvas
-                    controls={layout.controls}
-                    canvas={canvas}
-                    /* 没有图就给空串：画布据此不挂图、也不给「隐藏设计稿」（图的身份由后端一处给）。 */
-                    imageUrl={
-                      layout.imageStamp ? api.designImageUrl(input.projectRoot, input.target, layout.imageStamp) : ""
-                    }
-                    highlight={highlight}
-                  />
-                )}
-                {hasTree && (
-                  <LayoutTree
-                    nodes={layout.tree}
-                    controls={layout.controls}
-                    selected={treePicked}
-                    onPick={(ref) => setTreePicked(treePicked === ref ? "" : ref)}
-                  />
-                )}
-              </div>
-            ) : null}
+            {/*
+             * 画布与布局树各自独立：画板尺寸还不知道时，布局树（推导结果）照样要能看。
+             * 「有没有推导产物」只在 LayoutTree 里判（没有时它显示后端给的那句原因）——面板不再自己判一遍。
+             */}
+            <div className={cn("grid gap-3", canvas && "lg:grid-cols-[minmax(0,1fr)_16rem]")}>
+              {canvas && (
+                <LayoutCanvas
+                  controls={layout.controls}
+                  canvas={canvas}
+                  /* 没有图就给空串：画布据此不挂图、也不给「隐藏设计稿」（图的身份由后端一处给）。 */
+                  imageUrl={
+                    layout.imageStamp ? api.designImageUrl(input.projectRoot, input.target, layout.imageStamp) : ""
+                  }
+                  highlight={highlight}
+                />
+              )}
+              <LayoutTree
+                derived={layout.derived}
+                controls={layout.controls}
+                selected={treePicked}
+                onPick={(key) => setTreePicked(treePicked === key ? "" : key)}
+              />
+            </div>
 
             <div className="space-y-3">
               {layout.groups.map((group) => (

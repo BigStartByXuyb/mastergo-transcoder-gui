@@ -2,11 +2,13 @@ import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
 import { LayoutTree } from "@/app/layout-tree"
-import type { LayoutControl, LayoutTreeNode } from "@/lib/api"
+import type { DerivedLayout, LayoutControl } from "@/lib/api"
 
 /*
- * 层次图：一段一段摆出来，点一段就把这段（连同它下面的段）里的控件交出去（画布据此描边）。
- * 号由 numberOf 现算（「控件号＝它在清单里的次序」只有那一处实现），树只给层级。
+ * 布局树：显示的是**推导出来的**布局（分区 → 行/列 → 格子），不是设计稿原始层级。
+ * 点一行把这一行盖住的控件交出去（画布据此描边）；没有推导产物时只说一句原因。
+ * 控件那一行按 value 显示（没有 value 退回控件类型），末尾带清单里的号。
+ * 分区行只说名字与发射/只注册；有哪几行一律从格子推（`rowsOfRegion`），不另报一个行数。
  */
 
 function control(ref: string, controlType: string, text: string): LayoutControl {
@@ -14,72 +16,114 @@ function control(ref: string, controlType: string, text: string): LayoutControl 
 }
 
 const CONTROLS = [
-  control("a", "IconButton", "确定"),
-  control("b", "IconButton", "取消"),
-  control("c", "TextBlock", "标题")
+  control("1:9", "IconButton", "确定"),
+  control("1:10", "IconButton", ""),
+  control("1:11", "TextBlock", "标题"),
+  control("1:12", "TextBlock", "说明")
 ]
 
-const NODES: LayoutTreeNode[] = [
-  {
-    ref: "root",
-    name: "",
-    type: "FRAME",
-    flow: "",
-    children: [
-      {
-        ref: "bar",
-        name: "RightTools",
-        type: "FRAME",
-        flow: "column",
-        children: [
-          { ref: "a", name: "", type: "IconButton", flow: "", children: [] },
-          { ref: "b", name: "", type: "IconButton", flow: "", children: [] }
-        ]
-      },
-      { ref: "c", name: "", type: "TextBlock", flow: "", children: [] }
-    ]
-  }
-]
+const DERIVED: DerivedLayout = {
+  available: true,
+  reason: "",
+  regions: [
+    {
+      id: "top-strip",
+      name: "顶部栏",
+      emit: false,
+      cells: []
+    },
+    {
+      id: "work-area",
+      name: "工作区",
+      emit: true,
+      cells: [
+        { ref: "1:9", row: 1, column: 2, rowSpan: 1, columnSpan: 1 },
+        { ref: "1:10", row: 1, column: 3, rowSpan: 1, columnSpan: 1 },
+        { ref: "1:11", row: 2, column: 1, rowSpan: 1, columnSpan: 1 }
+      ]
+    }
+  ],
+  // 没归宿的不会同时落在分区的格子里：这份夹具给的是一页里那两种互斥的处境。
+  unresolved: [{ ref: "1:12", reason: "单条目栏：几何判不出它跟谁同组" }]
+}
 
 describe("LayoutTree", () => {
-  it("点一段：把这一段交出去（要描哪些控件由调用方用 refsOfNode 算）", () => {
+  it("还没读到这一页（null）：这块不摆", () => {
+    const { container } = render(<LayoutTree derived={null} controls={CONTROLS} selected="" onPick={() => undefined} />)
+    expect(container.innerHTML).toBe("")
+  })
+
+  it("没有推导产物时：只说一句原因，不摆空的树", () => {
+    const { container } = render(
+      <LayoutTree
+        derived={{ available: false, reason: "还没有推导产物：布局那一步跑完之后…", regions: [], unresolved: [] }}
+        controls={CONTROLS}
+        selected=""
+        onPick={() => undefined}
+      />
+    )
+    expect(screen.getByText(/还没有推导产物/)).toBeTruthy()
+    expect(container.querySelectorAll("button").length).toBe(0)
+  })
+
+  it("分区 / 行 / 格子各就各位，控件按 value 显示并带号", () => {
+    render(<LayoutTree derived={DERIVED} controls={CONTROLS} selected="" onPick={() => undefined} />)
+
+    expect(screen.getByText("顶部栏 · 只注册")).toBeTruthy()
+    expect(screen.getByText("工作区 · 发射")).toBeTruthy()
+    expect(screen.getByText("第 1 行")).toBeTruthy()
+    expect(screen.getByText("第 2 行")).toBeTruthy()
+    expect(screen.getByText("确定 · #1（第 2 列）")).toBeTruthy()
+    // 没有 value 的控件退回它的控件类型。
+    expect(screen.getByText("IconButton · #2（第 3 列）")).toBeTruthy()
+    expect(screen.getByText("标题 · #3（第 1 列）")).toBeTruthy()
+    expect(screen.getByText("没归宿的 1 个")).toBeTruthy()
+    // 行只从格子推：顶部栏没有格子，一行都不列，整棵树只有工作区那两行。
+    expect(screen.getAllByText(/^第 \d+ 行$/).length).toBe(2)
+  })
+
+  it("点一行：把这一行盖住的控件交出去（分区 / 行 / 单个控件 / 没归宿各一条路）", () => {
     const picked = vi.fn()
-    render(<LayoutTree nodes={NODES} controls={CONTROLS} selected="" onPick={picked} />)
+    render(<LayoutTree derived={DERIVED} controls={CONTROLS} selected="" onPick={picked} />)
 
-    // 容器那一行显示的是方向（层名在悬停提示里）：点它就是点这一段。
-    fireEvent.click(screen.getByText("竖排"))
-    expect(picked).toHaveBeenLastCalledWith("bar")
+    fireEvent.click(screen.getByText("第 1 行"))
+    expect(picked).toHaveBeenLastCalledWith("region:work-area#row:1")
+
+    fireEvent.click(screen.getByText("工作区 · 发射"))
+    expect(picked).toHaveBeenLastCalledWith("region:work-area")
+
+    fireEvent.click(screen.getByText("标题 · #3（第 1 列）"))
+    // 控件行的 key 带「分区 + 行」（跨行的格子每行一条），点它就是点这一条。
+    expect(picked).toHaveBeenLastCalledWith("region:work-area#row:2/ref:1:11")
+
+    fireEvent.click(screen.getByText("没归宿的 1 个"))
+    expect(picked).toHaveBeenLastCalledWith("unresolved")
   })
 
-  it("选中的那一段标出来（选中态由调用方给，不在组件里另存一份）", () => {
-    render(<LayoutTree nodes={NODES} controls={CONTROLS} selected="bar" onPick={() => undefined} />)
-    expect(screen.getByText("竖排").getAttribute("data-selected")).toBe("true")
-    expect(screen.getByText("自由布局").getAttribute("data-selected")).toBe("false")
+  it("跨行的格子：它盖住的每一行都列出来", () => {
+    const spanning: DerivedLayout = {
+      available: true,
+      reason: "",
+      regions: [
+        {
+          id: "work-area",
+          name: "工作区",
+          emit: true,
+          cells: [{ ref: "1:9", row: 2, column: 1, rowSpan: 2, columnSpan: 1 }]
+        }
+      ],
+      unresolved: []
+    }
+    render(<LayoutTree derived={spanning} controls={CONTROLS} selected="" onPick={() => undefined} />)
+    expect(screen.getByText("第 2 行")).toBeTruthy()
+    expect(screen.getByText("第 3 行")).toBeTruthy()
+    // 跨行的格子，它盖住的两行里各出现一次。
+    expect(screen.getAllByText("确定 · #1（第 1 列，跨 2 行 × 1 列）").length).toBe(2)
   })
 
-  it("一段自己放着的号显示在它那一行上", () => {
-    render(<LayoutTree nodes={NODES} controls={CONTROLS} selected="" onPick={() => undefined} />)
-    // 控件先显示 value（与下面清单同一个来源），末尾带号。
-    expect(screen.getByText("确定 · #1")).toBeTruthy()
-    expect(screen.getByText("标题 · #3")).toBeTruthy()
-    // 容器只说方向（设计稿的自动布局），不显示「容器 194」这种层名；层名在悬停提示里。
-    expect(screen.getByText("竖排")).toBeTruthy()
-    expect(screen.getByText("自由布局")).toBeTruthy()
-    expect(screen.getByTitle("RightTools（bar）")).toBeTruthy()
+  it("选中的那一行标出来（选中态由调用方给，不在组件里另存一份）", () => {
+    render(<LayoutTree derived={DERIVED} controls={CONTROLS} selected="region:work-area" onPick={() => undefined} />)
+    expect(screen.getByText("工作区 · 发射").getAttribute("data-selected")).toBe("true")
+    expect(screen.getByText("第 1 行").getAttribute("data-selected")).toBe("false")
   })
-
-  it("没有 value 的控件：退回它的层名（还是没有就用类型）", () => {
-    const nodes: LayoutTreeNode[] = [
-      {
-        ref: "root",
-        name: "",
-        type: "FRAME",
-        flow: "",
-        children: [{ ref: "1:9", name: "右侧栏", type: "IconButton", flow: "", children: [] }]
-      }
-    ]
-    render(<LayoutTree nodes={nodes} controls={[control("1:9", "IconButton", "  ")]} selected="" onPick={() => undefined} />)
-    expect(screen.getByText("右侧栏 · #1")).toBeTruthy()
-  })
-
 })

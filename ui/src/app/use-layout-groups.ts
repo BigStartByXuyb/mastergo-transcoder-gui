@@ -2,12 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import { useValueRunner } from "@/app/use-action-runner"
 import { useAlive } from "@/app/use-alive"
-import { api, type LayoutControl, type LayoutGroup, type LayoutTreeNode } from "@/lib/api"
+import { api, type DerivedLayout, type LayoutControl, type LayoutGroup } from "@/lib/api"
 
 /*
  * 布局确认的数据动作：读控件清单与现有分组、叫 AI 出候选、把分组写回去并从布局那一步续跑。
  * 面板（app/layout-panel.tsx）只管开关与渲染；分组的增删改是 ui/src/lib/layout-edit.ts 的纯逻辑；
  * 写回校验与「哪些算可用」的判据在后端 lib/layout-groups.js。
+ *
+ * 读回来的三份（控件清单 / 分组表 / 推导结果）形状由后端一处保证（lib/layout-groups.js 的 inspect），
+ * 这里不逐字段判空：契约对不上时当场暴露，不静默降级成空数据（推导结果没给时按「还没读到」处理）。
  */
 
 export type LayoutGroupsInput = {
@@ -26,16 +29,14 @@ export type LayoutGroupsInput = {
   progressDone?: number
 }
 
-/* 后端给的那几份清单都按数组读：字段缺了（旧后端 / 半截响应）当空，别让界面当场炸。 */
-const listOf = <T,>(value: T[] | undefined): T[] => (Array.isArray(value) ? value : [])
-
 export function useLayoutGroups(input: LayoutGroupsInput) {
   const [available, setAvailable] = useState(false)
   const [reason, setReason] = useState("")
   const [controls, setControls] = useState<LayoutControl[]>([])
   const [canvas, setCanvas] = useState<{ width: number; height: number } | null>(null)
   const [imageStamp, setImageStamp] = useState("")
-  const [tree, setTree] = useState<LayoutTreeNode[]>([])
+  /* 还没读到这一页时是 null（布局树那块不摆）；读回来就是后端给的那一份。 */
+  const [derived, setDerived] = useState<DerivedLayout | null>(null)
   const [groups, setGroups] = useState<LayoutGroup[]>([])
   const [canSuggest, setCanSuggest] = useState(false)
   const [autoPass, setAutoPass] = useState(false)
@@ -73,11 +74,11 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
       if (!alive.current) return
       setAvailable(payload.layout.available)
       setReason(payload.layout.reason)
-      setControls(listOf(payload.layout.controls))
+      setControls(payload.layout.controls)
       setCanvas(payload.layout.canvas ?? null)
       setImageStamp(String(payload.layout.imageStamp || ""))
-      setTree(listOf(payload.layout.tree))
-      if (!dirty.current) setGroups(listOf(payload.layout.groups))
+      setDerived(payload.layout.derived ?? null)
+      if (!dirty.current) setGroups(payload.layout.groups)
       setCanSuggest(payload.layout.canSuggest)
       // 「自动通过」也随这一页读回来：全局开关的当前值不另取一遍设置（一次读数一件事）。
       setAutoPass(Boolean(payload.layout.autoPass))
@@ -137,7 +138,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
     controls,
     canvas,
     imageStamp,
-    tree,
+    derived,
     groups,
     setGroups: applyGroups,
     canSuggest,

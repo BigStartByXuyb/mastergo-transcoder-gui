@@ -178,4 +178,47 @@
 | 2026-10-12 第 39 遍 | REVIEW-001 | 控件 value 仍有两处实现（`textOf` 与 `labelOf` 各 trim 一遍），注释却写「只有这一处取」 | 已收 | 取 value 收成 `valueOf(control)`：`textOf` 按 ref 找那一条再调它，`labelOf` 直接调它 |
 | 2026-10-12 第 40 遍 | REVIEW-001 | 台账第 36 遍的「已收」写的是字段链，而注释实际仍写 `parent.flex.flexDirection`（那次补丁没落地） | 已收 | 注释按台账那句落地（字段链 + 仓内路径 `plugins/mastergo-wpf-transcoder/<版本>/…/gen-mw-wpf-layout.js`）；台账那行也与之对齐 |
 | 2026-10-12 第 40 遍 | 非阻断 | `numberOf` 一次调用里扫两遍（`controlOf` + `indexOf`）；画布「要不要描」一次渲染算两遍 | 已收 | `numberOf` 回到一遍 `findIndex`；画布把 `on` 算一次、属性与类名共用 |
+| 2026-10-12 第 41 遍 | REVIEW-001 | 布局树的控件行缺 React key（列表渲染会按位置复用节点） | 已收 | 那一行由 `line()` 统一产出并带上 `key={lineKey}` |
+| 2026-10-12 第 41 遍 | REVIEW-002 | 重构后 `isControl` 成了无人引用的导出 | 已收 | 删掉（找那一条控件的判据只剩 `controlOf`） |
+| 2026-10-12 第 42 遍 | REVIEW-001 | 布局树又被绑回画布：画板尺寸读不出时整栏（含布局树）都不渲染 | 已收 | 画布与布局树各自独立判断：有画板尺寸才画布，有推导产物就摆树；两者都有才分两列 |
+| 2026-10-12 第 42 遍 | REVIEW-002 | 字段改名 `tree` → `derived` 漏了一处测试夹具 | 已收 | 那处内联载荷改成 `derived`（缺 → 还没跑过那份空读视图） |
+| 2026-10-12 第 42 遍 | REVIEW-003 | key → refs 的纯逻辑搬进了视图模块，面板从视图模块 import 纯函数 | 已收 | `regionKey` / `rowKey` / `controlKey` / `refsOfDerived` 挪进 `ui/src/lib/layout-edit.ts`（与分组编辑那几件纯逻辑同处），视图只渲染 |
+| 2026-10-12 第 43 遍 | REVIEW-001 | 「第 k 行有哪些格子」在视图与纯逻辑里各算一遍 | 已收 | 收成 `ui/src/lib/layout-edit.ts` 的 `cellsInRow` / `rowsOfRegion`：树按它摆行，`refsOfDerived` 按它收 ref |
+| 2026-10-12 第 43 遍 | REVIEW-002 | `derived` 没照本模块「字段缺了当空」的约定读：半截响应（有 available 没 regions）会让面板崩 | 已收 | 同一道兜底做成 `derivedOf`（available 收成布尔、regions / unresolved 走 `listOf`、reason 收成串），读的时候都过它 |
+| 2026-10-12 第 44 遍 | REVIEW-001 | 两列的判据只看画板尺寸：布局树缺席时右列空着 | 已收 | 分两列只在「两块都在」时；只有一块就用整宽 |
+| 2026-10-12 第 45 遍 | REVIEW-001 | 控件展示名有两份实现：视图里的 `controlLabel` 与纯逻辑里的 `labelOf` | 已收 | 「按哪个字段认这个控件」收成 `displayNameOf`（value 优先）；清单那条仍摆「类型 · value」（面上要能看出类型），树那行用名字领头 —— 两处取同两个原语（`controlOf` / `valueOf`） |
+| 2026-10-12 第 45 遍 | REVIEW-002 | `inspect` 无条件构造界面专用的 `derived`，待办队列与自动补输入并不读它 | 已收 | `inspect(query, options)`：`withDerived:false` 时给同一形状的空读数；`lib/pending.js` 那条逐页调用的路走它 |
+| 2026-10-12 第 46 遍 | REVIEW-001 | 布局树行 key 的格式在「生产」（`rowKey`）与「解析」（正则）两处各写一遍 | 已收 | 分隔收成 `ROW_SEP` 一处：`rowKey` 按它拼、`refsOfDerived` 按它切 |
+| 2026-10-12 第 46 遍 | REVIEW-002 | 推导载荷里的 `role` 没人读，注释却说界面要它 | 已收 | 去掉 `role`（界面要的是名字与发射/只注册），注释跟着改 |
+| 2026-10-12 第 47 遍 | REVIEW-001 | 「没有推导产物」那份空读数在同一文件里写了两遍 | 已收 | `readDerivedLayout` 的早退改用同一份 `EMPTY_DERIVED`（只补 reason） |
+| 2026-10-12 第 47 遍 | REVIEW-002 | `LayoutTree` 一次渲染里摊平四层结构、展示文案内联在 JSX 里 | 已收 | 行数据收成 `linesOfDerived`（纯函数：key / 缩进 / 加粗 / 文案），渲染只一遍 map；没归宿那几条的原因留在悬停提示里 |
+| 2026-10-12 第 48 遍 | REVIEW-001 | `ref:` 前缀在生产与解析两处各写一遍，没随 `ROW_SEP` 一起收拢 | 已收 | 前缀也收成 `REF_PREFIX` 一处：`controlKey` 按它拼、`refsOfDerived` 按它切 |
+| 2026-10-12 第 49 遍 | REVIEW-001 | 「还没有推导产物」那句原因没有渲染出口：面板自己又按 `available` 判了一遍，树组件的早退分支走不到 | 已收 | 面板不再自己判（画布按有没有画板尺寸挂，树那一块总是挂）：有没有产物、没有时显示哪句话都由 `LayoutTree` 一处决定 |
+| 2026-10-12 第 50 遍 | REVIEW-001 | 布局产物的读取塞在「分组表」模块里，破坏了本模块「转发别处判据」的既有约定 | 已收 | 抽成 `lib/derived-layout.js`（与 `lib/design-image.js` 同类：只出去事实）；`layout-groups.js` 回到转发，文件头的数据源跟着写明 |
+| 2026-10-12 第 50 遍 | REVIEW-002 | 行渲染与「点一行」只看格子的起始行，忽略 `rowSpan`，与「盖住」的说法不符 | 已收 | `cellsInRow` / `rowsOfRegion` 把跨行的格子铺到它盖住的每一行；用例补一条跨行格子 |
+| 2026-10-12 第 51 遍 | REVIEW-001 | 跨行格子在多行里复用同一个行 key，React 列表 key 不唯一（同一文案两行、点一行两行同时选中） | 已收 | 控件行的 key 带上「分区 + 行」（`controlLineKey`），解析只看最后一段；没归宿那几条按「下标 + ref」取 key |
+| 2026-10-12 第 52 遍 | REVIEW-001 | 面板里那段 JSX 块注释没包进 `{}`，会被当成文本渲染出来 | 已收 | 改成 `{/* … */}` |
+| 2026-10-12 第 52 遍 | REVIEW-002 | 「跨行的格子盖住哪几行」在 `cellsInRow` 与 `rowsOfRegion` 里各写一遍 | 已收 | 抽成 `rowRangeOf(cell)`：两处都从它取 |
+| 2026-10-12 第 53 遍 | REVIEW-001 | 行 key 的第三处分隔符 `/` 仍是字面量，没跟 `ROW_SEP` / `REF_PREFIX` 一起收成一处 | 已收 | 收成 `CONTROL_SEP`：`controlLineKey` 按它拼、`refsOfDerived` 按它切（`ui/src/lib/layout-edit.ts`） |
+| 2026-10-12 第 53 遍 | 非阻断 | `controlKey` / `rowRangeOf` 导出但没人用；`controlOf` / `valueOf` 同样只在本模块内用 | 已收 | 全部收回模块私有；`textOf` 删掉（「按哪个字段认这个控件」只剩 `displayNameOf` 一处），用例改断言 `displayNameOf` |
+| 2026-10-12 第 53 遍 | 非阻断 | `displayNameOf` 对同一条控件查两遍（`textOf` 里一遍、自己再一遍） | 已收 | 只取一次 `controlOf`，再按 value → 类型 → ref 回落 |
+| 2026-10-12 第 53 遍 | 非阻断 | `derivedOf` 的注释说「字段缺了都按空处理」，实际只归一外层，内层 `cells` 透传 | 已收 | 那层前端兜底删掉：后端三份读数本来就是数组（`lib/derived-layout.js` / `readLayoutGroups`），界面直接用出参，不留第二份形状判据 |
+| 2026-10-12 第 53 遍 | 非阻断 | `lib/workdir.js` 的注释写「报告在同目录的 _inputs 下」，产物与报告其实不同目录 | 已收 | 注释改成「产物在 Generated/，同一趟的报告在 Generated/_inputs/」 |
+| 2026-10-12 第 53 遍 | 非阻断 | 新模块 `lib/derived-layout.js` 分支覆盖 37%，兜底分支无用例 | 已收 | 新增 `tests/derived-layout.test.js`（产物不在 / 产物读不出 / 空读数 / 分区与格子归一 / 没归宿从报告取） |
+| 2026-10-12 第 53 遍 | 非阻断 | 两处测试文件排版（`,` 另起一行、多一个空行） | 已收 | 就地改齐 |
+| 2026-10-12 第 54 遍 | REVIEW-001 | 分区标题的行列数（读网格维度）与下方列出的行（前端按格子推）是两处口径，可能对不上 | 已收 | 分区行只说「名字 · 发射/只注册」；后端读视图不再搬 `rows` / `columns`，「有哪几行」由 `rowsOfRegion` 一处回答（`ui/src/lib/layout-tree.tsx`、`lib/derived-layout.js`） |
+| 2026-10-12 第 54 遍 | 非阻断 | `ui/src/lib/layout-edit.ts` 的职责头与那句「画布、层次图、面上清单」没跟上模块现在做的事 | 已收 | 职责头写明含行 key 与行/格子口径；「层次图」改成「布局树」 |
+| 2026-10-12 第 55 遍 | REVIEW-001 | 删兜底时把对象型的 `derived` 也算进「后端出参本来就是数组」：这份字段没给时布局面板当场抛 | 已收 | 加回最小归一 `derivedOf`（初值与读回同一处，不是对象就回空读数）；内层字段的形状仍只由 `lib/derived-layout.js` 一处保证 |
+| 2026-10-12 第 55 遍 | 非阻断 | 「还没有推导产物」界面又留了一句兜底文案，与后端措辞两处 | 已收 | 树只说后端给的那句；还没读到（没有这句）时先不摆这块 |
+| 2026-10-12 第 55 遍 | 非阻断 | 行 key 的解析假定 ref / 分区 id 不含分隔符，代码里没写明 | 已收 | 三个分隔符旁写明这层前提 |
+| 2026-10-12 第 55 遍 | 非阻断 | `emit: region.emit !== false` 与「固定区只注册」的注释口径可能相反 | 已收 | 注释按行为写：只有明确 `false` 才标「只注册」 |
+| 2026-10-12 第 55 遍 | 非阻断 | 布局树夹具里同一个 ref 既在分区格子里、又在没归宿里（生产里互斥） | 已收 | 没归宿那条换成本页另一个控件；夹具里写明这两种处境互斥 |
+| 2026-10-12 第 55 遍 | 非阻断 | `tests/layout-groups.test.js` 建的临时目录不收尾 | 已收 | 沙盒目录登记后，main 跑完一起收掉 |
+| 2026-10-12 第 56 遍 | REVIEW-001 | 三份读数（控件清单 / 分组表 / 推导结果）的缺字段处理不一致：只给推导结果留了兜底 | 已收 | 三份都不兜底（形状由后端 `inspect` 一处保证，界面直接用出参）；「还没读到」用 `null` 表示，前端不再留第二份空形状（`ui/src/app/use-layout-groups.ts`） |
+| 2026-10-12 第 56 遍 | 非阻断 | 「空推导读数」的字段清单前后端各一份（`EMPTY_DERIVED` 与 `emptyDerived`） | 已收 | 前端那份删掉：读到之前是 `null`，形状只由后端给 |
+| 2026-10-12 第 56 遍 | 非阻断 | `displayNameOf` 的注释说「清单那条展示名也从它取」，实际 `labelOf` 自己摆 | 已收 | 注释改成本况：树那一行按它显示，清单那条是「类型 · value」 |
+| 2026-10-12 第 57 遍 | REVIEW-001 | 产物里缺坐标的格子被默认成 0，与「坐标从 1 起」的契约冲突 | 已收 | `lib/derived-layout.js` 收成 `positionOf`（从 1 起的整数才算数）：读不出的格子不进树，按「没归宿」带原因暴露；用例补一条 |
+| 2026-10-12 第 57 遍 | 非阻断 | 「跨度至少为 1」前后端各夹一遍（后端给默认值、前端再夹一次） | 已收 | 归一收到后端 `spanOf` 一处，前端 `rowRangeOf` 直接用 |
+| 2026-10-12 第 57 遍 | 非阻断 | `refsOfDerived` 里「从 key 认出一个分区」写了两遍 | 已收 | 先解出「分区（＋行）」再统一取格子 |
+| 2026-10-12 第 57 遍 | 非阻断 | `refsOfDerived` 的用例放在视图用例文件里 | 已收 | 挪进 `ui/src/lib/layout-edit.test.ts`（断言的是 key 的拼法契约） |
 

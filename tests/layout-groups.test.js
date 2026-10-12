@@ -13,9 +13,13 @@ const layout = require("../lib/layout-groups.js");
 
 const TARGET = "DemoPage";
 
+/* 本文件建的沙盒目录：用例自己建，main 跑完一起收掉。 */
+const sandboxes = [];
+
 /* 最小工程：类型判定产物 + DSL 快照（文本）+ _inputs 目录。 */
 function sandbox() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-layout-groups-"));
+  sandboxes.push(root);
   const generated = path.join(root, "Generated");
   const runs = path.join(generated, "runs", TARGET);
   const inputs = path.join(generated, "_inputs");
@@ -74,45 +78,63 @@ function main() {
     // 读图状态不在这里（lib/design-image.js 一处）；hasGroups 与 canSuggest 都由后端给
     // （hasGroups 与 tables 同一次读，界面照 canSuggest 禁用「AI 辅助」）。
     // canvas 是画板尺寸（界面拿它把控件坐标换算成百分比，把编号画到图上），判据仍在 design-image 那一处。
-    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "canSuggest", "canvas", "controls", "groups", "hasGroups", "imageStamp", "reason", "tree"]);
+    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "canSuggest", "canvas", "controls", "derived", "groups", "hasGroups", "imageStamp", "reason"]);
     assert.deepStrictEqual(info.canvas, { width: 1280, height: 1024 }, "画板尺寸取 DSL 快照根节点");
     assert.strictEqual(info.imageStamp, "", "还没传图：图的身份是空串（判据在 lib/design-image.js 的 imageStamp）");
-    // 层次图：只留「自己就是控件、或下面放着控件」的段与它们的祖先；号由界面按同一份清单现算。
-    assert.deepStrictEqual(
-      info.tree,
-      [{
-        ref: "root",
-        name: "",
-        type: "FRAME",
-        flow: "column",
-        children: [
-          {
-            ref: "row",
-            name: "",
-            type: "FRAME",
-            flow: "row",
-            children: [
-              { ref: "a", name: "", type: "INSTANCE", flow: "", children: [] },
-              { ref: "b", name: "", type: "INSTANCE", flow: "", children: [] }
-            ]
-          },
-          { ref: "c", name: "", type: "TEXT", flow: "", children: [] }
-        ]
-      }],
-      "层次图：祖先留着、不是控件又没下文的段剪掉；方向取自设计稿的 flexContainerInfo"
-    );
-    // 树里的控件 ref 与清单一一对应：树上只出现「脚本识别出来的那些控件」，多一个少一个都不行。
-    const inTree = [];
-    const collect = function (nodes) {
-      nodes.forEach(function (node) {
-        if (info.controls.some(function (control) { return control.ref === node.ref; })) inTree.push(node.ref);
-        collect(node.children);
-      });
-    };
-    collect(info.tree);
-    assert.deepStrictEqual(inTree.sort(), info.controls.map(function (control) { return control.ref; }).sort());
+    // 推导结果（布局那一步的产物）这一份工程里还没有：只给一句原因，界面据此不摆空的树。
+    assert.strictEqual(info.derived.available, false);
+    assert.match(info.derived.reason, /布局那一步跑完/);
+    assert.deepStrictEqual(info.derived.regions, []);
+    assert.deepStrictEqual(info.derived.unresolved, []);
     assert.strictEqual(info.canSuggest, true, "三个控件够分组");
     assert.strictEqual(info.hasGroups, false, "还没写过分组表");
+  }
+
+  // 推导结果：分区 → 行/列 → 格子 + 没归宿的那几条（都从布局那一步的两份产物里读）。
+  {
+    const root = sandbox();
+    fs.writeFileSync(
+      path.join(root, "Generated", TARGET + ".wpf-layout.json"),
+      JSON.stringify({
+        pageTarget: TARGET,
+        regions: [
+          { id: "top", name: "顶部栏", emit: false, grid: { rows: [{}], columns: [{}], cells: [] } },
+          {
+            id: "work", name: "工作区", emit: true,
+            grid: {
+              rows: [{}, {}],
+              columns: [{}, {}, {}],
+              cells: [
+                { ref: "a", row: 1, column: 2, rowSpan: 1, columnSpan: 1 },
+                { ref: "c", row: 2, column: 1, rowSpan: 2, columnSpan: 1 }
+              ]
+            }
+          }
+        ]
+      }),
+      "utf8"
+    );
+    fs.writeFileSync(
+      path.join(root, "Generated", "_inputs", TARGET + ".wpf-layout.report.json"),
+      JSON.stringify({ pageTarget: TARGET, unresolved: [{ ref: "b", reason: "单条目栏：几何判不出它跟谁同组" }] }),
+      "utf8"
+    );
+    const info = layout.inspect({ projectRoot: root, target: TARGET });
+    assert.strictEqual(info.derived.available, true);
+    assert.strictEqual(info.derived.reason, "");
+    assert.deepStrictEqual(info.derived.regions, [
+      { id: "top", name: "顶部栏", emit: false, cells: [] },
+      {
+        id: "work",
+        name: "工作区",
+        emit: true,
+        cells: [
+          { ref: "a", row: 1, column: 2, rowSpan: 1, columnSpan: 1 },
+          { ref: "c", row: 2, column: 1, rowSpan: 2, columnSpan: 1 }
+        ]
+      }
+    ]);
+    assert.deepStrictEqual(info.derived.unresolved, [{ ref: "b", reason: "单条目栏：几何判不出它跟谁同组" }]);
   }
 
   // 写回分组表并读回。
@@ -195,6 +217,7 @@ function main() {
     assert.deepStrictEqual(file.groups, []);
   }
 
+  for (const root of sandboxes) fs.rmSync(root, { recursive: true, force: true });
   console.log("PASS layout-groups.test.js");
 }
 
