@@ -88,7 +88,8 @@ describe("LayoutTree", () => {
     expect(picked).toHaveBeenLastCalledWith("region:work-area")
 
     fireEvent.click(screen.getByText("标题 · #3（第 1 列）"))
-    expect(picked).toHaveBeenLastCalledWith("ref:1:11")
+    // 控件行的 key 带「分区 + 行」（跨行的格子每行一条），点它就是点这一条。
+    expect(picked).toHaveBeenLastCalledWith("region:work-area#row:2/ref:1:11")
 
     fireEvent.click(screen.getByText("没归宿的 1 个"))
     expect(picked).toHaveBeenLastCalledWith("unresolved")
