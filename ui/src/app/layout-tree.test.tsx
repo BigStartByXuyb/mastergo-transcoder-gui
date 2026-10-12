@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
 import { LayoutTree } from "@/app/layout-tree"
-import type { DerivedLayout, LayoutCell, LayoutControl } from "@/lib/api"
+import type { DerivedLayout, LayoutCell, LayoutChild, LayoutControl } from "@/lib/api"
 
 /*
  * 布局树：显示的是**推导出来的**布局，摆成正常的树 —— 分区 → 组（分区里的某一行）→ 格子 → 格子里的格子。
@@ -14,7 +14,12 @@ function control(ref: string, controlType: string, text: string): LayoutControl 
   return { ref: ref, controlType: controlType, text: text, absX: 0, absY: 0, w: 10, h: 10 }
 }
 
-function cell(ref: string, controlType: string, row: number, column: number, children: LayoutCell[] = []): LayoutCell {
+/* 子网格里的一格：它挂在父格子下，所以不带行列。 */
+function child(ref: string, controlType: string, children: LayoutChild[] = []): LayoutChild {
+  return { ref: ref, controlType: controlType, rowSpan: 1, columnSpan: 1, children: children }
+}
+
+function cell(ref: string, controlType: string, row: number, column: number, children: LayoutChild[] = []): LayoutCell {
   return { ref: ref, controlType: controlType, row: row, column: column, rowSpan: 1, columnSpan: 1, children: children }
 }
 
@@ -42,7 +47,7 @@ const DERIVED: DerivedLayout = {
          * 产物合成出来的容器（ref 带 synth: 前缀）：它里面既列着「容器自己」那一条，也装着清单里没有的控件。
          * 容器自己那一条不该在树上再占一行。
          */
-        cell("synth:9:9", "", 3, 1, [cell("9:9", "", 0, 0, [cell("9:20", "NumberBox", 0, 0)])])
+        cell("synth:9:9", "", 3, 1, [child("9:9", "", [child("9:20", "NumberBox")])])
       ]
     }
   ],

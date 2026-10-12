@@ -11,7 +11,7 @@ import {
   removeMember,
   ungroupedControls
 } from "@/lib/layout-edit"
-import type { DerivedLayout, LayoutCell, LayoutControl, LayoutGroup } from "@/lib/api"
+import type { DerivedLayout, LayoutCell, LayoutChild, LayoutControl, LayoutGroup } from "@/lib/api"
 
 /*
  * 布局确认面板的纯逻辑：编号、未分组清单、分组的增删改。写回校验的判据在后端，这里不重复。
@@ -21,8 +21,13 @@ function control(ref: string, controlType = "IconButton", text = ""): LayoutCont
   return { ref: ref, controlType: controlType, text: text, absX: 0, absY: 0, w: 10, h: 10 }
 }
 
-function cell(ref: string, controlType: string, row: number, column: number, children: LayoutCell[] = []): LayoutCell {
+function cell(ref: string, controlType: string, row: number, column: number, children: LayoutChild[] = []): LayoutCell {
   return { ref: ref, controlType: controlType, row: row, column: column, rowSpan: 1, columnSpan: 1, children: children }
+}
+
+/* 子网格里的一格：它挂在父格子下，所以不带行列。 */
+function child(ref: string, controlType: string, children: LayoutChild[] = []): LayoutChild {
+  return { ref: ref, controlType: controlType, rowSpan: 1, columnSpan: 1, children: children }
 }
 
 const CONTROLS = [control("1:9", "IconButton", "确定"), control("1:10", "IconButton"), control("1:11", "TextBlock", "标题")]
@@ -43,7 +48,7 @@ const DERIVED: DerivedLayout = {
         cell("1:10", "IconButton", 1, 3),
         cell("1:11", "TextBlock", 2, 1),
         // 合成出来的容器（ref 带 synth: 前缀）：里面既列着容器自己那一条，也装着清单里没有的控件。
-        cell("synth:9:9", "", 3, 1, [cell("9:9", "", 0, 0, [cell("9:20", "NumberBox", 0, 0)])])
+        cell("synth:9:9", "", 3, 1, [child("9:9", "", [child("9:20", "NumberBox")])])
       ]
     }
   ],

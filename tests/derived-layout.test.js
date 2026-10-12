@@ -223,6 +223,42 @@ function caseCellWithoutPosition() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+/* 摆不进树的那一格里面还装着控件：它们不能跟着消失，整棵子树照「外面那格没坐标」记出去。 */
+function caseContainerWithoutPosition() {
+  const root = sandbox();
+  fs.writeFileSync(
+    productFile(root),
+    JSON.stringify({
+      regions: [
+        {
+          id: "work-area",
+          name: "工作区",
+          emit: true,
+          grid: {
+            rows: [1],
+            columns: [1],
+            cells: [
+              {
+                ref: "synth:9:1",
+                children: { cells: [{ ref: "9:2", controlType: "IconButton", row: 0, column: 0 }, { ref: "9:3" }] }
+              }
+            ]
+          }
+        }
+      ]
+    }),
+    "utf8"
+  );
+  const state = read(root);
+  assert.deepStrictEqual(state.regions[0].cells, []);
+  assert.deepStrictEqual(state.unresolved, [
+    { ref: "synth:9:1", reason: "推导产物里这一格没有行列坐标（坐标从 1 起）" },
+    { ref: "9:2", reason: "它在推导产物里那一格没有行列坐标（坐标从 1 起），摆不进树" },
+    { ref: "9:3", reason: "它在推导产物里那一格没有行列坐标（坐标从 1 起），摆不进树" }
+  ]);
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 /* 跨度：没给或给得不合法都按 1 —— 跨度只在这一处归一，界面直接用。 */
 function caseSpans() {
   const root = sandbox();
@@ -260,6 +296,7 @@ try {
     ["格子里还套着格子（子网格照带出去）", caseNestedCells],
     ["没归宿的从同趟报告取", caseUnresolved],
     ["一格读不出坐标：照「没归宿」说，不拿 0 顶上", caseCellWithoutPosition],
+    ["摆不进树的容器：里面的控件跟着记出去", caseContainerWithoutPosition],
     ["跨度按至少 1 归一", caseSpans]
   ];
   for (const [name, run] of cases) {

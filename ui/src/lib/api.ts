@@ -218,7 +218,7 @@ export type LayoutCell = LayoutChild & {
   column: number
 }
 
-/** 推导结果里的一个分区：名字 / 发不发射 + 它的格子（有哪几行由界面按格子现算）。 */
+/** 推导结果里的一个分区：名字 / 发不发射 + 它的格子（分成哪几组由界面按格子现算）。 */
 export type LayoutRegion = {
   id: string
   name: string
