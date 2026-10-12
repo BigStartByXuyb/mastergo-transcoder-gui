@@ -36,5 +36,5 @@
 | 推导产物与同趟报告的路径拼法 | `lib/workdir.js` · `function wpfLayoutPath(`、`function wpfLayoutReportPath(` | `lib/derived-layout.js` 的 `read`（读视图只出去事实，不自己拼路径） |
 | 格子坐标与跨度的归一（都只认产物给的数：坐标是非负整数、跨度是正整数，缺省跨度按 1） | `lib/derived-layout.js` · `const NO_POSITION_REASON =`、`function positionOf(`、`function spanOf(` | 布局树的格子（界面直接用；坐标读不出的照「没归宿」暴露，不拿位置顶上） |
 | 布局分组这一步喂给模型的输入（控件清单 + 本页设计稿位图的 data URL） | `lib/layout-groups.js` · `function candidatesInput(` | 自动补输入（`lib/autofill.js`）与人点「AI 出候选」（`lib/routes.js` 的 `/api/ai/suggest`）；模型层（`lib/ai.js`）只吃这个入参，不碰磁盘 |
-| 只有一个字符串字段的地方那句整句（原因 + 怎么做） | `lib/errors.js` · `function failureSentence(` | `lib/mcp-token.js`（缺 token 那件事的整句）、`lib/autofill.js`（这一步的输入读不出来时写到任务行的那句） |
+| 只有一个字符串字段的地方那句整句（原因 + 怎么做） | `lib/errors.js` · `function failureSentence(` | `lib/mcp-token.js`（缺 token 那件事的整句）、`lib/board.js`（任务行上的 `error` / `designImage` 四处 catch）、`lib/autofill.js`（这一步的输入读不出来时交回给人的那句）；界面那侧同一条规矩在 `ui/src/lib/describe-failure.ts` 的 `failureText`（两端口径一起改） |
 

@@ -59,7 +59,7 @@ function harness(options) {
     },
     settings: { read: () => ({ automation: options.automation, layoutAutoPass: options.layoutAutoPass }) }
   });
-  return { autoFill: autoFill, committed: committed, inputs: inputs, projectRoot: options.projectRoot };
+  return { autoFill: autoFill, committed: committed, inputs: inputs };
 }
 
 async function caseGroupsWritten() {

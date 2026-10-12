@@ -12,6 +12,7 @@ const path = require("path");
 
 const { createBoard } = require("../lib/board.js");
 const designImage = require("../lib/design-image.js");
+const { UserError } = require("../lib/errors.js");
 const { png } = require("./image-fixtures.js");
 
 const LINK = "https://mastergo.com/goto/x?file=204689197363903&layer_id=1872:60904";
@@ -83,11 +84,12 @@ function makeBoard(options = {}) {
         return options.pending || { icons: { available: true, needsNaming: true, needsRepair: false, mustName: [1, 2] }, translations: { available: false } };
       }
     },
-    autoFill: options.autoFill === undefined
+    autoFill: options.autoFill === undefined && options.autoFillThrows === undefined
       ? null
       : {
           fill: async () => {
             autoFillCalls.push(true);
+            if (options.autoFillThrows) throw options.autoFillThrows;
             return options.autoFill;
           }
         },
@@ -284,6 +286,26 @@ async function caseAutoFillBlockedByInput() {
   assert.strictEqual(stored[0].autoFillCount, 0, "没到模型那一步：不占自动补输入的额度");
   fs.rmSync(home, { recursive: true, force: true });
   fs.rmSync(project, { recursive: true, force: true });
+}
+
+/* 抛出来的错误也带修法：整句（原因 + 怎么做）的拼法只有一处（lib/errors.js 的 failureSentence）。 */
+async function caseAutoFillThrownErrorKeepsHint() {
+  const thrown = new UserError("AI_CALL", "调用模型失败（HTTP 500）", "换一个模型或稍后再点一次");
+  const fx = makeBoard({ autoFillThrows: thrown });
+  const added = fx.board.add({ projectRoot: fx.project, ui: "F3", items: [{ link: LINK, target: "T1", mode: "B" }] });
+  const id = added.created[0];
+  fx.board.start(id);
+  const task = await waitForTask(fx.board, id, hasJob, '启动完成');
+  fx.runs.seed(task.jobId, {
+    id: task.jobId,
+    state: "failed",
+    request: {},
+    runs: [{ mode: "mtslg-iocontrol", label: "B", state: "failed", failure: { stepId: 7, stepName: "ledger", message: "缺少命名表", resume: "", detail: "" }, steps: {} }]
+  }, task.workDir);
+  await sleep(TICK + 300);
+  const after = fx.board.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(after.error, thrown.message + "：" + thrown.hint, "行上那句要给全：原因 + 怎么做");
+  fs.rmSync(fx.home, { recursive: true, force: true });
 }
 
 async function caseAutoFillLimitAndRealFailure() {
@@ -578,6 +600,7 @@ async function main() {
     ["语义停点与自动补输入", caseSemanticStopAndAutoFill],
     ["补输入到上限与真失败", caseAutoFillLimitAndRealFailure],
     ["输入读不出来（位图坏了）：整句写回、不占额度", caseAutoFillBlockedByInput],
+    ["补输入抛出来的错误也带修法", caseAutoFillThrownErrorKeepsHint],
     ["先选的设计稿位图：尺寸不符写在行上、条件解除自清", caseStagedImageNotice],
     ["任务离开看板（移除 / 清理 / 清空区域）：暂存件跟着走", caseRemovalDropsStagedImage],
     ["「哪一步吃布局输入」按契约的 Inputs 判，不认步骤名", caseLayoutStepComesFromContract],
