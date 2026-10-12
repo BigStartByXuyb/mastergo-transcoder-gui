@@ -16,7 +16,15 @@ function control(ref: string, controlType: string, text: string): LayoutControl 
 
 /* 子网格里的一格：它挂在父格子下，所以不带行列。 */
 function child(ref: string, controlType: string, children: LayoutChild[] = [], container = false): LayoutChild {
-  return { ref: ref, container: container, controlType: controlType, rowSpan: 1, columnSpan: 1, children: children }
+  return {
+    ref: ref,
+    container: container,
+    controlType: controlType,
+    rowSpan: 1,
+    columnSpan: 1,
+    children: children,
+    refs: [ref, ...children.flatMap((item) => item.refs)]
+  }
 }
 
 function cell(
@@ -35,7 +43,8 @@ function cell(
     column: column,
     rowSpan: 1,
     columnSpan: 1,
-    children: children
+    children: children,
+    refs: [ref, ...children.flatMap((item) => item.refs)]
   }
 }
 
@@ -149,7 +158,8 @@ describe("LayoutTree", () => {
               column: 1,
               rowSpan: 2,
               columnSpan: 1,
-              children: []
+              children: [],
+              refs: ["1:9"]
             }
           ]
         }

@@ -127,13 +127,9 @@ function cellAt(cells: LayoutChild[], path: string[]): LayoutChild | null {
   return path.length === 1 ? hit : cellAt(hit.children, path.slice(1))
 }
 
-/* 这一格在画布上盖住的控件 ref：它自己，加上它里面装着的那些（往下都算）。 */
-function refsOfCell(cell: LayoutChild): string[] {
-  return [cell.ref, ...refsOfCells(cell.children)]
-}
-
+/* 这几格在画布上盖住的控件 ref：读视图已经把每一格（连同它里面装着的）摊好了，这里只收集。 */
 function refsOfCells(cells: LayoutChild[]): string[] {
-  return cells.flatMap(refsOfCell)
+  return cells.flatMap((cell) => cell.refs)
 }
 
 /* 要描的控件是一份集合：同一格可能从两条路进来，去重只在这里做。 */
@@ -162,7 +158,7 @@ export function refsOfDerived(derived: DerivedLayout | null, key: string): strin
   }
   if (path.length === 0) return unique(refsOfCells(cells))
   const hit = cellAt(cells, path)
-  return hit ? unique(refsOfCell(hit)) : []
+  return hit ? unique(hit.refs) : []
 }
 
 /* 一个格子盖住哪几行（含跨行）：行区间只有这一处；跨度由后端归一成至少 1（lib/derived-layout.js），这里直接用。 */

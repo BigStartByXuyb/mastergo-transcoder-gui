@@ -129,8 +129,8 @@ function main() {
         name: "工作区",
         emit: true,
         cells: [
-          { ref: "a", container: false, controlType: "", row: 1, column: 2, rowSpan: 1, columnSpan: 1, children: [] },
-          { ref: "c", container: false, controlType: "", row: 2, column: 1, rowSpan: 2, columnSpan: 1, children: [] }
+          { ref: "a", container: false, controlType: "", row: 1, column: 2, rowSpan: 1, columnSpan: 1, children: [], refs: ["a"] },
+          { ref: "c", container: false, controlType: "", row: 2, column: 1, rowSpan: 2, columnSpan: 1, children: [], refs: ["c"] }
         ]
       }
     ]);

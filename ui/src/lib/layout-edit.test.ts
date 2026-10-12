@@ -37,13 +37,22 @@ function cell(
     column: column,
     rowSpan: 1,
     columnSpan: 1,
-    children: children
+    children: children,
+    refs: [ref, ...children.flatMap((item) => item.refs)]
   }
 }
 
 /* 子网格里的一格：它挂在父格子下，所以不带行列。 */
 function child(ref: string, controlType: string, children: LayoutChild[] = []): LayoutChild {
-  return { ref: ref, container: false, controlType: controlType, rowSpan: 1, columnSpan: 1, children: children }
+  return {
+    ref: ref,
+    container: false,
+    controlType: controlType,
+    rowSpan: 1,
+    columnSpan: 1,
+    children: children,
+    refs: [ref, ...children.flatMap((item) => item.refs)]
+  }
 }
 
 const CONTROLS = [control("1:9", "IconButton", "确定"), control("1:10", "IconButton"), control("1:11", "TextBlock", "标题")]
@@ -151,7 +160,8 @@ describe("refsOfDerived", () => {
               column: 1,
               rowSpan: 2,
               columnSpan: 1,
-              children: []
+              children: [],
+              refs: ["1:9"]
             }
           ]
         }

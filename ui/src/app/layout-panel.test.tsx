@@ -168,7 +168,8 @@ describe("LayoutPanel", () => {
                 column: 1,
                 rowSpan: 1,
                 columnSpan: 1,
-                children: []
+                children: [],
+                refs: ["1:9"]
               }
             ]
           }

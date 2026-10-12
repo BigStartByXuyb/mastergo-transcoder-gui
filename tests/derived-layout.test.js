@@ -34,6 +34,7 @@ function read(root) {
 
 /* 期望里的一个顶层格子：顶层带行列，产物之外的那几样（类型 / 子网格 / 容器标记）缺省时是空串、空表与 false。 */
 function cell(ref, controlType, row, column, rowSpan, columnSpan, children, container) {
+  const kids = children || [];
   return {
     ref: ref,
     container: Boolean(container),
@@ -42,19 +43,22 @@ function cell(ref, controlType, row, column, rowSpan, columnSpan, children, cont
     column: column,
     rowSpan: rowSpan === undefined ? 1 : rowSpan,
     columnSpan: columnSpan === undefined ? 1 : columnSpan,
-    children: children || []
+    children: kids,
+    refs: [ref, ...kids.flatMap((item) => item.refs)]
   };
 }
 
 /* 期望里的一个子格子：它挂在父格子下，不带行列。 */
 function child(ref, controlType, rowSpan, columnSpan, children, container) {
+  const kids = children || [];
   return {
     ref: ref,
     container: Boolean(container),
     controlType: controlType || "",
     rowSpan: rowSpan === undefined ? 1 : rowSpan,
     columnSpan: columnSpan === undefined ? 1 : columnSpan,
-    children: children || []
+    children: kids,
+    refs: [ref, ...kids.flatMap((item) => item.refs)]
   };
 }
 

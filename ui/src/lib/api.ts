@@ -212,6 +212,8 @@ export type LayoutChild = {
   columnSpan: number
   /** 这一格里那份子网格（可以再套）：树按它往下展开一层。 */
   children: LayoutChild[]
+  /** 这一格连同它里面装着的全部 ref：界面点它要高亮的就是这些（往下摊平由读视图一处做）。 */
+  refs: string[]
 }
 
 /** 推导结果里的一个格子：某控件落在哪一行哪一列（坐标从 1 起），跨几行几列，里面还装着哪些控件。 */
