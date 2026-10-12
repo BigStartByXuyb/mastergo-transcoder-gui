@@ -218,7 +218,10 @@ function caseReportRefStripped() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
-/* 一格读不出行列坐标（半截写盘 / 字段名变了）：不拿 0 顶上，照「没归宿」说给界面。 */
+/*
+ * 一格读不出行列坐标（缺字段 / 不是数）：不拿 0 顶上，照「没归宿」说给界面。
+ * 注意「0 起」不是读不出 —— 产物那侧有从 0 起也有从 1 起的，两者都算数。
+ */
 function caseCellWithoutPosition() {
   const root = sandbox();
   fs.writeFileSync(
@@ -234,8 +237,9 @@ function caseCellWithoutPosition() {
             columns: [1],
             cells: [
               { ref: "1:9", row: 1, column: 1 },
-              { ref: "1:10", column: 2 },
-              { ref: "1:11", row: 0, column: 0 }
+              { ref: "1:10", row: 0, column: 0 },
+              { ref: "1:11", column: 2 },
+              { ref: "1:12", row: "x", column: "y" }
             ]
           }
         }
@@ -244,10 +248,10 @@ function caseCellWithoutPosition() {
     "utf8"
   );
   const state = read(root);
-  assert.deepStrictEqual(state.regions[0].cells, [cell("1:9", "", 1, 1)]);
+  assert.deepStrictEqual(state.regions[0].cells, [cell("1:9", "", 1, 1), cell("1:10", "", 0, 0)]);
   assert.deepStrictEqual(state.unresolved, [
-    { ref: "1:10", reason: "推导产物里这一格没有行列坐标（坐标从 1 起）" },
-    { ref: "1:11", reason: "推导产物里这一格没有行列坐标（坐标从 1 起）" }
+    { ref: "1:11", reason: "推导产物里这一格没有行列坐标" },
+    { ref: "1:12", reason: "推导产物里这一格没有行列坐标" }
   ]);
   fs.rmSync(root, { recursive: true, force: true });
 }
@@ -288,9 +292,9 @@ function caseContainerWithoutPosition() {
   const state = read(root);
   assert.deepStrictEqual(state.regions[0].cells, []);
   assert.deepStrictEqual(state.unresolved, [
-    { ref: "9:1", reason: "推导产物里这一格没有行列坐标（坐标从 1 起）" },
-    { ref: "9:2", reason: "外面那一格没有行列坐标（坐标从 1 起），里面的控件摆不进树" },
-    { ref: "9:3", reason: "外面那一格没有行列坐标（坐标从 1 起），里面的控件摆不进树" }
+    { ref: "9:1", reason: "推导产物里这一格没有行列坐标" },
+    { ref: "9:2", reason: "外面那一格没有行列坐标，里面的控件摆不进树" },
+    { ref: "9:3", reason: "外面那一格没有行列坐标，里面的控件摆不进树" }
   ]);
   fs.rmSync(root, { recursive: true, force: true });
 }

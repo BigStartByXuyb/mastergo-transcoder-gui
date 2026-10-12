@@ -194,3 +194,12 @@ export function groupsOf(region: LayoutRegion): DerivedGroup[] {
   })
 }
 
+/** 这个分区占几行几列（都按格子算：行＝有格子的行数，列＝格子盖住的列数）—— 与树上的摆法同一处口径。 */
+export function shapeOfRegion(region: LayoutRegion): { rows: number; columns: number } {
+  const columns = new Set<number>()
+  for (const cell of region.cells) {
+    for (let column = cell.column; column < cell.column + cell.columnSpan; column += 1) columns.add(column)
+  }
+  return { rows: rowsOfRegion(region).length, columns: columns.size }
+}
+

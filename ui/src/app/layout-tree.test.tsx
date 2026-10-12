@@ -67,8 +67,9 @@ describe("LayoutTree", () => {
     render(<LayoutTree derived={DERIVED} controls={CONTROLS} selected="" onPick={() => undefined} />)
 
     expect(screen.getByText("顶部栏 · 只注册")).toBeTruthy()
-    expect(screen.getByText("工作区 · 发射")).toBeTruthy()
-    expect(screen.getByText("组 #1")).toBeTruthy()
+    expect(screen.getByText("工作区 · 发射 · 3 行 × 3 列")).toBeTruthy()
+    // 这一组里有两个格子：它们在那一行里左右排。
+    expect(screen.getByText("组 #1（横排）")).toBeTruthy()
     expect(screen.getByText("组 #2")).toBeTruthy()
     expect(screen.getByText("组 #3")).toBeTruthy()
     expect(screen.getByText("#1 确定")).toBeTruthy()
@@ -90,10 +91,10 @@ describe("LayoutTree", () => {
     const picked = vi.fn()
     render(<LayoutTree derived={DERIVED} controls={CONTROLS} selected="" onPick={picked} />)
 
-    fireEvent.click(screen.getByText("工作区 · 发射"))
+    fireEvent.click(screen.getByText("工作区 · 发射 · 3 行 × 3 列"))
     expect(picked).toHaveBeenLastCalledWith("region:work-area")
 
-    fireEvent.click(screen.getByText("组 #1"))
+    fireEvent.click(screen.getByText("组 #1（横排）"))
     expect(picked).toHaveBeenLastCalledWith("region:work-area#group:1")
 
     fireEvent.click(screen.getByText("#3 标题"))
@@ -123,6 +124,7 @@ describe("LayoutTree", () => {
     }
     render(<LayoutTree derived={spanning} controls={CONTROLS} selected="" onPick={() => undefined} />)
 
+    expect(screen.getByText("工作区 · 发射 · 2 行 × 1 列")).toBeTruthy()
     expect(screen.getByText("组 #1")).toBeTruthy()
     expect(screen.getByText("组 #2")).toBeTruthy()
     expect(screen.getAllByText("#1 确定（跨 2 行 × 1 列）").length).toBe(1)
@@ -130,7 +132,7 @@ describe("LayoutTree", () => {
 
   it("选中的那一行标出来（选中态由调用方给，不在组件里另存一份）", () => {
     render(<LayoutTree derived={DERIVED} controls={CONTROLS} selected="region:work-area#group:1" onPick={() => undefined} />)
-    expect(screen.getByText("组 #1").getAttribute("data-selected")).toBe("true")
+    expect(screen.getByText("组 #1（横排）").getAttribute("data-selected")).toBe("true")
     expect(screen.getByText("组 #2").getAttribute("data-selected")).toBe("false")
   })
 })
