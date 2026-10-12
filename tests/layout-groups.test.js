@@ -94,9 +94,9 @@ function main() {
       JSON.stringify({
         pageTarget: TARGET,
         regions: [
-          { id: "top", name: "顶部栏", role: "framework-top", emit: false, grid: { rows: [{}], columns: [{}], cells: [] } },
+          { id: "top", name: "顶部栏", emit: false, grid: { rows: [{}], columns: [{}], cells: [] } },
           {
-            id: "work", name: "工作区", role: "work-area", emit: true,
+            id: "work", name: "工作区", emit: true,
             grid: {
               rows: [{}, {}],
               columns: [{}, {}, {}],
@@ -119,11 +119,10 @@ function main() {
     assert.strictEqual(info.derived.available, true);
     assert.strictEqual(info.derived.reason, "");
     assert.deepStrictEqual(info.derived.regions, [
-      { id: "top", name: "顶部栏", role: "framework-top", emit: false, rows: 1, columns: 1, cells: [] },
+      { id: "top", name: "顶部栏", emit: false, rows: 1, columns: 1, cells: [] },
       {
         id: "work",
         name: "工作区",
-        role: "work-area",
         emit: true,
         rows: 2,
         columns: 3,

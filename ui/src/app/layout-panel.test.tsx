@@ -159,7 +159,6 @@ describe("LayoutPanel", () => {
           {
             id: "work-area",
             name: "工作区",
-            role: "work-area",
             emit: true,
             rows: 1,
             columns: 1,

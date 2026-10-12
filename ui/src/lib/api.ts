@@ -210,11 +210,10 @@ export type LayoutCell = {
   columnSpan: number
 }
 
-/** 推导结果里的一个分区：名字 / 角色 / 发不发射 + 它的网格尺寸与格子。 */
+/** 推导结果里的一个分区：名字 / 发不发射 + 它的网格尺寸与格子。 */
 export type LayoutRegion = {
   id: string
   name: string
-  role: string
   emit: boolean
   rows: number
   columns: number

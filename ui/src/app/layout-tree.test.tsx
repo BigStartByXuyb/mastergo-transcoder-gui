@@ -28,7 +28,6 @@ const DERIVED: DerivedLayout = {
     {
       id: "top-strip",
       name: "顶部栏",
-      role: "framework-top",
       emit: false,
       rows: 1,
       columns: 1,
@@ -37,7 +36,6 @@ const DERIVED: DerivedLayout = {
     {
       id: "work-area",
       name: "工作区",
-      role: "work-area",
       emit: true,
       rows: 2,
       columns: 3,
