@@ -97,7 +97,7 @@ export const UNRESOLVED_KEY = "unresolved"
  * 前提：ref 与分区 id 里不含这些片段（产物的 ref 形如 `1872:59913`，分区 id 形如 `work-area`）。
  */
 /* 「分区里的第几组」那段 key 的分隔：拼（groupKey）与解（refsOfDerived）只认这一处。 */
-const GROUP_SEP = "#g"
+const GROUP_SEP = "#group:"
 /* 「某个控件」那段 key 的前缀：同样只认这一处。 */
 const REF_PREFIX = "ref:"
 /* key 里两段之间的分隔：同样只认这一处。 */

@@ -118,14 +118,14 @@ describe("LayoutTree", () => {
     expect(picked).toHaveBeenLastCalledWith("region:work-area")
 
     fireEvent.click(screen.getByText("组 #1"))
-    expect(picked).toHaveBeenLastCalledWith("region:work-area#g1")
+    expect(picked).toHaveBeenLastCalledWith("region:work-area#group:1")
 
     fireEvent.click(screen.getByText("#3 标题"))
-    expect(picked).toHaveBeenLastCalledWith("region:work-area#g2/ref:1:11")
+    expect(picked).toHaveBeenLastCalledWith("region:work-area#group:2/ref:1:11")
 
     // 容器里那一格：路径多一段。
     fireEvent.click(screen.getByText("NumberBox"))
-    expect(picked).toHaveBeenLastCalledWith("region:work-area#g3/ref:9:9/ref:9:20")
+    expect(picked).toHaveBeenLastCalledWith("region:work-area#group:3/ref:9:9/ref:9:20")
 
     fireEvent.click(screen.getByText("没归宿的 1 个"))
     expect(picked).toHaveBeenLastCalledWith("unresolved")
@@ -164,7 +164,7 @@ describe("LayoutTree", () => {
   })
 
   it("选中的那一行标出来（选中态由调用方给，不在组件里另存一份）", () => {
-    render(<LayoutTree derived={DERIVED} controls={CONTROLS} selected="region:work-area#g1" onPick={() => undefined} />)
+    render(<LayoutTree derived={DERIVED} controls={CONTROLS} selected="region:work-area#group:1" onPick={() => undefined} />)
     expect(screen.getByText("组 #1").getAttribute("data-selected")).toBe("true")
     expect(screen.getByText("组 #2").getAttribute("data-selected")).toBe("false")
   })

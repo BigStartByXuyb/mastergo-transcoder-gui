@@ -116,19 +116,19 @@ describe("layout-edit", () => {
 describe("refsOfDerived", () => {
   it("整个分区 / 某一组 / 某一格 / 容器里的一格 / 没归宿，各有各的解", () => {
     expect(refsOfDerived(DERIVED, "region:work-area")).toEqual(["1:9", "1:10", "1:11", "9:9", "9:20"])
-    expect(refsOfDerived(DERIVED, "region:work-area#g1")).toEqual(["1:9", "1:10"])
-    expect(refsOfDerived(DERIVED, "region:work-area#g2")).toEqual(["1:11"])
+    expect(refsOfDerived(DERIVED, "region:work-area#group:1")).toEqual(["1:9", "1:10"])
+    expect(refsOfDerived(DERIVED, "region:work-area#group:2")).toEqual(["1:11"])
     expect(refsOfDerived(DERIVED, "region:top-strip")).toEqual([])
     // 容器那一格：点它连它里面装着的控件一起算（画布上它盖住的就是这些）。
-    expect(refsOfDerived(DERIVED, "region:work-area#g3")).toEqual(["9:9", "9:20"])
-    expect(refsOfDerived(DERIVED, "region:work-area#g3/ref:9:9")).toEqual(["9:9", "9:20"])
-    expect(refsOfDerived(DERIVED, "region:work-area#g3/ref:9:9/ref:9:20")).toEqual(["9:20"])
+    expect(refsOfDerived(DERIVED, "region:work-area#group:3")).toEqual(["9:9", "9:20"])
+    expect(refsOfDerived(DERIVED, "region:work-area#group:3/ref:9:9")).toEqual(["9:9", "9:20"])
+    expect(refsOfDerived(DERIVED, "region:work-area#group:3/ref:9:9/ref:9:20")).toEqual(["9:20"])
     expect(refsOfDerived(DERIVED, "unresolved")).toEqual(["1:12"])
     // 空 key / 认不出的 key / 还没有读数：都描不出东西。
     expect(refsOfDerived(DERIVED, "")).toEqual([])
     expect(refsOfDerived(DERIVED, "region:nope")).toEqual([])
-    expect(refsOfDerived(DERIVED, "region:work-area#g9")).toEqual([])
-    expect(refsOfDerived(DERIVED, "region:work-area#g1/ref:9:9")).toEqual([])
+    expect(refsOfDerived(DERIVED, "region:work-area#group:9")).toEqual([])
+    expect(refsOfDerived(DERIVED, "region:work-area#group:1/ref:9:9")).toEqual([])
     expect(refsOfDerived(DERIVED, "region:work-area/nope")).toEqual([])
     expect(refsOfDerived(null, "region:work-area")).toEqual([])
   })
@@ -158,9 +158,9 @@ describe("refsOfDerived", () => {
       ],
       unresolved: []
     }
-    expect(refsOfDerived(spanning, "region:work-area#g1")).toEqual(["1:9"])
-    expect(refsOfDerived(spanning, "region:work-area#g2")).toEqual(["1:9"])
-    expect(refsOfDerived(spanning, "region:work-area#g3")).toEqual([])
+    expect(refsOfDerived(spanning, "region:work-area#group:1")).toEqual(["1:9"])
+    expect(refsOfDerived(spanning, "region:work-area#group:2")).toEqual(["1:9"])
+    expect(refsOfDerived(spanning, "region:work-area#group:3")).toEqual([])
   })
 
 })
