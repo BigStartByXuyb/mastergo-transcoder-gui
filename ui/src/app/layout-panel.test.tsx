@@ -159,7 +159,7 @@ describe("LayoutPanel", () => {
             id: "work-area",
             name: "工作区",
             emit: true,
-            cells: [{ ref: "1:9", row: 1, column: 1, rowSpan: 1, columnSpan: 1 }]
+            cells: [{ ref: "1:9", controlType: "IconButton", row: 1, column: 1, rowSpan: 1, columnSpan: 1, children: [] }]
           }
         ],
         unresolved: []
@@ -171,11 +171,11 @@ describe("LayoutPanel", () => {
     const marked = () => document.querySelector('[data-ref="1:9"][data-highlighted="true"]')
     expect(marked()).toBeNull()
 
-    // 树上控件那一行按 value 显示（「确定」是这张夹具里 #1 的文本），末尾带号。
-    fireEvent.click(screen.getByText("确定 · #1（第 1 列）"))
+    // 树上控件那一行：清单里的号 + 它的 value（「确定」是这张夹具里 #1 的文本）。
+    fireEvent.click(screen.getByText("#1 确定"))
     expect(marked()).toBeTruthy()
 
-    fireEvent.click(screen.getByText("确定 · #1（第 1 列）"))
+    fireEvent.click(screen.getByText("#1 确定"))
     expect(marked()).toBeNull()
   })
 

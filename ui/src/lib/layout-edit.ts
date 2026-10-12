@@ -8,17 +8,37 @@ import type { DerivedLayout, LayoutCell, LayoutControl, LayoutGroup, LayoutRegio
  * 这类校验只有后端 lib/layout-groups.js 一处，界面把后端的原话照实显示（见 app/layout-panel.tsx）。
  */
 
+/* 产物把「这一格是个容器（里面还装着控件）」标成在 ref 前面加这个前缀：只认这一处。 */
+const SYNTH_PREFIX = "synth:"
+
+/* 查清单用的 ref：合成出来的容器要去掉那层前缀，剩下的才是它对应的那个节点。 */
+function bareRef(ref: string): string {
+  return ref.startsWith(SYNTH_PREFIX) ? ref.slice(SYNTH_PREFIX.length) : ref
+}
+
+/** 这一格是不是产物合成出来的容器（它里面还装着控件）。 */
+export function isContainer(ref: string): boolean {
+  return ref.startsWith(SYNTH_PREFIX)
+}
+
+/** 两条 ref 指不指向同一个节点（合成出来的容器剥掉那层前缀再比）。 */
+export function sameNode(left: string, right: string): boolean {
+  return bareRef(left) === bareRef(right)
+}
+
 /*
  * 清单里那一条控件（没有给 null）。「清单里有没有它 / 拿它的字段」都从这里走 ——
  * 同一条控件在界面几个地方（画布、布局树、面上清单）读出来的是同一份事实。
  */
 function controlOf(controls: LayoutControl[], ref: string): LayoutControl | null {
-  return controls.find((item) => item.ref === ref) ?? null
+  const bare = bareRef(ref)
+  return controls.find((item) => item.ref === bare) ?? null
 }
 
 /** 控件编号＝控件清单里的次序（1 起）；不在清单里的 ref 给 0（清单被换过时不硬编一个号）。 */
 export function numberOf(controls: LayoutControl[], ref: string): number {
-  const index = controls.findIndex((item) => item.ref === ref)
+  const bare = bareRef(ref)
+  const index = controls.findIndex((item) => item.ref === bare)
   return index < 0 ? 0 : index + 1
 }
 
@@ -31,8 +51,8 @@ function valueOf(control: LayoutControl): string {
  * 「按哪个字段认这个控件」只有这一处 —— 布局树那一行按它显示；面上那份清单摆的是「类型 · value」（见 labelOf）。 */
 export function displayNameOf(controls: LayoutControl[], ref: string): string {
   const control = controlOf(controls, ref)
-  if (!control) return ref
-  return valueOf(control) || control.controlType || ref
+  if (!control) return bareRef(ref)
+  return valueOf(control) || control.controlType || bareRef(ref)
 }
 
 /*
@@ -92,45 +112,68 @@ export function removeGroup(groups: LayoutGroup[], id: string): LayoutGroup[] {
 export const UNRESOLVED_KEY = "unresolved"
 
 /*
- * 行 key 的拼法：分区 → 行 → 控件，三段按下面三个分隔符接起来（拼装与解析都只认这三个常量）。
- * 前提：ref 与分区 id 里不含这些片段（产物的 ref 形如 `1:9`，分区 id 形如 `work-area`）。
+ * key 的拼法：分区 → 第几组（分区里的某一行）→ 格子路径（每段一个 ref，套几层就有几段），
+ * 按下面三处接起来（拼装与解析都只认这三处）。
+ * 前提：ref 与分区 id 里不含这些片段（产物的 ref 形如 `1872:59913`，分区 id 形如 `work-area`）。
  */
-/* 「分区里的某一行」那段 key 的分隔：生产（rowKey）与解析（refsOfDerived）只认这一处。 */
-const ROW_SEP = "#row:"
+/* 「分区里的第几组」那段 key 的分隔：拼（groupKey）与解（refsOfDerived）只认这一处。 */
+const GROUP_SEP = "#g"
 /* 「某个控件」那段 key 的前缀：同样只认这一处。 */
 const REF_PREFIX = "ref:"
-/* 控件行 key 里「分区 + 行」与「控件」两段的分隔：同样只认这一处。 */
+/* key 里两段之间的分隔：同样只认这一处。 */
 const CONTROL_SEP = "/"
 
 export function regionKey(id: string): string {
   return "region:" + id
 }
 
-export function rowKey(id: string, row: number): string {
-  return regionKey(id) + ROW_SEP + row
+export function groupKey(id: string, group: number): string {
+  return regionKey(id) + GROUP_SEP + group
 }
 
 function controlKey(ref: string): string {
   return REF_PREFIX + ref
 }
 
-/* 树上一条控件行的 key：带上「分区 + 行」，因为跨行的格子会在多行里各出现一次（同一条 ref 会有多条行）。 */
-export function controlLineKey(regionId: string, row: number, ref: string): string {
-  return rowKey(regionId, row) + CONTROL_SEP + controlKey(ref)
+/* 树上一条格子行的 key：分区 + 第几组 + 从这一组下去的路径（套着的几层各占一段）。 */
+export function controlLineKey(regionId: string, group: number, path: string[]): string {
+  return groupKey(regionId, group) + path.map((ref) => CONTROL_SEP + controlKey(ref)).join("")
+}
+
+/* 按路径找那一格：每段是那一层里的一个 ref。 */
+function cellAt(cells: LayoutCell[], path: string[]): LayoutCell | null {
+  const hit = cells.find((cell) => cell.ref === path[0])
+  if (!hit) return null
+  return path.length === 1 ? hit : cellAt(hit.children, path.slice(1))
+}
+
+/* 这一格在画布上盖住的 ref：它自己，加上它里面装着的那些（往下都算）。 */
+function refsOfCell(cell: LayoutCell): string[] {
+  return [cell.ref, ...refsOfCells(cell.children)]
+}
+
+function refsOfCells(cells: LayoutCell[]): string[] {
+  return cells.flatMap(refsOfCell)
 }
 
 export function refsOfDerived(derived: DerivedLayout | null, key: string): string[] {
   if (!derived || !key) return []
   if (key === UNRESOLVED_KEY) return derived.unresolved.map((item) => item.ref)
-  // 控件行可能带「分区 + 行」前缀（跨行的格子每行一条）：只看最后那一段。
-  const tail = key.slice(key.lastIndexOf(CONTROL_SEP) + 1)
-  if (tail.startsWith(REF_PREFIX)) return [tail.slice(REF_PREFIX.length)]
-  // 剩下两种 key 都是「分区」开头：带 ROW_SEP 的是分区里的一行，不带的是整个分区。
-  const [regionPart, rowPart] = key.split(ROW_SEP)
+  // 段一：[分区] 或 [分区 + 第几组]；后面的段都是「这一组的格子往下走的路径」。
+  const [head, ...tail] = key.split(CONTROL_SEP)
+  const [regionPart, groupPart] = head.split(GROUP_SEP)
   const region = derived.regions.find((item) => regionKey(item.id) === regionPart)
   if (!region) return []
-  const cells = rowPart === undefined ? region.cells : cellsInRow(region, Number(rowPart))
-  return cells.map((cell) => cell.ref)
+  const path: string[] = []
+  for (const part of tail) {
+    if (!part.startsWith(REF_PREFIX)) return []
+    path.push(part.slice(REF_PREFIX.length))
+  }
+  // 没有组号＝整个分区；有组号＝那一组（组号数的是「有格子的行」，与树上的编号同一处算）。
+  const cells = groupPart === undefined ? region.cells : cellsInRow(region, rowsOfRegion(region)[Number(groupPart) - 1])
+  if (path.length === 0) return refsOfCells(cells)
+  const hit = cellAt(cells, path)
+  return hit ? refsOfCell(hit) : []
 }
 
 /* 一个格子盖住哪几行（含跨行）：行区间只有这一处；跨度由后端归一成至少 1（lib/derived-layout.js），这里直接用。 */

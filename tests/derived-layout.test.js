@@ -32,6 +32,19 @@ function read(root) {
   return derivedLayout.read({ projectRoot: root, target: TARGET });
 }
 
+/* 期望里的一个格子：产物之外的三样（类型 / 子网格）缺省时是空串与空表。 */
+function cell(ref, controlType, row, column, rowSpan, columnSpan, children) {
+  return {
+    ref: ref,
+    controlType: controlType || "",
+    row: row,
+    column: column,
+    rowSpan: rowSpan === undefined ? 1 : rowSpan,
+    columnSpan: columnSpan === undefined ? 1 : columnSpan,
+    children: children || []
+  };
+}
+
 function caseNoProduct() {
   const root = sandbox();
   const state = read(root);
@@ -75,8 +88,8 @@ function caseRegions() {
             rows: [1, 2],
             columns: [1, 2, 3],
             cells: [
-              { ref: "1:9", row: 1, column: 2 },
-              { ref: "1:10", row: 1, column: 3, rowSpan: 2, columnSpan: 1 }
+              { ref: "1:9", controlType: "Camera", row: 1, column: 2 },
+              { ref: "1:10", controlType: "TextBlock", row: 1, column: 3, rowSpan: 2, columnSpan: 1 }
             ]
           }
         },
@@ -89,19 +102,58 @@ function caseRegions() {
   assert.strictEqual(state.available, true);
   assert.strictEqual(state.reason, "");
 
-  // 出去的就是这四样：名字 / 发不发射 / 格子；网格维度不往界面搬（有哪几行由界面按格子现算）。
+  // 出去的就是这几样：名字 / 发不发射 / 格子；网格维度不往界面搬（有哪几行由界面按格子现算）。
   assert.deepStrictEqual(state.regions[0], { id: "top-strip", name: "顶部栏", emit: false, cells: [] });
   assert.deepStrictEqual(state.regions[1], {
     id: "work-area",
     name: "work-area",
     emit: true,
-    cells: [
-      { ref: "1:9", row: 1, column: 2, rowSpan: 1, columnSpan: 1 },
-      { ref: "1:10", row: 1, column: 3, rowSpan: 2, columnSpan: 1 }
-    ]
+    cells: [cell("1:9", "Camera", 1, 2), cell("1:10", "TextBlock", 1, 3, 2, 1)]
   });
   assert.deepStrictEqual(state.regions[2], { id: "no-grid", name: "no-grid", emit: true, cells: [] }, "网格缺了就是没有格子");
 
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
+/* 格子里还套着格子（产物那层的坐标从 0 起）：子网格照带出去，套几层带几层。 */
+function caseNestedCells() {
+  const root = sandbox();
+  fs.writeFileSync(
+    productFile(root),
+    JSON.stringify({
+      regions: [
+        {
+          id: "work-area",
+          name: "工作区",
+          emit: true,
+          grid: {
+            rows: [1],
+            columns: [1],
+            cells: [
+              {
+                ref: "synth:9:1",
+                row: 1,
+                column: 1,
+                children: {
+                  cells: [
+                    { ref: "9:2", controlType: "IconButton", row: 0, column: 0 },
+                    { ref: "9:3", row: 1, column: 0, children: { cells: [{ ref: "9:4", controlType: "TextBlock", row: 0, column: 0 }] } }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }),
+    "utf8"
+  );
+  assert.deepStrictEqual(read(root).regions[0].cells, [
+    cell("synth:9:1", "", 1, 1, 1, 1, [
+      cell("9:2", "IconButton", 0, 0),
+      cell("9:3", "", 1, 0, 1, 1, [cell("9:4", "TextBlock", 0, 0)])
+    ])
+  ]);
   fs.rmSync(root, { recursive: true, force: true });
 }
 
@@ -152,7 +204,7 @@ function caseCellWithoutPosition() {
     "utf8"
   );
   const state = read(root);
-  assert.deepStrictEqual(state.regions[0].cells, [{ ref: "1:9", row: 1, column: 1, rowSpan: 1, columnSpan: 1 }]);
+  assert.deepStrictEqual(state.regions[0].cells, [cell("1:9", "", 1, 1)]);
   assert.deepStrictEqual(state.unresolved, [
     { ref: "1:10", reason: "推导产物里这一格没有行列坐标（坐标从 1 起）" },
     { ref: "1:11", reason: "推导产物里这一格没有行列坐标（坐标从 1 起）" }
@@ -184,10 +236,7 @@ function caseSpans() {
     }),
     "utf8"
   );
-  assert.deepStrictEqual(read(root).regions[0].cells, [
-    { ref: "1:9", row: 1, column: 1, rowSpan: 1, columnSpan: 1 },
-    { ref: "1:10", row: 2, column: 1, rowSpan: 2, columnSpan: 3 }
-  ]);
+  assert.deepStrictEqual(read(root).regions[0].cells, [cell("1:9", "", 1, 1), cell("1:10", "", 2, 1, 2, 3)]);
   fs.rmSync(root, { recursive: true, force: true });
 }
 
@@ -197,6 +246,7 @@ try {
     ["产物在但读不出 regions：按没有算", caseBrokenProduct],
     ["不读产物时的空读数", caseEmptyDerived],
     ["分区与格子归一（只注册 / 缺字段 / 缺网格）", caseRegions],
+    ["格子里还套着格子（子网格照带出去）", caseNestedCells],
     ["没归宿的从同趟报告取", caseUnresolved],
     ["一格读不出坐标：照「没归宿」说，不拿 0 顶上", caseCellWithoutPosition],
     ["跨度按至少 1 归一", caseSpans]
