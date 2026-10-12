@@ -103,7 +103,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
 
   async function suggest() {
     setNote("")
-    await run("suggest", () => api.aiLayoutGroups(controls), (payload) => {
+    await run("suggest", () => api.aiLayoutGroups(projectRoot, target, controls), (payload) => {
       if (!alive.current) return
       if (payload.groups.length > 0) {
         applyGroups(payload.groups)

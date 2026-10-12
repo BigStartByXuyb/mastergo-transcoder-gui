@@ -34,5 +34,5 @@
 | 布局树每行 key 的三处分隔 | `ui/src/lib/layout-edit.ts` · `const GROUP_SEP =`、`const REF_PREFIX =`、`const CONTROL_SEP =` | 树上每行 key 的拼接（`groupKey` / `controlLineKey`）与解析（`refsOfDerived`） |
 | 产物合成出来的容器怎么认（ref 上的那层前缀） | `lib/derived-layout.js` · `const SYNTH_PREFIX =` | 读视图剥掉它再往外给（`readRef`），并用 `container` 标出来；界面只认 `container`，不认识前缀 |
 | 推导产物与同趟报告的路径拼法 | `lib/workdir.js` · `function wpfLayoutPath(`、`function wpfLayoutReportPath(` | `lib/derived-layout.js` 的 `read`（读视图只出去事实，不自己拼路径） |
-| 格子坐标与跨度的归一（坐标从 1 起、跨度至少 1） | `lib/derived-layout.js` · `const NO_POSITION_REASON =`、`function positionOf(`、`function spanOf(` | 布局树的格子（界面直接用；读不出坐标的照「没归宿」暴露，不拿 0 顶上） |
+| 格子坐标与跨度的归一（坐标是非负整数才算数、跨度至少 1） | `lib/derived-layout.js` · `const NO_POSITION_REASON =`、`function positionOf(`、`function spanOf(` | 布局树的格子（界面直接用；缺字段 / 空串 / 布尔 / 非整数 / 负数都算「读不出」，照「没归宿」暴露，不拿位置顶上） |
 

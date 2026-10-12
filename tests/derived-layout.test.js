@@ -219,8 +219,8 @@ function caseReportRefStripped() {
 }
 
 /*
- * 一格读不出行列坐标（缺字段 / 不是数）：不拿 0 顶上，照「没归宿」说给界面。
- * 注意「0 起」不是读不出 —— 产物那侧有从 0 起也有从 1 起的，两者都算数。
+ * 一格读不出行列坐标（缺字段 / 空串 / 布尔 / 非整数 / 负数）：不拿一个位置顶上，照「没归宿」说给界面。
+ * 注意「0 起」不是读不出 —— 产物那侧有从 0 起也有从 1 起的，非负整数都算数。
  */
 function caseCellWithoutPosition() {
   const root = sandbox();
@@ -239,7 +239,14 @@ function caseCellWithoutPosition() {
               { ref: "1:9", row: 1, column: 1 },
               { ref: "1:10", row: 0, column: 0 },
               { ref: "1:11", column: 2 },
-              { ref: "1:12", row: "x", column: "y" }
+              { ref: "1:12", row: "x", column: "y" },
+              { ref: "1:13", row: null, column: null },
+              { ref: "1:14", row: "", column: "" },
+              /* 布尔假值、纯空白串、负数、非整数都不是坐标（Number 会把前两个折成 0，负数与小数会照抄）。 */
+              { ref: "1:15", row: false, column: false },
+              { ref: "1:16", row: " ", column: " " },
+              { ref: "1:17", row: -1, column: -1 },
+              { ref: "1:18", row: 0.5, column: 0.5 }
             ]
           }
         }
@@ -251,7 +258,13 @@ function caseCellWithoutPosition() {
   assert.deepStrictEqual(state.regions[0].cells, [cell("1:9", "", 1, 1), cell("1:10", "", 0, 0)]);
   assert.deepStrictEqual(state.unresolved, [
     { ref: "1:11", reason: "推导产物里这一格没有行列坐标" },
-    { ref: "1:12", reason: "推导产物里这一格没有行列坐标" }
+    { ref: "1:12", reason: "推导产物里这一格没有行列坐标" },
+    { ref: "1:13", reason: "推导产物里这一格没有行列坐标" },
+    { ref: "1:14", reason: "推导产物里这一格没有行列坐标" },
+    { ref: "1:15", reason: "推导产物里这一格没有行列坐标" },
+    { ref: "1:16", reason: "推导产物里这一格没有行列坐标" },
+    { ref: "1:17", reason: "推导产物里这一格没有行列坐标" },
+    { ref: "1:18", reason: "推导产物里这一格没有行列坐标" }
   ]);
   fs.rmSync(root, { recursive: true, force: true });
 }
@@ -336,7 +349,7 @@ try {
     ["格子里还套着格子（子网格照带出去）", caseNestedCells],
     ["没归宿的从同趟报告取", caseUnresolved],
     ["报告那条出口也剥容器标记", caseReportRefStripped],
-    ["一格读不出坐标：照「没归宿」说，不拿 0 顶上", caseCellWithoutPosition],
+    ["一格读不出坐标：照「没归宿」说，不拿一个位置顶上", caseCellWithoutPosition],
     ["摆不进树的容器：里面的控件跟着记出去", caseContainerWithoutPosition],
     ["跨度按至少 1 归一", caseSpans]
   ];

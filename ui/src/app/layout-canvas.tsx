@@ -42,7 +42,7 @@ export function LayoutCanvas(props: {
           </Button>
         ) : (
           <span className="text-muted-foreground text-xs">
-            这一页还没有设计稿位图：画布上只有编号。要对着原图看，先在上面那张卡里传一张。
+            这一页还没有设计稿位图：画布上只有编号。要对着原图看，先在设计稿位图那一栏传一张。
           </span>
         )}
       </div>

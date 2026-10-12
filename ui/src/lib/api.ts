@@ -216,7 +216,7 @@ export type LayoutChild = {
   refs: string[]
 }
 
-/** 推导结果里的一个格子：某控件落在哪一行哪一列（坐标从 1 起），跨几行几列，里面还装着哪些控件。 */
+/** 推导结果里的一个格子：某控件落在哪一行哪一列（产物给的非负整数，0 起 1 起都有），跨几行几列。 */
 export type LayoutCell = LayoutChild & {
   row: number
   column: number
@@ -234,7 +234,7 @@ export type LayoutRegion = {
  * 推导出来的布局（作业A 第 8 步的产物，界面那栏「布局树」显示的就是它 —— 不是设计稿原始层级）：
  *   分区 → 组（分区里的某一行）→ 格子（每个格子一个控件）；
  *   unresolved 是界面摆不进树的那几条：插件标记的散条目（同一趟的报告），
- *   加上产物里读不出行列坐标的格子（坐标从 1 起，读不出就不当作一个格子）。
+ *   加上产物里读不出行列坐标的格子（缺字段 / 空串 / 非整数 / 负数，读不出就不当作一个格子）。
  * 这一步没跑过时 available:false，reason 是给界面看的那句话。
  */
 export type DerivedLayout = {
@@ -1103,9 +1103,12 @@ export const api = {
       kind: "glossary",
       texts
     }),
-  aiLayoutGroups: (controls: LayoutControl[]) =>
+  /* 带上工程与页面：后端据此把这一页的设计稿位图一起给模型（插件口径里这一步是「看图判分组」）。 */
+  aiLayoutGroups: (projectRoot: string, target: string, controls: LayoutControl[]) =>
     post<{ ok: true; groups: LayoutGroup[] }>("/api/ai/suggest", {
       kind: "layout-groups",
+      projectRoot,
+      target,
       controls
     }),
   confirm: (body: {
