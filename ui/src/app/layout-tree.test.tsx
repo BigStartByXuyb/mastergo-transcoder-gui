@@ -2,7 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
 import { LayoutTree } from "@/app/layout-tree"
-import type { DerivedLayout, LayoutCell, LayoutChild, LayoutControl } from "@/lib/api"
+import type { DerivedLayout, LayoutControl } from "@/lib/api"
+import { cell, child } from "@/lib/layout-fixtures"
 
 /*
  * 布局树：显示的是**推导出来的**布局，摆成正常的树 —— 分区 → 组（分区里的某一行）→ 格子 → 格子里的格子。
@@ -12,40 +13,6 @@ import type { DerivedLayout, LayoutCell, LayoutChild, LayoutControl } from "@/li
 
 function control(ref: string, controlType: string, text: string): LayoutControl {
   return { ref: ref, controlType: controlType, text: text, absX: 0, absY: 0, w: 10, h: 10 }
-}
-
-/* 子网格里的一格：它挂在父格子下，所以不带行列。 */
-function child(ref: string, controlType: string, children: LayoutChild[] = [], container = false): LayoutChild {
-  return {
-    ref: ref,
-    container: container,
-    controlType: controlType,
-    rowSpan: 1,
-    columnSpan: 1,
-    children: children,
-    refs: [ref, ...children.flatMap((item) => item.refs)]
-  }
-}
-
-function cell(
-  ref: string,
-  controlType: string,
-  row: number,
-  column: number,
-  children: LayoutChild[] = [],
-  container = false
-): LayoutCell {
-  return {
-    ref: ref,
-    container: container,
-    controlType: controlType,
-    row: row,
-    column: column,
-    rowSpan: 1,
-    columnSpan: 1,
-    children: children,
-    refs: [ref, ...children.flatMap((item) => item.refs)]
-  }
 }
 
 const CONTROLS = [
@@ -149,19 +116,7 @@ describe("LayoutTree", () => {
           id: "work-area",
           name: "工作区",
           emit: true,
-          cells: [
-            {
-              ref: "1:9",
-              container: false,
-              controlType: "IconButton",
-              row: 2,
-              column: 1,
-              rowSpan: 2,
-              columnSpan: 1,
-              children: [],
-              refs: ["1:9"]
-            }
-          ]
+          cells: [{ ...cell("1:9", "IconButton", 2, 1), rowSpan: 2 }]
         }
       ],
       unresolved: []

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { LayoutPanel } from "@/app/layout-panel"
+import { cell } from "@/lib/layout-fixtures"
 import type { DerivedLayout, LayoutControl, LayoutGroup } from "@/lib/api"
 import { drive } from "@/lib/settings-fixtures"
 
@@ -159,19 +160,7 @@ describe("LayoutPanel", () => {
             id: "work-area",
             name: "工作区",
             emit: true,
-            cells: [
-              {
-                ref: "1:9",
-                container: false,
-                controlType: "IconButton",
-                row: 1,
-                column: 1,
-                rowSpan: 1,
-                columnSpan: 1,
-                children: [],
-                refs: ["1:9"]
-              }
-            ]
+            cells: [cell("1:9", "IconButton", 1, 1)]
           }
         ],
         unresolved: []
