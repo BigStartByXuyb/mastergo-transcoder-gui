@@ -97,6 +97,8 @@ export const UNRESOLVED_KEY = "unresolved"
 
 /* 「分区里的某一行」那段 key 的分隔：生产（rowKey）与解析（refsOfDerived）只认这一处。 */
 const ROW_SEP = "#row:"
+/* 「某个控件」那段 key 的前缀：同样只认这一处。 */
+const REF_PREFIX = "ref:"
 
 export function regionKey(id: string): string {
   return "region:" + id
@@ -107,13 +109,13 @@ export function rowKey(id: string, row: number): string {
 }
 
 export function controlKey(ref: string): string {
-  return "ref:" + ref
+  return REF_PREFIX + ref
 }
 
 export function refsOfDerived(derived: DerivedLayout, key: string): string[] {
   if (!key) return []
   if (key === UNRESOLVED_KEY) return derived.unresolved.map((item) => item.ref)
-  if (key.startsWith("ref:")) return [key.slice("ref:".length)]
+  if (key.startsWith(REF_PREFIX)) return [key.slice(REF_PREFIX.length)]
   if (key.includes(ROW_SEP)) {
     const [regionPart, rowPart] = key.split(ROW_SEP)
     const region = derived.regions.find((item) => regionKey(item.id) === regionPart)
