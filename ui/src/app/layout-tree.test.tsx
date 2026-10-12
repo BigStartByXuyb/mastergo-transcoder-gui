@@ -104,6 +104,32 @@ describe("LayoutTree", () => {
     expect(refsOfDerived(DERIVED, "")).toEqual([])
   })
 
+  it("跨行的格子：它盖住的每一行都算有它，行列表也把它铺开", () => {
+    const spanning: DerivedLayout = {
+      available: true,
+      reason: "",
+      regions: [
+        {
+          id: "work-area",
+          name: "工作区",
+          emit: true,
+          rows: 3,
+          columns: 1,
+          cells: [{ ref: "1:9", row: 2, column: 1, rowSpan: 2, columnSpan: 1 }]
+        }
+      ],
+      unresolved: []
+    }
+    expect(refsOfDerived(spanning, "region:work-area#row:1")).toEqual([])
+    expect(refsOfDerived(spanning, "region:work-area#row:2")).toEqual(["1:9"])
+    expect(refsOfDerived(spanning, "region:work-area#row:3")).toEqual(["1:9"])
+    render(<LayoutTree derived={spanning} controls={CONTROLS} selected="" onPick={() => undefined} />)
+    expect(screen.getByText("第 2 行")).toBeTruthy()
+    expect(screen.getByText("第 3 行")).toBeTruthy()
+    // 跨行的格子，它盖住的两行里各出现一次。
+    expect(screen.getAllByText("确定 · #1（第 1 列，跨 2 行 × 1 列）").length).toBe(2)
+  })
+
   it("选中的那一行标出来（选中态由调用方给，不在组件里另存一份）", () => {
     render(<LayoutTree derived={DERIVED} controls={CONTROLS} selected="region:work-area" onPick={() => undefined} />)
     expect(screen.getByText("工作区 · 发射 · 2 行 × 3 列").getAttribute("data-selected")).toBe("true")

@@ -125,13 +125,17 @@ export function refsOfDerived(derived: DerivedLayout, key: string): string[] {
   return region ? region.cells.map((cell) => cell.ref) : []
 }
 
-/* 一个分区里落在第 k 行的格子：树按行摆、refsOfDerived 按行收，两处同一条判据。 */
+/* 一个分区里盖住第 k 行的格子（跨行的格子每一行都算盖住）：树按行摆、refsOfDerived 按行收，同一条判据。 */
 export function cellsInRow(region: LayoutRegion, row: number): LayoutCell[] {
-  return region.cells.filter((cell) => cell.row === row)
+  return region.cells.filter((cell) => row >= cell.row && row < cell.row + Math.max(1, cell.rowSpan))
 }
 
-/* 一个分区里有哪些行（去重、从小到大）：树按它摆行。 */
+/* 一个分区里有哪些行（把跨行的格子铺开、去重、从小到大）：树按它摆行。 */
 export function rowsOfRegion(region: LayoutRegion): number[] {
-  return [...new Set(region.cells.map((cell) => cell.row))].sort((left, right) => left - right)
+  const rows = new Set<number>()
+  for (const cell of region.cells) {
+    for (let row = cell.row; row < cell.row + Math.max(1, cell.rowSpan); row += 1) rows.add(row)
+  }
+  return [...rows].sort((left, right) => left - right)
 }
 
