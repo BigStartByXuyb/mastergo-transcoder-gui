@@ -21,13 +21,29 @@ function control(ref: string, controlType = "IconButton", text = ""): LayoutCont
   return { ref: ref, controlType: controlType, text: text, absX: 0, absY: 0, w: 10, h: 10 }
 }
 
-function cell(ref: string, controlType: string, row: number, column: number, children: LayoutChild[] = []): LayoutCell {
-  return { ref: ref, controlType: controlType, row: row, column: column, rowSpan: 1, columnSpan: 1, children: children }
+function cell(
+  ref: string,
+  controlType: string,
+  row: number,
+  column: number,
+  children: LayoutChild[] = [],
+  container = false
+): LayoutCell {
+  return {
+    ref: ref,
+    container: container,
+    controlType: controlType,
+    row: row,
+    column: column,
+    rowSpan: 1,
+    columnSpan: 1,
+    children: children
+  }
 }
 
 /* 子网格里的一格：它挂在父格子下，所以不带行列。 */
 function child(ref: string, controlType: string, children: LayoutChild[] = []): LayoutChild {
-  return { ref: ref, controlType: controlType, rowSpan: 1, columnSpan: 1, children: children }
+  return { ref: ref, container: false, controlType: controlType, rowSpan: 1, columnSpan: 1, children: children }
 }
 
 const CONTROLS = [control("1:9", "IconButton", "确定"), control("1:10", "IconButton"), control("1:11", "TextBlock", "标题")]
@@ -47,8 +63,8 @@ const DERIVED: DerivedLayout = {
         cell("1:9", "IconButton", 1, 2),
         cell("1:10", "IconButton", 1, 3),
         cell("1:11", "TextBlock", 2, 1),
-        // 合成出来的容器（ref 带 synth: 前缀）：里面既列着容器自己那一条，也装着清单里没有的控件。
-        cell("synth:9:9", "", 3, 1, [child("9:9", "", [child("9:20", "NumberBox")])])
+        // 合成出来的容器（读视图把它标成 container）：里面装着清单里没有的控件。
+        cell("9:9", "", 3, 1, [child("9:20", "NumberBox")], true)
       ]
     }
   ],
@@ -71,10 +87,6 @@ describe("layout-edit", () => {
     expect(displayNameOf(CONTROLS, "9:9")).toBe("9:9")
     // 只有空白的 value 当没有。
     expect(displayNameOf([control("1:12", "IconButton", "   ")], "1:12")).toBe("IconButton")
-    // 合成出来的容器：剥掉那层前缀再认它对应的节点。
-    expect(displayNameOf(CONTROLS, "synth:1:9")).toBe("确定")
-    expect(numberOf(CONTROLS, "synth:1:10")).toBe(2)
-    expect(displayNameOf(CONTROLS, "synth:9:9")).toBe("9:9")
   })
 
   it("未分组清单＝没进任何组的控件", () => {
@@ -107,11 +119,10 @@ describe("refsOfDerived", () => {
     expect(refsOfDerived(DERIVED, "region:work-area#g1")).toEqual(["1:9", "1:10"])
     expect(refsOfDerived(DERIVED, "region:work-area#g2")).toEqual(["1:11"])
     expect(refsOfDerived(DERIVED, "region:top-strip")).toEqual([])
-    // 容器那一格：它自己按剥掉前缀的 ref 交出去（画布是按控件的 ref 认框的），里面装着的也一起算。
+    // 容器那一格：点它连它里面装着的控件一起算（画布上它盖住的就是这些）。
     expect(refsOfDerived(DERIVED, "region:work-area#g3")).toEqual(["9:9", "9:20"])
-    expect(refsOfDerived(DERIVED, "region:work-area#g3/ref:synth:9:9")).toEqual(["9:9", "9:20"])
-    expect(refsOfDerived(DERIVED, "region:work-area#g3/ref:synth:9:9/ref:9:9")).toEqual(["9:9", "9:20"])
-    expect(refsOfDerived(DERIVED, "region:work-area#g3/ref:synth:9:9/ref:9:9/ref:9:20")).toEqual(["9:20"])
+    expect(refsOfDerived(DERIVED, "region:work-area#g3/ref:9:9")).toEqual(["9:9", "9:20"])
+    expect(refsOfDerived(DERIVED, "region:work-area#g3/ref:9:9/ref:9:20")).toEqual(["9:20"])
     expect(refsOfDerived(DERIVED, "unresolved")).toEqual(["1:12"])
     // 空 key / 认不出的 key / 还没有读数：都描不出东西。
     expect(refsOfDerived(DERIVED, "")).toEqual([])
@@ -131,7 +142,18 @@ describe("refsOfDerived", () => {
           id: "work-area",
           name: "工作区",
           emit: true,
-          cells: [{ ref: "1:9", controlType: "IconButton", row: 2, column: 1, rowSpan: 2, columnSpan: 1, children: [] }]
+          cells: [
+            {
+              ref: "1:9",
+              container: false,
+              controlType: "IconButton",
+              row: 2,
+              column: 1,
+              rowSpan: 2,
+              columnSpan: 1,
+              children: []
+            }
+          ]
         }
       ],
       unresolved: []
@@ -141,11 +163,4 @@ describe("refsOfDerived", () => {
     expect(refsOfDerived(spanning, "region:work-area#g3")).toEqual([])
   })
 
-  it("没归宿那条出口也剥掉合成容器那层前缀（画布按裸 ref 认框）", () => {
-    const withContainer: DerivedLayout = {
-      ...DERIVED,
-      unresolved: [{ ref: "synth:9:9", reason: "单条目栏：几何判不出它跟谁同组" }]
-    }
-    expect(refsOfDerived(withContainer, "unresolved")).toEqual(["9:9"])
-  })
 })

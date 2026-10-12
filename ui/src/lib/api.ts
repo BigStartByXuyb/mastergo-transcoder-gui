@@ -204,6 +204,8 @@ export type LayoutGroup = {
 /** 格子里装着的控件（含它自己的子网格）：它挂在父格子下，所以不带「第几行第几列」。 */
 export type LayoutChild = {
   ref: string
+  /** 这一格是产物合成出来的容器（里面还装着控件）：树上的「容器」标记按它。 */
+  container: boolean
   /** 产物给的类型（合成出来的容器常常没有这个）：界面的名字在清单里找不到时按它显示。 */
   controlType: string
   rowSpan: number

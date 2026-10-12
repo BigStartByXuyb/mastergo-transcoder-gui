@@ -15,12 +15,28 @@ function control(ref: string, controlType: string, text: string): LayoutControl 
 }
 
 /* 子网格里的一格：它挂在父格子下，所以不带行列。 */
-function child(ref: string, controlType: string, children: LayoutChild[] = []): LayoutChild {
-  return { ref: ref, controlType: controlType, rowSpan: 1, columnSpan: 1, children: children }
+function child(ref: string, controlType: string, children: LayoutChild[] = [], container = false): LayoutChild {
+  return { ref: ref, container: container, controlType: controlType, rowSpan: 1, columnSpan: 1, children: children }
 }
 
-function cell(ref: string, controlType: string, row: number, column: number, children: LayoutChild[] = []): LayoutCell {
-  return { ref: ref, controlType: controlType, row: row, column: column, rowSpan: 1, columnSpan: 1, children: children }
+function cell(
+  ref: string,
+  controlType: string,
+  row: number,
+  column: number,
+  children: LayoutChild[] = [],
+  container = false
+): LayoutCell {
+  return {
+    ref: ref,
+    container: container,
+    controlType: controlType,
+    row: row,
+    column: column,
+    rowSpan: 1,
+    columnSpan: 1,
+    children: children
+  }
 }
 
 const CONTROLS = [
@@ -43,11 +59,8 @@ const DERIVED: DerivedLayout = {
         cell("1:9", "IconButton", 1, 2),
         cell("1:10", "IconButton", 1, 3),
         cell("1:11", "TextBlock", 2, 1),
-        /*
-         * 产物合成出来的容器（ref 带 synth: 前缀）：它里面既列着「容器自己」那一条，也装着清单里没有的控件。
-         * 容器自己那一条不该在树上再占一行。
-         */
-        cell("synth:9:9", "", 3, 1, [child("9:9", "", [child("9:20", "NumberBox")])])
+        /* 产物合成出来的容器（读视图把它标成 container）：它里面装着清单里没有的控件。 */
+        cell("9:9", "", 3, 1, [child("9:20", "NumberBox")], true)
       ]
     }
   ],
@@ -95,8 +108,6 @@ describe("LayoutTree", () => {
 
     expect(screen.getByText("9:9（容器）")).toBeTruthy()
     expect(screen.getByText("NumberBox")).toBeTruthy()
-    // 容器自己那一条不再占一行。
-    expect(screen.queryByText("9:9")).toBeNull()
   })
 
   it("点一行：交出它的 key（分区 / 组 / 格子 / 容器里的格子 / 没归宿各有各的）", () => {
@@ -114,7 +125,7 @@ describe("LayoutTree", () => {
 
     // 容器里那一格：路径多一段。
     fireEvent.click(screen.getByText("NumberBox"))
-    expect(picked).toHaveBeenLastCalledWith("region:work-area#g3/ref:synth:9:9/ref:9:9/ref:9:20")
+    expect(picked).toHaveBeenLastCalledWith("region:work-area#g3/ref:9:9/ref:9:20")
 
     fireEvent.click(screen.getByText("没归宿的 1 个"))
     expect(picked).toHaveBeenLastCalledWith("unresolved")
@@ -129,7 +140,18 @@ describe("LayoutTree", () => {
           id: "work-area",
           name: "工作区",
           emit: true,
-          cells: [{ ref: "1:9", controlType: "IconButton", row: 2, column: 1, rowSpan: 2, columnSpan: 1, children: [] }]
+          cells: [
+            {
+              ref: "1:9",
+              container: false,
+              controlType: "IconButton",
+              row: 2,
+              column: 1,
+              rowSpan: 2,
+              columnSpan: 1,
+              children: []
+            }
+          ]
         }
       ],
       unresolved: []

@@ -4,10 +4,8 @@ import {
   displayNameOf,
   groupsOf,
   groupKey,
-  isContainer,
   numberOf,
   regionKey,
-  sameNode,
   UNRESOLVED_KEY
 } from "@/lib/layout-edit"
 import { cn } from "@/lib/utils"
@@ -30,7 +28,7 @@ function nameOf(controls: LayoutControl[], ref: string, controlType: string): st
 /* 一个格子在树上的文案：名字 + 它是容器 / 跨了几行几列（两样都是产物说的事实）。 */
 function cellLabel(controls: LayoutControl[], cell: LayoutChild): string {
   const marks: string[] = []
-  if (isContainer(cell.ref)) marks.push("容器")
+  if (cell.container) marks.push("容器")
   if (cell.rowSpan > 1 || cell.columnSpan > 1) marks.push("跨 " + cell.rowSpan + " 行 × " + cell.columnSpan + " 列")
   const name = nameOf(controls, cell.ref, cell.controlType)
   return marks.length > 0 ? name + "（" + marks.join("，") + "）" : name
@@ -51,15 +49,7 @@ function pushCell(
 ) {
   const next = [...path, cell.ref]
   lines.push({ key: controlLineKey(regionId, group, next), depth: depth, strong: true, label: cellLabel(controls, cell) })
-  for (const child of cell.children) {
-    /* 产物会把容器自己又列在它的子网格里一次：跳过那一层（它的孩子并上来），同一个东西不在树上出现两遍。 */
-    if (sameNode(child.ref, cell.ref)) {
-      const through = [...next, child.ref]
-      for (const grand of child.children) pushCell(lines, regionId, group, through, grand, depth + 1, controls)
-      continue
-    }
-    pushCell(lines, regionId, group, next, child, depth + 1, controls)
-  }
+  for (const child of cell.children) pushCell(lines, regionId, group, next, child, depth + 1, controls)
 }
 
 function linesOfDerived(derived: DerivedLayout, controls: LayoutControl[]): TreeLine[] {

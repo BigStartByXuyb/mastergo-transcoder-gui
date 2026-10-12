@@ -32,10 +32,11 @@ function read(root) {
   return derivedLayout.read({ projectRoot: root, target: TARGET });
 }
 
-/* 期望里的一个顶层格子：顶层带行列，产物之外的两样（类型 / 子网格）缺省时是空串与空表。 */
-function cell(ref, controlType, row, column, rowSpan, columnSpan, children) {
+/* 期望里的一个顶层格子：顶层带行列，产物之外的那几样（类型 / 子网格 / 容器标记）缺省时是空串、空表与 false。 */
+function cell(ref, controlType, row, column, rowSpan, columnSpan, children, container) {
   return {
     ref: ref,
+    container: Boolean(container),
     controlType: controlType || "",
     row: row,
     column: column,
@@ -46,9 +47,10 @@ function cell(ref, controlType, row, column, rowSpan, columnSpan, children) {
 }
 
 /* 期望里的一个子格子：它挂在父格子下，不带行列。 */
-function child(ref, controlType, rowSpan, columnSpan, children) {
+function child(ref, controlType, rowSpan, columnSpan, children, container) {
   return {
     ref: ref,
+    container: Boolean(container),
     controlType: controlType || "",
     rowSpan: rowSpan === undefined ? 1 : rowSpan,
     columnSpan: columnSpan === undefined ? 1 : columnSpan,
@@ -126,7 +128,10 @@ function caseRegions() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
-/* 格子里还套着格子：子网格照带出去、套几层带几层（子层挂在父格子下，不带行列）。 */
+/*
+ * 格子里还套着格子：子网格照带出去、套几层带几层（子层挂在父格子下，不带行列）。
+ * 容器那层标记剥掉交出去（界面不认识它），容器自己列在子网格里的那一条也不重复记。
+ */
 function caseNestedCells() {
   const root = sandbox();
   fs.writeFileSync(
@@ -147,6 +152,8 @@ function caseNestedCells() {
                 column: 1,
                 children: {
                   cells: [
+                    /* 容器自己那一条：不重复记，它的孩子并上来。 */
+                    { ref: "9:1", row: 0, column: 0 },
                     { ref: "9:2", controlType: "IconButton", row: 0, column: 0 },
                     { ref: "9:3", row: 1, column: 0, children: { cells: [{ ref: "9:4", controlType: "TextBlock", row: 0, column: 0 }] } }
                   ]
@@ -160,10 +167,10 @@ function caseNestedCells() {
     "utf8"
   );
   assert.deepStrictEqual(read(root).regions[0].cells, [
-    cell("synth:9:1", "", 1, 1, 1, 1, [
+    cell("9:1", "", 1, 1, 1, 1, [
       child("9:2", "IconButton"),
       child("9:3", "", 1, 1, [child("9:4", "TextBlock")])
-    ])
+    ], true)
   ]);
   fs.rmSync(root, { recursive: true, force: true });
 }
@@ -240,7 +247,14 @@ function caseContainerWithoutPosition() {
             cells: [
               {
                 ref: "synth:9:1",
-                children: { cells: [{ ref: "9:2", controlType: "IconButton", row: 0, column: 0 }, { ref: "9:3" }] }
+                children: {
+                  cells: [
+                    /* 容器自己那一条：不重复记。 */
+                    { ref: "9:1" },
+                    { ref: "9:2", controlType: "IconButton", row: 0, column: 0 },
+                    { ref: "9:3" }
+                  ]
+                }
               }
             ]
           }
@@ -252,9 +266,9 @@ function caseContainerWithoutPosition() {
   const state = read(root);
   assert.deepStrictEqual(state.regions[0].cells, []);
   assert.deepStrictEqual(state.unresolved, [
-    { ref: "synth:9:1", reason: "推导产物里这一格没有行列坐标（坐标从 1 起）" },
-    { ref: "9:2", reason: "它在推导产物里那一格没有行列坐标（坐标从 1 起），摆不进树" },
-    { ref: "9:3", reason: "它在推导产物里那一格没有行列坐标（坐标从 1 起），摆不进树" }
+    { ref: "9:1", reason: "推导产物里这一格没有行列坐标（坐标从 1 起）" },
+    { ref: "9:2", reason: "外面那一格没有行列坐标（坐标从 1 起），里面的控件摆不进树" },
+    { ref: "9:3", reason: "外面那一格没有行列坐标（坐标从 1 起），里面的控件摆不进树" }
   ]);
   fs.rmSync(root, { recursive: true, force: true });
 }

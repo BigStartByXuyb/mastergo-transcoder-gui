@@ -159,7 +159,18 @@ describe("LayoutPanel", () => {
             id: "work-area",
             name: "工作区",
             emit: true,
-            cells: [{ ref: "1:9", controlType: "IconButton", row: 1, column: 1, rowSpan: 1, columnSpan: 1, children: [] }]
+            cells: [
+              {
+                ref: "1:9",
+                container: false,
+                controlType: "IconButton",
+                row: 1,
+                column: 1,
+                rowSpan: 1,
+                columnSpan: 1,
+                children: []
+              }
+            ]
           }
         ],
         unresolved: []

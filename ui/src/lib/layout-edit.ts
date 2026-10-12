@@ -8,37 +8,17 @@ import type { DerivedLayout, LayoutCell, LayoutChild, LayoutControl, LayoutGroup
  * 这类校验只有后端 lib/layout-groups.js 一处，界面把后端的原话照实显示（见 app/layout-panel.tsx）。
  */
 
-/* 产物把「这一格是个容器（里面还装着控件）」标成在 ref 前面加这个前缀：只认这一处。 */
-const SYNTH_PREFIX = "synth:"
-
-/* 查清单用的 ref：合成出来的容器要去掉那层前缀，剩下的才是它对应的那个节点。 */
-function bareRef(ref: string): string {
-  return ref.startsWith(SYNTH_PREFIX) ? ref.slice(SYNTH_PREFIX.length) : ref
-}
-
-/** 这一格是不是产物合成出来的容器（它里面还装着控件）。 */
-export function isContainer(ref: string): boolean {
-  return ref.startsWith(SYNTH_PREFIX)
-}
-
-/** 两条 ref 指不指向同一个节点（合成出来的容器剥掉那层前缀再比）。 */
-export function sameNode(left: string, right: string): boolean {
-  return bareRef(left) === bareRef(right)
-}
-
 /*
  * 清单里那一条控件（没有给 null）。「清单里有没有它 / 拿它的字段」都从这里走 ——
  * 同一条控件在界面几个地方（画布、布局树、面上清单）读出来的是同一份事实。
  */
 function controlOf(controls: LayoutControl[], ref: string): LayoutControl | null {
-  const bare = bareRef(ref)
-  return controls.find((item) => item.ref === bare) ?? null
+  return controls.find((item) => item.ref === ref) ?? null
 }
 
 /** 控件编号＝控件清单里的次序（1 起）；不在清单里的 ref 给 0（清单被换过时不硬编一个号）。 */
 export function numberOf(controls: LayoutControl[], ref: string): number {
-  const bare = bareRef(ref)
-  const index = controls.findIndex((item) => item.ref === bare)
+  const index = controls.findIndex((item) => item.ref === ref)
   return index < 0 ? 0 : index + 1
 }
 
@@ -51,8 +31,8 @@ function valueOf(control: LayoutControl): string {
  * 「按哪个字段认这个控件」只有这一处 —— 布局树那一行按它显示；面上那份清单摆的是「类型 · value」（见 labelOf）。 */
 export function displayNameOf(controls: LayoutControl[], ref: string): string {
   const control = controlOf(controls, ref)
-  if (!control) return bareRef(ref)
-  return valueOf(control) || control.controlType || bareRef(ref)
+  if (!control) return ref
+  return valueOf(control) || control.controlType || ref
 }
 
 /*
@@ -62,7 +42,7 @@ export function displayNameOf(controls: LayoutControl[], ref: string): string {
  */
 export function labelOf(controls: LayoutControl[], ref: string): string {
   const control = controlOf(controls, ref)
-  if (!control) return bareRef(ref)
+  if (!control) return ref
   const value = valueOf(control)
   return "#" + numberOf(controls, ref) + " " + (value ? control.controlType + " · " + value : control.controlType)
 }
@@ -147,27 +127,23 @@ function cellAt(cells: LayoutChild[], path: string[]): LayoutChild | null {
   return path.length === 1 ? hit : cellAt(hit.children, path.slice(1))
 }
 
-/*
- * 这一格在画布上盖住的控件 ref：它自己（合成容器剥掉那层前缀 —— 画布是按控件的 ref 认框的），
- * 加上它里面装着的那些（往下都算）。
- */
+/* 这一格在画布上盖住的控件 ref：它自己，加上它里面装着的那些（往下都算）。 */
 function refsOfCell(cell: LayoutChild): string[] {
-  return [bareRef(cell.ref), ...refsOfCells(cell.children)]
+  return [cell.ref, ...refsOfCells(cell.children)]
 }
 
 function refsOfCells(cells: LayoutChild[]): string[] {
   return cells.flatMap(refsOfCell)
 }
 
-/* 要描的控件是一份集合：剥掉前缀之后容器与自己那条会撞上，去重只在这里做。 */
+/* 要描的控件是一份集合：同一格可能从两条路进来，去重只在这里做。 */
 function unique(refs: string[]): string[] {
   return [...new Set(refs)]
 }
 
 export function refsOfDerived(derived: DerivedLayout | null, key: string): string[] {
   if (!derived || !key) return []
-  // 交出去给画布的 ref 一律剥掉合成容器那层前缀（画布按控件清单里的裸 ref 认框）。
-  if (key === UNRESOLVED_KEY) return unique(derived.unresolved.map((item) => bareRef(item.ref)))
+  if (key === UNRESOLVED_KEY) return unique(derived.unresolved.map((item) => item.ref))
   // 段一：[分区] 或 [分区 + 第几组]；后面的段都是「这一组的格子往下走的路径」。
   const [head, ...tail] = key.split(CONTROL_SEP)
   const [regionPart, groupPart] = head.split(GROUP_SEP)
@@ -213,7 +189,7 @@ function rowsOfRegion(region: LayoutRegion): number[] {
  *   covering —— 盖住这一行的格子（跨行过来的也算：点这一组时画布上要描这些）；
  *   starting —— 从这一行起始的格子（树只展开这些，跨行的不在别的组里重复一遍）。
  */
-export type DerivedGroup = { group: number; row: number; covering: LayoutCell[]; starting: LayoutCell[] }
+type DerivedGroup = { group: number; row: number; covering: LayoutCell[]; starting: LayoutCell[] }
 
 export function groupsOf(region: LayoutRegion): DerivedGroup[] {
   return rowsOfRegion(region).map((row, index) => {
