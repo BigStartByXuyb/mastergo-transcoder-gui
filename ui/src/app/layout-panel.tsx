@@ -123,31 +123,29 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
               </p>
             ) : null}
 
-            {/* 画布与布局树各自独立：画板尺寸还不知道时，布局树（推导结果）照样要能看。 */}
-            {canvas || layout.derived.available ? (
-              /* 分两列只在两块都在时：只有一块的时候别留一条空列。 */
-              <div className={cn("grid gap-3", canvas && layout.derived.available && "lg:grid-cols-[minmax(0,1fr)_16rem]")}>
-                {canvas && (
-                  <LayoutCanvas
-                    controls={layout.controls}
-                    canvas={canvas}
-                    /* 没有图就给空串：画布据此不挂图、也不给「隐藏设计稿」（图的身份由后端一处给）。 */
-                    imageUrl={
-                      layout.imageStamp ? api.designImageUrl(input.projectRoot, input.target, layout.imageStamp) : ""
-                    }
-                    highlight={highlight}
-                  />
-                )}
-                {layout.derived.available && (
-                  <LayoutTree
-                    derived={layout.derived}
-                    controls={layout.controls}
-                    selected={treePicked}
-                    onPick={(key) => setTreePicked(treePicked === key ? "" : key)}
-                  />
-                )}
-              </div>
-            ) : null}
+            /*
+             * 画布与布局树各自独立：画板尺寸还不知道时，布局树（推导结果）照样要能看。
+             * 「有没有推导产物」只在 LayoutTree 里判（没有时它显示后端给的那句原因）——面板不再自己判一遍。
+             */
+            <div className={cn("grid gap-3", canvas && "lg:grid-cols-[minmax(0,1fr)_16rem]")}>
+              {canvas && (
+                <LayoutCanvas
+                  controls={layout.controls}
+                  canvas={canvas}
+                  /* 没有图就给空串：画布据此不挂图、也不给「隐藏设计稿」（图的身份由后端一处给）。 */
+                  imageUrl={
+                    layout.imageStamp ? api.designImageUrl(input.projectRoot, input.target, layout.imageStamp) : ""
+                  }
+                  highlight={highlight}
+                />
+              )}
+              <LayoutTree
+                derived={layout.derived}
+                controls={layout.controls}
+                selected={treePicked}
+                onPick={(key) => setTreePicked(treePicked === key ? "" : key)}
+              />
+            </div>
 
             <div className="space-y-3">
               {layout.groups.map((group) => (
