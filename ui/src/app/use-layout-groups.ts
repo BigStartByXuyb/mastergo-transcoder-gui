@@ -26,22 +26,8 @@ export type LayoutGroupsInput = {
   progressDone?: number
 }
 
-/* 后端给的那几份清单都按数组读：字段缺了（旧后端 / 半截响应）当空，别让界面当场炸。 */
-const listOf = <T,>(value: T[] | undefined): T[] => (Array.isArray(value) ? value : [])
-
-/* 还没拿到推导结果时的那份空读视图（字段缺了也走它）。 */
+/* 还没读到这一页时的空读数：与后端给的那一份同形（available:false 时界面只说 reason）。 */
 const EMPTY_DERIVED: DerivedLayout = { available: false, reason: "", regions: [], unresolved: [] }
-
-/* 推导结果按同一道兜底读：字段缺了 / 半截响应（有 available 没 regions）都按空处理，界面不炸。 */
-const derivedOf = (value: DerivedLayout | undefined): DerivedLayout =>
-  value
-    ? {
-        available: Boolean(value.available),
-        reason: String(value.reason ?? ""),
-        regions: listOf(value.regions),
-        unresolved: listOf(value.unresolved)
-      }
-    : EMPTY_DERIVED
 
 export function useLayoutGroups(input: LayoutGroupsInput) {
   const [available, setAvailable] = useState(false)
@@ -87,11 +73,11 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
       if (!alive.current) return
       setAvailable(payload.layout.available)
       setReason(payload.layout.reason)
-      setControls(listOf(payload.layout.controls))
+      setControls(payload.layout.controls)
       setCanvas(payload.layout.canvas ?? null)
       setImageStamp(String(payload.layout.imageStamp || ""))
-      setDerived(derivedOf(payload.layout.derived))
-      if (!dirty.current) setGroups(listOf(payload.layout.groups))
+      setDerived(payload.layout.derived)
+      if (!dirty.current) setGroups(payload.layout.groups)
       setCanSuggest(payload.layout.canSuggest)
       // 「自动通过」也随这一页读回来：全局开关的当前值不另取一遍设置（一次读数一件事）。
       setAutoPass(Boolean(payload.layout.autoPass))

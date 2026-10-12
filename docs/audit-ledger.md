@@ -199,4 +199,11 @@
 | 2026-10-12 第 51 遍 | REVIEW-001 | 跨行格子在多行里复用同一个行 key，React 列表 key 不唯一（同一文案两行、点一行两行同时选中） | 已收 | 控件行的 key 带上「分区 + 行」（`controlLineKey`），解析只看最后一段；没归宿那几条按「下标 + ref」取 key |
 | 2026-10-12 第 52 遍 | REVIEW-001 | 面板里那段 JSX 块注释没包进 `{}`，会被当成文本渲染出来 | 已收 | 改成 `{/* … */}` |
 | 2026-10-12 第 52 遍 | REVIEW-002 | 「跨行的格子盖住哪几行」在 `cellsInRow` 与 `rowsOfRegion` 里各写一遍 | 已收 | 抽成 `rowRangeOf(cell)`：两处都从它取 |
+| 2026-10-12 第 53 遍 | REVIEW-001 | 行 key 的第三处分隔符 `/` 仍是字面量，没跟 `ROW_SEP` / `REF_PREFIX` 一起收成一处 | 已收 | 收成 `CONTROL_SEP`：`controlLineKey` 按它拼、`refsOfDerived` 按它切（`ui/src/lib/layout-edit.ts`） |
+| 2026-10-12 第 53 遍 | 非阻断 | `controlKey` / `rowRangeOf` 导出但没人用；`controlOf` / `valueOf` 同样只在本模块内用 | 已收 | 全部收回模块私有；`textOf` 删掉（「按哪个字段认这个控件」只剩 `displayNameOf` 一处），用例改断言 `displayNameOf` |
+| 2026-10-12 第 53 遍 | 非阻断 | `displayNameOf` 对同一条控件查两遍（`textOf` 里一遍、自己再一遍） | 已收 | 只取一次 `controlOf`，再按 value → 类型 → ref 回落 |
+| 2026-10-12 第 53 遍 | 非阻断 | `derivedOf` 的注释说「字段缺了都按空处理」，实际只归一外层，内层 `cells` 透传 | 已收 | 那层前端兜底删掉：后端三份读数本来就是数组（`lib/derived-layout.js` / `readLayoutGroups`），界面直接用出参，不留第二份形状判据 |
+| 2026-10-12 第 53 遍 | 非阻断 | `lib/workdir.js` 的注释写「报告在同目录的 _inputs 下」，产物与报告其实不同目录 | 已收 | 注释改成「产物在 Generated/，同一趟的报告在 Generated/_inputs/」 |
+| 2026-10-12 第 53 遍 | 非阻断 | 新模块 `lib/derived-layout.js` 分支覆盖 37%，兜底分支无用例 | 已收 | 新增 `tests/derived-layout.test.js`（产物不在 / 产物读不出 / 空读数 / 分区与格子归一 / 没归宿从报告取） |
+| 2026-10-12 第 53 遍 | 非阻断 | 两处测试文件排版（`,` 另起一行、多一个空行） | 已收 | 就地改齐 |
 

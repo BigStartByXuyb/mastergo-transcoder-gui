@@ -11,7 +11,7 @@ import type { DerivedLayout, LayoutCell, LayoutControl, LayoutGroup, LayoutRegio
  * 清单里那一条控件（没有给 null）。「清单里有没有它 / 拿它的字段」都从这里走 ——
  * 同一条控件在界面几个地方（画布、层次图、面上清单）读出来的是同一份事实。
  */
-export function controlOf(controls: LayoutControl[], ref: string): LayoutControl | null {
+function controlOf(controls: LayoutControl[], ref: string): LayoutControl | null {
   return controls.find((item) => item.ref === ref) ?? null
 }
 
@@ -22,21 +22,16 @@ export function numberOf(controls: LayoutControl[], ref: string): number {
 }
 
 /* 一条控件的 value：它在 DSL 里那段文本（去掉两头空白）。「取 value」只有这一处。 */
-export function valueOf(control: LayoutControl): string {
+function valueOf(control: LayoutControl): string {
   return control.text.trim()
-}
-
-/* 按 ref 取 value：清单里没有这个 ref 就给空串。 */
-export function textOf(controls: LayoutControl[], ref: string): string {
-  const control = controlOf(controls, ref)
-  return control ? valueOf(control) : ""
 }
 
 /* 一个控件拿什么当名字：value 优先，没有才退回控件类型（两个都没有就用 ref）。
  * 「按哪个字段认这个控件」只有这一处 —— 清单那条展示名与布局树那一行都从它取。 */
 export function displayNameOf(controls: LayoutControl[], ref: string): string {
   const control = controlOf(controls, ref)
-  return textOf(controls, ref) || (control ? control.controlType : "") || ref
+  if (!control) return ref
+  return valueOf(control) || control.controlType || ref
 }
 
 /*
@@ -99,6 +94,8 @@ export const UNRESOLVED_KEY = "unresolved"
 const ROW_SEP = "#row:"
 /* 「某个控件」那段 key 的前缀：同样只认这一处。 */
 const REF_PREFIX = "ref:"
+/* 控件行 key 里「分区 + 行」与「控件」两段的分隔：同样只认这一处。 */
+const CONTROL_SEP = "/"
 
 export function regionKey(id: string): string {
   return "region:" + id
@@ -108,20 +105,20 @@ export function rowKey(id: string, row: number): string {
   return regionKey(id) + ROW_SEP + row
 }
 
-export function controlKey(ref: string): string {
+function controlKey(ref: string): string {
   return REF_PREFIX + ref
 }
 
 /* 树上一条控件行的 key：带上「分区 + 行」，因为跨行的格子会在多行里各出现一次（同一条 ref 会有多条行）。 */
 export function controlLineKey(regionId: string, row: number, ref: string): string {
-  return rowKey(regionId, row) + "/" + controlKey(ref)
+  return rowKey(regionId, row) + CONTROL_SEP + controlKey(ref)
 }
 
 export function refsOfDerived(derived: DerivedLayout, key: string): string[] {
   if (!key) return []
   if (key === UNRESOLVED_KEY) return derived.unresolved.map((item) => item.ref)
   // 控件行可能带「分区 + 行」前缀（跨行的格子每行一条）：只看最后那一段。
-  const tail = key.slice(key.lastIndexOf("/") + 1)
+  const tail = key.slice(key.lastIndexOf(CONTROL_SEP) + 1)
   if (tail.startsWith(REF_PREFIX)) return [tail.slice(REF_PREFIX.length)]
   if (key.includes(ROW_SEP)) {
     const [regionPart, rowPart] = key.split(ROW_SEP)
@@ -133,7 +130,7 @@ export function refsOfDerived(derived: DerivedLayout, key: string): string[] {
 }
 
 /* 一个格子盖住哪几行（含跨行）：行区间只有这一处。 */
-export function rowRangeOf(cell: LayoutCell): number[] {
+function rowRangeOf(cell: LayoutCell): number[] {
   const rows: number[] = []
   for (let row = cell.row; row < cell.row + Math.max(1, cell.rowSpan); row += 1) rows.push(row)
   return rows

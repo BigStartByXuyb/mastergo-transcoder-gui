@@ -82,8 +82,7 @@ function stub(
             groups: options.groups ?? [],
             hasGroups: (options.groups ?? []).length > 0,
             // 后端的口径：控件够不够问 AI 由它给（阈值在 lib/layout-groups.js），界面照它禁用按钮。
-            canSuggest: (options.controls ?? CONTROLS).length >= 2
-            ,
+            canSuggest: (options.controls ?? CONTROLS).length >= 2,
             autoPass: options.autoPass === true
           }
         }),

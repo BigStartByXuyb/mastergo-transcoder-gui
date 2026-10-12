@@ -2,14 +2,13 @@ import { describe, expect, it } from "vitest"
 
 import {
   addGroup,
+  displayNameOf,
   labelOf,
   moveMember,
   numberOf,
   removeGroup,
   removeMember,
-  textOf,
-  ungroupedControls,
-  valueOf
+  ungroupedControls
 } from "@/lib/layout-edit"
 import type { LayoutControl, LayoutGroup } from "@/lib/api"
 
@@ -34,11 +33,12 @@ describe("layout-edit", () => {
     expect(labelOf(CONTROLS, "9:9")).toBe("9:9")
   })
 
-  it("控件的 value 就是清单里那段文本（空白当没有），取不到给空串", () => {
-    expect(valueOf(CONTROLS[0])).toBe("确定")
-    expect(textOf(CONTROLS, "1:9")).toBe("确定")
-    expect(textOf(CONTROLS, "1:10")).toBe("")
-    expect(textOf(CONTROLS, "9:9")).toBe("")
+  it("控件的展示名：value 优先，没有 value 退回控件类型，清单里没有的给 ref", () => {
+    expect(displayNameOf(CONTROLS, "1:9")).toBe("确定")
+    expect(displayNameOf(CONTROLS, "1:10")).toBe("IconButton")
+    expect(displayNameOf(CONTROLS, "9:9")).toBe("9:9")
+    // 只有空白的 value 当没有。
+    expect(displayNameOf([control("1:12", "IconButton", "   ")], "1:12")).toBe("IconButton")
   })
 
   it("未分组清单＝没进任何组的控件", () => {
@@ -62,5 +62,4 @@ describe("layout-edit", () => {
     expect(addGroup(GROUPS, "   ", "row")).toEqual(GROUPS)
     expect(removeGroup(GROUPS, "RightTools")).toEqual([])
   })
-
 })
