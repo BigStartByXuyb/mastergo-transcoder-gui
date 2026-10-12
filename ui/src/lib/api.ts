@@ -201,17 +201,21 @@ export type LayoutGroup = {
   members: string[]
 }
 
-/** 推导结果里的一个格子：某控件落在哪一行哪一列、跨几行几列（顶层坐标从 1 起），里面还装着哪些控件。 */
-export type LayoutCell = {
+/** 格子里装着的控件（含它自己的子网格）：它挂在父格子下，所以不带「第几行第几列」。 */
+export type LayoutChild = {
   ref: string
   /** 产物给的类型（合成出来的容器常常没有这个）：界面的名字在清单里找不到时按它显示。 */
   controlType: string
-  row: number
-  column: number
   rowSpan: number
   columnSpan: number
   /** 这一格里那份子网格（可以再套）：树按它往下展开一层。 */
-  children: LayoutCell[]
+  children: LayoutChild[]
+}
+
+/** 推导结果里的一个格子：某控件落在哪一行哪一列（坐标从 1 起），跨几行几列，里面还装着哪些控件。 */
+export type LayoutCell = LayoutChild & {
+  row: number
+  column: number
 }
 
 /** 推导结果里的一个分区：名字 / 发不发射 + 它的格子（有哪几行由界面按格子现算）。 */

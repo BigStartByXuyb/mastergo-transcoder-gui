@@ -1,4 +1,4 @@
-import type { DerivedLayout, LayoutCell, LayoutControl, LayoutGroup, LayoutRegion } from "@/lib/api"
+import type { DerivedLayout, LayoutCell, LayoutChild, LayoutControl, LayoutGroup, LayoutRegion } from "@/lib/api"
 
 /*
  * 布局确认面板的纯逻辑：控件怎么认（编号 / 展示名 / 未找到时按 ref）、分组的增删改，
@@ -62,7 +62,7 @@ export function displayNameOf(controls: LayoutControl[], ref: string): string {
  */
 export function labelOf(controls: LayoutControl[], ref: string): string {
   const control = controlOf(controls, ref)
-  if (!control) return ref
+  if (!control) return bareRef(ref)
   const value = valueOf(control)
   return "#" + numberOf(controls, ref) + " " + (value ? control.controlType + " · " + value : control.controlType)
 }
@@ -141,19 +141,27 @@ export function controlLineKey(regionId: string, group: number, path: string[]):
 }
 
 /* 按路径找那一格：每段是那一层里的一个 ref。 */
-function cellAt(cells: LayoutCell[], path: string[]): LayoutCell | null {
+function cellAt(cells: LayoutChild[], path: string[]): LayoutChild | null {
   const hit = cells.find((cell) => cell.ref === path[0])
   if (!hit) return null
   return path.length === 1 ? hit : cellAt(hit.children, path.slice(1))
 }
 
-/* 这一格在画布上盖住的 ref：它自己，加上它里面装着的那些（往下都算）。 */
-function refsOfCell(cell: LayoutCell): string[] {
-  return [cell.ref, ...refsOfCells(cell.children)]
+/*
+ * 这一格在画布上盖住的控件 ref：它自己（合成容器剥掉那层前缀 —— 画布是按控件的 ref 认框的），
+ * 加上它里面装着的那些（往下都算）。
+ */
+function refsOfCell(cell: LayoutChild): string[] {
+  return [bareRef(cell.ref), ...refsOfCells(cell.children)]
 }
 
-function refsOfCells(cells: LayoutCell[]): string[] {
+function refsOfCells(cells: LayoutChild[]): string[] {
   return cells.flatMap(refsOfCell)
+}
+
+/* 要描的控件是一份集合：剥掉前缀之后容器与自己那条会撞上，去重只在这里做。 */
+function unique(refs: string[]): string[] {
+  return [...new Set(refs)]
 }
 
 export function refsOfDerived(derived: DerivedLayout | null, key: string): string[] {
@@ -169,11 +177,12 @@ export function refsOfDerived(derived: DerivedLayout | null, key: string): strin
     if (!part.startsWith(REF_PREFIX)) return []
     path.push(part.slice(REF_PREFIX.length))
   }
-  // 没有组号＝整个分区；有组号＝那一组（组号数的是「有格子的行」，与树上的编号同一处算）。
-  const cells = groupPart === undefined ? region.cells : cellsInRow(region, rowsOfRegion(region)[Number(groupPart) - 1])
-  if (path.length === 0) return refsOfCells(cells)
+  // 没有组号＝整个分区；有组号＝那一组盖住的格子（第几组对应哪一行只有 groupsOf 一处说了算）。
+  const covering = groupPart === undefined ? [] : (groupsOf(region)[Number(groupPart) - 1]?.covering ?? [])
+  const cells = groupPart === undefined ? region.cells : covering
+  if (path.length === 0) return unique(refsOfCells(cells))
   const hit = cellAt(cells, path)
-  return hit ? refsOfCell(hit) : []
+  return hit ? unique(refsOfCell(hit)) : []
 }
 
 /* 一个格子盖住哪几行（含跨行）：行区间只有这一处；跨度由后端归一成至少 1（lib/derived-layout.js），这里直接用。 */
@@ -183,15 +192,29 @@ function rowRangeOf(cell: LayoutCell): number[] {
   return rows
 }
 
-/* 一个分区里盖住第 k 行的格子（跨行的格子每一行都算盖住）：树按行摆、refsOfDerived 按行收，都读 rowRangeOf。 */
-export function cellsInRow(region: LayoutRegion, row: number): LayoutCell[] {
+/* 一个分区里盖住第 k 行的格子（跨行的格子每一行都算盖住）：都读 rowRangeOf。 */
+function cellsInRow(region: LayoutRegion, row: number): LayoutCell[] {
   return region.cells.filter((cell) => rowRangeOf(cell).includes(row))
 }
 
-/* 一个分区里有哪些行（把跨行的格子铺开、去重、从小到大）：树按它摆行。 */
-export function rowsOfRegion(region: LayoutRegion): number[] {
+/* 一个分区里有哪些行（把跨行的格子铺开、去重、从小到大）。 */
+function rowsOfRegion(region: LayoutRegion): number[] {
   const rows = new Set<number>()
   for (const cell of region.cells) for (const row of rowRangeOf(cell)) rows.add(row)
   return [...rows].sort((left, right) => left - right)
+}
+
+/*
+ * 一个分区里的组：组号（1 起）＝第几个「有格子的行」—— 树上的「组 #k」与 key 里的组号都按这一处算。
+ *   covering —— 盖住这一行的格子（跨行过来的也算：点这一组时画布上要描这些）；
+ *   starting —— 从这一行起始的格子（树只展开这些，跨行的不在别的组里重复一遍）。
+ */
+export type DerivedGroup = { group: number; row: number; covering: LayoutCell[]; starting: LayoutCell[] }
+
+export function groupsOf(region: LayoutRegion): DerivedGroup[] {
+  return rowsOfRegion(region).map((row, index) => {
+    const covering = cellsInRow(region, row)
+    return { group: index + 1, row: row, covering: covering, starting: covering.filter((cell) => cell.row === row) }
+  })
 }
 

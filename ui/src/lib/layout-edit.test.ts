@@ -98,13 +98,13 @@ describe("layout-edit", () => {
 /* 树上那一行的 key 怎么拼、怎么解回要描的控件：断言的是 key 的拼法契约本身。 */
 describe("refsOfDerived", () => {
   it("整个分区 / 某一组 / 某一格 / 容器里的一格 / 没归宿，各有各的解", () => {
-    expect(refsOfDerived(DERIVED, "region:work-area")).toEqual(["1:9", "1:10", "1:11", "synth:9:9", "9:9", "9:20"])
+    expect(refsOfDerived(DERIVED, "region:work-area")).toEqual(["1:9", "1:10", "1:11", "9:9", "9:20"])
     expect(refsOfDerived(DERIVED, "region:work-area#g1")).toEqual(["1:9", "1:10"])
     expect(refsOfDerived(DERIVED, "region:work-area#g2")).toEqual(["1:11"])
     expect(refsOfDerived(DERIVED, "region:top-strip")).toEqual([])
-    // 容器那一格：点它连它里面装着的控件一起算（画布上它盖住的就是这些）。
-    expect(refsOfDerived(DERIVED, "region:work-area#g3")).toEqual(["synth:9:9", "9:9", "9:20"])
-    expect(refsOfDerived(DERIVED, "region:work-area#g3/ref:synth:9:9")).toEqual(["synth:9:9", "9:9", "9:20"])
+    // 容器那一格：它自己按剥掉前缀的 ref 交出去（画布是按控件的 ref 认框的），里面装着的也一起算。
+    expect(refsOfDerived(DERIVED, "region:work-area#g3")).toEqual(["9:9", "9:20"])
+    expect(refsOfDerived(DERIVED, "region:work-area#g3/ref:synth:9:9")).toEqual(["9:9", "9:20"])
     expect(refsOfDerived(DERIVED, "region:work-area#g3/ref:synth:9:9/ref:9:9")).toEqual(["9:9", "9:20"])
     expect(refsOfDerived(DERIVED, "region:work-area#g3/ref:synth:9:9/ref:9:9/ref:9:20")).toEqual(["9:20"])
     expect(refsOfDerived(DERIVED, "unresolved")).toEqual(["1:12"])

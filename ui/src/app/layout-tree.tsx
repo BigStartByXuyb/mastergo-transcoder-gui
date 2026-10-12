@@ -1,13 +1,12 @@
-import type { DerivedLayout, LayoutCell, LayoutControl } from "@/lib/api"
+import type { DerivedLayout, LayoutChild, LayoutControl } from "@/lib/api"
 import {
-  cellsInRow,
   controlLineKey,
   displayNameOf,
+  groupsOf,
   groupKey,
   isContainer,
   numberOf,
   regionKey,
-  rowsOfRegion,
   sameNode,
   UNRESOLVED_KEY
 } from "@/lib/layout-edit"
@@ -29,7 +28,7 @@ function nameOf(controls: LayoutControl[], ref: string, controlType: string): st
 }
 
 /* 一个格子在树上的文案：名字 + 它是容器 / 跨了几行几列（两样都是产物说的事实）。 */
-function cellLabel(controls: LayoutControl[], cell: LayoutCell): string {
+function cellLabel(controls: LayoutControl[], cell: LayoutChild): string {
   const marks: string[] = []
   if (isContainer(cell.ref)) marks.push("容器")
   if (cell.rowSpan > 1 || cell.columnSpan > 1) marks.push("跨 " + cell.rowSpan + " 行 × " + cell.columnSpan + " 列")
@@ -46,7 +45,7 @@ function pushCell(
   regionId: string,
   group: number,
   path: string[],
-  cell: LayoutCell,
+  cell: LayoutChild,
   depth: number,
   controls: LayoutControl[]
 ) {
@@ -73,16 +72,12 @@ function linesOfDerived(derived: DerivedLayout, controls: LayoutControl[]): Tree
       label: region.name + " · " + (region.emit ? "发射" : "只注册")
     })
     /*
-     * 组号数的是「有格子的行」；跨行的格子只在它起始的那一组里展开一次（它盖住哪几行已经写在标签里），
+     * 每一组展开的是「从这一行起始的格子」—— 跨行的只在它起始的那一组里展开一次（跨了几行已经写在标签里），
      * 否则一个跨 6 行的容器会把整棵子树在 6 个组里各复制一遍。点某一组时画布上照旧会描出盖住它的控件。
      */
-    rowsOfRegion(region).forEach((row, index) => {
-      const group = index + 1
+    groupsOf(region).forEach(({ group, starting }) => {
       lines.push({ key: groupKey(region.id, group), depth: 1, strong: false, label: "组 #" + group })
-      for (const cell of cellsInRow(region, row)) {
-        if (cell.row !== row) continue
-        pushCell(lines, region.id, group, [], cell, 2, controls)
-      }
+      for (const cell of starting) pushCell(lines, region.id, group, [], cell, 2, controls)
     })
   }
   if (derived.unresolved.length > 0) {
@@ -117,7 +112,7 @@ export function LayoutTree(props: {
       <div className="flex flex-wrap items-baseline gap-2">
         <span className="text-sm font-medium">布局树</span>
         <span className="text-muted-foreground text-xs">
-          布局那一步推出来的分区 → 组 → 格子；点一行，它会盖住的控件在画布上描出来。
+          布局那一步推出来的分区 → 组（它推出来的某一行）→ 格子；点一行，它会盖住的控件在画布上描出来。
         </span>
       </div>
       <div className="max-h-80 overflow-auto rounded-md border p-2">

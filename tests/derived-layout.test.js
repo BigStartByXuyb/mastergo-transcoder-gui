@@ -32,13 +32,24 @@ function read(root) {
   return derivedLayout.read({ projectRoot: root, target: TARGET });
 }
 
-/* 期望里的一个格子：产物之外的三样（类型 / 子网格）缺省时是空串与空表。 */
+/* 期望里的一个顶层格子：顶层带行列，产物之外的两样（类型 / 子网格）缺省时是空串与空表。 */
 function cell(ref, controlType, row, column, rowSpan, columnSpan, children) {
   return {
     ref: ref,
     controlType: controlType || "",
     row: row,
     column: column,
+    rowSpan: rowSpan === undefined ? 1 : rowSpan,
+    columnSpan: columnSpan === undefined ? 1 : columnSpan,
+    children: children || []
+  };
+}
+
+/* 期望里的一个子格子：它挂在父格子下，不带行列。 */
+function child(ref, controlType, rowSpan, columnSpan, children) {
+  return {
+    ref: ref,
+    controlType: controlType || "",
     rowSpan: rowSpan === undefined ? 1 : rowSpan,
     columnSpan: columnSpan === undefined ? 1 : columnSpan,
     children: children || []
@@ -115,7 +126,7 @@ function caseRegions() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
-/* 格子里还套着格子（产物那层的坐标从 0 起）：子网格照带出去，套几层带几层。 */
+/* 格子里还套着格子：子网格照带出去、套几层带几层（子层挂在父格子下，不带行列）。 */
 function caseNestedCells() {
   const root = sandbox();
   fs.writeFileSync(
@@ -150,8 +161,8 @@ function caseNestedCells() {
   );
   assert.deepStrictEqual(read(root).regions[0].cells, [
     cell("synth:9:1", "", 1, 1, 1, 1, [
-      cell("9:2", "IconButton", 0, 0),
-      cell("9:3", "", 1, 0, 1, 1, [cell("9:4", "TextBlock", 0, 0)])
+      child("9:2", "IconButton"),
+      child("9:3", "", 1, 1, [child("9:4", "TextBlock")])
     ])
   ]);
   fs.rmSync(root, { recursive: true, force: true });
