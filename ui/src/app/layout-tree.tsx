@@ -70,8 +70,12 @@ export function LayoutTree(props: {
   /** 点了一行：把它的 key 回给调用方（选中态与要描的控件都由调用方一处管）。 */
   onPick: (key: string) => void
 }) {
+  /*
+   * 不可用时只说后端给的那句（措辞只有 lib/derived-layout.js 一处，界面不另拟一份）；
+   * 还没读到时没有这句，就先不摆这块。
+   */
   if (!props.derived.available) {
-    return <p className="text-muted-foreground text-xs">{props.derived.reason || "还没有推导产物。"}</p>
+    return props.derived.reason ? <p className="text-muted-foreground text-xs">{props.derived.reason}</p> : null
   }
 
   const lines = linesOfDerived(props.derived, props.controls)

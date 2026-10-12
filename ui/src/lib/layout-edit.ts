@@ -91,6 +91,10 @@ export function removeGroup(groups: LayoutGroup[], id: string): LayoutGroup[] {
  */
 export const UNRESOLVED_KEY = "unresolved"
 
+/*
+ * 行 key 的拼法：分区 → 行 → 控件，三段按下面三个分隔符接起来（拼装与解析都只认这三个常量）。
+ * 前提：ref 与分区 id 里不含这些片段（产物的 ref 形如 `1:9`，分区 id 形如 `work-area`）。
+ */
 /* 「分区里的某一行」那段 key 的分隔：生产（rowKey）与解析（refsOfDerived）只认这一处。 */
 const ROW_SEP = "#row:"
 /* 「某个控件」那段 key 的前缀：同样只认这一处。 */

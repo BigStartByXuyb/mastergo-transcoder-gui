@@ -13,9 +13,13 @@ const layout = require("../lib/layout-groups.js");
 
 const TARGET = "DemoPage";
 
+/* 本文件建的沙盒目录：用例自己建，main 跑完一起收掉。 */
+const sandboxes = [];
+
 /* 最小工程：类型判定产物 + DSL 快照（文本）+ _inputs 目录。 */
 function sandbox() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-layout-groups-"));
+  sandboxes.push(root);
   const generated = path.join(root, "Generated");
   const runs = path.join(generated, "runs", TARGET);
   const inputs = path.join(generated, "_inputs");
@@ -213,6 +217,7 @@ function main() {
     assert.deepStrictEqual(file.groups, []);
   }
 
+  for (const root of sandboxes) fs.rmSync(root, { recursive: true, force: true });
   console.log("PASS layout-groups.test.js");
 }
 

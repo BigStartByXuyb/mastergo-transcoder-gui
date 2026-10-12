@@ -19,7 +19,8 @@ function control(ref: string, controlType: string, text: string): LayoutControl 
 const CONTROLS = [
   control("1:9", "IconButton", "确定"),
   control("1:10", "IconButton", ""),
-  control("1:11", "TextBlock", "标题")
+  control("1:11", "TextBlock", "标题"),
+  control("1:12", "TextBlock", "说明")
 ]
 
 const DERIVED: DerivedLayout = {
@@ -43,7 +44,8 @@ const DERIVED: DerivedLayout = {
       ]
     }
   ],
-  unresolved: [{ ref: "1:11", reason: "单条目栏：几何判不出它跟谁同组" }]
+  // 没归宿的不会同时落在分区的格子里：这份夹具给的是一页里那两种互斥的处境。
+  unresolved: [{ ref: "1:12", reason: "单条目栏：几何判不出它跟谁同组" }]
 }
 
 describe("LayoutTree", () => {
@@ -102,7 +104,7 @@ describe("LayoutTree", () => {
     expect(refsOfDerived(DERIVED, "ref:1:9")).toEqual(["1:9"])
     // 跨行的格子那条行 key 带「分区 + 行」前缀，解析时只看最后一段。
     expect(refsOfDerived(DERIVED, "region:work-area#row:1/ref:1:9")).toEqual(["1:9"])
-    expect(refsOfDerived(DERIVED, "unresolved")).toEqual(["1:11"])
+    expect(refsOfDerived(DERIVED, "unresolved")).toEqual(["1:12"])
     expect(refsOfDerived(DERIVED, "")).toEqual([])
   })
 

@@ -26,8 +26,14 @@ export type LayoutGroupsInput = {
   progressDone?: number
 }
 
-/* 还没读到这一页时的空读数：与后端给的那一份同形（available:false 时界面只说 reason）。 */
+/* 读不到推导结果时的空读数：与后端给的那一份同形（available:false 时界面只说 reason）。 */
 const EMPTY_DERIVED: DerivedLayout = { available: false, reason: "", regions: [], unresolved: [] }
+
+/*
+ * 推导结果的落点：还没读到（载入中）与这一份字段没给都回同一份空读数 —— 面板要渲染的这份对象必须存在。
+ * 内层字段（regions / cells / unresolved）的形状由后端 lib/derived-layout.js 一处保证，前端不逐字段再归一。
+ */
+const derivedOf = (value: DerivedLayout | undefined): DerivedLayout => value ?? EMPTY_DERIVED
 
 export function useLayoutGroups(input: LayoutGroupsInput) {
   const [available, setAvailable] = useState(false)
@@ -76,7 +82,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
       setControls(payload.layout.controls)
       setCanvas(payload.layout.canvas ?? null)
       setImageStamp(String(payload.layout.imageStamp || ""))
-      setDerived(payload.layout.derived)
+      setDerived(derivedOf(payload.layout.derived))
       if (!dirty.current) setGroups(payload.layout.groups)
       setCanSuggest(payload.layout.canSuggest)
       // 「自动通过」也随这一页读回来：全局开关的当前值不另取一遍设置（一次读数一件事）。
