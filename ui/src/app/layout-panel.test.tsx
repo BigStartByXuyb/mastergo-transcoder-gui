@@ -187,7 +187,7 @@ describe("LayoutPanel", () => {
     render(panel())
 
     expect(await screen.findByText("RightTools")).toBeTruthy()
-    expect(screen.getByText("列")).toBeTruthy()
+    expect(screen.getByText("垂直布局")).toBeTruthy()
     expect(screen.getByText("2 个控件")).toBeTruthy()
     expect(screen.getByText("#1 IconButton · 确定")).toBeTruthy()
     expect(screen.getByText("未分组控件（1）")).toBeTruthy()

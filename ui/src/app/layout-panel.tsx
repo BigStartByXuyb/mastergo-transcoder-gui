@@ -68,7 +68,8 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
           <Badge variant={layout.available ? "secondary" : "outline"}>{layout.available ? "可编辑" : "还没有控件清单"}</Badge>
         </CardTitle>
         <CardDescription>
-          这张「分组表」只写一件事：哪些控件同属一行（或同一列），以及这个组叫什么 —— 布局推导按它走。
+          这张「分组表」只写一件事：哪些控件同属一组、这个组往哪个方向排（垂直布局 / 水平布局）、它叫什么 ——
+          布局推导按它走。
           带设计稿位图时流水线不替你猜分组：要么在这里声明分组，要么写一张空表说明「本页没有要声明的分组」。
         </CardDescription>
       </CardHeader>
@@ -160,7 +161,8 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
                 >
                   <div className="mb-2 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{group.kind === "column" ? "列" : "行"}</Badge>
+                      {/* 方向的说法只有一处（与布局树那一行同一套词）：column = 上下排，row = 左右排。 */}
+                      <Badge variant="outline">{group.kind === "column" ? "垂直布局" : "水平布局"}</Badge>
                       <span className="font-medium">{group.id}</span>
                       <span className="text-xs text-muted-foreground">{group.members.length} 个控件</span>
                     </div>
@@ -231,8 +233,8 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="column">列（竖直排）</SelectItem>
-                    <SelectItem value="row">行（水平排）</SelectItem>
+                    <SelectItem value="column">垂直布局（上下排）</SelectItem>
+                    <SelectItem value="row">水平布局（左右排）</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

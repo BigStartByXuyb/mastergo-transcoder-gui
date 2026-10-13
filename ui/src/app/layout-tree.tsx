@@ -92,7 +92,11 @@ function pushCells(
   }
 }
 
-/* 分区那一行的 key；往下每套一层接一段 ref（只用来认这一行，不再从 key 反解控件）。 */
+/*
+ * 分区那一行的 key；往下每套一层接一段 ref（只用来认这一行 —— React key 与选中态比较，不从 key 反解控件）。
+ * 拼法的前提：ref 与分区 id 里不含 `region:`、`/ref:` 这两段（产物的 ref 形如 `1872:59913`，
+ * 分区 id 形如 `work-area`）。
+ */
 function lineKey(regionId: string, path: string[]): string {
   return "region:" + regionId + path.map((ref) => "/ref:" + ref).join("")
 }
