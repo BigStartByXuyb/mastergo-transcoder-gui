@@ -15,9 +15,9 @@ import {
   addGroup,
   labelOf,
   moveMember,
-  refsOfDerived,
   removeGroup,
   removeMember,
+  treeLinesOf,
   ungroupedControls
 } from "@/lib/layout-edit"
 import { inFlightNote, isInFlight } from "@/lib/task-state"
@@ -47,14 +47,15 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   const [newKind, setNewKind] = useState<"column" | "row">("column")
   /* 鼠标停在哪一组上：那一组的成员在画布上描出来（容器自己的框就盖住它里面的控件）。 */
   const [hoveredGroup, setHoveredGroup] = useState("")
-  /* 布局树上选中的那一行：只存「选的是哪一行」，要高亮哪些控件由 refsOfDerived 现算。 */
+  /* 布局树上选中的那一行：只存 key（那一行盖住哪些控件按当前读数现算，不留上一次那一份）。 */
   const [treePicked, setTreePicked] = useState("")
   /* 换一页（工程目录或 Target 变了）就把树上选中的那一行清掉：同一页的身份是这两个一起。 */
   useEffect(() => setTreePicked(""), [input.projectRoot, input.target])
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
   const canvas = layout.canvas
   const hovered = layout.groups.find((group) => group.id === hoveredGroup)?.members ?? []
-  const treeRefs = refsOfDerived(layout.derived, treePicked)
+  /* 选中那一行盖住的控件：与树同一处算法（treeLinesOf）算出来的那一行的 hit —— 读数刷新后跟着变。 */
+  const treeRefs = treeLinesOf(layout.derived, layout.controls).find((line) => line.key === treePicked)?.hit ?? []
   const highlight = [...new Set([...treeRefs, ...hovered])]
 
   function createGroup() {
@@ -70,7 +71,8 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
           <Badge variant={layout.available ? "secondary" : "outline"}>{layout.available ? "可编辑" : "还没有控件清单"}</Badge>
         </CardTitle>
         <CardDescription>
-          这张「分组表」只写一件事：哪些控件同属一行（或同一列），以及这个组叫什么 —— 布局推导按它走。
+          这张「分组表」只写一件事：哪些控件同属一组、这个组往哪个方向排（垂直布局 / 水平布局）、它叫什么 ——
+          布局推导按它走。
           带设计稿位图时流水线不替你猜分组：要么在这里声明分组，要么写一张空表说明「本页没有要声明的分组」。
         </CardDescription>
       </CardHeader>
@@ -119,7 +121,7 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
             {layout.groups.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 没有要声明的分组：直接点「{writeLabel}」，它写出空分组表，布局推导按机械判据走；
-                要声明分组：先在下面起个组名、选行或列，再把控件拖进那个组里。
+                要声明分组：先在下面起个组名、选方向（垂直布局 / 水平布局），再把控件拖进那个组里。
               </p>
             ) : null}
 
@@ -162,7 +164,8 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
                 >
                   <div className="mb-2 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{group.kind === "column" ? "列" : "行"}</Badge>
+                      {/* 人选的组方向与布局树上的方向同一套词：column = 上下排，row = 左右排。 */}
+                      <Badge variant="outline">{group.kind === "column" ? "垂直布局" : "水平布局"}</Badge>
                       <span className="font-medium">{group.id}</span>
                       <span className="text-xs text-muted-foreground">{group.members.length} 个控件</span>
                     </div>
@@ -233,8 +236,8 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="column">列（竖直排）</SelectItem>
-                    <SelectItem value="row">行（水平排）</SelectItem>
+                    <SelectItem value="column">垂直布局（上下排）</SelectItem>
+                    <SelectItem value="row">水平布局（左右排）</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

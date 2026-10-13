@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { LayoutPanel } from "@/app/layout-panel"
-import { cell } from "@/lib/layout-fixtures"
+import { bands, cell } from "@/lib/layout-fixtures"
 import type { DerivedLayout, LayoutControl, LayoutGroup } from "@/lib/api"
 import { drive } from "@/lib/settings-fixtures"
 
@@ -79,7 +79,7 @@ function stub(
             // 画板尺寸：界面拿它把控件坐标换算成百分比（编号画到图上）；判据在后端。
             canvas: options.canvas === undefined ? { width: 1000, height: 500 } : options.canvas,
             imageStamp: options.imageStamp === undefined ? "2048-1" : options.imageStamp,
-            derived: options.derived ?? { available: false, reason: "还没有推导产物", regions: [], unresolved: [] },
+            derived: options.derived ?? { available: false, reason: "还没有推导产物", regions: [], unplaced: [], singles: [] },
             groups: options.groups ?? [],
             hasGroups: (options.groups ?? []).length > 0,
             // 后端的口径：控件够不够问 AI 由它给（阈值在 lib/layout-groups.js），界面照它禁用按钮。
@@ -160,10 +160,12 @@ describe("LayoutPanel", () => {
             id: "work-area",
             name: "工作区",
             emit: true,
-            cells: [cell("1:9", "IconButton", 1, 1)]
+            bands: bands(1, 1),
+            cells: [cell("1:9", "IconButton")]
           }
         ],
-        unresolved: []
+        unplaced: [],
+        singles: []
       }
     })
     render(panel())
@@ -180,12 +182,52 @@ describe("LayoutPanel", () => {
     expect(marked()).toBeNull()
   })
 
+  /*
+   * 读数刷新（同一页重跑布局那一步）之后，树上那一行盖住的控件可能已经变了：
+   * 画布要按当前读数描，不能拿点当时那一份。选中态只存 key，翻成 refs 只有 treeLinesOf 一处。
+   */
+  it("读数刷新后：那一行的高亮跟着当前读数走（不留点当时那一份）", async () => {
+    const options: { derived: DerivedLayout } = {
+      derived: {
+        available: true,
+        reason: "",
+        unplaced: [],
+        singles: [],
+        regions: [
+          { id: "work-area", name: "工作区", emit: true, bands: bands(1, 1), cells: [cell("1:9", "IconButton")] }
+        ]
+      }
+    }
+    stub(options)
+    const view = render(
+      <LayoutPanel taskId="task-1" runId="job-1" resume projectRoot={WORK_DIR} target="DemoPage" updatedAt="" state="waiting" />
+    )
+    await screen.findByText("画布")
+
+    fireEvent.click(screen.getByText("工作区 · 发射 · 1 行 × 1 列"))
+    expect(document.querySelector('[data-ref="1:9"][data-highlighted="true"]')).toBeTruthy()
+
+    // 同一页重跑：这一行里换成了另一个控件（读数的触发点是 updatedAt）。
+    options.derived = {
+      ...options.derived,
+      regions: [
+        { id: "work-area", name: "工作区", emit: true, bands: bands(1, 1), cells: [cell("1:10", "IconButton")] }
+      ]
+    }
+    view.rerender(
+      <LayoutPanel taskId="task-1" runId="job-1" resume projectRoot={WORK_DIR} target="DemoPage" updatedAt="t1" state="waiting" />
+    )
+
+    await waitFor(() => expect(document.querySelector('[data-ref="1:10"][data-highlighted="true"]')).toBeTruthy())
+    expect(document.querySelector('[data-ref="1:9"][data-highlighted="true"]')).toBeNull()
+  })
+
   it("已有分组按组渲染成员编号，自动通过默认关", async () => {
     stub({ groups: [{ id: "RightTools", kind: "column", members: ["1:9", "1:10"] }] })
     render(panel())
 
     expect(await screen.findByText("RightTools")).toBeTruthy()
-    expect(screen.getByText("列")).toBeTruthy()
+    expect(screen.getByText("垂直布局")).toBeTruthy()
     expect(screen.getByText("2 个控件")).toBeTruthy()
     expect(screen.getByText("#1 IconButton · 确定")).toBeTruthy()
     expect(screen.getByText("未分组控件（1）")).toBeTruthy()
@@ -201,7 +243,7 @@ describe("LayoutPanel", () => {
         new Response(
           JSON.stringify({
             ok: true,
-            layout: { available: true, reason: "", controls: CONTROLS, canvas: null, imageStamp: "", derived: { available: false, reason: "", regions: [], unresolved: [] }, groups: [], hasGroups: false, canSuggest: true, autoPass: true }
+            layout: { available: true, reason: "", controls: CONTROLS, canvas: null, imageStamp: "", derived: { available: false, reason: "", regions: [], unplaced: [], singles: [] }, groups: [], hasGroups: false, canSuggest: true, autoPass: true }
           }),
           { status: 200 }
         )

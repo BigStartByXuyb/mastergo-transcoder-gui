@@ -31,10 +31,14 @@
 | 「自动补输入并续跑」谁发起 | `ui/src/app/pending-panel.tsx` · `automation === "auto" && !taskId` | 看板任务由服务端发起（`lib/board.js` 的 `autoFillWaiting` → `lib/autofill.js`，同一个 automation 设置，不需要浏览器在场）；面板只对没有看板任务的条目发起 |
 | 位图落地要等的那一步怎么说 | `lib/design-image.js` · `const NO_CANVAS_REASON =` | 界面那一块照后端给的原话显示（`/api/design-image` 的 `blocked`）；表单的指引不提步骤名，只说「流水线产出画板尺寸之后」 |
 | 本地记住的值什么时候写回 | `ui/src/app/use-remembered.ts` · `export function useRemembered<` | 两张「新建任务」表单（`ui/src/app/pipeline-page.tsx`、`board-page.tsx`）、看板筛选（`board-page.tsx`）、只看生效（`ui/src/app/use-only-effective.ts`） |
-| 布局树每行 key 的三处分隔 | `ui/src/lib/layout-edit.ts` · `const GROUP_SEP =`、`const REF_PREFIX =`、`const CONTROL_SEP =` | 树上每行 key 的拼接（`groupKey` / `controlLineKey`）与解析（`refsOfDerived`） |
-| 产物合成出来的容器怎么认（ref 上的那层前缀） | `lib/derived-layout.js` · `const SYNTH_PREFIX =` | 读视图剥掉它再往外给（`readRef`），并用 `container` 标出来；界面只认 `container`，不认识前缀 |
+| 一格往哪个方向排（垂直布局 / 水平布局） | `lib/derived-layout.js` · `function axisOf(` | 布局树那一行照它念（`ui/src/lib/layout-edit.ts` 的 `axisLabel`：产物没给就说方向不明，不拿行列数替它推） |
+| 同层格子的先后（行优先、列次之） | `lib/derived-layout.js` · `function byPosition(` | 读视图出去之前排一遍（顶层与子网格同一处）；界面按给的顺序摆，不自己再排 |
+| 布局树上哪几行、每行写什么、盖住哪些控件 | `ui/src/lib/layout-edit.ts` · `export function treeLinesOf(` | 树只按它渲染（`ui/src/app/layout-tree.tsx`），面板把选中的 key 翻成要描的控件也读它 —— 一处算，两处读 |
+| 一层网格里谁吃剩余（*）怎么写 | `ui/src/lib/layout-edit.ts` · `function starNote(` | 分区那一行与每个组那一行共用它（第几条带吃剩余只有 `starBands` 一处认） |
+| 树上一行的摆法（选中态 / 缩进 / 点它交出去的 key） | `ui/src/app/layout-tree.tsx` · `function Line(` | 树行与树下面那两块读数的行都走它；两处各写一遍会分叉（一类行选不动、选中样式不齐） |
+| 产物合成容器的前缀怎么认（容器自己又列在子网格里那一条） | `lib/derived-layout.js` · `const SYNTH_PREFIX =` | 读视图剥掉它再往外给（`plainRef`，界面只认剥过的 ref），并据它把自列那一条提升掉 |
 | 推导产物与同趟报告的路径拼法 | `lib/workdir.js` · `function wpfLayoutPath(`、`function wpfLayoutReportPath(` | `lib/derived-layout.js` 的 `read`（读视图只出去事实，不自己拼路径） |
-| 格子坐标与跨度的归一（都只认产物给的数：坐标是非负整数、跨度是正整数，缺省跨度按 1） | `lib/derived-layout.js` · `const NO_POSITION_REASON =`、`function positionOf(`、`function spanOf(` | 布局树的格子（界面直接用；坐标读不出的照「没归宿」暴露，不拿位置顶上） |
+| 格子坐标的归一（只认产物给的非负整数：0 起 1 起都收；坐标只用来定同层先后与摆不摆得进树） | `lib/derived-layout.js` · `const NO_POSITION_REASON =`、`function positionOf(`、`const OUTER_NO_POSITION_REASON =`、`function byPosition(` | 布局树的格子（读不出的那一格连同它里面那些控件照「摆不进树」暴露，不拿位置顶上；坐标不往界面搬） |
 | 布局分组这一步喂给模型的输入（控件清单 + 本页设计稿位图的 data URL） | `lib/layout-groups.js` · `function candidatesInput(` | 自动补输入（`lib/autofill.js`）与人点「AI 出候选」（`lib/routes.js` 的 `/api/ai/suggest`）；模型层（`lib/ai.js`）只吃这个入参，不碰磁盘 |
 | 只有一个字符串字段的地方那句整句（原因 + 怎么做） | `lib/errors.js` · `function failureSentence(` | `lib/mcp-token.js`（缺 token 那件事的整句）、`lib/board.js`（任务行上的 `error` / `designImage` 四处 catch）、`lib/autofill.js`（这一步的输入读不出来时交回给人的那句）；界面那侧同一条规矩在 `ui/src/lib/describe-failure.ts` 的 `failureText`（两端口径一起改） |
 

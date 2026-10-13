@@ -1,9 +1,8 @@
-import type { DerivedLayout, LayoutCell, LayoutChild, LayoutControl, LayoutGroup, LayoutRegion } from "@/lib/api"
+import type { DerivedLayout, LayoutBand, LayoutCell, LayoutControl, LayoutGroup } from "@/lib/api"
 
 /*
  * 布局确认面板的纯逻辑：控件怎么认（编号 / 展示名 / 未找到时按 ref）、分组的增删改，
- * 以及布局树那几个口径（每行 key 的拼法与解析、一个分区分成哪几组、哪些格子盖住某一组、
- * 一个分区占几行几列）。
+ * 以及布局树上那几行怎么算（分区 → 组 → 控件，加上树下面那两块读数）。
  *
  * 这里只做「界面自己怎么算」这件事，不做「表合不合法」的判断 —— 成员至少 2 个、一个 ref 只能进一个分组
  * 这类校验只有后端 lib/layout-groups.js 一处，界面把后端的原话照实显示（见 app/layout-panel.tsx）。
@@ -87,122 +86,141 @@ export function removeGroup(groups: LayoutGroup[], id: string): LayoutGroup[] {
 }
 
 /*
- * 布局树上那一行的 key（分区 / 分区里的第几组 / 某一格 / 没归宿那一段）与「这一行盖住哪几个控件」。
- * 纯逻辑，与分组编辑同处：界面按 key 记住选了哪一行，要描的控件由 refsOfDerived 现算（不另存一份）。
+ * 布局树上那几行：key 是这一行的身份（React key 与选中态都用它），hit 是这一行盖住的控件。
+ * extra 那两行（摆不进树的 / 插件报的单条目栏）另带 items：每条的 ref、它在清单里的名字、原因。
  */
-export const UNRESOLVED_KEY = "unresolved"
+export type TreeLine =
+  | { key: string; depth: number; kind: "region" | "group" | "control"; label: string; hit: string[] }
+  | {
+      key: string
+      depth: number
+      kind: "extra"
+      label: string
+      hit: string[]
+      items: { ref: string; label: string; reason: string }[]
+    }
 
-/*
- * key 的拼法：分区 → 第几组（组＝分区里的某一行）→ 格子路径（每段一个 ref，套几层就有几段），
- * 按下面三处接起来（拼装与解析都只认这三处）。
- * 前提：ref 与分区 id 里不含这些片段（产物的 ref 形如 `1872:59913`，分区 id 形如 `work-area`）。
- */
-/* 「分区里的第几组」那段 key 的分隔：拼（groupKey）与解（refsOfDerived）只认这一处。 */
-const GROUP_SEP = "#group:"
-/* 「某个控件」那段 key 的前缀：同样只认这一处。 */
-const REF_PREFIX = "ref:"
-/* key 里两段之间的分隔：同样只认这一处。 */
-const CONTROL_SEP = "/"
+/* 树下面那两块读数各占一行（不属于任何分区，就各自一句）。 */
+const UNPLACED_KEY = "unplaced"
+const SINGLES_KEY = "singles"
 
-export function regionKey(id: string): string {
-  return "region:" + id
+/* 一个控件在树上的名字：清单里有它就用清单的（号 + value），没有就退回产物给的类型，再没有才是 ref。 */
+function nameOf(controls: LayoutControl[], ref: string, controlType: string): string {
+  const number = numberOf(controls, ref)
+  if (number > 0) return "#" + number + " " + displayNameOf(controls, ref)
+  return controlType || displayNameOf(controls, ref)
 }
 
-export function groupKey(id: string, group: number): string {
-  return regionKey(id) + GROUP_SEP + group
-}
-
-function controlKey(ref: string): string {
-  return REF_PREFIX + ref
-}
-
-/* 树上一条格子行的 key：分区 + 第几组 + 从这一组下去的路径（套着的几层各占一段）。 */
-export function controlLineKey(regionId: string, group: number, path: string[]): string {
-  return groupKey(regionId, group) + path.map((ref) => CONTROL_SEP + controlKey(ref)).join("")
-}
-
-/* 按路径找那一格：每段是那一层里的一个 ref。 */
-function cellAt(cells: LayoutChild[], path: string[]): LayoutChild | null {
-  const hit = cells.find((cell) => cell.ref === path[0])
-  if (!hit) return null
-  return path.length === 1 ? hit : cellAt(hit.children, path.slice(1))
-}
-
-/* 这几格在画布上盖住的控件 ref：读视图已经把每一格（连同它里面装着的）摊好了，这里只收集。 */
-function refsOfCells(cells: LayoutChild[]): string[] {
-  return cells.flatMap((cell) => cell.refs)
-}
-
-/* 要描的控件是一份集合：同一格可能从两条路进来，去重只在这里做。 */
-function unique(refs: string[]): string[] {
-  return [...new Set(refs)]
-}
-
-export function refsOfDerived(derived: DerivedLayout | null, key: string): string[] {
-  if (!derived || !key) return []
-  if (key === UNRESOLVED_KEY) return unique(derived.unresolved.map((item) => item.ref))
-  // 段一：[分区] 或 [分区 + 第几组]；后面的段都是「这一组的格子往下走的路径」。
-  const [head, ...tail] = key.split(CONTROL_SEP)
-  const [regionPart, groupPart] = head.split(GROUP_SEP)
-  const region = derived.regions.find((item) => regionKey(item.id) === regionPart)
-  if (!region) return []
-  const path: string[] = []
-  for (const part of tail) {
-    if (!part.startsWith(REF_PREFIX)) return []
-    path.push(part.slice(REF_PREFIX.length))
-  }
-  // 没有组号＝整个分区；有组号＝那一组盖住的格子（第几组对应哪一行只有 groupsOf 一处说了算，越界就是空）。
-  let cells = region.cells
-  if (groupPart !== undefined) {
-    const group = groupsOf(region)[Number(groupPart) - 1]
-    cells = group ? group.covering : []
-  }
-  if (path.length === 0) return unique(refsOfCells(cells))
-  const hit = cellAt(cells, path)
-  return hit ? unique(hit.refs) : []
-}
-
-/* 一段跨度铺成连续的序号（起、跨几格）：行与列各用一次，写法只有这一处。 */
-function indicesOf(from: number, count: number): number[] {
-  const out: number[] = []
-  for (let at = from; at < from + count; at += 1) out.push(at)
-  return out
-}
-
-/* 一个格子盖住哪几行（含跨行）：跨度由后端归一成至少 1（lib/derived-layout.js），这里直接用。 */
-function rowRangeOf(cell: LayoutCell): number[] {
-  return indicesOf(cell.row, cell.rowSpan)
-}
-
-/* 一个分区里盖住第 k 行的格子（跨行的格子每一行都算盖住）：都读 rowRangeOf。 */
-function cellsInRow(region: LayoutRegion, row: number): LayoutCell[] {
-  return region.cells.filter((cell) => rowRangeOf(cell).includes(row))
-}
-
-/* 一个分区里有哪些行（把跨行的格子铺开、去重、从小到大）。 */
-function rowsOfRegion(region: LayoutRegion): number[] {
-  const rows = new Set<number>()
-  for (const cell of region.cells) for (const row of rowRangeOf(cell)) rows.add(row)
-  return [...rows].sort((left, right) => left - right)
+/* 一条带是不是吃剩余（*）：第几条（1 起）—— 行带列带共用这一处。 */
+function starBands(bands: LayoutBand[] | undefined): number[] {
+  return (bands ?? []).map((band, index) => (band.star ? index + 1 : 0)).filter((index) => index > 0)
 }
 
 /*
- * 一个分区里的组：组号（1 起）＝第几个「有格子的行」—— 树上的「组 #k」与 key 里的组号都按这一处算。
- *   covering —— 盖住这一行的格子（跨行过来的也算：点这一组时画布上要描这些）；
- *   starting —— 从这一行起始的格子（树只展开这些，跨行的不在别的组里重复一遍）。
+ * 一层网格里谁吃剩余怎么写：行、列各一段，都没有就是空串 —— 分区行与组行共用这一处。
+ * 只有一条带的那种方向不写：那一条必然占满整层，说「它吃剩余」等于没说什么。
  */
-type DerivedGroup = { group: number; row: number; covering: LayoutCell[]; starting: LayoutCell[] }
-
-export function groupsOf(region: LayoutRegion): DerivedGroup[] {
-  return rowsOfRegion(region).map((row, index) => {
-    const covering = cellsInRow(region, row)
-    return { group: index + 1, row: row, covering: covering, starting: covering.filter((cell) => cell.row === row) }
-  })
+function starNote(bands: { rows: LayoutBand[]; columns: LayoutBand[] } | undefined): string {
+  const rows = starBands(bands?.rows)
+  const columns = starBands(bands?.columns)
+  const parts: string[] = []
+  if (rows.length > 0 && (bands?.rows.length ?? 0) > 1) parts.push("第 " + rows.join("、") + " 行")
+  if (columns.length > 0 && (bands?.columns.length ?? 0) > 1) parts.push("第 " + columns.join("、") + " 列")
+  return parts.length > 0 ? " · " + parts.join("、") + "吃剩余（*）" : ""
 }
 
-/** 这个分区占几行几列（都按格子算：行＝有格子的行数，列＝格子盖住的列数）—— 与树上的摆法同一处口径。 */
-export function shapeOfRegion(region: LayoutRegion): { rows: number; columns: number } {
-  const columns = new Set(region.cells.flatMap((cell) => indicesOf(cell.column, cell.columnSpan)))
-  return { rows: rowsOfRegion(region).length, columns: columns.size }
+/* 这一层网格几行几列（按产物给的带数）；两样都有才写，缺一样就不拿 0 顶上。 */
+function shapeNote(bands: { rows: LayoutBand[]; columns: LayoutBand[] } | undefined): string {
+  if (!bands || bands.rows.length === 0 || bands.columns.length === 0) return ""
+  return " · " + bands.rows.length + " 行 × " + bands.columns.length + " 列"
 }
 
+/* 组往哪个方向排：照产物给的方向念，产物没给就说方向不明。 */
+function axisLabel(axis: LayoutCell["axis"]): string {
+  return axis === "column" ? "垂直布局" : axis === "row" ? "水平布局" : "方向不明"
+}
+
+/*
+ * 分区那一行的 key；往下每套一层接一段 ref（只用来认这一行 —— React key 与选中态比较，不从 key 反解控件）。
+ * 拼法的前提：ref 与分区 id 里不含 `region:`、`/ref:` 这两段（产物的 ref 形如 `1872:59913`，
+ * 分区 id 形如 `work-area`）。
+ */
+function lineKey(regionId: string, path: string[]): string {
+  return "region:" + regionId + path.map((ref) => "/ref:" + ref).join("")
+}
+
+/* 树下面那两块读数各占一行：标题 + 每条的 ref、名字与原因（原因在悬停提示里）。 */
+function extraLine(key: string, label: string, items: { ref: string; reason: string }[], controls: LayoutControl[]): TreeLine {
+  return {
+    key: key,
+    depth: 1,
+    kind: "extra",
+    label: label,
+    hit: items.map((item) => item.ref),
+    items: items.map((item) => ({ ref: item.ref, label: nameOf(controls, item.ref, ""), reason: item.reason }))
+  }
+}
+
+/*
+ * 一层格子摆成一组行：是组的先摆一行、再往里摆一层，是控件的直接摆一行。
+ * 组的序号是「这一层里的第几个组」；这一格的 ref 在清单里（例如 GroupBox 这类自己也带子网格的控件）时，
+ * 连它的号与名字一起写出来 —— 与画布上的号对得上。
+ */
+function pushCells(
+  lines: TreeLine[],
+  regionId: string,
+  cells: LayoutCell[],
+  path: string[],
+  depth: number,
+  controls: LayoutControl[]
+) {
+  let group = 0
+  for (const cell of cells) {
+    const next = [...path, cell.ref]
+    const line = { key: lineKey(regionId, next), depth: depth, hit: cell.refs }
+    if (cell.group) {
+      group += 1
+      const own = numberOf(controls, cell.ref)
+      lines.push({
+        ...line,
+        kind: "group",
+        label:
+          "组 " + group + "（" + axisLabel(cell.axis) + "）" +
+          (own > 0 ? " · " + nameOf(controls, cell.ref, cell.controlType) : "") +
+          starNote(cell.bands)
+      })
+      pushCells(lines, regionId, cell.children, next, depth + 1, controls)
+      continue
+    }
+    lines.push({ ...line, kind: "control", label: nameOf(controls, cell.ref, cell.controlType) })
+  }
+}
+
+/*
+ * 树上每一行的数据（纯函数）：树自己渲染用它，面板据它把「选中的那个 key」翻成要描的控件 ——
+ * 一处算，两处读；读数刷新后翻出来的就是当前这一行的控件，不会留着上一份。
+ * 这一步没跑过（或还没读到）时一行都不给。
+ */
+export function treeLinesOf(derived: DerivedLayout | null, controls: LayoutControl[]): TreeLine[] {
+  if (!derived || !derived.available) return []
+  const lines: TreeLine[] = []
+  for (const region of derived.regions) {
+    lines.push({
+      key: lineKey(region.id, []),
+      depth: 0,
+      kind: "region",
+      hit: region.cells.flatMap((cell) => cell.refs),
+      label:
+        region.name + " · " + (region.emit ? "发射" : "只注册") +
+        shapeNote(region.bands) + starNote(region.bands)
+    })
+    pushCells(lines, region.id, region.cells, [], 1, controls)
+  }
+  if (derived.unplaced.length > 0) {
+    lines.push(extraLine(UNPLACED_KEY, "摆不进树的 " + derived.unplaced.length + " 个", derived.unplaced, controls))
+  }
+  if (derived.singles.length > 0) {
+    lines.push(extraLine(SINGLES_KEY, "插件报的单条目栏 · " + derived.singles.length + " 个", derived.singles, controls))
+  }
+  return lines
+}

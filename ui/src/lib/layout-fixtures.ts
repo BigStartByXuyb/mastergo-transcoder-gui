@@ -1,33 +1,34 @@
-import type { LayoutCell, LayoutChild } from "@/lib/api"
+import type { LayoutBand, LayoutCell } from "@/lib/api"
 
 /*
  * 用例里的格子夹具：读视图（lib/derived-layout.js）给的那个形状只在这里拼一次，几份用例共用它 ——
- * 形状再变（加字段、改跨度口径）只改这一处，不会各文件各写一套。
- * 顶层格子带行列（产物给的非负整数都算数：那侧有从 0 起也有从 1 起的），子网格里的一格挂在父格子下、
- * 不带行列；两者的其余字段同形。
+ * 形状再变（加字段、改归一口径）只改这一处，不会各文件各写一套。
+ * 顺序就是摆的顺序（读视图按产物给的行列排好才出去）；有 children 就是一个组，
+ * 带的行列带就是那一层网格的（哪一条吃剩余）。
  */
 
-/** 子网格里的一格。 */
-export function child(ref: string, controlType = "", children: LayoutChild[] = [], container = false): LayoutChild {
-  return {
-    ref: ref,
-    container: container,
-    controlType: controlType,
-    rowSpan: 1,
-    columnSpan: 1,
-    children: children,
-    refs: [ref, ...children.flatMap((item) => item.refs)]
-  }
+/** 一层网格的行列带：几条带里哪几条吃剩余（*）—— 「第几条」从 1 起。 */
+export function bands(rows: number, columns: number, starRows: number[] = [], starColumns: number[] = []) {
+  const build = (count: number, stars: number[]): LayoutBand[] =>
+    Array.from({ length: count }, (_item, index) => ({ star: stars.includes(index + 1) }))
+  return { rows: build(rows, starRows), columns: build(columns, starColumns) }
 }
 
-/** 一个顶层格子（带行列）。 */
+/** 一层网格里的一格：带方向；给了子网格就是一个组（没给带就是空表，照「产物没写带」算）。 */
 export function cell(
   ref: string,
   controlType: string,
-  row: number,
-  column: number,
-  children: LayoutChild[] = [],
-  container = false
+  children: LayoutCell[] = [],
+  axis: "" | "column" | "row" = "",
+  childBands?: { rows: LayoutBand[]; columns: LayoutBand[] }
 ): LayoutCell {
-  return { ...child(ref, controlType, children, container), row: row, column: column }
+  return {
+    ref: ref,
+    group: children.length > 0,
+    axis: axis,
+    controlType: controlType,
+    children: children,
+    refs: [ref, ...children.flatMap((item) => item.refs)],
+    ...(children.length > 0 ? { bands: childBands ?? bands(0, 0) } : {})
+  }
 }

@@ -85,12 +85,13 @@ function main() {
     assert.strictEqual(info.derived.available, false);
     assert.match(info.derived.reason, /布局那一步跑完/);
     assert.deepStrictEqual(info.derived.regions, []);
-    assert.deepStrictEqual(info.derived.unresolved, []);
+    assert.deepStrictEqual(info.derived.unplaced, []);
+    assert.deepStrictEqual(info.derived.singles, []);
     assert.strictEqual(info.canSuggest, true, "三个控件够分组");
     assert.strictEqual(info.hasGroups, false, "还没写过分组表");
   }
 
-  // 推导结果：分区 → 行/列 → 格子 + 没归宿的那几条（都从布局那一步的两份产物里读）。
+  // 推导结果：分区 → 组（装着子网格的格子）→ 控件 + 摆不进树的那几条（都从布局那一步的两份产物里读）。
   {
     const root = sandbox();
     fs.writeFileSync(
@@ -105,8 +106,8 @@ function main() {
               rows: [{}, {}],
               columns: [{}, {}, {}],
               cells: [
-                { ref: "a", row: 1, column: 2, rowSpan: 1, columnSpan: 1 },
-                { ref: "c", row: 2, column: 1, rowSpan: 2, columnSpan: 1 }
+                { ref: "c", row: 2, column: 1 },
+                { ref: "a", row: 1, column: 2 }
               ]
             }
           }
@@ -123,18 +124,28 @@ function main() {
     assert.strictEqual(info.derived.available, true);
     assert.strictEqual(info.derived.reason, "");
     assert.deepStrictEqual(info.derived.regions, [
-      { id: "top", name: "顶部栏", emit: false, cells: [] },
+      {
+        /* 带照产物给（夹具那几条是空对象：认不出 Star，照实说不吃剩余）。 */
+        id: "top", name: "顶部栏", emit: false,
+        bands: { rows: [{ star: false }], columns: [{ star: false }] },
+        cells: []
+      },
       {
         id: "work",
         name: "工作区",
         emit: true,
+        bands: {
+          rows: [{ star: false }, { star: false }],
+          columns: [{ star: false }, { star: false }, { star: false }]
+        },
         cells: [
-          { ref: "a", container: false, controlType: "", row: 1, column: 2, rowSpan: 1, columnSpan: 1, children: [], refs: ["a"] },
-          { ref: "c", container: false, controlType: "", row: 2, column: 1, rowSpan: 2, columnSpan: 1, children: [], refs: ["c"] }
+          /* 产物那一列是倒着写的，出去按行列排好了（坐标不往界面搬）。 */
+          { ref: "a", group: false, axis: "", controlType: "", children: [], refs: ["a"] },
+          { ref: "c", group: false, axis: "", controlType: "", children: [], refs: ["c"] }
         ]
       }
     ]);
-    assert.deepStrictEqual(info.derived.unresolved, [{ ref: "b", reason: "单条目栏：几何判不出它跟谁同组" }]);
+    assert.deepStrictEqual(info.derived.singles, [{ ref: "b", reason: "单条目栏：几何判不出它跟谁同组" }]);
   }
 
   // 写回分组表并读回。

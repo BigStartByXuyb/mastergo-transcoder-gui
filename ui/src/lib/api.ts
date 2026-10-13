@@ -201,47 +201,51 @@ export type LayoutGroup = {
   members: string[]
 }
 
-/** 格子里装着的控件（含它自己的子网格）：它挂在父格子下，所以不带「第几行第几列」。 */
-export type LayoutChild = {
+/** 推导结果里的一个格子（分区自己那一层、或某个容器那一层里的一个）：格子里装着什么就看 children。 */
+export type LayoutCell = {
   ref: string
-  /** 这一格是产物合成出来的容器（里面还装着控件）：树上的「容器」标记按它。 */
-  container: boolean
-  /** 产物给的类型（合成出来的容器常常没有这个）：界面的名字在清单里找不到时按它显示。 */
+  /** 这一格是不是一组（读视图按「里面有子网格」定）：界面按它摆组行还是控件行，不自己再判一遍。 */
+  group: boolean
+  /** 这一格往哪个方向排（column = 上下排，row = 左右排，空串 = 产物没给）。判据在后端读视图。 */
+  axis: "" | "column" | "row"
+  /** 产物给的类型（合成出来的容器常常没有这个）：界面在清单里找不到这一格时按它显示。 */
   controlType: string
-  rowSpan: number
-  columnSpan: number
-  /** 这一格里那份子网格（可以再套）：树按它往下展开一层。 */
-  children: LayoutChild[]
+  /** 组那一层网格的行列带（`group` 为真时才有）：界面据它说明谁吃剩余。 */
+  bands?: { rows: LayoutBand[]; columns: LayoutBand[] }
+  /** 这一格子网格里的格子（可以再套），已按产物给的行列排好：空表就是这一格只是个控件。 */
+  children: LayoutCell[]
   /** 这一格连同它里面装着的全部 ref：界面点它要高亮的就是这些（往下摊平由读视图一处做）。 */
   refs: string[]
 }
 
-/** 推导结果里的一个格子：某控件落在哪一行哪一列（产物给的非负整数，0 起 1 起都有），跨几行几列。 */
-export type LayoutCell = LayoutChild & {
-  row: number
-  column: number
-}
-
-/** 推导结果里的一个分区：名字 / 发不发射 + 它的格子（分成哪几组由界面按格子现算）。 */
+/** 推导结果里的一个分区：名字 / 发不发射 + 它自己那一层网格（行带列带 + 格子）。 */
 export type LayoutRegion = {
   id: string
   name: string
   emit: boolean
+  /** 这一层的行带 / 列带：界面据它写「N 行 × M 列」并标出谁吃剩余（*）。判据在后端读视图。 */
+  bands: { rows: LayoutBand[]; columns: LayoutBand[] }
   cells: LayoutCell[]
 }
 
+/** 一条带：吃剩余（star）还是固定像素。像素值不往界面搬 —— 界面只用「谁吃剩余」这一件事实。 */
+export type LayoutBand = { star: boolean }
+
 /*
  * 推导出来的布局（作业A 第 8 步的产物，界面那栏「布局树」显示的就是它 —— 不是设计稿原始层级）：
- *   分区 → 组（分区里的某一行）→ 格子（每个格子一个控件）；
- *   unresolved 是界面摆不进树的那几条：插件标记的散条目（同一趟的报告），
- *   加上产物里读不出行列坐标的格子（缺字段 / 空串 / 数字串 / 布尔 / 非整数 / 负数，读不出就不当作一个格子）。
+ *   分区 → 组（装着子网格的格子，可以再套）→ 控件。
+ * 树之外还有两份读数，各说各的事：unplaced 是界面摆不进树的（产物里读不出行列坐标的格子，
+ * 缺字段 / 空串 / 数字串 / 布尔 / 非整数 / 负数）；singles 是插件那一步报的单条目栏（它们在树上有位置）。
  * 这一步没跑过时 available:false，reason 是给界面看的那句话。
  */
 export type DerivedLayout = {
   available: boolean
   reason: string
   regions: LayoutRegion[]
-  unresolved: { ref: string; reason: string }[]
+  /** 摆不进树的那几条：ref + 为什么（它连同它里面那些控件都不摆）。 */
+  unplaced: { ref: string; reason: string }[]
+  /** 插件报的单条目栏（没进任何组）：ref + 插件给的那句原话。 */
+  singles: { ref: string; reason: string }[]
 }
 
 export type LayoutGroups = {
@@ -252,7 +256,7 @@ export type LayoutGroups = {
   canvas: { width: number; height: number } | null
   /** 这一页那张图的身份（空串＝没有图）：画布据此挂图并拼预览地址；判据在后端。 */
   imageStamp: string
-  /** 推导出来的布局（分区 → 组 → 格子）：跑完布局那一步才有；界面据此摆「布局树」。 */
+  /** 推导出来的布局（分区 → 组 → 控件）：跑完布局那一步才有；界面据此摆「布局树」。 */
   derived: DerivedLayout
   groups: LayoutGroup[]
   /** 这一页有没有分组表（空表也算有）：与「表里有什么」同一次读给出。 */

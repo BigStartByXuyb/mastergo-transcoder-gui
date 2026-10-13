@@ -2,12 +2,13 @@ import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
 import { LayoutTree } from "@/app/layout-tree"
+import { bands, cell } from "@/lib/layout-fixtures"
 import type { DerivedLayout, LayoutControl } from "@/lib/api"
-import { cell, child } from "@/lib/layout-fixtures"
 
 /*
- * 布局树：显示的是**推导出来的**布局，摆成正常的树 —— 分区 → 组（分区里的某一行）→ 格子 → 格子里的格子。
- * 控件行带它在清单里的号，组行带它在这一页里的号；点一行把这一行盖住的控件交出去（画布据此描边）。
+ * 布局树：显示的是**推导出来的**布局，摆成正常的树 —— 分区 → 组（装着东西的格子，可以再套）→ 控件。
+ * 组行写它是这一层里的第几个组、往哪个方向排，控件行写它在清单里的号加名字；
+ * 点一行把它盖住的控件交出去（画布据此描边）。
  * 没有推导产物时只说一句原因，还没读到（null）时这块不摆。
  */
 
@@ -19,120 +20,149 @@ const CONTROLS = [
   control("1:9", "IconButton", "确定"),
   control("1:10", "IconButton", ""),
   control("1:11", "TextBlock", "标题"),
-  control("1:12", "TextBlock", "说明")
+  control("1:12", "TextBlock", "说明"),
+  control("9:5", "GroupBox", "")
 ]
 
+/*
+ * 一份推导结果（同层已按行列排好 —— 那是读视图的活，见 tests/derived-layout.test.js）。
+ * 9:5 是清单里的 GroupBox、自己也装着东西（组行写出它的号与名字）；9:9 是产物合成出来的容器（垂直布局），
+ * 它里面又套着一个水平布局的组。
+ */
 const DERIVED: DerivedLayout = {
   available: true,
   reason: "",
   regions: [
-    { id: "top-strip", name: "顶部栏", emit: false, cells: [] },
+    { id: "top-strip", name: "顶部栏", emit: false, bands: bands(0, 0), cells: [] },
     {
       id: "work-area",
       name: "工作区",
       emit: true,
+      bands: bands(4, 3, [3], [3]),
       cells: [
-        cell("1:9", "IconButton", 1, 2),
-        cell("1:10", "IconButton", 1, 3),
-        cell("1:11", "TextBlock", 2, 1),
-        /* 产物合成出来的容器（读视图把它标成 container）：它里面装着清单里没有的控件。 */
-        cell("9:9", "", 3, 1, [child("9:20", "NumberBox")], true)
+        cell("1:9", "IconButton"),
+        cell("1:10", "IconButton"),
+        cell("1:11", "TextBlock"),
+        cell("9:5", "GroupBox", [cell("1:12", "TextBlock")]),
+        cell("9:9", "", [
+          cell("9:20", "NumberBox"),
+          cell("9:30", "", [cell("9:31", "TextBlock")], "row", bands(1, 2))
+        ], "column", bands(2, 1, [2]))
       ]
     }
   ],
-  // 没归宿的那几条：插件给的原因留在悬停提示里。
-  unresolved: [{ ref: "1:12", reason: "单条目栏：几何判不出它跟谁同组" }]
+  // 摆不进树的那一条：产物没给行列坐标（它不在树上）。
+  unplaced: [{ ref: "1:13", reason: "推导产物里这一格没有行列坐标" }],
+  // 插件报的单条目栏：它在树上有位置（#2 IconButton），只是没进任何组。
+  singles: [{ ref: "1:10", reason: "单条目栏：几何判不出它跟谁同组，分组表里也没有它" }]
+}
+
+function tree(overrides: { derived?: DerivedLayout | null; selected?: string; onPick?: (key: string) => void } = {}) {
+  return (
+    <LayoutTree
+      derived={overrides.derived === undefined ? DERIVED : overrides.derived}
+      controls={CONTROLS}
+      selected={overrides.selected ?? ""}
+      onPick={overrides.onPick ?? (() => undefined)}
+    />
+  )
 }
 
 describe("LayoutTree", () => {
   it("还没读到这一页（null）：这块不摆", () => {
-    const { container } = render(<LayoutTree derived={null} controls={CONTROLS} selected="" onPick={() => undefined} />)
+    const { container } = render(tree({ derived: null }))
     expect(container.innerHTML).toBe("")
   })
 
   it("没有推导产物时：只说一句原因，不摆空的树", () => {
     const { container } = render(
-      <LayoutTree
-        derived={{ available: false, reason: "还没有推导产物：布局那一步跑完之后…", regions: [], unresolved: [] }}
-        controls={CONTROLS}
-        selected=""
-        onPick={() => undefined}
-      />
+      tree({
+        derived: { available: false, reason: "还没有推导产物：布局那一步跑完之后…", regions: [], unplaced: [], singles: [] }
+      })
     )
     expect(screen.getByText(/还没有推导产物/)).toBeTruthy()
     expect(container.querySelectorAll("button").length).toBe(0)
   })
 
-  it("分区 → 组 → 格子逐层缩进，控件带清单里的号", () => {
-    render(<LayoutTree derived={DERIVED} controls={CONTROLS} selected="" onPick={() => undefined} />)
+  it("分区 → 组 → 控件逐层缩进：组行写方向，控件行写清单里的号", () => {
+    render(tree())
 
     expect(screen.getByText("顶部栏 · 只注册")).toBeTruthy()
-    expect(screen.getByText("工作区 · 发射 · 3 行 × 3 列")).toBeTruthy()
-    // 这一组里有两个格子：它们在那一行里左右排。
-    expect(screen.getByText("组 #1（横排）")).toBeTruthy()
-    expect(screen.getByText("组 #2")).toBeTruthy()
-    expect(screen.getByText("组 #3")).toBeTruthy()
-    expect(screen.getByText("#1 确定")).toBeTruthy()
-    // 没有 value 的控件：号 + 它的控件类型。
-    expect(screen.getByText("#2 IconButton")).toBeTruthy()
-    expect(screen.getByText("#3 标题")).toBeTruthy()
-    // 没有格子的分区不列组。
-    expect(screen.queryByText("组 #4")).toBeNull()
+    expect(screen.getByText("工作区 · 发射 · 4 行 × 3 列 · 第 3 行、第 3 列吃剩余（*）")).toBeTruthy()
+
+    // 逐层摆下来：组行下面接着它自己那一层（缩进更深）。
+    const labels = [...document.querySelectorAll("button")].map((node) => node.textContent)
+    expect(labels).toEqual([
+      "顶部栏 · 只注册",
+      "工作区 · 发射 · 4 行 × 3 列 · 第 3 行、第 3 列吃剩余（*）",
+      "#1 确定",
+      "#2 IconButton",
+      "#3 标题",
+      "组 1（方向不明） · #5 GroupBox",
+      "#4 说明",
+      "组 2（垂直布局） · 第 2 行吃剩余（*）",
+      "NumberBox",
+      "组 1（水平布局）",
+      "TextBlock",
+      "摆不进树的 1 个",
+      "插件报的单条目栏 · 1 个"
+    ])
   })
 
-  it("容器与它里面的格子往下摆一层；清单里没有的用产物给的类型", () => {
-    render(<LayoutTree derived={DERIVED} controls={CONTROLS} selected="" onPick={() => undefined} />)
+  it("组的序号按「这一层里的第几个组」算，方向与吃剩余的带都照产物给", () => {
+    render(tree())
 
-    expect(screen.getByText("9:9（容器）")).toBeTruthy()
-    expect(screen.getByText("NumberBox")).toBeTruthy()
+    // 清单里没有的容器：只有方向（不编名字）；清单里的 GroupBox：连它的号与名字一起写。
+    expect(screen.getByText("组 2（垂直布局） · 第 2 行吃剩余（*）")).toBeTruthy()
+    expect(screen.getByText("组 1（方向不明） · #5 GroupBox")).toBeTruthy()
+    // 嵌套的组各按自己那一层重新数号。
+    expect(screen.getByText("组 1（水平布局）")).toBeTruthy()
   })
 
-  it("点一行：交出它的 key（分区 / 组 / 格子 / 容器里的格子 / 没归宿各有各的）", () => {
+  it("摆不进树的与插件报的单条目栏各摆一块，原因在悬停提示里", () => {
+    render(tree())
+
+    expect(screen.getByText("摆不进树的 1 个")).toBeTruthy()
+    expect(screen.getByText("1:13").getAttribute("title")).toBe("推导产物里这一格没有行列坐标")
+    expect(screen.getByText("插件报的单条目栏 · 1 个")).toBeTruthy()
+    /* 这一条在树上也有位置（同一个 ref 两处出现）：按悬停提示认这一条。 */
+    const single = screen.getByTitle("单条目栏：几何判不出它跟谁同组，分组表里也没有它")
+    expect(single.textContent).toBe("#2 IconButton")
+  })
+
+  it("点一行：只交出这一行的 key（要描哪些控件由调用方按当前读数算）", () => {
     const picked = vi.fn()
-    render(<LayoutTree derived={DERIVED} controls={CONTROLS} selected="" onPick={picked} />)
+    render(tree({ onPick: picked }))
 
-    fireEvent.click(screen.getByText("工作区 · 发射 · 3 行 × 3 列"))
-    expect(picked).toHaveBeenLastCalledWith("region:work-area")
+    fireEvent.click(screen.getByText("工作区 · 发射 · 4 行 × 3 列 · 第 3 行、第 3 列吃剩余（*）"))
+    expect(picked).toHaveBeenLastCalledWith(expect.any(String))
+    expect(picked.mock.calls[0].length).toBe(1)
 
-    fireEvent.click(screen.getByText("组 #1（横排）"))
-    expect(picked).toHaveBeenLastCalledWith("region:work-area#group:1")
-
-    fireEvent.click(screen.getByText("#3 标题"))
-    expect(picked).toHaveBeenLastCalledWith("region:work-area#group:2/ref:1:11")
-
-    // 容器里那一格：路径多一段。
-    fireEvent.click(screen.getByText("NumberBox"))
-    expect(picked).toHaveBeenLastCalledWith("region:work-area#group:3/ref:9:9/ref:9:20")
-
-    fireEvent.click(screen.getByText("没归宿的 1 个"))
-    expect(picked).toHaveBeenLastCalledWith("unresolved")
-  })
-
-  it("跨行的格子：只在它起始的那一组里列一次，并标出跨了几行", () => {
-    const spanning: DerivedLayout = {
-      available: true,
-      reason: "",
-      regions: [
-        {
-          id: "work-area",
-          name: "工作区",
-          emit: true,
-          cells: [{ ...cell("1:9", "IconButton", 2, 1), rowSpan: 2 }]
-        }
-      ],
-      unresolved: []
+    for (const label of [
+      "组 2（垂直布局） · 第 2 行吃剩余（*）",
+      "#3 标题",
+      "TextBlock",
+      "摆不进树的 1 个",
+      "插件报的单条目栏 · 1 个"
+    ]) {
+      fireEvent.click(screen.getByText(label))
+      expect(picked).toHaveBeenLastCalledWith(expect.any(String))
     }
-    render(<LayoutTree derived={spanning} controls={CONTROLS} selected="" onPick={() => undefined} />)
 
-    expect(screen.getByText("工作区 · 发射 · 2 行 × 1 列")).toBeTruthy()
-    expect(screen.getByText("组 #1")).toBeTruthy()
-    expect(screen.getByText("组 #2")).toBeTruthy()
-    expect(screen.getAllByText("#1 确定（跨 2 行 × 1 列）").length).toBe(1)
+    // 每一次点到的都是不同的一行：交出去的 key 两两不同（key 怎么拼由组件自己定，调用方不解析）。
+    const keys = picked.mock.calls.map((call) => call[0])
+    expect(new Set(keys).size).toBe(keys.length)
   })
 
-  it("选中的那一行标出来（选中态由调用方给，不在组件里另存一份）", () => {
-    render(<LayoutTree derived={DERIVED} controls={CONTROLS} selected="region:work-area#group:1" onPick={() => undefined} />)
-    expect(screen.getByText("组 #1（横排）").getAttribute("data-selected")).toBe("true")
-    expect(screen.getByText("组 #2").getAttribute("data-selected")).toBe("false")
+  it("选中态由调用方给：把它收到的那个 key 回传，那一行就标出来（组件里不另存一份）", () => {
+    const picked = vi.fn()
+    const view = render(tree({ onPick: picked }))
+
+    fireEvent.click(screen.getByText("组 2（垂直布局） · 第 2 行吃剩余（*）"))
+    const key = picked.mock.calls[0][0]
+    view.rerender(tree({ selected: key, onPick: picked }))
+
+    expect(screen.getByText("组 2（垂直布局） · 第 2 行吃剩余（*）").getAttribute("data-selected")).toBe("true")
+    expect(screen.getByText("组 1（方向不明） · #5 GroupBox").getAttribute("data-selected")).toBe("false")
   })
 })
