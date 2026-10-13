@@ -306,4 +306,5 @@
 | 2026-10-13 第 84 遍 | 自查（CI 的确定性检查挂了） | 把 `noCandidatesReason` / `CANDIDATES_MIN_PLUGIN_VERSION` 一并导出，但仓里没人引用 —— CI 的 `orphan-exports` 当场失败 | 已收 | 两个符号收回模块私有（`lib/layout-candidates.js` 只导出 `read` / `refsOf` / `of`）；这类失败 `npm test` 覆盖不到，本地按 CI 那份 `check-app-structure.mjs`（钉在 `ci.yml` 的 commit 上）跑一遍再推 |
 | 2026-10-13 第 85 遍 | REVIEW-001 | 「要不要问模型 / 输入够不够」的判据散在三处、条件已不同，模型层那条无图分支是死路 | 已收 | 收成一个 `suggestBlocker`（`lib/layout-groups.js`）：`inspect` 的 `canSuggest` 与 `candidatesInput` 的抛错都读它；模型层的「条目不够就回空」早退、`LAYOUT_NO_IMAGE_NOTE` 与无图分支一并删掉（到这里一定是清单在、条目够、有位图，看图那几句无条件拼） |
 | 2026-10-13 第 85 遍 | REVIEW-002 | 清单为空（这一层不参与分组）时，面板仍把全部未分组控件列成「不在这一层条目里、不能写进分组表」 | 已收 | 分拨再加「条目非空」这一条（`entries.length > 0`）；清单不在与清单为空两种处境都不分拨、也不逐名列控件，只说上面那一句 |
+| 2026-10-13 第 86 遍 | REVIEW-001 | 「输入够不够」的判据在两处各算一遍，同一份条目清单与位图被重复读 | 已收 | `suggestBlocker` 加一个「已读到的读数」入参：`inspect` 把自己读到的 candidates / hasImage 传进去，`candidatesInput` 也先各读一次再传 —— 判据仍只有一处，一次请求里那两样各只读一遍 |
 
