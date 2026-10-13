@@ -121,7 +121,7 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
             {layout.groups.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 没有要声明的分组：直接点「{writeLabel}」，它写出空分组表，布局推导按机械判据走；
-                要声明分组：先在下面起个组名、选行或列，再把控件拖进那个组里。
+                要声明分组：先在下面起个组名、选方向（垂直布局 / 水平布局），再把控件拖进那个组里。
               </p>
             ) : null}
 
