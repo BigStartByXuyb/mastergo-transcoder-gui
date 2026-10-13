@@ -18,11 +18,11 @@ function indentOf(depth: number): number {
   return BASE_PADDING + depth * INDENT
 }
 
-/* 行的轻重：分区、组与读数行是结构（加深），控件按普通字重。 */
+/* 行的轻重：分区、组与读数行是结构（加深），控件行按次要色 —— 结构一眼看得出来。 */
 const KIND_CLASS: Record<TreeLine["kind"], string> = {
   region: "text-foreground font-semibold",
   group: "text-foreground font-medium",
-  control: "text-foreground",
+  control: "text-muted-foreground",
   extra: "text-foreground font-semibold"
 }
 
