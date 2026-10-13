@@ -10,6 +10,7 @@ const os = require("os");
 const path = require("path");
 
 const layout = require("../lib/layout-groups.js");
+const { png } = require("./image-fixtures.js");
 
 const TARGET = "DemoPage";
 
@@ -89,6 +90,11 @@ function writeCandidates(root, entries) {
   );
 }
 
+/* 写一张本页的设计稿位图（尺寸与快照的画板一致）：这一步是看图判分组，没有图就不问模型。 */
+function writeImage(root) {
+  fs.writeFileSync(path.join(root, "Generated", "_inputs", TARGET + ".design.png"), png(1280, 1024));
+}
+
 function main() {
   // 读控件清单 + 补文本。
   {
@@ -118,7 +124,7 @@ function main() {
     assert.deepStrictEqual(info.derived.regions, []);
     assert.deepStrictEqual(info.derived.unplaced, []);
     assert.deepStrictEqual(info.derived.singles, []);
-    assert.strictEqual(info.canSuggest, true, "这一层的条目够分组");
+    assert.strictEqual(info.canSuggest, false, "还没传图：这一步是看图判分组，不必问模型");
     assert.strictEqual(info.hasGroups, false, "还没写过分组表");
     assert.deepStrictEqual(
       info.candidates,
@@ -134,6 +140,9 @@ function main() {
       },
       "条目清单照产物给（ref / 类型 / 文本）"
     );
+    /* 传上图之后：这一层的条目够分组，才谈得上问模型（两个条件缺一不可）。 */
+    writeImage(root);
+    assert.strictEqual(layout.inspect({ projectRoot: root, target: TARGET }).canSuggest, true, "有图 + 条目够 = 可以问模型");
   }
 
   /*

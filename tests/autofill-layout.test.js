@@ -57,7 +57,7 @@ function harness(options) {
         icons: {},
         translations: {},
         /* canSuggest 是「能不能自动出分组」的判据（与界面上那个按钮同一条，lib/layout-groups.js 一处算）。 */
-        layout: { needsGroups: true, waiting: 1, canSuggest: true }
+        layout: { needsGroups: true, waiting: 1, canSuggest: options.canSuggest !== false }
       })
     },
     confirm: {
@@ -72,7 +72,7 @@ function harness(options) {
 }
 
 async function caseGroupsWritten() {
-  const projectRoot = sandbox();
+  const projectRoot = sandbox(png(1280, 1024));
   const fx = harness({ automation: "assist", layoutAutoPass: true, groups: [{ id: "RightTools", kind: "column", members: ["1:9", "1:10"] }] });
   const result = await fx.autoFill.fill({ projectRoot: projectRoot, target: "T1", runId: "job-1" });
   assert.strictEqual(result.ok, true);
@@ -82,7 +82,7 @@ async function caseGroupsWritten() {
 }
 
 async function caseEmptyIsAConclusion() {
-  const projectRoot = sandbox();
+  const projectRoot = sandbox(png(1280, 1024));
   const fx = harness({ automation: "assist", layoutAutoPass: true, groups: [] });
   const result = await fx.autoFill.fill({ projectRoot: projectRoot, target: "T1", runId: "job-1" });
   assert.strictEqual(result.ok, true, "一组都没给也要往下，不能当成「模型没给出可用结果」");
@@ -141,12 +141,17 @@ async function caseBitmapGoesToModel() {
   fs.rmSync(projectRoot, { recursive: true, force: true });
 }
 
-/* 没图时给空串：指令与实际输入一致（只剩条目，不替模型猜空间关系）。 */
+/*
+ * 没有位图：这一步不问模型（它是对着图判分组，没图时分组由机械判据决定）——
+ * 判据在 lib/layout-groups.js 的 canSuggest，这里由待确认读数给出来。
+ */
 async function caseNoBitmap() {
   const projectRoot = sandbox();
-  const fx = harness({ automation: "assist", layoutAutoPass: true, groups: [], projectRoot: projectRoot });
-  await fx.autoFill.fill({ projectRoot: projectRoot, target: "T1", runId: "job-1" });
-  assert.strictEqual(fx.inputs[0].image, "", "没有图就是空串，不是「读不出来」");
+  const fx = harness({ automation: "assist", layoutAutoPass: true, groups: [], projectRoot: projectRoot, canSuggest: false });
+  const result = await fx.autoFill.fill({ projectRoot: projectRoot, target: "T1", runId: "job-1" });
+  assert.deepStrictEqual(fx.inputs, [], "没有图就不问模型");
+  assert.strictEqual(result.ok, false);
+  assert.match(result.reason, /条目凑不出分组/, "按「哪一条没满足」交回给人");
   fs.rmSync(projectRoot, { recursive: true, force: true });
 }
 
@@ -174,7 +179,7 @@ const CASES = [
   ["自动化层级是「关」时不叫模型", caseAutomationOff],
   ["自动通过关着时布局那一节不动", caseSwitchOff],
   ["有图就把位图一起给模型", caseBitmapGoesToModel],
-  ["没有图就给空串", caseNoBitmap],
+  ["没有位图：不问模型，按哪一条没满足交回", caseNoBitmap],
   ["图坏了：整句交回给人、不写盘", caseBrokenBitmapBlocks]
 ];
 

@@ -118,6 +118,13 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
               </div>
             </div>
 
+            {/* 「AI 辅助」不给点的两种处境各说一句：图没有（这一步就是看图判分组）与清单不可用（上面已说）。 */}
+            {!layout.canSuggest && !layout.imageStamp && layout.available ? (
+              <p className="text-sm text-muted-foreground">
+                这一页还没有设计稿位图：分组由机械判据决定，不必问模型；要按图判分组，先在「设计稿位图」那一栏传一张。
+              </p>
+            ) : null}
+
             {layout.failure ? <p className="text-sm text-destructive">{layout.failure}</p> : null}
             {layout.note ? <p className="text-sm text-muted-foreground">{layout.note}</p> : null}
             {layout.saved ? (
