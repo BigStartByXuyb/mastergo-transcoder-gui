@@ -182,6 +182,46 @@ describe("LayoutPanel", () => {
     expect(marked()).toBeNull()
   })
 
+  /*
+   * 读数刷新（同一页重跑布局那一步）之后，树上那一行盖住的控件可能已经变了：
+   * 画布要按当前读数描，不能拿点当时那一份。选中态只存 key，翻成 refs 只有 treeLinesOf 一处。
+   */
+  it("读数刷新后：那一行的高亮跟着当前读数走（不留点当时那一份）", async () => {
+    const options: { derived: DerivedLayout } = {
+      derived: {
+        available: true,
+        reason: "",
+        unplaced: [],
+        singles: [],
+        regions: [
+          { id: "work-area", name: "工作区", emit: true, bands: bands(1, 1), cells: [cell("1:9", "IconButton")] }
+        ]
+      }
+    }
+    stub(options)
+    const view = render(
+      <LayoutPanel taskId="task-1" runId="job-1" resume projectRoot={WORK_DIR} target="DemoPage" updatedAt="" state="waiting" />
+    )
+    await screen.findByText("画布")
+
+    fireEvent.click(screen.getByText("工作区 · 发射 · 1 行 × 1 列"))
+    expect(document.querySelector('[data-ref="1:9"][data-highlighted="true"]')).toBeTruthy()
+
+    // 同一页重跑：这一行里换成了另一个控件（读数的触发点是 updatedAt）。
+    options.derived = {
+      ...options.derived,
+      regions: [
+        { id: "work-area", name: "工作区", emit: true, bands: bands(1, 1), cells: [cell("1:10", "IconButton")] }
+      ]
+    }
+    view.rerender(
+      <LayoutPanel taskId="task-1" runId="job-1" resume projectRoot={WORK_DIR} target="DemoPage" updatedAt="t1" state="waiting" />
+    )
+
+    await waitFor(() => expect(document.querySelector('[data-ref="1:10"][data-highlighted="true"]')).toBeTruthy())
+    expect(document.querySelector('[data-ref="1:9"][data-highlighted="true"]')).toBeNull()
+  })
+
   it("已有分组按组渲染成员编号，自动通过默认关", async () => {
     stub({ groups: [{ id: "RightTools", kind: "column", members: ["1:9", "1:10"] }] })
     render(panel())

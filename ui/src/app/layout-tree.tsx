@@ -14,12 +14,31 @@ import { cn } from "@/lib/utils"
  *   插件报的单条目栏 —— 没进任何组的散条目，它们在树里照旧有自己的位置。
  */
 
-/* 树上的每一行：key 是这一行的身份（React key 与选中态都用它），hit 是点它要描的控件。 */
-type TreeLine = { key: string; depth: number; kind: "region" | "group" | "control"; label: string; hit: string[] }
+/*
+ * 树上每一行的数据：key 是这一行的身份（React key 与选中态都用它），hit 是这一行盖住的控件。
+ * extra 那两行（摆不进树的 / 插件报的单条目栏）另带 items：每条的 ref 与原因（原因在悬停提示里）。
+ */
+type TreeLine =
+  | { key: string; depth: number; kind: "region" | "group" | "control"; label: string; hit: string[] }
+  | { key: string; depth: number; kind: "extra"; label: string; hit: string[]; items: { ref: string; reason: string }[] }
+
+/* 树下面那两块读数各占一行（不属于任何分区）：标题 + 每条的 ref 与原因。 */
+function extraLine(key: string, label: string, items: { ref: string; reason: string }[]): TreeLine {
+  return { key: key, depth: 1, kind: "extra", label: label, hit: items.map((item) => item.ref), items: items }
+}
 
 /* 树下面那两行的 key：它们不属于任何分区，就各自一句。 */
 const UNPLACED_KEY = "unplaced"
 const SINGLES_KEY = "singles"
+
+/* 行的缩进：行首 4px，每套一层加 12px —— 树与树下面那两块读数共用这一处。 */
+const BASE_PADDING = 4
+const INDENT = 12
+
+/** 第 depth 层那一行的缩进（树下面那两块读数按第 1 层摆）。 */
+function indentOf(depth: number): number {
+  return BASE_PADDING + depth * INDENT
+}
 
 /* 一个控件在树上的名字：清单里有它就用清单的（号 + value），没有就退回产物给的类型，再没有才是 ref。 */
 function nameOf(controls: LayoutControl[], ref: string, controlType: string): string {
@@ -115,56 +134,30 @@ function linesOfDerived(derived: DerivedLayout, controls: LayoutControl[]): Tree
     })
     pushCells(lines, region.id, region.cells, [], 1, controls)
   }
+  if (derived.unplaced.length > 0) {
+    lines.push(extraLine(UNPLACED_KEY, "摆不进树的 " + derived.unplaced.length + " 个", derived.unplaced))
+  }
+  if (derived.singles.length > 0) {
+    lines.push(extraLine(SINGLES_KEY, "插件报的单条目栏 · " + derived.singles.length + " 个", derived.singles))
+  }
   return lines
+}
+
+/*
+ * 树上每一行的数据（纯函数）：树自己渲染用它，面板据它把「选中的那个 key」翻成要描的控件 ——
+ * 一处算，两处读；读数刷新后翻出来的就是当前这一行的控件，不会留着上一份。
+ */
+export function treeLinesOf(derived: DerivedLayout | null, controls: LayoutControl[]): TreeLine[] {
+  if (!derived || !derived.available) return []
+  return linesOfDerived(derived, controls)
 }
 
 /* 行的轻重：分区与组是结构（加深），控件按普通字重。 */
 const KIND_CLASS: Record<TreeLine["kind"], string> = {
   region: "text-foreground font-semibold",
   group: "text-foreground font-medium",
-  control: "text-foreground"
-}
-
-/*
- * 树下面那两份读数各自一块：一行标题（可点，点了在画布上描出这几条）+ 每条的 ref 与原因。
- * 两块的摆法一样，只有 key、标题与条目从调用处给。
- */
-function ExtraRows(props: {
-  lineKey: string
-  title: string
-  items: { ref: string; reason: string }[]
-  controls: LayoutControl[]
-  selected: string
-  onPick: (key: string, refs: string[]) => void
-}) {
-  if (props.items.length === 0) return null
-  const on = props.selected === props.lineKey
-  return (
-    <div className="mt-2 flex flex-col gap-1">
-      <button
-        type="button"
-        data-selected={on}
-        onClick={() => props.onPick(props.lineKey, props.items.map((item) => item.ref))}
-        className={cn(
-          "rounded px-1 py-0.5 text-left text-xs hover:bg-accent text-foreground font-semibold",
-          on && "bg-accent text-accent-foreground"
-        )}
-      >
-        {props.title}
-      </button>
-      {props.items.map((item, index) => (
-        /* 原因照产物 / 插件的原话说（鼠标停上去看），不在条目上另写一句。 */
-        <span
-          key={index + ":" + item.ref}
-          className="text-muted-foreground text-xs"
-          style={{ paddingLeft: 16 }}
-          title={item.reason}
-        >
-          {nameOf(props.controls, item.ref, "")}
-        </span>
-      ))}
-    </div>
-  )
+  control: "text-foreground",
+  extra: "text-foreground font-semibold"
 }
 
 export function LayoutTree(props: {
@@ -173,8 +166,11 @@ export function LayoutTree(props: {
   controls: LayoutControl[]
   /** 现在选中的是哪一行（调用方持有；空串＝没选）。 */
   selected: string
-  /** 点了一行：把它的 key 与它盖住的控件回给调用方（选中态与高亮都由调用方一处管）。 */
-  onPick: (key: string, refs: string[]) => void
+  /**
+   * 点了一行：把这一行的 key 回给调用方。选中态与「要描哪些控件」都由调用方按当前读数算
+   * （要描的 refs 在 treeLinesOf 给的那一行上，读数刷新后跟着变，不留上一次那一份）。
+   */
+  onPick: (key: string) => void
 }) {
   if (!props.derived) return null
 
@@ -186,7 +182,9 @@ export function LayoutTree(props: {
     return <p className="text-muted-foreground text-xs">{props.derived.reason}</p>
   }
 
-  const lines = linesOfDerived(props.derived, props.controls)
+  const lines = treeLinesOf(props.derived, props.controls)
+  const tree = lines.filter((line) => line.kind !== "extra")
+  const extras = lines.filter((line) => line.kind === "extra")
 
   return (
     <div className="flex min-w-0 flex-col gap-2">
@@ -198,39 +196,51 @@ export function LayoutTree(props: {
       </div>
       <div className="max-h-80 overflow-auto rounded-md border p-2">
         <div className="flex flex-col gap-1">
-          {lines.map((line) => (
+          {tree.map((line) => (
             <button
               key={line.key}
               type="button"
               data-selected={props.selected === line.key}
-              onClick={() => props.onPick(line.key, line.hit)}
+              onClick={() => props.onPick(line.key)}
               className={cn(
                 "rounded px-1 py-0.5 text-left text-xs hover:bg-accent",
                 props.selected === line.key && "bg-accent text-accent-foreground",
                 KIND_CLASS[line.kind]
               )}
-              style={{ paddingLeft: 4 + line.depth * 12 }}
+              style={{ paddingLeft: indentOf(line.depth) }}
             >
               {line.label}
             </button>
           ))}
         </div>
-        <ExtraRows
-          lineKey={UNPLACED_KEY}
-          title={"摆不进树的 " + props.derived.unplaced.length + " 个"}
-          items={props.derived.unplaced}
-          controls={props.controls}
-          selected={props.selected}
-          onPick={props.onPick}
-        />
-        <ExtraRows
-          lineKey={SINGLES_KEY}
-          title={"插件报的单条目栏 · " + props.derived.singles.length + " 个"}
-          items={props.derived.singles}
-          controls={props.controls}
-          selected={props.selected}
-          onPick={props.onPick}
-        />
+        {/* 那两块读数各自一块：一行标题（可点）+ 每条的 ref 与原因（原因照原话说，在悬停提示里）。 */}
+        {extras.map((extra) => (
+          <div key={extra.key} className="mt-2 flex flex-col gap-1">
+            <button
+              type="button"
+              data-selected={props.selected === extra.key}
+              onClick={() => props.onPick(extra.key)}
+              className={cn(
+                "rounded px-1 py-0.5 text-left text-xs hover:bg-accent",
+                props.selected === extra.key && "bg-accent text-accent-foreground",
+                KIND_CLASS[extra.kind]
+              )}
+              style={{ paddingLeft: indentOf(extra.depth) }}
+            >
+              {extra.label}
+            </button>
+            {extra.items.map((item, index) => (
+              <span
+                key={index + ":" + item.ref}
+                className="text-muted-foreground text-xs"
+                style={{ paddingLeft: indentOf(extra.depth + 1) }}
+                title={item.reason}
+              >
+                {nameOf(props.controls, item.ref, "")}
+              </span>
+            ))}
+          </div>
+        ))}
       </div>
     </div>
   )

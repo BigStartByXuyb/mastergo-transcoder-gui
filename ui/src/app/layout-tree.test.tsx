@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
-import { LayoutTree } from "@/app/layout-tree"
+import { LayoutTree, treeLinesOf } from "@/app/layout-tree"
 import { bands, cell } from "@/lib/layout-fixtures"
 import type { DerivedLayout, LayoutControl } from "@/lib/api"
 
@@ -57,7 +57,7 @@ const DERIVED: DerivedLayout = {
   singles: [{ ref: "1:10", reason: "单条目栏：几何判不出它跟谁同组，分组表里也没有它" }]
 }
 
-function tree(overrides: { derived?: DerivedLayout | null; selected?: string; onPick?: (key: string, refs: string[]) => void } = {}) {
+function tree(overrides: { derived?: DerivedLayout | null; selected?: string; onPick?: (key: string) => void } = {}) {
   return (
     <LayoutTree
       derived={overrides.derived === undefined ? DERIVED : overrides.derived}
@@ -130,36 +130,48 @@ describe("LayoutTree", () => {
     expect(single.textContent).toBe("#2 IconButton")
   })
 
-  it("点一行：交出它盖住的控件（分区 / 组 / 控件 / 两份读数各有各的）", () => {
+  it("点一行：只交出这一行的 key（要描哪些控件由调用方按当前读数算）", () => {
     const picked = vi.fn()
     render(tree({ onPick: picked }))
 
     fireEvent.click(screen.getByText("工作区 · 发射 · 4 行 × 3 列 · 第 3 行、第 3 列吃剩余（*）"))
-    expect(picked).toHaveBeenLastCalledWith(expect.any(String), [
-      "1:9", "1:10", "1:11", "9:5", "1:12", "9:9", "9:20", "9:30", "9:31"
-    ])
+    expect(picked).toHaveBeenLastCalledWith(expect.any(String))
+    expect(picked.mock.calls[0].length).toBe(1)
 
-    // 点组：这一组里全部的控件（含它自己与套着的几层）。
-    fireEvent.click(screen.getByText("组 2（垂直布局） · 第 2 行吃剩余（*）"))
-    expect(picked).toHaveBeenLastCalledWith(expect.any(String), ["9:9", "9:20", "9:30", "9:31"])
-
-    // 点控件：就是它自己。
-    fireEvent.click(screen.getByText("#3 标题"))
-    expect(picked).toHaveBeenLastCalledWith(expect.any(String), ["1:11"])
-
-    // 嵌套那一层：是另一行（另一份控件）。
-    fireEvent.click(screen.getByText("TextBlock"))
-    expect(picked).toHaveBeenLastCalledWith(expect.any(String), ["9:31"])
-
-    fireEvent.click(screen.getByText("摆不进树的 1 个"))
-    expect(picked).toHaveBeenLastCalledWith(expect.any(String), ["1:13"])
-
-    fireEvent.click(screen.getByText("插件报的单条目栏 · 1 个"))
-    expect(picked).toHaveBeenLastCalledWith(expect.any(String), ["1:10"])
+    for (const label of [
+      "组 2（垂直布局） · 第 2 行吃剩余（*）",
+      "#3 标题",
+      "TextBlock",
+      "摆不进树的 1 个",
+      "插件报的单条目栏 · 1 个"
+    ]) {
+      fireEvent.click(screen.getByText(label))
+      expect(picked).toHaveBeenLastCalledWith(expect.any(String))
+    }
 
     // 每一次点到的都是不同的一行：交出去的 key 两两不同（key 怎么拼由组件自己定，调用方不解析）。
     const keys = picked.mock.calls.map((call) => call[0])
     expect(new Set(keys).size).toBe(keys.length)
+  })
+
+  it("每一行盖住哪些控件：由 treeLinesOf 一处给出（分区 / 组 / 控件 / 两份读数各有各的）", () => {
+    const lines = treeLinesOf(DERIVED, CONTROLS)
+    const hitOf = (label: string) => lines.find((line) => line.label === label)?.hit
+
+    expect(hitOf("工作区 · 发射 · 4 行 × 3 列 · 第 3 行、第 3 列吃剩余（*）")).toEqual([
+      "1:9", "1:10", "1:11", "9:5", "1:12", "9:9", "9:20", "9:30", "9:31"
+    ])
+    // 点组：这一组里全部的控件（含它自己与套着的几层）。
+    expect(hitOf("组 2（垂直布局） · 第 2 行吃剩余（*）")).toEqual(["9:9", "9:20", "9:30", "9:31"])
+    // 点控件：就是它自己。
+    expect(hitOf("#3 标题")).toEqual(["1:11"])
+    expect(hitOf("TextBlock")).toEqual(["9:31"])
+    expect(hitOf("摆不进树的 1 个")).toEqual(["1:13"])
+    expect(hitOf("插件报的单条目栏 · 1 个")).toEqual(["1:10"])
+
+    // 没有产物 / 还没读到：一行都不给（面板据此算不出高亮，也就不会描错）。
+    expect(treeLinesOf(null, CONTROLS)).toEqual([])
+    expect(treeLinesOf({ available: false, reason: "还没跑", regions: [], unplaced: [], singles: [] }, CONTROLS)).toEqual([])
   })
 
   it("选中态由调用方给：把它收到的那个 key 回传，那一行就标出来（组件里不另存一份）", () => {

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { LayoutCanvas } from "@/app/layout-canvas"
-import { LayoutTree } from "@/app/layout-tree"
+import { LayoutTree, treeLinesOf } from "@/app/layout-tree"
 import { useLayoutGroups, type LayoutGroupsInput } from "@/app/use-layout-groups"
 import { api } from "@/lib/api"
 import {
@@ -46,14 +46,16 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   const [newKind, setNewKind] = useState<"column" | "row">("column")
   /* 鼠标停在哪一组上：那一组的成员在画布上描出来（容器自己的框就盖住它里面的控件）。 */
   const [hoveredGroup, setHoveredGroup] = useState("")
-  /* 布局树上选中的那一行：存这一行的 key 与它盖住的控件（两者都由 LayoutTree 一处给，界面不自己反解）。 */
-  const [treePick, setTreePick] = useState<{ key: string; refs: string[] }>({ key: "", refs: [] })
+  /* 布局树上选中的那一行：只存 key（那一行盖住哪些控件按当前读数现算，不留上一次那一份）。 */
+  const [treePicked, setTreePicked] = useState("")
   /* 换一页（工程目录或 Target 变了）就把树上选中的那一行清掉：同一页的身份是这两个一起。 */
-  useEffect(() => setTreePick({ key: "", refs: [] }), [input.projectRoot, input.target])
+  useEffect(() => setTreePicked(""), [input.projectRoot, input.target])
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
   const canvas = layout.canvas
   const hovered = layout.groups.find((group) => group.id === hoveredGroup)?.members ?? []
-  const highlight = [...new Set([...treePick.refs, ...hovered])]
+  /* 选中那一行盖住的控件：与树同一处算法（treeLinesOf）算出来的那一行的 hit —— 读数刷新后跟着变。 */
+  const treeRefs = treeLinesOf(layout.derived, layout.controls).find((line) => line.key === treePicked)?.hit ?? []
+  const highlight = [...new Set([...treeRefs, ...hovered])]
 
   function createGroup() {
     layout.setGroups(addGroup(layout.groups, newId, newKind))
@@ -141,8 +143,8 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
               <LayoutTree
                 derived={layout.derived}
                 controls={layout.controls}
-                selected={treePick.key}
-                onPick={(key, refs) => setTreePick(treePick.key === key ? { key: "", refs: [] } : { key, refs })}
+                selected={treePicked}
+                onPick={(key) => setTreePicked(treePicked === key ? "" : key)}
               />
             </div>
 
@@ -161,7 +163,7 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
                 >
                   <div className="mb-2 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      {/* 方向的说法只有一处（与布局树那一行同一套词）：column = 上下排，row = 左右排。 */}
+                      {/* 人选的组方向与布局树上的方向同一套词：column = 上下排，row = 左右排。 */}
                       <Badge variant="outline">{group.kind === "column" ? "垂直布局" : "水平布局"}</Badge>
                       <span className="font-medium">{group.id}</span>
                       <span className="text-xs text-muted-foreground">{group.members.length} 个控件</span>
