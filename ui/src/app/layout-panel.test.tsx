@@ -360,6 +360,8 @@ describe("LayoutPanel", () => {
     expect(await screen.findByText(/还没有这一步的条目清单/)).toBeTruthy()
     expect(screen.getByRole("button", { name: /写入分组表并继续/ }).hasAttribute("disabled")).toBe(true)
     expect(screen.getByRole("button", { name: /AI 辅助/ }).hasAttribute("disabled")).toBe(true)
+    /* 清单不在 ≠ 这些条目写不进去：这时不分拨、也不逐个列名，只说清是哪一件事。 */
+    expect(screen.queryByText(/不在这一层条目里、不能写进分组表/)).toBeNull()
   })
 
   it("条目清单为空时：说清「这一层不参与分组」，写入照样能给（写空表）", async () => {

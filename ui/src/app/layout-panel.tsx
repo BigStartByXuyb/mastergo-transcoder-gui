@@ -54,12 +54,13 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   /*
    * 分组表里能写的只有这一层的可引用条目（清单里那几条）：未分组控件按它分成两拨 ——
    * 能拖进组的（可引用）与不能写进表的（清单外，例如合成容器的 ref 或别层的控件）。
-   * 清单还没落下来时，两拨都按「不能写」算，面板据此不给写回。
+   * 清单还没落下来时不分拨（那不等于「这些条目写不进去」）：面板只把后端那句原因说清，并关掉写回。
    */
-  const citable = new Set(layout.candidates.entries.map((entry) => entry.ref))
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
-  const writable = ungrouped.filter((control) => citable.has(control.ref))
-  const outside = ungrouped.filter((control) => !citable.has(control.ref))
+  const citable = new Set(layout.candidates.entries.map((entry) => entry.ref))
+  const writable = layout.candidates.available ? ungrouped.filter((control) => citable.has(control.ref)) : []
+  const outside = layout.candidates.available ? ungrouped.filter((control) => !citable.has(control.ref)) : []
+  const hasCandidates = layout.candidates.available
   const canvas = layout.canvas
   const hovered = layout.groups.find((group) => group.id === hoveredGroup)?.members ?? []
   /* 选中那一行盖住的控件：与树同一处算法（treeLinesOf）算出来的那一行的 hit —— 读数刷新后跟着变。 */
@@ -240,7 +241,9 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
                   </Badge>
                 ))}
                 {writable.length === 0 && outside.length === 0 ? (
-                  <span className="text-xs text-muted-foreground">都分好组了</span>
+                  <span className="text-xs text-muted-foreground">
+                    {hasCandidates ? "都分好组了" : "清单落下来之后，这一层的条目才谈得上拖进组里"}
+                  </span>
                 ) : null}
                 {writable.length === 0 && outside.length > 0 ? (
                   <span className="text-xs text-muted-foreground">这一层没有还能进组的条目</span>

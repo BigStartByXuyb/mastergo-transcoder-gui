@@ -493,7 +493,11 @@ export type PendingLayout = {
   needsGroups: boolean
   /** 要人确认的条数：0 或 1。口径在 lib/pending.js 算一次，界面只取数。 */
   waiting: number
-  controls: LayoutControl[]
+  /**
+   * 这一层的条目凑不凑得出组（自动补输入据此决定要不要问模型）：
+   * 判据在 lib/layout-groups.js 一处算，这里只转发；界面不读它。
+   */
+  canSuggest: boolean
 }
 
 export type Pending = {
