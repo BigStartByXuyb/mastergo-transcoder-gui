@@ -54,12 +54,13 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   /*
    * 分组表里能写的只有这一层的可引用条目（清单里那几条）：未分组控件按后端给的 `citable` 分成两拨 ——
    * 能拖进组的与不能写进表的（清单外，例如合成容器的 ref 或别层的控件）。这面标记是后端的结论，界面不自己再算。
-   * 清单还没落下来时不分拨（那不等于「这些条目写不进去」）：面板只把后端那句原因说清，并关掉写回。
+   * 清单不在、或清单为空（这一层不参与分组）时都不分拨 —— 那两种处境不等于「这些条目写不进去」，
+   * 面板只把上面那句话说清（清单不在＝先跑那一步；清单为空＝这一层不参与分组、写空表）。
    */
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
-  const writable = layout.candidates.available ? ungrouped.filter((control) => control.citable) : []
-  const outside = layout.candidates.available ? ungrouped.filter((control) => !control.citable) : []
-  const hasCandidates = layout.candidates.available
+  const splittable = layout.candidates.available && layout.candidates.entries.length > 0
+  const writable = splittable ? ungrouped.filter((control) => control.citable) : []
+  const outside = splittable ? ungrouped.filter((control) => !control.citable) : []
   const canvas = layout.canvas
   const hovered = layout.groups.find((group) => group.id === hoveredGroup)?.members ?? []
   /* 选中那一行盖住的控件：与树同一处算法（treeLinesOf）算出来的那一行的 hit —— 读数刷新后跟着变。 */
@@ -248,7 +249,11 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
                 ))}
                 {writable.length === 0 && outside.length === 0 ? (
                   <span className="text-xs text-muted-foreground">
-                    {hasCandidates ? "都分好组了" : "清单落下来之后，这一层的条目才谈得上拖进组里"}
+                    {splittable
+                      ? "都分好组了"
+                      : layout.candidates.available
+                        ? "" /* 清单为空：上面那句已经说了这一层不参与分组 */
+                        : "清单落下来之后，这一层的条目才谈得上拖进组里"}
                   </span>
                 ) : null}
                 {writable.length === 0 && outside.length > 0 ? (
