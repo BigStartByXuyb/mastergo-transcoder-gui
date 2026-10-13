@@ -39,6 +39,8 @@
 | 产物合成容器的前缀怎么认（容器自己又列在子网格里那一条） | `lib/derived-layout.js` · `const SYNTH_PREFIX =` | 读视图剥掉它再往外给（`plainRef`，界面只认剥过的 ref），并据它把自列那一条提升掉 |
 | 推导产物与同趟报告的路径拼法 | `lib/workdir.js` · `function wpfLayoutPath(`、`function wpfLayoutReportPath(` | `lib/derived-layout.js` 的 `read`（读视图只出去事实，不自己拼路径） |
 | 格子坐标的归一（只认产物给的非负整数：0 起 1 起都收；坐标只用来定同层先后与摆不摆得进树） | `lib/derived-layout.js` · `const NO_POSITION_REASON =`、`function positionOf(`、`const OUTER_NO_POSITION_REASON =`、`function byPosition(` | 布局树的格子（读不出的那一格连同它里面那些控件照「摆不进树」暴露，不拿位置顶上；坐标不往界面搬） |
-| 布局分组这一步喂给模型的输入（控件清单 + 本页设计稿位图的 data URL） | `lib/layout-groups.js` · `function candidatesInput(` | 自动补输入（`lib/autofill.js`）与人点「AI 出候选」（`lib/routes.js` 的 `/api/ai/suggest`）；模型层（`lib/ai.js`）只吃这个入参，不碰磁盘 |
+| 布局分组这一步喂给模型的输入（本层可引用条目 + 本页设计稿位图的 data URL） | `lib/layout-groups.js` · `function candidatesInput(` | 自动补输入（`lib/autofill.js`）与人点「AI 出候选」（`lib/routes.js` 的 `/api/ai/suggest`）；模型层（`lib/ai.js`）只吃这个入参，不碰磁盘 |
+| 分组表里能写哪些 ref（这一层的条目清单在哪、为空算不算参与分组） | `lib/layout-candidates.js` · `function refsOf(`、`function noCandidatesReason(`、`const CANDIDATES_MIN_PLUGIN_VERSION =` | 读数（`lib/layout-groups.js` 的 `inspect` 给界面，并在每个控件上带 `citable`）、喂模型（同文件的 `candidatesInput`）、写回校验与候选清理（同文件的 `validateGroups` / `cleanGroups`） |
+| 跨仓同一套判据：ref 必须在本层条目里 / 不参与分组的层只许空表 | `lib/layout-groups.js` · `不在本层条目里: `、`这一层的条目清单是空的（这一层不参与分组）` | 写回校验（`validateGroups`）；插件那侧是 `gen-mw-wpf-layout.js` 的 `declaredGroups` / `requireNoDeclaredGroups` —— 两边的关键句要一起改 |
 | 只有一个字符串字段的地方那句整句（原因 + 怎么做） | `lib/errors.js` · `function failureSentence(` | `lib/mcp-token.js`（缺 token 那件事的整句）、`lib/board.js`（任务行上的 `error` / `designImage` 四处 catch）、`lib/autofill.js`（这一步的输入读不出来时交回给人的那句）；界面那侧同一条规矩在 `ui/src/lib/describe-failure.ts` 的 `failureText`（两端口径一起改） |
 

@@ -21,7 +21,7 @@ import type { DerivedLayout, LayoutControl, LayoutGroup } from "@/lib/api"
  */
 
 function control(ref: string, controlType = "IconButton", text = ""): LayoutControl {
-  return { ref: ref, controlType: controlType, text: text, absX: 0, absY: 0, w: 10, h: 10 }
+  return { ref: ref, controlType: controlType, text: text, absX: 0, absY: 0, w: 10, h: 10, citable: true }
 }
 
 const CONTROLS = [control("1:9", "IconButton", "确定"), control("1:10", "IconButton"), control("1:11", "TextBlock", "标题")]

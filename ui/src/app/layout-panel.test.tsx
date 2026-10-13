@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { LayoutPanel } from "@/app/layout-panel"
 import { bands, cell } from "@/lib/layout-fixtures"
-import type { DerivedLayout, LayoutControl, LayoutGroup } from "@/lib/api"
+import type { DerivedLayout, LayoutControl, LayoutGroup, LayoutGroups } from "@/lib/api"
 import { drive } from "@/lib/settings-fixtures"
 
 /*
@@ -13,8 +13,28 @@ import { drive } from "@/lib/settings-fixtures"
 
 const WORK_DIR = drive("D", "work", "task-1")
 
+/* 几种「不能问模型」的读数：后端 suggestBlocker 的原话（面板只显示，不反推）。 */
+const NO_IMAGE_SUGGEST = {
+  ready: false,
+  code: "NO_IMAGE",
+  reason: "这一步要对着设计稿位图判分组：这一页还没有传图，没有可判断的输入",
+  hint: "先在「设计稿位图」那一栏传一张本页的图；这一页没有图时分组由机械判据决定，不必问模型。"
+}
+const NO_ENTRIES_SUGGEST = {
+  ready: false,
+  code: "NO_ENTRIES",
+  reason: "这一层的条目凑不出分组（少于 2 条）：分组表里不声明任何组",
+  hint: "这一层的分组结论不由模型给；直接写一张空表（空表是合法声明）。"
+}
+const NO_CANDIDATES_SUGGEST = {
+  ready: false,
+  code: "NO_CANDIDATES",
+  reason: "还没有这一步的条目清单（Generated/_inputs/<页面>.layout-group-candidates.json）：作业A 第 8 步会把它落下来，它回答「分组表里能写哪些 ref」——先跑一次那一步",
+  hint: "跑一次作业A 第 8 步（layout）之后再来问模型。"
+}
+
 function control(ref: string, controlType: string, text: string): LayoutControl {
-  return { ref: ref, controlType: controlType, text: text, absX: 0, absY: 0, w: 100, h: 40 }
+  return { ref: ref, controlType: controlType, text: text, absX: 0, absY: 0, w: 100, h: 40, citable: true }
 }
 
 const CONTROLS = [
@@ -44,6 +64,10 @@ function stub(
     imageStamp?: string
     /** 推导出来的布局；默认「还没跑过」。 */
     derived?: DerivedLayout
+    /** 这一层的条目清单；不给就按控件清单那一拨条目给（可引用 ref 与控件一致）。 */
+    candidates?: LayoutGroups["candidates"]
+    /** 「能不能问模型」那份读数（后端 suggestBlocker 的原话）；不给按「能问」算。 */
+    suggest?: LayoutGroups["suggest"]
   } = {}
 ) {
   const available = options.available !== false
@@ -82,8 +106,22 @@ function stub(
             derived: options.derived ?? { available: false, reason: "还没有推导产物", regions: [], unplaced: [], singles: [] },
             groups: options.groups ?? [],
             hasGroups: (options.groups ?? []).length > 0,
-            // 后端的口径：控件够不够问 AI 由它给（阈值在 lib/layout-groups.js），界面照它禁用按钮。
-            canSuggest: (options.controls ?? CONTROLS).length >= 2,
+            // 这一层的可引用条目：不给就按控件清单那一拨（ref / 类型 / 文本）拼一份。
+            candidates:
+              options.candidates ??
+              {
+                available: true,
+                reason: "",
+                pageTarget: "DemoPage",
+                entries: (options.controls ?? CONTROLS).map((item) => ({
+                  ref: item.ref,
+                  controlType: item.controlType,
+                  text: item.text
+                }))
+              },
+            // 后端的口径：能不能问模型、不能问是哪一件事都由它给（lib/layout-groups.js 的 suggestBlocker 一处算）。
+            suggest: options.suggest ?? { ready: true, code: "", reason: "", hint: "" },
+            hasImage: options.imageStamp !== "",
             autoPass: options.autoPass === true
           }
         }),
@@ -112,7 +150,7 @@ describe("LayoutPanel", () => {
     expect(screen.getByText("#1 IconButton · 确定")).toBeTruthy()
     expect(screen.getByText("#2 IconButton · 取消")).toBeTruthy()
     expect(screen.getByText("#3 TextBlock · 标题")).toBeTruthy()
-    expect(screen.getByText("未分组控件（3）")).toBeTruthy()
+    expect(screen.getByText("未分组条目（3）")).toBeTruthy()
     // 没有分组时给一句出路：空分组表就是「本页没有要声明的分组」。
     expect(screen.getByText(/写出空分组表/)).toBeTruthy()
   })
@@ -228,9 +266,9 @@ describe("LayoutPanel", () => {
 
     expect(await screen.findByText("RightTools")).toBeTruthy()
     expect(screen.getByText("垂直布局")).toBeTruthy()
-    expect(screen.getByText("2 个控件")).toBeTruthy()
+    expect(screen.getByText("2 个条目")).toBeTruthy()
     expect(screen.getByText("#1 IconButton · 确定")).toBeTruthy()
-    expect(screen.getByText("未分组控件（1）")).toBeTruthy()
+    expect(screen.getByText("未分组条目（1）")).toBeTruthy()
     expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("false")
   })
 
@@ -243,7 +281,25 @@ describe("LayoutPanel", () => {
         new Response(
           JSON.stringify({
             ok: true,
-            layout: { available: true, reason: "", controls: CONTROLS, canvas: null, imageStamp: "", derived: { available: false, reason: "", regions: [], unplaced: [], singles: [] }, groups: [], hasGroups: false, canSuggest: true, autoPass: true }
+            layout: {
+              available: true,
+              reason: "",
+              controls: CONTROLS,
+              canvas: null,
+              imageStamp: "",
+              derived: { available: false, reason: "", regions: [], unplaced: [], singles: [] },
+              candidates: {
+                available: true,
+                reason: "",
+                pageTarget: "DemoPage",
+                entries: CONTROLS.map((item) => ({ ref: item.ref, controlType: item.controlType, text: item.text }))
+              },
+              groups: [],
+              hasGroups: false,
+              suggest: { ready: false, code: "NO_IMAGE", reason: "这一步要对着设计稿位图判分组：这一页还没有传图", hint: "" },
+              hasImage: false,
+              autoPass: true
+            }
           }),
           { status: 200 }
         )
@@ -304,6 +360,78 @@ describe("LayoutPanel", () => {
 
     expect(await screen.findByText(/还没有类型判定产物/)).toBeTruthy()
     expect(screen.queryByRole("button", { name: /写入分组表并继续/ })).toBeNull()
+  })
+
+  /*
+   * 这一层能写哪些 ref 由「条目清单」定（插件第 8 步的产物）：
+   * 清单不在 → 说清是哪一件事、不给写回；清单为空 → 这一层不参与分组，只写空表；
+   * 清单外的控件 → 列出来但不给拖（拖了插件也会拒）。
+   */
+  it("条目清单不在时：照后端那句说清，写入与 AI 辅助都不给点", async () => {
+    stub({
+      suggest: NO_CANDIDATES_SUGGEST,
+      candidates: {
+        available: false,
+        reason: "还没有这一步的条目清单（Generated/_inputs/<页面>.layout-group-candidates.json）：作业A 第 8 步会把它落下来，它回答「分组表里能写哪些 ref」——先跑一次那一步。",
+        pageTarget: "",
+        entries: []
+      }
+    })
+    render(panel())
+
+    expect(await screen.findByText(/还没有这一步的条目清单/)).toBeTruthy()
+    expect(screen.getByRole("button", { name: /写入分组表并继续/ }).hasAttribute("disabled")).toBe(true)
+    expect(screen.getByRole("button", { name: /AI 辅助/ }).hasAttribute("disabled")).toBe(true)
+    /* 清单不在 ≠ 这些条目写不进去：这时不分拨、也不逐个列名，只说清是哪一件事。 */
+    expect(screen.queryByText(/不在这一层条目里、不能写进分组表/)).toBeNull()
+  })
+
+  it("条目清单为空时：说清「这一层不参与分组」，写入照样能给（写空表）", async () => {
+    let sent: { groups?: LayoutGroup[] } = {}
+    stub({
+      suggest: NO_ENTRIES_SUGGEST,
+      onConfirm: (body) => (sent = body as { groups: LayoutGroup[] }),
+      candidates: { available: true, reason: "", pageTarget: "DemoPage", entries: [] }
+    })
+    render(panel())
+
+    /* 这句是后端 suggestBlocker 的原话（NO_ENTRIES）：面板只显示，不自己推「为什么不能问」。 */
+    expect(await screen.findByText(/这一层的条目凑不出分组（少于 2 条）：分组表里不声明任何组/)).toBeTruthy()
+    const button = screen.getByRole("button", { name: /写入分组表并继续/ })
+    expect(button.hasAttribute("disabled")).toBe(false)
+    button.click()
+    await waitFor(() => expect(sent.groups).toEqual([]))
+  })
+
+  it("清单外的控件列出来但不给拖：只有这一层的可引用条目能写进表", async () => {
+    /* 后端的结论（`citable`）与实际清单一致：前两条在本层条目里，第三条不在（别层的控件）。 */
+    const CONTROLS_WITH_ONE_OUTSIDE = [
+      control("1:9", "IconButton", "确定"),
+      control("1:10", "IconButton", "取消"),
+      { ...control("1:11", "TextBlock", "标题"), citable: false }
+    ]
+    stub({
+      suggest: NO_IMAGE_SUGGEST,
+      controls: CONTROLS_WITH_ONE_OUTSIDE,
+      candidates: {
+        available: true,
+        reason: "",
+        pageTarget: "DemoPage",
+        entries: [
+          { ref: "1:9", controlType: "IconButton", text: "确定" },
+          { ref: "1:10", controlType: "IconButton", text: "取消" }
+        ]
+      }
+    })
+    render(panel())
+
+    expect(await screen.findByText("未分组条目（2）")).toBeTruthy()
+    expect(screen.getByText(/不在这一层条目里、不能写进分组表（1）/)).toBeTruthy()
+    expect(screen.getByText(/#3 TextBlock · 标题/)).toBeTruthy()
+    // 可引用的那两条能拖（draggable），清单外的那条不能。
+    const draggable = [...document.querySelectorAll("[draggable='true']")].map((node) => node.textContent)
+    expect(draggable.join("、")).toContain("#1 IconButton · 确定")
+    expect(draggable.join("、")).not.toContain("#3 TextBlock · 标题")
   })
 
   it("任务还在跑时：能改分组，但「写入分组表并继续」不给点（续跑会起第二次运行）", async () => {

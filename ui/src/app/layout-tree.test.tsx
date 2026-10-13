@@ -13,7 +13,7 @@ import type { DerivedLayout, LayoutControl } from "@/lib/api"
  */
 
 function control(ref: string, controlType: string, text: string): LayoutControl {
-  return { ref: ref, controlType: controlType, text: text, absX: 0, absY: 0, w: 10, h: 10 }
+  return { ref: ref, controlType: controlType, text: text, absX: 0, absY: 0, w: 10, h: 10, citable: true }
 }
 
 const CONTROLS = [
