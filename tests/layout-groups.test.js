@@ -123,14 +123,23 @@ function main() {
     assert.strictEqual(info.derived.available, true);
     assert.strictEqual(info.derived.reason, "");
     assert.deepStrictEqual(info.derived.regions, [
-      { id: "top", name: "顶部栏", emit: false, cells: [] },
+      {
+        /* 带照产物给（夹具那几条是空对象：认不出 Star，像素读成 0，照实给）。 */
+        id: "top", name: "顶部栏", emit: false,
+        bands: { rows: [{ star: false, pixels: 0 }], columns: [{ star: false, pixels: 0 }] },
+        cells: []
+      },
       {
         id: "work",
         name: "工作区",
         emit: true,
+        bands: {
+          rows: [{ star: false, pixels: 0 }, { star: false, pixels: 0 }],
+          columns: [{ star: false, pixels: 0 }, { star: false, pixels: 0 }, { star: false, pixels: 0 }]
+        },
         cells: [
-          { ref: "a", container: false, controlType: "", row: 1, column: 2, rowSpan: 1, columnSpan: 1, children: [], refs: ["a"] },
-          { ref: "c", container: false, controlType: "", row: 2, column: 1, rowSpan: 2, columnSpan: 1, children: [], refs: ["c"] }
+          { ref: "a", container: false, axis: "", name: "", controlType: "", row: 1, column: 2, rowSpan: 1, columnSpan: 1, children: [], refs: ["a"] },
+          { ref: "c", container: false, axis: "", name: "", controlType: "", row: 2, column: 1, rowSpan: 2, columnSpan: 1, children: [], refs: ["c"] }
         ]
       }
     ]);

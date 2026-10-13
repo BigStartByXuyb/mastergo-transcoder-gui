@@ -69,21 +69,21 @@ describe("LayoutTree", () => {
     expect(screen.getByText("顶部栏 · 只注册")).toBeTruthy()
     expect(screen.getByText("工作区 · 发射 · 3 行 × 3 列")).toBeTruthy()
     // 这一组里有两个格子：它们在那一行里左右排。
-    expect(screen.getByText("组 #1（横排）")).toBeTruthy()
-    expect(screen.getByText("组 #2")).toBeTruthy()
-    expect(screen.getByText("组 #3")).toBeTruthy()
+    expect(screen.getByText("第 1 行（横排）")).toBeTruthy()
+    expect(screen.getByText("第 2 行")).toBeTruthy()
+    expect(screen.getByText("第 3 行")).toBeTruthy()
     expect(screen.getByText("#1 确定")).toBeTruthy()
     // 没有 value 的控件：号 + 它的控件类型。
     expect(screen.getByText("#2 IconButton")).toBeTruthy()
     expect(screen.getByText("#3 标题")).toBeTruthy()
     // 没有格子的分区不列组。
-    expect(screen.queryByText("组 #4")).toBeNull()
+    expect(screen.queryByText("第 4 行")).toBeNull()
   })
 
   it("容器与它里面的格子往下摆一层；清单里没有的用产物给的类型", () => {
     render(<LayoutTree derived={DERIVED} controls={CONTROLS} selected="" onPick={() => undefined} />)
 
-    expect(screen.getByText("9:9（容器）")).toBeTruthy()
+    expect(screen.getByText("9:9（组：方向不明）")).toBeTruthy()
     expect(screen.getByText("NumberBox")).toBeTruthy()
   })
 
@@ -94,7 +94,7 @@ describe("LayoutTree", () => {
     fireEvent.click(screen.getByText("工作区 · 发射 · 3 行 × 3 列"))
     expect(picked).toHaveBeenLastCalledWith("region:work-area")
 
-    fireEvent.click(screen.getByText("组 #1（横排）"))
+    fireEvent.click(screen.getByText("第 1 行（横排）"))
     expect(picked).toHaveBeenLastCalledWith("region:work-area#group:1")
 
     fireEvent.click(screen.getByText("#3 标题"))
@@ -125,14 +125,14 @@ describe("LayoutTree", () => {
     render(<LayoutTree derived={spanning} controls={CONTROLS} selected="" onPick={() => undefined} />)
 
     expect(screen.getByText("工作区 · 发射 · 2 行 × 1 列")).toBeTruthy()
-    expect(screen.getByText("组 #1")).toBeTruthy()
-    expect(screen.getByText("组 #2")).toBeTruthy()
+    expect(screen.getByText("第 1 行")).toBeTruthy()
+    expect(screen.getByText("第 2 行")).toBeTruthy()
     expect(screen.getAllByText("#1 确定（跨 2 行 × 1 列）").length).toBe(1)
   })
 
   it("选中的那一行标出来（选中态由调用方给，不在组件里另存一份）", () => {
     render(<LayoutTree derived={DERIVED} controls={CONTROLS} selected="region:work-area#group:1" onPick={() => undefined} />)
-    expect(screen.getByText("组 #1（横排）").getAttribute("data-selected")).toBe("true")
-    expect(screen.getByText("组 #2").getAttribute("data-selected")).toBe("false")
+    expect(screen.getByText("第 1 行（横排）").getAttribute("data-selected")).toBe("true")
+    expect(screen.getByText("第 2 行").getAttribute("data-selected")).toBe("false")
   })
 })

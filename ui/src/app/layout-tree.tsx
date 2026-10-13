@@ -1,4 +1,4 @@
-import type { DerivedLayout, LayoutChild, LayoutControl } from "@/lib/api"
+import type { DerivedLayout, LayoutBand, LayoutChild, LayoutControl } from "@/lib/api"
 import {
   controlLineKey,
   displayNameOf,
@@ -26,12 +26,21 @@ function nameOf(controls: LayoutControl[], ref: string, controlType: string): st
   return controlType || displayNameOf(controls, ref)
 }
 
-/* 一个格子在树上的文案：名字 + 它是容器 / 跨了几行几列（两样都是产物说的事实）。 */
+/* 吃剩余的那几条带（第几条，1 起）：行/列标题上要标 * 的号 —— 判据只有这一处。 */
+function starBands(bands: LayoutBand[] | undefined): number[] {
+  return (bands ?? []).map((band, index) => (band.star ? index + 1 : 0)).filter((index) => index > 0)
+}
+
+/* 一个格子在树上的文案：名字 + 它是不是容器（垂直/水平布局）/ 跨了几行几列（都是产物给的事实）。 */
 function cellLabel(controls: LayoutControl[], cell: LayoutChild): string {
   const marks: string[] = []
-  if (cell.container) marks.push("容器")
+  if (cell.container) {
+    const axis = cell.axis === "column" ? "垂直布局" : cell.axis === "row" ? "水平布局" : "方向不明"
+    marks.push("组：" + axis)
+  }
   if (cell.rowSpan > 1 || cell.columnSpan > 1) marks.push("跨 " + cell.rowSpan + " 行 × " + cell.columnSpan + " 列")
-  const name = nameOf(controls, cell.ref, cell.controlType)
+  /* 容器的层名用 DSL 给的那个（产物不带名字）；取不到就退回清单里那条的名字。 */
+  const name = cell.container && cell.name ? cell.name : nameOf(controls, cell.ref, cell.controlType)
   return marks.length > 0 ? name + "（" + marks.join("，") + "）" : name
 }
 
@@ -59,20 +68,28 @@ function linesOfDerived(derived: DerivedLayout, controls: LayoutControl[]): Tree
     const shape = shapeOfRegion(region)
     /* 行列都按格子算（与下面摆出来的组、格子同一处口径）；一个格子都没有的分区就不写这两数。 */
     const size = shape.rows > 0 ? " · " + shape.rows + " 行 × " + shape.columns + " 列" : ""
+    /* 列带里吃剩余的那几条：窗口变大时变宽的就是它们（行带在下面每一行上标）。 */
+    const starColumns = starBands(region.bands?.columns)
+    const columnsNote = starColumns.length > 0 ? " · 第 " + starColumns.join("、") + " 列吃剩余（*）" : ""
     lines.push({
       key: regionKey(region.id),
       depth: 0,
       strong: true,
-      label: region.name + " · " + (region.emit ? "发射" : "只注册") + size
+      label: region.name + " · " + (region.emit ? "发射" : "只注册") + size + columnsNote
     })
+    const starRows = starBands(region.bands?.rows)
     /*
      * 每一组展开的是「从这一行起始的格子」—— 跨行的只在它起始的那一组里展开一次（跨了几行已经写在标签里），
      * 否则一个跨 6 行的容器会把整棵子树在 6 个组里各复制一遍。点某一组时画布上照旧会描出盖住它的控件。
      */
     groupsOf(region).forEach(({ group, covering, starting }) => {
-      /* 一「组」是分区里的一行：这一行里不止一个格子时（含从上面跨下来的），它们在那一行里左右排。 */
+      /*
+       * 一「组」是分区里的一行：行号就是产物给的那条行带。这一行里不止一个格子时（含从上面跨下来的），
+       * 它们在那一行里左右排；哪一条行带吃剩余也标在标题上。
+       */
       const across = covering.length > 1 ? "（横排）" : ""
-      lines.push({ key: groupKey(region.id, group), depth: 1, strong: false, label: "组 #" + group + across })
+      const star = starRows.includes(group) ? "（* 吃剩余）" : ""
+      lines.push({ key: groupKey(region.id, group), depth: 1, strong: false, label: "第 " + group + " 行" + star + across })
       for (const cell of starting) pushCell(lines, region.id, group, [], cell, 2, controls)
     })
   }

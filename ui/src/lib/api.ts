@@ -204,8 +204,13 @@ export type LayoutGroup = {
 /** 格子里装着的控件（含它自己的子网格）：它挂在父格子下，所以不带「第几行第几列」。 */
 export type LayoutChild = {
   ref: string
-  /** 这一格是产物合成出来的容器（里面还装着控件）：树上的「容器」标记按它。 */
+  /** 这一格是容器（里面还装着控件）：树上把它显示成「组（垂直布局 / 水平布局）」。 */
   container: boolean
+  /* 下面两栏由读视图给（判据只在那里一处）；没有它们时界面按「方向不明 / 用清单里的名字」显示。 */
+  /** 容器的排版方向（column = 上下排，row = 左右排，空串 = 产物没给）。 */
+  axis?: "" | "column" | "row"
+  /** 容器在这一层的层名（DSL 节点名；取不到就是空串）：界面不自己编名字。 */
+  name?: string
   /** 产物给的类型（合成出来的容器常常没有这个）：界面的名字在清单里找不到时按它显示。 */
   controlType: string
   rowSpan: number
@@ -227,8 +232,15 @@ export type LayoutRegion = {
   id: string
   name: string
   emit: boolean
+  /**
+   * 这一层的行带 / 列带：每条是「吃剩余的星号带（star）」还是固定像素（pixels）。
+   * 界面在第 N 行 / 第 M 列的标题上标 * —— 窗口变大时哪一条变长就看它。判据在后端读视图。
+   */
+  bands?: { rows: LayoutBand[]; columns: LayoutBand[] }
   cells: LayoutCell[]
 }
+
+export type LayoutBand = { star: boolean; pixels: number }
 
 /*
  * 推导出来的布局（作业A 第 8 步的产物，界面那栏「布局树」显示的就是它 —— 不是设计稿原始层级）：

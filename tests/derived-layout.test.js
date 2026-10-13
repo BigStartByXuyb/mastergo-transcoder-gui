@@ -41,6 +41,9 @@ function cell(ref, controlType, row, column, rowSpan, columnSpan, children, cont
   return {
     ref: ref,
     container: Boolean(container),
+    /* 容器的方向与层名：产物/快照没给就是空串，界面按「方向不明 / 用清单里的名字」显示。 */
+    axis: "",
+    name: "",
     controlType: controlType || "",
     row: row,
     column: column,
@@ -57,6 +60,8 @@ function child(ref, controlType, rowSpan, columnSpan, children, container) {
   return {
     ref: ref,
     container: Boolean(container),
+    axis: "",
+    name: "",
     controlType: controlType || "",
     rowSpan: rowSpan === undefined ? 1 : rowSpan,
     columnSpan: columnSpan === undefined ? 1 : columnSpan,
@@ -105,8 +110,8 @@ function caseRegions() {
         {
           id: "work-area",
           grid: {
-            rows: [1, 2],
-            columns: [1, 2, 3],
+            rows: [{ size: "Pixel", value: 1 }, { size: "Star" }],
+            columns: [{ size: "Pixel", value: 1 }, { size: "Pixel", value: 2 }, { size: "Star" }],
             cells: [
               { ref: "1:9", controlType: "Camera", row: 1, column: 2 },
               { ref: "1:10", controlType: "TextBlock", row: 1, column: 3, rowSpan: 2, columnSpan: 1 }
@@ -122,15 +127,29 @@ function caseRegions() {
   assert.strictEqual(state.available, true);
   assert.strictEqual(state.reason, "");
 
-  // 出去的就是这几样：名字 / 发不发射 / 格子；网格维度不往界面搬（有哪几行由界面按格子现算）。
-  assert.deepStrictEqual(state.regions[0], { id: "top-strip", name: "顶部栏", emit: false, cells: [] });
+  // 出去的就是这几样：名字 / 发不发射 / 行带列带 / 格子；网格维度不往界面搬（有哪几行由界面按格子现算）。
+  assert.deepStrictEqual(state.regions[0], {
+    /* 夹具给这两条带写的不是产物的 {size,value} 形状：认不出 Star，像素也读成 0（照实给）。 */
+    id: "top-strip",
+    name: "顶部栏",
+    emit: false,
+    bands: { rows: [{ star: false, pixels: 0 }], columns: [{ star: false, pixels: 0 }] },
+    cells: []
+  });
   assert.deepStrictEqual(state.regions[1], {
     id: "work-area",
     name: "work-area",
     emit: true,
+    /* 带照产物给：size=Star 的那条是吃剩余的（star），其余按 value 给像素。 */
+    bands: {
+      rows: [{ star: false, pixels: 1 }, { star: true, pixels: 0 }],
+      columns: [{ star: false, pixels: 1 }, { star: false, pixels: 2 }, { star: true, pixels: 0 }]
+    },
     cells: [cell("1:9", "Camera", 1, 2), cell("1:10", "TextBlock", 1, 3, 2, 1)]
   });
-  assert.deepStrictEqual(state.regions[2], { id: "no-grid", name: "no-grid", emit: true, cells: [] }, "网格缺了就是没有格子");
+  assert.deepStrictEqual(state.regions[2], {
+    id: "no-grid", name: "no-grid", emit: true, bands: { rows: [], columns: [] }, cells: []
+  }, "网格缺了就是没有格子");
 
   fs.rmSync(root, { recursive: true, force: true });
 }
