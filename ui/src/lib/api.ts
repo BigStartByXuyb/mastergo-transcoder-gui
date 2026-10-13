@@ -211,13 +211,10 @@ export type LayoutCell = {
   controlType: string
   /** 这一格自己那一层网格的行列带：只有装了子网格的格子才有（界面据它说明谁吃剩余）。 */
   bands?: { rows: LayoutBand[]; columns: LayoutBand[] }
-  /** 这一格子网格里的格子（可以再套），已按行列排好：空表就是这一格只是个控件。 */
+  /** 这一格子网格里的格子（可以再套），已按产物给的行列排好：空表就是这一格只是个控件。 */
   children: LayoutCell[]
   /** 这一格连同它里面装着的全部 ref：界面点它要高亮的就是这些（往下摊平由读视图一处做）。 */
   refs: string[]
-  /** 在父网格的第几行第几列（产物给的非负整数，0 起 1 起都有）：读视图按它定同层的先后。 */
-  row: number
-  column: number
 }
 
 /** 推导结果里的一个分区：名字 / 发不发射 + 它自己那一层网格（行带列带 + 格子）。 */
@@ -230,7 +227,8 @@ export type LayoutRegion = {
   cells: LayoutCell[]
 }
 
-export type LayoutBand = { star: boolean; pixels: number }
+/** 一条带：吃剩余（star）还是固定像素。像素值不往界面搬 —— 界面只用「谁吃剩余」这一件事实。 */
+export type LayoutBand = { star: boolean }
 
 /*
  * 推导出来的布局（作业A 第 8 步的产物，界面那栏「布局树」显示的就是它 —— 不是设计稿原始层级）：

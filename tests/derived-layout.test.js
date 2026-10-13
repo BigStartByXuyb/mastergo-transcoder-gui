@@ -34,18 +34,17 @@ function read(root) {
 
 /*
  * 期望里的一个格子：与界面那侧的夹具（ui/src/lib/layout-fixtures.ts）同形，只是这里用 JS 写。
- * 行列是「在这一层网格的第几行第几列」；装了子网格的格子带上那一层的行列带。
+ * 顺序就是摆的顺序（读视图按产物给的行列排好才出去）；装了子网格的格子带上那一层的行列带
+ * （没给就是空表，照「产物没写带」算 —— 与界面那侧夹具的缺省一致）。
  */
-function cell(ref, controlType, row, column, children, axis, childBands) {
+function cell(ref, controlType, children, axis, childBands) {
   const kids = children || [];
   const shape = {
     ref: ref,
     axis: axis || "",
     controlType: controlType || "",
     children: kids,
-    refs: [ref, ...kids.flatMap(function (item) { return item.refs; })],
-    row: row,
-    column: column
+    refs: [ref, ...kids.flatMap(function (item) { return item.refs; })]
   };
   if (kids.length > 0) shape.bands = childBands || { rows: [], columns: [] };
   return shape;
@@ -113,24 +112,24 @@ function caseRegions() {
 
   // 出去的就是这几样：名字 / 发不发射 / 行带列带 / 格子（同层按行列排好了）。
   assert.deepStrictEqual(state.regions[0], {
-    /* 夹具给这两条带写的不是产物的 {size,value} 形状：认不出 Star，像素也读成 0（照实给）。 */
+    /* 夹具给这两条带写的不是产物的 {size} 形状：认不出 Star，就照实说不吃剩余。 */
     id: "top-strip",
     name: "顶部栏",
     emit: false,
-    bands: { rows: [{ star: false, pixels: 0 }], columns: [{ star: false, pixels: 0 }] },
+    bands: { rows: [{ star: false }], columns: [{ star: false }] },
     cells: []
   });
   assert.deepStrictEqual(state.regions[1], {
     id: "work-area",
     name: "work-area",
     emit: true,
-    /* 带照产物给：size=Star 的那条是吃剩余的（star），其余按 value 给像素。 */
+    /* 带照产物给：size=Star 的那条是吃剩余的（star），其余不是。 */
     bands: {
-      rows: [{ star: false, pixels: 1 }, { star: true, pixels: 0 }],
-      columns: [{ star: false, pixels: 1 }, { star: false, pixels: 2 }, { star: true, pixels: 0 }]
+      rows: [{ star: false }, { star: true }],
+      columns: [{ star: false }, { star: false }, { star: true }]
     },
-    /* 产物那一列是按位置倒着写的，出去按行列排：第 1 行第 2 列在前。 */
-    cells: [cell("1:9", "Camera", 1, 2), cell("1:10", "TextBlock", 1, 3)]
+    /* 产物那一列是按位置倒着写的，出去按行列排好了：第 1 行第 2 列在前。 */
+    cells: [cell("1:9", "Camera"), cell("1:10", "TextBlock")]
   });
   assert.deepStrictEqual(state.regions[2], {
     id: "no-grid", name: "no-grid", emit: true, bands: { rows: [], columns: [] }, cells: []
@@ -182,12 +181,12 @@ function caseNestedCells() {
     "utf8"
   );
   assert.deepStrictEqual(read(root).regions[0].cells, [
-    cell("9:1", "", 1, 1, [
-      cell("9:2", "IconButton", 0, 0),
-      cell("9:3", "", 1, 0, [cell("9:4", "TextBlock", 0, 0)])
+    cell("9:1", "", [
+      cell("9:2", "IconButton"),
+      cell("9:3", "", [cell("9:4", "TextBlock")])
     ], "column", {
-      rows: [{ star: false, pixels: 1 }, { star: true, pixels: 0 }],
-      columns: [{ star: false, pixels: 2 }]
+      rows: [{ star: false }, { star: true }],
+      columns: [{ star: false }]
     })
   ]);
   fs.rmSync(root, { recursive: true, force: true });
@@ -349,7 +348,7 @@ function caseCellWithoutPosition() {
     "utf8"
   );
   const state = read(root);
-  assert.deepStrictEqual(state.regions[0].cells, [cell("1:10", "", 0, 0), cell("1:9", "", 1, 1)]);
+  assert.deepStrictEqual(state.regions[0].cells, [cell("1:10", ""), cell("1:9", "")]);
   assert.deepStrictEqual(state.unplaced, [
     { ref: "1:11", reason: "推导产物里这一格没有行列坐标" },
     { ref: "1:12", reason: "推导产物里这一格没有行列坐标" },
@@ -448,7 +447,7 @@ function caseNestedCellWithoutPosition() {
   );
   const state = read(root);
   assert.deepStrictEqual(state.regions[0].cells, [
-    cell("group", "", 1, 1, [cell("g1", "TextBlock", 0, 0)], "", { rows: [], columns: [] })
+    cell("group", "", [cell("g1", "TextBlock")])
   ]);
   assert.deepStrictEqual(state.unplaced, [
     { ref: "g2", reason: "推导产物里这一格没有行列坐标" },

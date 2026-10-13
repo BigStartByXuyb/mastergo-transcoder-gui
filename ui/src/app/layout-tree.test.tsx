@@ -40,13 +40,13 @@ const DERIVED: DerivedLayout = {
       emit: true,
       bands: bands(4, 3, [3], [3]),
       cells: [
-        cell("1:9", "IconButton", 1, 1),
-        cell("1:10", "IconButton", 1, 2),
-        cell("1:11", "TextBlock", 2, 1),
-        cell("9:5", "GroupBox", 3, 2, [cell("1:12", "TextBlock", 1, 1)]),
-        cell("9:9", "", 4, 1, [
-          cell("9:20", "NumberBox", 1, 1),
-          cell("9:30", "", 2, 1, [cell("9:31", "TextBlock", 1, 1)], "row", bands(1, 2))
+        cell("1:9", "IconButton"),
+        cell("1:10", "IconButton"),
+        cell("1:11", "TextBlock"),
+        cell("9:5", "GroupBox", [cell("1:12", "TextBlock")]),
+        cell("9:9", "", [
+          cell("9:20", "NumberBox"),
+          cell("9:30", "", [cell("9:31", "TextBlock")], "row", bands(1, 2))
         ], "column", bands(2, 1, [2]))
       ]
     }

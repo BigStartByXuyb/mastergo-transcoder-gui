@@ -161,7 +161,7 @@ describe("LayoutPanel", () => {
             name: "工作区",
             emit: true,
             bands: bands(1, 1),
-            cells: [cell("1:9", "IconButton", 1, 1)]
+            cells: [cell("1:9", "IconButton")]
           }
         ],
         unplaced: [],

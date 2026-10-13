@@ -125,9 +125,9 @@ function main() {
     assert.strictEqual(info.derived.reason, "");
     assert.deepStrictEqual(info.derived.regions, [
       {
-        /* 带照产物给（夹具那几条是空对象：认不出 Star，像素读成 0，照实给）。 */
+        /* 带照产物给（夹具那几条是空对象：认不出 Star，照实说不吃剩余）。 */
         id: "top", name: "顶部栏", emit: false,
-        bands: { rows: [{ star: false, pixels: 0 }], columns: [{ star: false, pixels: 0 }] },
+        bands: { rows: [{ star: false }], columns: [{ star: false }] },
         cells: []
       },
       {
@@ -135,13 +135,13 @@ function main() {
         name: "工作区",
         emit: true,
         bands: {
-          rows: [{ star: false, pixels: 0 }, { star: false, pixels: 0 }],
-          columns: [{ star: false, pixels: 0 }, { star: false, pixels: 0 }, { star: false, pixels: 0 }]
+          rows: [{ star: false }, { star: false }],
+          columns: [{ star: false }, { star: false }, { star: false }]
         },
         cells: [
-          /* 产物那一列是倒着写的，出去按行列排。 */
-          { ref: "a", axis: "", controlType: "", children: [], refs: ["a"], row: 1, column: 2 },
-          { ref: "c", axis: "", controlType: "", children: [], refs: ["c"], row: 2, column: 1 }
+          /* 产物那一列是倒着写的，出去按行列排好了（坐标不往界面搬）。 */
+          { ref: "a", axis: "", controlType: "", children: [], refs: ["a"] },
+          { ref: "c", axis: "", controlType: "", children: [], refs: ["c"] }
         ]
       }
     ]);
