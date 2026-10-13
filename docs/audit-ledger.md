@@ -302,4 +302,5 @@
 | 2026-10-13 第 81 遍 | 非阻断 | `cleanGroups` 没拿到清单时静默清空，而 `validateGroups` 是 fail-closed | 已收 | `cleanGroups` 同样按 `NO_CANDIDATES` 抛（漏传不再无声清空） |
 | 2026-10-13 第 81 遍 | 非阻断 | 同一块面板里「未分组条目」与组上的「N 个控件」混用两种说法 | 已收 | 组卡片改成「N 个条目」，与面板其余处统一 |
 | 2026-10-13 第 82 遍 | REVIEW-001 | 不看图那条路仍叫模型，但它已经没有可用于判断的输入（坐标随这一版撤出提示之后） | 已收 | 按插件口径把「有没有位图」并进 `canSuggest`（没有位图时不问模型：分组由机械判据决定），`candidatesInput` 没有图时按 `NO_IMAGE` 抛；面板把「这一页还没有设计稿位图，不必问模型」说清；用例跟着改（`layout-groups`：没图 canSuggest 为假、传图后为真；`autofill-layout`：没图不问模型） |
+| 2026-10-13 第 83 遍 | REVIEW-001 | 缺失清单那句原因里写死了产物路径与插件版本号 | 已收 | 那句改成 `noCandidatesReason(projectRoot, target)`：路径由 `workdir.layoutGroupCandidatesPath` 现拼（与代码真正去找的文件同一份事实）；版本收成 `CANDIDATES_MIN_PLUGIN_VERSION` 常量，判据与那句话共用它；`facts.md` 那行的真值源跟着改。另把「没拿到 candidates 对象」这种内部契约情形与「清单不在」分开说（前者是漏传，后者才给那句原话） |
 
