@@ -310,4 +310,5 @@
 | 2026-10-13 第 87 遍 | REVIEW-001 | 一次 `/api/pending` 里「有没有位图」被读两遍，`needsGroups` 与 `canSuggest` 各按自己那份判 | 已收 | `inspect` 把这次读数里的 `hasImage` 一并交出；`lib/pending.js` 的布局一节不再自己读图（`designImage.hasImage` 只剩 `inspect` 一处调） |
 | 2026-10-13 第 87 遍 | REVIEW-002 | 面板用 `!canSuggest && !imageStamp` 反推「为什么不能问模型」，与后端判据成了两份（清单不在又没图时还多挂一句误导的「传一张图」） | 已收 | 后端把 `canSuggest` 换成整条读数 `suggest: { ready, code, reason, hint }`（就是 `suggestBlocker` 的原话）；面板只显示那句话，不再由布尔反推；写回那条路仍读 `candidates` |
 | 2026-10-13 第 87 遍 | 非阻断 | `api.ts` 与 `pending.js` 对 `canSuggest` 的注释漏了「没有位图时不问」 | 已收 | 两处随 `suggest` 改名一并写全三条前提（清单在 / 条目够 / 有位图） |
+| 2026-10-13 第 88 遍 | BLOCK-001 | `lib/pending.js` 的 `designImage` require 已无任何引用（死代码；`orphan-exports` 只管导出，后端注释又不在 lint 范围） | 已收 | 删掉那一行 require；「有没有位图」继续只从 `inspect` 取；另把改名后残留的几处旧说法（`layout-groups.js` 两处、`autofill.js` 一处注释）一并改齐 |
 
