@@ -252,6 +252,17 @@ export type LayoutGroups = {
   available: boolean
   reason: string
   controls: LayoutControl[]
+  /**
+   * 这一步的「分组表可引用的条目」清单（作业A 第 8 步的产物，转发 lib/layout-candidates.js）：
+   * 表里的 ref 只能从 entries 里取；entries 为空＝这一层不参与分组（表只能是空表）；
+   * available 为 false 时还没有这份清单（这一步没跑过），界面按 reason 说清、不给写回。
+   */
+  candidates: {
+    available: boolean
+    reason: string
+    pageTarget: string
+    entries: { ref: string; controlType: string; text: string }[]
+  }
   /** 画板尺寸（界面把控件坐标换算成百分比用）；固化快照那一步还没跑时是 null。判据在后端。 */
   canvas: { width: number; height: number } | null
   /** 这一页那张图的身份（空串＝没有图）：画布据此挂图并拼预览地址；判据在后端。 */
@@ -1107,13 +1118,15 @@ export const api = {
       kind: "glossary",
       texts
     }),
-  /* 带上工程与页面：后端据此把这一页的设计稿位图一起给模型（插件口径里这一步是「看图判分组」）。 */
-  aiLayoutGroups: (projectRoot: string, target: string, controls: LayoutControl[]) =>
+  /*
+   * 带上工程与页面：后端据此取这一层的条目清单与这一页的设计稿位图（插件口径里这一步是「看图判分组」，
+   * 表里的 ref 只能从那几条条目里取 —— 输入只有服务端一处拼法，界面不把控件清单塞进来）。
+   */
+  aiLayoutGroups: (projectRoot: string, target: string) =>
     post<{ ok: true; groups: LayoutGroup[] }>("/api/ai/suggest", {
       kind: "layout-groups",
       projectRoot,
-      target,
-      controls
+      target
     }),
   confirm: (body: {
     projectRoot: string

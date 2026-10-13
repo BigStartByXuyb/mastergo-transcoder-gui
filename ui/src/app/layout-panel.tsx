@@ -51,7 +51,15 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   const [treePicked, setTreePicked] = useState("")
   /* 换一页（工程目录或 Target 变了）就把树上选中的那一行清掉：同一页的身份是这两个一起。 */
   useEffect(() => setTreePicked(""), [input.projectRoot, input.target])
+  /*
+   * 分组表里能写的只有这一层的可引用条目（清单里那几条）：未分组控件按它分成两拨 ——
+   * 能拖进组的（可引用）与不能写进表的（清单外，例如合成容器的 ref 或别层的控件）。
+   * 清单还没落下来时，两拨都按「不能写」算，面板据此不给写回。
+   */
+  const citable = new Set(layout.candidates.entries.map((entry) => entry.ref))
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
+  const writable = ungrouped.filter((control) => citable.has(control.ref))
+  const outside = ungrouped.filter((control) => !citable.has(control.ref))
   const canvas = layout.canvas
   const hovered = layout.groups.find((group) => group.id === hoveredGroup)?.members ?? []
   /* 选中那一行盖住的控件：与树同一处算法（treeLinesOf）算出来的那一行的 hit —— 读数刷新后跟着变。 */
@@ -99,7 +107,11 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
                   <Sparkles className="mr-1 h-4 w-4" />
                   AI 辅助
                 </Button>
-                <Button size="sm" onClick={() => void layout.save()} disabled={layout.busy || !confirmable}>
+                <Button
+                  size="sm"
+                  onClick={() => void layout.save()}
+                  disabled={layout.busy || !confirmable || !layout.candidates.available}
+                >
                   <Save className="mr-1 h-4 w-4" />
                   {writeLabel}
                 </Button>
@@ -118,6 +130,18 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
                 {inFlightNote(writeLabel)}
               </p>
             ) : null}
+            {/* 这一层能写哪些 ref：清单不在就不给写（判据在后端 lib/layout-candidates.js，这里只照它说）。 */}
+            {!layout.candidates.available ? (
+              <p className="text-sm text-destructive">{layout.candidates.reason}</p>
+            ) : layout.candidates.entries.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                这一层的条目清单是空的：这一层不参与分组，表里不声明任何组 —— 直接点「{writeLabel}」写出空表。
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                这一层的可引用条目（{layout.candidates.entries.length}）：分组表里的 ref 只能从这些条目里取。
+              </p>
+            )}
             {layout.groups.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 没有要声明的分组：直接点「{writeLabel}」，它写出空分组表，布局推导按机械判据走；
@@ -201,11 +225,11 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
 
             <div className="rounded-md border border-dashed p-3">
               <div className="mb-2 flex flex-wrap items-baseline gap-2">
-                <span className="text-sm font-medium text-muted-foreground">未分组控件（{ungrouped.length}）</span>
-                <span className="text-xs text-muted-foreground">拖进上面某个组里</span>
+                <span className="text-sm font-medium text-muted-foreground">未分组条目（{writable.length}）</span>
+                <span className="text-xs text-muted-foreground">拖进上面某个组里（只有这一层的可引用条目能写进表）</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {ungrouped.map((control) => (
+                {writable.map((control) => (
                   <Badge
                     key={control.ref}
                     variant="outline"
@@ -215,8 +239,24 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
                     {labelOf(layout.controls, control.ref)}
                   </Badge>
                 ))}
-                {ungrouped.length === 0 ? <span className="text-xs text-muted-foreground">都分好组了</span> : null}
+                {writable.length === 0 && outside.length === 0 ? (
+                  <span className="text-xs text-muted-foreground">都分好组了</span>
+                ) : null}
+                {writable.length === 0 && outside.length > 0 ? (
+                  <span className="text-xs text-muted-foreground">这一层没有还能进组的条目</span>
+                ) : null}
               </div>
+              {/* 清单外的条目写不进表（插件那边也会拒）：列出来让人知道它们为什么拖不动。 */}
+              {outside.length > 0 ? (
+                <div className="mt-2 flex flex-wrap items-baseline gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    不在这一层条目里、不能写进分组表（{outside.length}）：
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    {outside.map((control) => labelOf(layout.controls, control.ref)).join("、")}
+                  </span>
+                </div>
+              ) : null}
             </div>
 
             <div className="flex items-end gap-2">

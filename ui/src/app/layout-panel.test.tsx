@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { LayoutPanel } from "@/app/layout-panel"
 import { bands, cell } from "@/lib/layout-fixtures"
-import type { DerivedLayout, LayoutControl, LayoutGroup } from "@/lib/api"
+import type { DerivedLayout, LayoutControl, LayoutGroup, LayoutGroups } from "@/lib/api"
 import { drive } from "@/lib/settings-fixtures"
 
 /*
@@ -44,6 +44,10 @@ function stub(
     imageStamp?: string
     /** 推导出来的布局；默认「还没跑过」。 */
     derived?: DerivedLayout
+    /** 这一层的条目清单；不给就按控件清单那一拨条目给（可引用 ref 与控件一致）。 */
+    candidates?: LayoutGroups["candidates"]
+    /** 「AI 辅助」有没有意义（后端那条判据）；不给我按控件数算。 */
+    canSuggest?: boolean
   } = {}
 ) {
   const available = options.available !== false
@@ -82,8 +86,21 @@ function stub(
             derived: options.derived ?? { available: false, reason: "还没有推导产物", regions: [], unplaced: [], singles: [] },
             groups: options.groups ?? [],
             hasGroups: (options.groups ?? []).length > 0,
-            // 后端的口径：控件够不够问 AI 由它给（阈值在 lib/layout-groups.js），界面照它禁用按钮。
-            canSuggest: (options.controls ?? CONTROLS).length >= 2,
+            // 这一层的可引用条目：不给就按控件清单那一拨（ref / 类型 / 文本）拼一份。
+            candidates:
+              options.candidates ??
+              {
+                available: true,
+                reason: "",
+                pageTarget: "DemoPage",
+                entries: (options.controls ?? CONTROLS).map((item) => ({
+                  ref: item.ref,
+                  controlType: item.controlType,
+                  text: item.text
+                }))
+              },
+            // 后端的口径：能不能问 AI 由它给（lib/layout-groups.js 一处算），界面照它禁用按钮。
+            canSuggest: options.canSuggest ?? (options.controls ?? CONTROLS).length >= 2,
             autoPass: options.autoPass === true
           }
         }),
@@ -112,7 +129,7 @@ describe("LayoutPanel", () => {
     expect(screen.getByText("#1 IconButton · 确定")).toBeTruthy()
     expect(screen.getByText("#2 IconButton · 取消")).toBeTruthy()
     expect(screen.getByText("#3 TextBlock · 标题")).toBeTruthy()
-    expect(screen.getByText("未分组控件（3）")).toBeTruthy()
+    expect(screen.getByText("未分组条目（3）")).toBeTruthy()
     // 没有分组时给一句出路：空分组表就是「本页没有要声明的分组」。
     expect(screen.getByText(/写出空分组表/)).toBeTruthy()
   })
@@ -230,7 +247,7 @@ describe("LayoutPanel", () => {
     expect(screen.getByText("垂直布局")).toBeTruthy()
     expect(screen.getByText("2 个控件")).toBeTruthy()
     expect(screen.getByText("#1 IconButton · 确定")).toBeTruthy()
-    expect(screen.getByText("未分组控件（1）")).toBeTruthy()
+    expect(screen.getByText("未分组条目（1）")).toBeTruthy()
     expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("false")
   })
 
@@ -243,7 +260,24 @@ describe("LayoutPanel", () => {
         new Response(
           JSON.stringify({
             ok: true,
-            layout: { available: true, reason: "", controls: CONTROLS, canvas: null, imageStamp: "", derived: { available: false, reason: "", regions: [], unplaced: [], singles: [] }, groups: [], hasGroups: false, canSuggest: true, autoPass: true }
+            layout: {
+              available: true,
+              reason: "",
+              controls: CONTROLS,
+              canvas: null,
+              imageStamp: "",
+              derived: { available: false, reason: "", regions: [], unplaced: [], singles: [] },
+              candidates: {
+                available: true,
+                reason: "",
+                pageTarget: "DemoPage",
+                entries: CONTROLS.map((item) => ({ ref: item.ref, controlType: item.controlType, text: item.text }))
+              },
+              groups: [],
+              hasGroups: false,
+              canSuggest: true,
+              autoPass: true
+            }
           }),
           { status: 200 }
         )
@@ -304,6 +338,68 @@ describe("LayoutPanel", () => {
 
     expect(await screen.findByText(/还没有类型判定产物/)).toBeTruthy()
     expect(screen.queryByRole("button", { name: /写入分组表并继续/ })).toBeNull()
+  })
+
+  /*
+   * 这一层能写哪些 ref 由「条目清单」定（插件第 8 步的产物）：
+   * 清单不在 → 说清是哪一件事、不给写回；清单为空 → 这一层不参与分组，只写空表；
+   * 清单外的控件 → 列出来但不给拖（拖了插件也会拒）。
+   */
+  it("条目清单不在时：照后端那句说清，写入与 AI 辅助都不给点", async () => {
+    stub({
+      canSuggest: false,
+      candidates: {
+        available: false,
+        reason: "还没有这一步的条目清单（Generated/_inputs/<页面>.layout-group-candidates.json）：作业A 第 8 步会把它落下来，它回答「分组表里能写哪些 ref」——先跑一次那一步。",
+        pageTarget: "",
+        entries: []
+      }
+    })
+    render(panel())
+
+    expect(await screen.findByText(/还没有这一步的条目清单/)).toBeTruthy()
+    expect(screen.getByRole("button", { name: /写入分组表并继续/ }).hasAttribute("disabled")).toBe(true)
+    expect(screen.getByRole("button", { name: /AI 辅助/ }).hasAttribute("disabled")).toBe(true)
+  })
+
+  it("条目清单为空时：说清「这一层不参与分组」，写入照样能给（写空表）", async () => {
+    let sent: { groups?: LayoutGroup[] } = {}
+    stub({
+      canSuggest: false,
+      onConfirm: (body) => (sent = body as { groups: LayoutGroup[] }),
+      candidates: { available: true, reason: "", pageTarget: "DemoPage", entries: [] }
+    })
+    render(panel())
+
+    expect(await screen.findByText(/这一层的条目清单是空的：这一层不参与分组/)).toBeTruthy()
+    const button = screen.getByRole("button", { name: /写入分组表并继续/ })
+    expect(button.hasAttribute("disabled")).toBe(false)
+    button.click()
+    await waitFor(() => expect(sent.groups).toEqual([]))
+  })
+
+  it("清单外的控件列出来但不给拖：只有这一层的可引用条目能写进表", async () => {
+    stub({
+      canSuggest: false,
+      candidates: {
+        available: true,
+        reason: "",
+        pageTarget: "DemoPage",
+        entries: [
+          { ref: "1:9", controlType: "IconButton", text: "确定" },
+          { ref: "1:10", controlType: "IconButton", text: "取消" }
+        ]
+      }
+    })
+    render(panel())
+
+    expect(await screen.findByText("未分组条目（2）")).toBeTruthy()
+    expect(screen.getByText(/不在这一层条目里、不能写进分组表（1）/)).toBeTruthy()
+    expect(screen.getByText(/#3 TextBlock · 标题/)).toBeTruthy()
+    // 可引用的那两条能拖（draggable），清单外的那条不能。
+    const draggable = [...document.querySelectorAll("[draggable='true']")].map((node) => node.textContent)
+    expect(draggable.join("、")).toContain("#1 IconButton · 确定")
+    expect(draggable.join("、")).not.toContain("#3 TextBlock · 标题")
   })
 
   it("任务还在跑时：能改分组，但「写入分组表并继续」不给点（续跑会起第二次运行）", async () => {

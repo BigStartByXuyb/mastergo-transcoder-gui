@@ -40,7 +40,16 @@ function stub(hooks: { onConfirm?: (body: unknown) => void } = {}) {
             ],
             groups: SERVER_GROUPS,
             hasGroups: true,
-            canSuggest: true
+            canSuggest: true,
+            candidates: {
+              available: true,
+              reason: "",
+              pageTarget: "DemoPage",
+              entries: [
+                { ref: "1:9", controlType: "IconButton", text: "确定" },
+                { ref: "1:10", controlType: "IconButton", text: "取消" }
+              ]
+            }
           }
         }),
         { status: 200 }

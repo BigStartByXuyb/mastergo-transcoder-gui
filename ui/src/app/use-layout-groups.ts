@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import { useValueRunner } from "@/app/use-action-runner"
 import { useAlive } from "@/app/use-alive"
-import { api, type DerivedLayout, type LayoutControl, type LayoutGroup } from "@/lib/api"
+import { api, type DerivedLayout, type LayoutControl, type LayoutGroup, type LayoutGroups } from "@/lib/api"
 
 /*
  * 布局确认的数据动作：读控件清单与现有分组、叫 AI 出候选、把分组写回去并从布局那一步续跑。
@@ -33,6 +33,13 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
   const [available, setAvailable] = useState(false)
   const [reason, setReason] = useState("")
   const [controls, setControls] = useState<LayoutControl[]>([])
+  /* 这一步的可引用条目清单：没读到之前按「还没有」处理（面板据此不给写回）。 */
+  const [candidates, setCandidates] = useState<LayoutGroups["candidates"]>({
+    available: false,
+    reason: "",
+    pageTarget: "",
+    entries: []
+  })
   const [canvas, setCanvas] = useState<{ width: number; height: number } | null>(null)
   const [imageStamp, setImageStamp] = useState("")
   /* 还没读到这一页时是 null（布局树那块不摆）；读回来就是后端给的那一份。 */
@@ -75,6 +82,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
       setAvailable(payload.layout.available)
       setReason(payload.layout.reason)
       setControls(payload.layout.controls)
+      setCandidates(payload.layout.candidates)
       setCanvas(payload.layout.canvas ?? null)
       setImageStamp(String(payload.layout.imageStamp || ""))
       setDerived(payload.layout.derived ?? null)
@@ -103,7 +111,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
 
   async function suggest() {
     setNote("")
-    await run("suggest", () => api.aiLayoutGroups(projectRoot, target, controls), (payload) => {
+    await run("suggest", () => api.aiLayoutGroups(projectRoot, target), (payload) => {
       if (!alive.current) return
       if (payload.groups.length > 0) {
         applyGroups(payload.groups)
@@ -141,6 +149,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
     derived,
     groups,
     setGroups: applyGroups,
+    candidates,
     canSuggest,
     autoPass,
     toggleAutoPass,
