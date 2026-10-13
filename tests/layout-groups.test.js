@@ -99,6 +99,12 @@ function main() {
     assert.strictEqual(info.controls[0].ref, "a");
     assert.strictEqual(info.controls[0].text, "A");
     assert.strictEqual(info.controls[2].text, "C");
+    /* 「这个 ref 在不在本层条目里」的结论由后端一处给（判据在 lib/layout-candidates.js 的 refsOf）。 */
+    assert.deepStrictEqual(info.controls.map(function (item) { return [item.ref, item.citable]; }), [
+      ["a", true],
+      ["b", true],
+      ["c", true]
+    ]);
     assert.deepStrictEqual(info.groups, []);
     // 读图状态不在这里（lib/design-image.js 一处）；hasGroups 与 canSuggest 都由后端给
     // （hasGroups 与 tables 同一次读，界面照 canSuggest 禁用「AI 辅助」）。
@@ -172,6 +178,13 @@ function main() {
   {
     const root = sandbox();
     writeCandidates(root, [{ ref: "a", controlType: "IconButton", text: "A" }, { ref: "b", controlType: "IconButton", text: "B" }]);
+    /* 清单只有 a、b：c 不在本层条目里，读数里它的 citable 是 false（界面据此不让拖）。 */
+    const info = layout.inspect({ projectRoot: root, target: TARGET });
+    assert.deepStrictEqual(info.controls.map(function (item) { return [item.ref, item.citable]; }), [
+      ["a", true],
+      ["b", true],
+      ["c", false]
+    ]);
     assert.throws(
       () => layout.save({ projectRoot: root, target: TARGET, groups: [{ id: "g1", kind: "column", members: ["a", "c"] }] }),
       /分组 g1 的 ref 不在本层条目里: c/

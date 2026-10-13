@@ -52,14 +52,13 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   /* 换一页（工程目录或 Target 变了）就把树上选中的那一行清掉：同一页的身份是这两个一起。 */
   useEffect(() => setTreePicked(""), [input.projectRoot, input.target])
   /*
-   * 分组表里能写的只有这一层的可引用条目（清单里那几条）：未分组控件按它分成两拨 ——
-   * 能拖进组的（可引用）与不能写进表的（清单外，例如合成容器的 ref 或别层的控件）。
+   * 分组表里能写的只有这一层的可引用条目（清单里那几条）：未分组控件按后端给的 `citable` 分成两拨 ——
+   * 能拖进组的与不能写进表的（清单外，例如合成容器的 ref 或别层的控件）。这面标记是后端的结论，界面不自己再算。
    * 清单还没落下来时不分拨（那不等于「这些条目写不进去」）：面板只把后端那句原因说清，并关掉写回。
    */
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
-  const citable = new Set(layout.candidates.entries.map((entry) => entry.ref))
-  const writable = layout.candidates.available ? ungrouped.filter((control) => citable.has(control.ref)) : []
-  const outside = layout.candidates.available ? ungrouped.filter((control) => !citable.has(control.ref)) : []
+  const writable = layout.candidates.available ? ungrouped.filter((control) => control.citable) : []
+  const outside = layout.candidates.available ? ungrouped.filter((control) => !control.citable) : []
   const hasCandidates = layout.candidates.available
   const canvas = layout.canvas
   const hovered = layout.groups.find((group) => group.id === hoveredGroup)?.members ?? []
@@ -192,7 +191,7 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
                       {/* 人选的组方向与布局树上的方向同一套词：column = 上下排，row = 左右排。 */}
                       <Badge variant="outline">{group.kind === "column" ? "垂直布局" : "水平布局"}</Badge>
                       <span className="font-medium">{group.id}</span>
-                      <span className="text-xs text-muted-foreground">{group.members.length} 个控件</span>
+                      <span className="text-xs text-muted-foreground">{group.members.length} 个条目</span>
                     </div>
                     <Button variant="ghost" size="sm" onClick={() => layout.setGroups(removeGroup(layout.groups, group.id))}>
                       <Trash2 className="mr-1 h-3 w-3" />

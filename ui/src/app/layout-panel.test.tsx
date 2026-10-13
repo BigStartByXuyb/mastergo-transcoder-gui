@@ -14,7 +14,7 @@ import { drive } from "@/lib/settings-fixtures"
 const WORK_DIR = drive("D", "work", "task-1")
 
 function control(ref: string, controlType: string, text: string): LayoutControl {
-  return { ref: ref, controlType: controlType, text: text, absX: 0, absY: 0, w: 100, h: 40 }
+  return { ref: ref, controlType: controlType, text: text, absX: 0, absY: 0, w: 100, h: 40, citable: true }
 }
 
 const CONTROLS = [
@@ -245,7 +245,7 @@ describe("LayoutPanel", () => {
 
     expect(await screen.findByText("RightTools")).toBeTruthy()
     expect(screen.getByText("垂直布局")).toBeTruthy()
-    expect(screen.getByText("2 个控件")).toBeTruthy()
+    expect(screen.getByText("2 个条目")).toBeTruthy()
     expect(screen.getByText("#1 IconButton · 确定")).toBeTruthy()
     expect(screen.getByText("未分组条目（1）")).toBeTruthy()
     expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("false")
@@ -381,8 +381,15 @@ describe("LayoutPanel", () => {
   })
 
   it("清单外的控件列出来但不给拖：只有这一层的可引用条目能写进表", async () => {
+    /* 后端的结论（`citable`）与实际清单一致：前两条在本层条目里，第三条不在（别层的控件）。 */
+    const CONTROLS_WITH_ONE_OUTSIDE = [
+      control("1:9", "IconButton", "确定"),
+      control("1:10", "IconButton", "取消"),
+      { ...control("1:11", "TextBlock", "标题"), citable: false }
+    ]
     stub({
       canSuggest: false,
+      controls: CONTROLS_WITH_ONE_OUTSIDE,
       candidates: {
         available: true,
         reason: "",

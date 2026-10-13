@@ -193,6 +193,11 @@ export type LayoutControl = {
   absY: number
   w: number
   h: number
+  /**
+   * 这个 ref 在不在这一层的可引用条目里（分组表只能写这些 ref）：
+   * 结论由后端一处给（判据在 lib/layout-candidates.js 的 refsOf），界面按它分「能拖 / 不能写进表」。
+   */
+  citable: boolean
 }
 
 export type LayoutGroup = {
@@ -272,7 +277,7 @@ export type LayoutGroups = {
   groups: LayoutGroup[]
   /** 这一页有没有分组表（空表也算有）：与「表里有什么」同一次读给出。 */
   hasGroups: boolean
-  /** 现在问 AI 有没有意义（控件太少时分不出组）：阈值在后端，界面只管按它禁用按钮。 */
+  /** 现在问 AI 有没有意义（清单不在、或这一层的条目少于阈值时不问）：判据在后端，界面只管按它禁用按钮。 */
   canSuggest: boolean
   /** 「自动通过」是全局开关，值随这一页一起读回来（面板不必再取一遍设置）。 */
   autoPass: boolean
