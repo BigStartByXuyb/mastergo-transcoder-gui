@@ -130,36 +130,46 @@ describe("LayoutTree", () => {
     expect(single.textContent).toBe("#2 IconButton")
   })
 
-  it("点一行：交出它的 key 与它盖住的控件（分区 / 组 / 控件 / 两份读数各有各的）", () => {
+  it("点一行：交出它盖住的控件（分区 / 组 / 控件 / 两份读数各有各的）", () => {
     const picked = vi.fn()
     render(tree({ onPick: picked }))
 
     fireEvent.click(screen.getByText("工作区 · 发射 · 4 行 × 3 列 · 第 3 行、第 3 列吃剩余（*）"))
-    expect(picked).toHaveBeenLastCalledWith("region:work-area", [
+    expect(picked).toHaveBeenLastCalledWith(expect.any(String), [
       "1:9", "1:10", "1:11", "9:5", "1:12", "9:9", "9:20", "9:30", "9:31"
     ])
 
     // 点组：这一组里全部的控件（含它自己与套着的几层）。
     fireEvent.click(screen.getByText("组 2（垂直布局） · 第 2 行吃剩余（*）"))
-    expect(picked).toHaveBeenLastCalledWith("region:work-area/ref:9:9", ["9:9", "9:20", "9:30", "9:31"])
+    expect(picked).toHaveBeenLastCalledWith(expect.any(String), ["9:9", "9:20", "9:30", "9:31"])
 
     // 点控件：就是它自己。
     fireEvent.click(screen.getByText("#3 标题"))
-    expect(picked).toHaveBeenLastCalledWith("region:work-area/ref:1:11", ["1:11"])
+    expect(picked).toHaveBeenLastCalledWith(expect.any(String), ["1:11"])
 
-    // 嵌套那一层：路径多一段，键不同（React key 也就不同）。
+    // 嵌套那一层：是另一行（另一份控件）。
     fireEvent.click(screen.getByText("TextBlock"))
-    expect(picked).toHaveBeenLastCalledWith("region:work-area/ref:9:9/ref:9:30/ref:9:31", ["9:31"])
+    expect(picked).toHaveBeenLastCalledWith(expect.any(String), ["9:31"])
 
     fireEvent.click(screen.getByText("摆不进树的 1 个"))
-    expect(picked).toHaveBeenLastCalledWith("unplaced", ["1:13"])
+    expect(picked).toHaveBeenLastCalledWith(expect.any(String), ["1:13"])
 
     fireEvent.click(screen.getByText("插件报的单条目栏 · 1 个"))
-    expect(picked).toHaveBeenLastCalledWith("singles", ["1:10"])
+    expect(picked).toHaveBeenLastCalledWith(expect.any(String), ["1:10"])
+
+    // 每一次点到的都是不同的一行：交出去的 key 两两不同（key 怎么拼由组件自己定，调用方不解析）。
+    const keys = picked.mock.calls.map((call) => call[0])
+    expect(new Set(keys).size).toBe(keys.length)
   })
 
-  it("选中的那一行标出来（选中态由调用方给，不在组件里另存一份）", () => {
-    render(tree({ selected: "region:work-area/ref:9:9" }))
+  it("选中态由调用方给：把它收到的那个 key 回传，那一行就标出来（组件里不另存一份）", () => {
+    const picked = vi.fn()
+    const view = render(tree({ onPick: picked }))
+
+    fireEvent.click(screen.getByText("组 2（垂直布局） · 第 2 行吃剩余（*）"))
+    const key = picked.mock.calls[0][0]
+    view.rerender(tree({ selected: key, onPick: picked }))
+
     expect(screen.getByText("组 2（垂直布局） · 第 2 行吃剩余（*）").getAttribute("data-selected")).toBe("true")
     expect(screen.getByText("组 1（方向不明） · #5 GroupBox").getAttribute("data-selected")).toBe("false")
   })

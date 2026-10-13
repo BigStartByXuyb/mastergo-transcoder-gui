@@ -46,9 +46,9 @@ function starNote(bands: { rows: LayoutBand[]; columns: LayoutBand[] } | undefin
   return parts.length > 0 ? " · " + parts.join("、") + "吃剩余（*）" : ""
 }
 
-/* 这一层网格几行几列（按产物给的带数）；没有带就不写这两数。 */
+/* 这一层网格几行几列（按产物给的带数）；两样都有才写，缺一样就不拿 0 顶上。 */
 function shapeNote(bands: { rows: LayoutBand[]; columns: LayoutBand[] } | undefined): string {
-  if (!bands || bands.rows.length === 0) return ""
+  if (!bands || bands.rows.length === 0 || bands.columns.length === 0) return ""
   return " · " + bands.rows.length + " 行 × " + bands.columns.length + " 列"
 }
 

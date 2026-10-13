@@ -255,7 +255,7 @@ export type LayoutGroups = {
   canvas: { width: number; height: number } | null
   /** 这一页那张图的身份（空串＝没有图）：画布据此挂图并拼预览地址；判据在后端。 */
   imageStamp: string
-  /** 推导出来的布局（分区 → 组 → 格子）：跑完布局那一步才有；界面据此摆「布局树」。 */
+  /** 推导出来的布局（分区 → 组 → 控件）：跑完布局那一步才有；界面据此摆「布局树」。 */
   derived: DerivedLayout
   groups: LayoutGroup[]
   /** 这一页有没有分组表（空表也算有）：与「表里有什么」同一次读给出。 */
