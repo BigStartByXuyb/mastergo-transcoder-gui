@@ -24,6 +24,7 @@ export function cell(
 ): LayoutCell {
   return {
     ref: ref,
+    group: children.length > 0,
     axis: axis,
     controlType: controlType,
     children: children,

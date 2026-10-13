@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { LayoutCanvas } from "@/app/layout-canvas"
-import { LayoutTree, treeLinesOf } from "@/app/layout-tree"
+import { LayoutTree } from "@/app/layout-tree"
 import { useLayoutGroups, type LayoutGroupsInput } from "@/app/use-layout-groups"
 import { api } from "@/lib/api"
 import {
@@ -17,6 +17,7 @@ import {
   moveMember,
   removeGroup,
   removeMember,
+  treeLinesOf,
   ungroupedControls
 } from "@/lib/layout-edit"
 import { inFlightNote, isInFlight } from "@/lib/task-state"

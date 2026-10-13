@@ -140,8 +140,8 @@ function main() {
         },
         cells: [
           /* 产物那一列是倒着写的，出去按行列排好了（坐标不往界面搬）。 */
-          { ref: "a", axis: "", controlType: "", children: [], refs: ["a"] },
-          { ref: "c", axis: "", controlType: "", children: [], refs: ["c"] }
+          { ref: "a", group: false, axis: "", controlType: "", children: [], refs: ["a"] },
+          { ref: "c", group: false, axis: "", controlType: "", children: [], refs: ["c"] }
         ]
       }
     ]);

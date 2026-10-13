@@ -41,6 +41,7 @@ function cell(ref, controlType, children, axis, childBands) {
   const kids = children || [];
   const shape = {
     ref: ref,
+    group: kids.length > 0,
     axis: axis || "",
     controlType: controlType || "",
     children: kids,

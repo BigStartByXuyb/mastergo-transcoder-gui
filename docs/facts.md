@@ -31,9 +31,11 @@
 | 「自动补输入并续跑」谁发起 | `ui/src/app/pending-panel.tsx` · `automation === "auto" && !taskId` | 看板任务由服务端发起（`lib/board.js` 的 `autoFillWaiting` → `lib/autofill.js`，同一个 automation 设置，不需要浏览器在场）；面板只对没有看板任务的条目发起 |
 | 位图落地要等的那一步怎么说 | `lib/design-image.js` · `const NO_CANVAS_REASON =` | 界面那一块照后端给的原话显示（`/api/design-image` 的 `blocked`）；表单的指引不提步骤名，只说「流水线产出画板尺寸之后」 |
 | 本地记住的值什么时候写回 | `ui/src/app/use-remembered.ts` · `export function useRemembered<` | 两张「新建任务」表单（`ui/src/app/pipeline-page.tsx`、`board-page.tsx`）、看板筛选（`board-page.tsx`）、只看生效（`ui/src/app/use-only-effective.ts`） |
-| 一格往哪个方向排（垂直布局 / 水平布局） | `lib/derived-layout.js` · `function axisOf(` | 布局树那一行照它念（`ui/src/app/layout-tree.tsx` 的 `axisLabel`：产物没给就说方向不明，不拿行列数替它推） |
+| 一格往哪个方向排（垂直布局 / 水平布局） | `lib/derived-layout.js` · `function axisOf(` | 布局树那一行照它念（`ui/src/lib/layout-edit.ts` 的 `axisLabel`：产物没给就说方向不明，不拿行列数替它推） |
 | 同层格子的先后（行优先、列次之） | `lib/derived-layout.js` · `function byPosition(` | 读视图出去之前排一遍（顶层与子网格同一处）；界面按给的顺序摆，不自己再排 |
-| 一层网格里谁吃剩余（*）怎么写 | `ui/src/app/layout-tree.tsx` · `function starNote(` | 分区那一行与每个组那一行共用它（第几条带吃剩余只有 `starBands` 一处认） |
+| 布局树上哪几行、每行写什么、盖住哪些控件 | `ui/src/lib/layout-edit.ts` · `export function treeLinesOf(` | 树只按它渲染（`ui/src/app/layout-tree.tsx`），面板把选中的 key 翻成要描的控件也读它 —— 一处算，两处读 |
+| 一层网格里谁吃剩余（*）怎么写 | `ui/src/lib/layout-edit.ts` · `function starNote(` | 分区那一行与每个组那一行共用它（第几条带吃剩余只有 `starBands` 一处认） |
+| 树上一行的摆法（选中态 / 缩进 / 点它交出去的 key） | `ui/src/app/layout-tree.tsx` · `function Line(` | 树行与树下面那两块读数的行都走它；两处各写一遍会分叉（一类行选不动、选中样式不齐） |
 | 产物合成容器的前缀怎么认（容器自己又列在子网格里那一条） | `lib/derived-layout.js` · `const SYNTH_PREFIX =` | 读视图剥掉它再往外给（`plainRef`，界面只认剥过的 ref），并据它把自列那一条提升掉 |
 | 推导产物与同趟报告的路径拼法 | `lib/workdir.js` · `function wpfLayoutPath(`、`function wpfLayoutReportPath(` | `lib/derived-layout.js` 的 `read`（读视图只出去事实，不自己拼路径） |
 | 格子坐标的归一（只认产物给的非负整数：0 起 1 起都收；坐标只用来定同层先后与摆不摆得进树） | `lib/derived-layout.js` · `const NO_POSITION_REASON =`、`function positionOf(`、`const OUTER_NO_POSITION_REASON =`、`function byPosition(` | 布局树的格子（读不出的那一格连同它里面那些控件照「摆不进树」暴露，不拿位置顶上；坐标不往界面搬） |
