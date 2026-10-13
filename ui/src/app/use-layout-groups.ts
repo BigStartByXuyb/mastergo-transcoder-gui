@@ -45,7 +45,13 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
   /* 还没读到这一页时是 null（布局树那块不摆）；读回来就是后端给的那一份。 */
   const [derived, setDerived] = useState<DerivedLayout | null>(null)
   const [groups, setGroups] = useState<LayoutGroup[]>([])
-  const [canSuggest, setCanSuggest] = useState(false)
+  /* 「能不能问模型、不能问是哪一件事」这份读数：没读到之前按「不能问、原话为空」处理。 */
+  const [suggestState, setSuggestState] = useState<LayoutGroups["suggest"]>({
+    ready: false,
+    code: "",
+    reason: "",
+    hint: ""
+  })
   const [autoPass, setAutoPass] = useState(false)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState("")
@@ -87,7 +93,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
       setImageStamp(String(payload.layout.imageStamp || ""))
       setDerived(payload.layout.derived ?? null)
       if (!dirty.current) setGroups(payload.layout.groups)
-      setCanSuggest(payload.layout.canSuggest)
+      setSuggestState(payload.layout.suggest)
       // 「自动通过」也随这一页读回来：全局开关的当前值不另取一遍设置（一次读数一件事）。
       setAutoPass(Boolean(payload.layout.autoPass))
     })
@@ -109,7 +115,7 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
     if (payload === null && alive.current) setAutoPass(before)
   }
 
-  async function suggest() {
+  async function runSuggest() {
     setNote("")
     await run("suggest", () => api.aiLayoutGroups(projectRoot, target), (payload) => {
       if (!alive.current) return
@@ -150,10 +156,10 @@ export function useLayoutGroups(input: LayoutGroupsInput) {
     groups,
     setGroups: applyGroups,
     candidates,
-    canSuggest,
+    suggest: suggestState,
     autoPass,
     toggleAutoPass,
-    suggest,
+    runSuggest,
     save,
     busy,
     failure,

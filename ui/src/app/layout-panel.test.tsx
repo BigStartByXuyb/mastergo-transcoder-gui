@@ -13,6 +13,26 @@ import { drive } from "@/lib/settings-fixtures"
 
 const WORK_DIR = drive("D", "work", "task-1")
 
+/* 几种「不能问模型」的读数：后端 suggestBlocker 的原话（面板只显示，不反推）。 */
+const NO_IMAGE_SUGGEST = {
+  ready: false,
+  code: "NO_IMAGE",
+  reason: "这一步要对着设计稿位图判分组：这一页还没有传图，没有可判断的输入",
+  hint: "先在「设计稿位图」那一栏传一张本页的图；这一页没有图时分组由机械判据决定，不必问模型。"
+}
+const NO_ENTRIES_SUGGEST = {
+  ready: false,
+  code: "NO_ENTRIES",
+  reason: "这一层的条目凑不出分组（少于 2 条）：分组表里不声明任何组",
+  hint: "这一层的分组结论不由模型给；直接写一张空表（空表是合法声明）。"
+}
+const NO_CANDIDATES_SUGGEST = {
+  ready: false,
+  code: "NO_CANDIDATES",
+  reason: "还没有这一步的条目清单（Generated/_inputs/<页面>.layout-group-candidates.json）：作业A 第 8 步会把它落下来，它回答「分组表里能写哪些 ref」——先跑一次那一步",
+  hint: "跑一次作业A 第 8 步（layout）之后再来问模型。"
+}
+
 function control(ref: string, controlType: string, text: string): LayoutControl {
   return { ref: ref, controlType: controlType, text: text, absX: 0, absY: 0, w: 100, h: 40, citable: true }
 }
@@ -46,8 +66,8 @@ function stub(
     derived?: DerivedLayout
     /** 这一层的条目清单；不给就按控件清单那一拨条目给（可引用 ref 与控件一致）。 */
     candidates?: LayoutGroups["candidates"]
-    /** 「AI 辅助」有没有意义（后端那条判据）；不给我按控件数算。 */
-    canSuggest?: boolean
+    /** 「能不能问模型」那份读数（后端 suggestBlocker 的原话）；不给按「能问」算。 */
+    suggest?: LayoutGroups["suggest"]
   } = {}
 ) {
   const available = options.available !== false
@@ -99,8 +119,9 @@ function stub(
                   text: item.text
                 }))
               },
-            // 后端的口径：能不能问 AI 由它给（lib/layout-groups.js 一处算），界面照它禁用按钮。
-            canSuggest: options.canSuggest ?? (options.controls ?? CONTROLS).length >= 2,
+            // 后端的口径：能不能问模型、不能问是哪一件事都由它给（lib/layout-groups.js 的 suggestBlocker 一处算）。
+            suggest: options.suggest ?? { ready: true, code: "", reason: "", hint: "" },
+            hasImage: options.imageStamp !== "",
             autoPass: options.autoPass === true
           }
         }),
@@ -275,7 +296,8 @@ describe("LayoutPanel", () => {
               },
               groups: [],
               hasGroups: false,
-              canSuggest: true,
+              suggest: { ready: false, code: "NO_IMAGE", reason: "这一步要对着设计稿位图判分组：这一页还没有传图", hint: "" },
+              hasImage: false,
               autoPass: true
             }
           }),
@@ -347,7 +369,7 @@ describe("LayoutPanel", () => {
    */
   it("条目清单不在时：照后端那句说清，写入与 AI 辅助都不给点", async () => {
     stub({
-      canSuggest: false,
+      suggest: NO_CANDIDATES_SUGGEST,
       candidates: {
         available: false,
         reason: "还没有这一步的条目清单（Generated/_inputs/<页面>.layout-group-candidates.json）：作业A 第 8 步会把它落下来，它回答「分组表里能写哪些 ref」——先跑一次那一步。",
@@ -367,13 +389,14 @@ describe("LayoutPanel", () => {
   it("条目清单为空时：说清「这一层不参与分组」，写入照样能给（写空表）", async () => {
     let sent: { groups?: LayoutGroup[] } = {}
     stub({
-      canSuggest: false,
+      suggest: NO_ENTRIES_SUGGEST,
       onConfirm: (body) => (sent = body as { groups: LayoutGroup[] }),
       candidates: { available: true, reason: "", pageTarget: "DemoPage", entries: [] }
     })
     render(panel())
 
-    expect(await screen.findByText(/这一层的条目清单是空的：这一层不参与分组/)).toBeTruthy()
+    /* 这句是后端 suggestBlocker 的原话（NO_ENTRIES）：面板只显示，不自己推「为什么不能问」。 */
+    expect(await screen.findByText(/这一层的条目凑不出分组（少于 2 条）：分组表里不声明任何组/)).toBeTruthy()
     const button = screen.getByRole("button", { name: /写入分组表并继续/ })
     expect(button.hasAttribute("disabled")).toBe(false)
     button.click()
@@ -388,7 +411,7 @@ describe("LayoutPanel", () => {
       { ...control("1:11", "TextBlock", "标题"), citable: false }
     ]
     stub({
-      canSuggest: false,
+      suggest: NO_IMAGE_SUGGEST,
       controls: CONTROLS_WITH_ONE_OUTSIDE,
       candidates: {
         available: true,

@@ -115,7 +115,7 @@ function main() {
     // 读图状态不在这里（lib/design-image.js 一处）；hasGroups 与 canSuggest 都由后端给
     // （hasGroups 与 tables 同一次读，界面照 canSuggest 禁用「AI 辅助」）。
     // canvas 是画板尺寸（界面拿它把控件坐标换算成百分比，把编号画到图上），判据仍在 design-image 那一处。
-    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "canSuggest", "candidates", "canvas", "controls", "derived", "groups", "hasGroups", "imageStamp", "reason"]);
+    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "candidates", "canvas", "controls", "derived", "groups", "hasGroups", "hasImage", "imageStamp", "reason", "suggest"]);
     assert.deepStrictEqual(info.canvas, { width: 1280, height: 1024 }, "画板尺寸取 DSL 快照根节点");
     assert.strictEqual(info.imageStamp, "", "还没传图：图的身份是空串（判据在 lib/design-image.js 的 imageStamp）");
     // 推导结果（布局那一步的产物）这一份工程里还没有：只给一句原因，界面据此不摆空的树。
@@ -124,7 +124,7 @@ function main() {
     assert.deepStrictEqual(info.derived.regions, []);
     assert.deepStrictEqual(info.derived.unplaced, []);
     assert.deepStrictEqual(info.derived.singles, []);
-    assert.strictEqual(info.canSuggest, false, "还没传图：这一步是看图判分组，不必问模型");
+    assert.strictEqual(info.suggest.ready, false, "还没传图：这一步是看图判分组，不必问模型");
     assert.strictEqual(info.hasGroups, false, "还没写过分组表");
     assert.deepStrictEqual(
       info.candidates,
@@ -142,7 +142,7 @@ function main() {
     );
     /* 传上图之后：这一层的条目够分组，才谈得上问模型（两个条件缺一不可）。 */
     writeImage(root);
-    assert.strictEqual(layout.inspect({ projectRoot: root, target: TARGET }).canSuggest, true, "有图 + 条目够 = 可以问模型");
+    assert.strictEqual(layout.inspect({ projectRoot: root, target: TARGET }).suggest.ready, true, "有图 + 条目够 = 可以问模型");
   }
 
   /*
@@ -156,7 +156,7 @@ function main() {
     assert.strictEqual(info.candidates.available, false);
     assert.match(info.candidates.reason, /还没有这一步的条目清单/);
     assert.deepStrictEqual(info.candidates.entries, []);
-    assert.strictEqual(info.canSuggest, false, "清单不在就不必问模型");
+    assert.strictEqual(info.suggest.ready, false, "清单不在就不必问模型");
     assert.throws(
       () => layout.save({ projectRoot: root, target: TARGET, groups: [] }),
       /还没有这一步的条目清单/
@@ -175,7 +175,7 @@ function main() {
     const info = layout.inspect({ projectRoot: root, target: TARGET });
     assert.strictEqual(info.candidates.available, true);
     assert.deepStrictEqual(info.candidates.entries, []);
-    assert.strictEqual(info.canSuggest, false, "这一层凑不出组");
+    assert.strictEqual(info.suggest.ready, false, "这一层凑不出组");
     assert.throws(
       () => layout.save({ projectRoot: root, target: TARGET, groups: [{ id: "g1", kind: "column", members: ["a", "b"] }] }),
       /这一层的条目清单是空的（这一层不参与分组）：表里不声明任何组/

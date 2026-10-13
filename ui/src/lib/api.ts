@@ -277,8 +277,13 @@ export type LayoutGroups = {
   groups: LayoutGroup[]
   /** 这一页有没有分组表（空表也算有）：与「表里有什么」同一次读给出。 */
   hasGroups: boolean
-  /** 现在问 AI 有没有意义（清单不在、或这一层的条目少于阈值时不问）：判据在后端，界面只管按它禁用按钮。 */
-  canSuggest: boolean
+  /**
+   * 「能不能问模型」这份读数：ready 为假时 reason / hint 就是不能问的那件事与出路（后端 suggestBlocker 的原话）。
+   * 条件三样缺一不可：这一层的条目清单在、条目够、这一页有设计稿位图（这一步是看图判分组）。
+   */
+  suggest: { ready: boolean; code: string; reason: string; hint: string }
+  /** 这一页有没有设计稿位图：与 suggest 同一次读数（待确认那节据它算在不在布局这一步停）。 */
+  hasImage: boolean
   /** 「自动通过」是全局开关，值随这一页一起读回来（面板不必再取一遍设置）。 */
   autoPass: boolean
 }

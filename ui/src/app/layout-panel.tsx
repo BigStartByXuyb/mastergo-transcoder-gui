@@ -104,7 +104,7 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => void layout.suggest()} disabled={layout.busy || !layout.canSuggest}>
+                <Button variant="outline" size="sm" onClick={() => void layout.runSuggest()} disabled={layout.busy || !layout.suggest.ready}>
                   <Sparkles className="mr-1 h-4 w-4" />
                   AI 辅助
                 </Button>
@@ -119,10 +119,10 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
               </div>
             </div>
 
-            {/* 「AI 辅助」不给点的两种处境各说一句：图没有（这一步就是看图判分组）与清单不可用（上面已说）。 */}
-            {!layout.canSuggest && !layout.imageStamp && layout.available ? (
+            {/* 「能不能问模型、不能问是哪一件事」都照后端那句说（判据在后端 suggestBlocker，界面不反推）。 */}
+            {!layout.suggest.ready && layout.suggest.reason ? (
               <p className="text-sm text-muted-foreground">
-                这一页还没有设计稿位图：分组由机械判据决定，不必问模型；要按图判分组，先在「设计稿位图」那一栏传一张。
+                {layout.suggest.reason}：{layout.suggest.hint}
               </p>
             ) : null}
 
@@ -138,18 +138,15 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
                 {inFlightNote(writeLabel)}
               </p>
             ) : null}
-            {/* 这一层能写哪些 ref：清单不在就不给写（判据在后端 lib/layout-candidates.js，这里只照它说）。 */}
-            {!layout.candidates.available ? (
-              <p className="text-sm text-destructive">{layout.candidates.reason}</p>
-            ) : layout.candidates.entries.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                这一层的条目清单是空的：这一层不参与分组，表里不声明任何组 —— 直接点「{writeLabel}」写出空表。
-              </p>
-            ) : (
+            {/*
+             * 这一层能写哪些 ref：清单不在 / 这一层不参与分组那两种处境由上面那句（suggest 的 reason + hint）说，
+             * 这里只在真有可引用条目时报一下条数（判据在后端 lib/layout-candidates.js，界面只照它说）。
+             */}
+            {layout.candidates.available && layout.candidates.entries.length > 0 ? (
               <p className="text-sm text-muted-foreground">
                 这一层的可引用条目（{layout.candidates.entries.length}）：分组表里的 ref 只能从这些条目里取。
               </p>
-            )}
+            ) : null}
             {layout.groups.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 没有要声明的分组：直接点「{writeLabel}」，它写出空分组表，布局推导按机械判据走；

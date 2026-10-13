@@ -307,4 +307,7 @@
 | 2026-10-13 第 85 遍 | REVIEW-001 | 「要不要问模型 / 输入够不够」的判据散在三处、条件已不同，模型层那条无图分支是死路 | 已收 | 收成一个 `suggestBlocker`（`lib/layout-groups.js`）：`inspect` 的 `canSuggest` 与 `candidatesInput` 的抛错都读它；模型层的「条目不够就回空」早退、`LAYOUT_NO_IMAGE_NOTE` 与无图分支一并删掉（到这里一定是清单在、条目够、有位图，看图那几句无条件拼） |
 | 2026-10-13 第 85 遍 | REVIEW-002 | 清单为空（这一层不参与分组）时，面板仍把全部未分组控件列成「不在这一层条目里、不能写进分组表」 | 已收 | 分拨再加「条目非空」这一条（`entries.length > 0`）；清单不在与清单为空两种处境都不分拨、也不逐名列控件，只说上面那一句 |
 | 2026-10-13 第 86 遍 | REVIEW-001 | 「输入够不够」的判据在两处各算一遍，同一份条目清单与位图被重复读 | 已收 | `suggestBlocker` 加一个「已读到的读数」入参：`inspect` 把自己读到的 candidates / hasImage 传进去，`candidatesInput` 也先各读一次再传 —— 判据仍只有一处，一次请求里那两样各只读一遍 |
+| 2026-10-13 第 87 遍 | REVIEW-001 | 一次 `/api/pending` 里「有没有位图」被读两遍，`needsGroups` 与 `canSuggest` 各按自己那份判 | 已收 | `inspect` 把这次读数里的 `hasImage` 一并交出；`lib/pending.js` 的布局一节不再自己读图（`designImage.hasImage` 只剩 `inspect` 一处调） |
+| 2026-10-13 第 87 遍 | REVIEW-002 | 面板用 `!canSuggest && !imageStamp` 反推「为什么不能问模型」，与后端判据成了两份（清单不在又没图时还多挂一句误导的「传一张图」） | 已收 | 后端把 `canSuggest` 换成整条读数 `suggest: { ready, code, reason, hint }`（就是 `suggestBlocker` 的原话）；面板只显示那句话，不再由布尔反推；写回那条路仍读 `candidates` |
+| 2026-10-13 第 87 遍 | 非阻断 | `api.ts` 与 `pending.js` 对 `canSuggest` 的注释漏了「没有位图时不问」 | 已收 | 两处随 `suggest` 改名一并写全三条前提（清单在 / 条目够 / 有位图） |
 

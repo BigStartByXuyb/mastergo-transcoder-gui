@@ -40,7 +40,7 @@ function stub(hooks: { onConfirm?: (body: unknown) => void } = {}) {
             ],
             groups: SERVER_GROUPS,
             hasGroups: true,
-            canSuggest: true,
+            suggest: { ready: true, code: "", reason: "", hint: "" },
             candidates: {
               available: true,
               reason: "",
@@ -109,7 +109,7 @@ describe("useLayoutGroups", () => {
     await waitFor(() => expect(result.current.groups.length).toBe(1))
 
     await act(async () => {
-      await result.current.suggest()
+      await result.current.runSuggest()
     })
     expect(result.current.groups[0].id).toBe("FromAi")
 
@@ -129,7 +129,7 @@ describe("useLayoutGroups", () => {
         new Response(
           JSON.stringify({
             ok: true,
-            layout: { available: true, reason: "", controls: [], groups: SERVER_GROUPS, hasGroups: true, canSuggest: false }
+            layout: { available: true, reason: "", controls: [], groups: SERVER_GROUPS, hasGroups: true, suggest: { ready: false, code: "NO_IMAGE", reason: "这一步要对着设计稿位图判分组：这一页还没有传图，没有可判断的输入", hint: "" } }
           }),
           { status: 200 }
         )
