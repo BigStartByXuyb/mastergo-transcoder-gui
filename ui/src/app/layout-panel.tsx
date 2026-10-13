@@ -15,7 +15,6 @@ import {
   addGroup,
   labelOf,
   moveMember,
-  refsOfDerived,
   removeGroup,
   removeMember,
   ungroupedControls
@@ -47,15 +46,14 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
   const [newKind, setNewKind] = useState<"column" | "row">("column")
   /* 鼠标停在哪一组上：那一组的成员在画布上描出来（容器自己的框就盖住它里面的控件）。 */
   const [hoveredGroup, setHoveredGroup] = useState("")
-  /* 布局树上选中的那一行：只存「选的是哪一行」，要高亮哪些控件由 refsOfDerived 现算。 */
-  const [treePicked, setTreePicked] = useState("")
+  /* 布局树上选中的那一行：存这一行的 key 与它盖住的控件（两者都由 LayoutTree 一处给，界面不自己反解）。 */
+  const [treePick, setTreePick] = useState<{ key: string; refs: string[] }>({ key: "", refs: [] })
   /* 换一页（工程目录或 Target 变了）就把树上选中的那一行清掉：同一页的身份是这两个一起。 */
-  useEffect(() => setTreePicked(""), [input.projectRoot, input.target])
+  useEffect(() => setTreePick({ key: "", refs: [] }), [input.projectRoot, input.target])
   const ungrouped = ungroupedControls(layout.controls, layout.groups)
   const canvas = layout.canvas
   const hovered = layout.groups.find((group) => group.id === hoveredGroup)?.members ?? []
-  const treeRefs = refsOfDerived(layout.derived, treePicked)
-  const highlight = [...new Set([...treeRefs, ...hovered])]
+  const highlight = [...new Set([...treePick.refs, ...hovered])]
 
   function createGroup() {
     layout.setGroups(addGroup(layout.groups, newId, newKind))
@@ -142,8 +140,8 @@ export function LayoutPanel({ state, ...input }: LayoutPanelProps) {
               <LayoutTree
                 derived={layout.derived}
                 controls={layout.controls}
-                selected={treePicked}
-                onPick={(key) => setTreePicked(treePicked === key ? "" : key)}
+                selected={treePick.key}
+                onPick={(key, refs) => setTreePick(treePick.key === key ? { key: "", refs: [] } : { key, refs })}
               />
             </div>
 

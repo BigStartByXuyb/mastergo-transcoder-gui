@@ -85,12 +85,13 @@ function main() {
     assert.strictEqual(info.derived.available, false);
     assert.match(info.derived.reason, /布局那一步跑完/);
     assert.deepStrictEqual(info.derived.regions, []);
-    assert.deepStrictEqual(info.derived.unresolved, []);
+    assert.deepStrictEqual(info.derived.unplaced, []);
+    assert.deepStrictEqual(info.derived.singles, []);
     assert.strictEqual(info.canSuggest, true, "三个控件够分组");
     assert.strictEqual(info.hasGroups, false, "还没写过分组表");
   }
 
-  // 推导结果：分区 → 行/列 → 格子 + 没归宿的那几条（都从布局那一步的两份产物里读）。
+  // 推导结果：分区 → 组（装着子网格的格子）→ 控件 + 摆不进树的那几条（都从布局那一步的两份产物里读）。
   {
     const root = sandbox();
     fs.writeFileSync(
@@ -105,8 +106,8 @@ function main() {
               rows: [{}, {}],
               columns: [{}, {}, {}],
               cells: [
-                { ref: "a", row: 1, column: 2, rowSpan: 1, columnSpan: 1 },
-                { ref: "c", row: 2, column: 1, rowSpan: 2, columnSpan: 1 }
+                { ref: "c", row: 2, column: 1 },
+                { ref: "a", row: 1, column: 2 }
               ]
             }
           }
@@ -138,12 +139,13 @@ function main() {
           columns: [{ star: false, pixels: 0 }, { star: false, pixels: 0 }, { star: false, pixels: 0 }]
         },
         cells: [
-          { ref: "a", container: false, axis: "", name: "", controlType: "", row: 1, column: 2, rowSpan: 1, columnSpan: 1, children: [], refs: ["a"] },
-          { ref: "c", container: false, axis: "", name: "", controlType: "", row: 2, column: 1, rowSpan: 2, columnSpan: 1, children: [], refs: ["c"] }
+          /* 产物那一列是倒着写的，出去按行列排。 */
+          { ref: "a", axis: "", controlType: "", children: [], refs: ["a"], row: 1, column: 2 },
+          { ref: "c", axis: "", controlType: "", children: [], refs: ["c"], row: 2, column: 1 }
         ]
       }
     ]);
-    assert.deepStrictEqual(info.derived.unresolved, [{ ref: "b", reason: "单条目栏：几何判不出它跟谁同组" }]);
+    assert.deepStrictEqual(info.derived.singles, [{ ref: "b", reason: "单条目栏：几何判不出它跟谁同组" }]);
   }
 
   // 写回分组表并读回。

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 
-// 作业A 第 8 步推出来的布局：产物在不在、字段怎么归一、没归宿的从同趟报告取。
+// 作业A 第 8 步推出来的布局：产物在不在、字段怎么归一、同层怎么排、摆不进树的从同趟报告取。
 // 跑法：node tests/derived-layout.test.js
 
 const assert = require("assert");
@@ -33,41 +33,22 @@ function read(root) {
 }
 
 /*
- * 期望里的一个顶层格子：与界面那侧的夹具（ui/src/lib/layout-fixtures.ts）同形，只是这里用 JS 写。
- * 顶层带行列，产物之外的那几样（类型 / 子网格 / 容器标记）缺省时是空串、空表与 false。
+ * 期望里的一个格子：与界面那侧的夹具（ui/src/lib/layout-fixtures.ts）同形，只是这里用 JS 写。
+ * 行列是「在这一层网格的第几行第几列」；装了子网格的格子带上那一层的行列带。
  */
-function cell(ref, controlType, row, column, rowSpan, columnSpan, children, container) {
+function cell(ref, controlType, row, column, children, axis, childBands) {
   const kids = children || [];
-  return {
+  const shape = {
     ref: ref,
-    container: Boolean(container),
-    /* 容器的方向与层名：产物/快照没给就是空串，界面按「方向不明 / 用清单里的名字」显示。 */
-    axis: "",
-    name: "",
+    axis: axis || "",
     controlType: controlType || "",
+    children: kids,
+    refs: [ref, ...kids.flatMap(function (item) { return item.refs; })],
     row: row,
-    column: column,
-    rowSpan: rowSpan === undefined ? 1 : rowSpan,
-    columnSpan: columnSpan === undefined ? 1 : columnSpan,
-    children: kids,
-    refs: [ref, ...kids.flatMap((item) => item.refs)]
+    column: column
   };
-}
-
-/* 期望里的一个子格子：它挂在父格子下，不带行列。 */
-function child(ref, controlType, rowSpan, columnSpan, children, container) {
-  const kids = children || [];
-  return {
-    ref: ref,
-    container: Boolean(container),
-    axis: "",
-    name: "",
-    controlType: controlType || "",
-    rowSpan: rowSpan === undefined ? 1 : rowSpan,
-    columnSpan: columnSpan === undefined ? 1 : columnSpan,
-    children: kids,
-    refs: [ref, ...kids.flatMap((item) => item.refs)]
-  };
+  if (kids.length > 0) shape.bands = childBands || { rows: [], columns: [] };
+  return shape;
 }
 
 function caseNoProduct() {
@@ -76,7 +57,8 @@ function caseNoProduct() {
   assert.strictEqual(state.available, false, "产物不在就没有可显示的东西");
   assert.match(state.reason, /还没有推导产物/, "给界面一句话照实显示");
   assert.deepStrictEqual(state.regions, []);
-  assert.deepStrictEqual(state.unresolved, []);
+  assert.deepStrictEqual(state.unplaced, []);
+  assert.deepStrictEqual(state.singles, []);
   fs.rmSync(root, { recursive: true, force: true });
 }
 
@@ -95,7 +77,9 @@ function caseBrokenProduct() {
 
 /* 不读产物时给的空读数与「读不到产物」同形：调用方按同一套字段用，不分两支。 */
 function caseEmptyDerived() {
-  assert.deepStrictEqual(derivedLayout.emptyDerived(), { available: false, reason: "", regions: [], unresolved: [] });
+  assert.deepStrictEqual(derivedLayout.emptyDerived(), {
+    available: false, reason: "", regions: [], unplaced: [], singles: []
+  });
   assert.strictEqual(derivedLayout.emptyDerived("还没跑").reason, "还没跑");
 }
 
@@ -113,8 +97,8 @@ function caseRegions() {
             rows: [{ size: "Pixel", value: 1 }, { size: "Star" }],
             columns: [{ size: "Pixel", value: 1 }, { size: "Pixel", value: 2 }, { size: "Star" }],
             cells: [
-              { ref: "1:9", controlType: "Camera", row: 1, column: 2 },
-              { ref: "1:10", controlType: "TextBlock", row: 1, column: 3, rowSpan: 2, columnSpan: 1 }
+              { ref: "1:10", controlType: "TextBlock", row: 1, column: 3 },
+              { ref: "1:9", controlType: "Camera", row: 1, column: 2 }
             ]
           }
         },
@@ -127,7 +111,7 @@ function caseRegions() {
   assert.strictEqual(state.available, true);
   assert.strictEqual(state.reason, "");
 
-  // 出去的就是这几样：名字 / 发不发射 / 行带列带 / 格子；网格维度不往界面搬（有哪几行由界面按格子现算）。
+  // 出去的就是这几样：名字 / 发不发射 / 行带列带 / 格子（同层按行列排好了）。
   assert.deepStrictEqual(state.regions[0], {
     /* 夹具给这两条带写的不是产物的 {size,value} 形状：认不出 Star，像素也读成 0（照实给）。 */
     id: "top-strip",
@@ -145,7 +129,8 @@ function caseRegions() {
       rows: [{ star: false, pixels: 1 }, { star: true, pixels: 0 }],
       columns: [{ star: false, pixels: 1 }, { star: false, pixels: 2 }, { star: true, pixels: 0 }]
     },
-    cells: [cell("1:9", "Camera", 1, 2), cell("1:10", "TextBlock", 1, 3, 2, 1)]
+    /* 产物那一列是按位置倒着写的，出去按行列排：第 1 行第 2 列在前。 */
+    cells: [cell("1:9", "Camera", 1, 2), cell("1:10", "TextBlock", 1, 3)]
   });
   assert.deepStrictEqual(state.regions[2], {
     id: "no-grid", name: "no-grid", emit: true, bands: { rows: [], columns: [] }, cells: []
@@ -155,8 +140,9 @@ function caseRegions() {
 }
 
 /*
- * 格子里还套着格子：子网格照带出去、套几层带几层（子层挂在父格子下，不带行列）。
- * 容器那层标记剥掉交出去（界面不认识它），容器自己列在子网格里的那一条也不重复记。
+ * 格子里还套着格子：子网格照带出去、套几层带几层。
+ * 容器那层前缀剥掉交出去（界面不认识它），容器自己列在子网格里的那一条也不重复记；
+ * 装了子网格的格子带上自己那一层的行列带（它是界面上的「组」）。
  */
 function caseNestedCells() {
   const root = sandbox();
@@ -176,7 +162,10 @@ function caseNestedCells() {
                 ref: "synth:9:1",
                 row: 1,
                 column: 1,
+                synthAxis: "y",
                 children: {
+                  rows: [{ size: "Pixel", value: 1 }, { size: "Star" }],
+                  columns: [{ size: "Pixel", value: 2 }],
                   cells: [
                     /* 容器自己那一条：不重复记，它的孩子并上来。 */
                     { ref: "9:1", row: 0, column: 0 },
@@ -193,22 +182,107 @@ function caseNestedCells() {
     "utf8"
   );
   assert.deepStrictEqual(read(root).regions[0].cells, [
-    cell("9:1", "", 1, 1, 1, 1, [
-      child("9:2", "IconButton"),
-      child("9:3", "", 1, 1, [child("9:4", "TextBlock")])
-    ], true)
+    cell("9:1", "", 1, 1, [
+      cell("9:2", "IconButton", 0, 0),
+      cell("9:3", "", 1, 0, [cell("9:4", "TextBlock", 0, 0)])
+    ], "column", {
+      rows: [{ star: false, pixels: 1 }, { star: true, pixels: 0 }],
+      columns: [{ star: false, pixels: 2 }]
+    })
   ]);
   fs.rmSync(root, { recursive: true, force: true });
 }
 
-/* 没归宿的几条从同趟报告取：报告不在 / 不是数组 / 字段缺了都只是「没有那几条」。 */
-function caseUnresolved() {
+/*
+ * 一格往哪个方向排：合成容器看 synthAxis（y/x），成层的容器看它那一层网格的 owner.direction，
+ * 两样都没给就是空串（界面照实说「方向不明」，不拿行列数替它推一个）。
+ */
+function caseAxis() {
+  const root = sandbox();
+  fs.writeFileSync(
+    productFile(root),
+    JSON.stringify({
+      regions: [
+        {
+          id: "work-area",
+          name: "工作区",
+          emit: true,
+          grid: {
+            rows: [1],
+            columns: [1],
+            cells: [
+              { ref: "synth:a", row: 0, column: 0, synthAxis: "y", children: { cells: [{ ref: "a1", row: 0, column: 0 }] } },
+              { ref: "synth:b", row: 0, column: 1, synthAxis: "x", children: { cells: [{ ref: "b1", row: 0, column: 0 }] } },
+              {
+                ref: "c", row: 0, column: 2,
+                children: { owner: { direction: "column" }, cells: [{ ref: "c1", row: 0, column: 0 }] }
+              },
+              { ref: "d", row: 0, column: 3, children: { cells: [{ ref: "d1", row: 0, column: 0 }] } },
+              { ref: "e", row: 1, column: 0 }
+            ]
+          }
+        }
+      ]
+    }),
+    "utf8"
+  );
+  const directions = read(root).regions[0].cells.map(function (item) { return [item.ref, item.axis]; });
+  assert.deepStrictEqual(directions, [
+    ["a", "column"],
+    ["b", "row"],
+    ["c", "column"],
+    ["d", ""],
+    ["e", ""]
+  ]);
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
+/* 同层先后：行优先、列次之；子网格里那一层也一样。 */
+function caseSiblingOrder() {
+  const root = sandbox();
+  fs.writeFileSync(
+    productFile(root),
+    JSON.stringify({
+      regions: [
+        {
+          id: "work-area",
+          name: "工作区",
+          emit: true,
+          grid: {
+            rows: [1, 1],
+            columns: [1, 1],
+            cells: [
+              { ref: "r2c2", row: 2, column: 2 },
+              { ref: "r1c3", row: 1, column: 3 },
+              { ref: "r1c1", row: 1, column: 1 },
+              {
+                ref: "group", row: 3, column: 1,
+                children: { cells: [{ ref: "g2", row: 2, column: 1 }, { ref: "g1", row: 1, column: 1 }] }
+              }
+            ]
+          }
+        }
+      ]
+    }),
+    "utf8"
+  );
+  const cells = read(root).regions[0].cells;
+  assert.deepStrictEqual(cells.map(function (item) { return item.ref; }), ["r1c1", "r1c3", "r2c2", "group"]);
+  assert.deepStrictEqual(cells[3].children.map(function (item) { return item.ref; }), ["g1", "g2"]);
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
+/*
+ * 插件报的单条目栏从同趟报告取：它们在树上有位置，所以另摆一块（不与「摆不进树」混在一起）。
+ * 报告不在 / 不是数组 / 字段缺了都只是「没有那几条」。
+ */
+function caseSingles() {
   const root = sandbox();
   fs.writeFileSync(productFile(root), JSON.stringify({ regions: [] }), "utf8");
-  assert.deepStrictEqual(read(root).unresolved, [], "报告不在就没有没归宿的");
+  assert.deepStrictEqual(read(root).singles, [], "报告不在就没有单条目栏");
 
   fs.writeFileSync(reportFile(root), JSON.stringify({ unresolved: "nope" }), "utf8");
-  assert.deepStrictEqual(read(root).unresolved, []);
+  assert.deepStrictEqual(read(root).singles, []);
 
   fs.writeFileSync(
     reportFile(root),
@@ -216,13 +290,14 @@ function caseUnresolved() {
     "utf8"
   );
   const state = read(root);
-  assert.deepStrictEqual(state.unresolved[0], { ref: "1:11", reason: "单条目栏：几何判不出它跟谁同组" });
-  assert.deepStrictEqual(state.unresolved[1], { ref: "", reason: "" }, "缺字段的照空串给，不自造说法");
+  assert.deepStrictEqual(state.singles[0], { ref: "1:11", reason: "单条目栏：几何判不出它跟谁同组" });
+  assert.deepStrictEqual(state.singles[1], { ref: "", reason: "" }, "缺字段的照空串给，不自造说法");
+  assert.deepStrictEqual(state.unplaced, [], "单条目栏不是「摆不进树」：两件事各说各的");
 
   fs.rmSync(root, { recursive: true, force: true });
 }
 
-/* 报告那条出口也剥容器那层标记：两路 ref 交给界面时是同一副样子。 */
+/* 报告那条出口也剥容器那层前缀：两路 ref 交给界面时是同一副样子。 */
 function caseReportRefStripped() {
   const root = sandbox();
   fs.writeFileSync(productFile(root), JSON.stringify({ regions: [] }), "utf8");
@@ -231,14 +306,14 @@ function caseReportRefStripped() {
     JSON.stringify({ unresolved: [{ ref: "synth:1872:59913", reason: "单条目栏：几何判不出它跟谁同组" }] }),
     "utf8"
   );
-  assert.deepStrictEqual(read(root).unresolved, [
+  assert.deepStrictEqual(read(root).singles, [
     { ref: "1872:59913", reason: "单条目栏：几何判不出它跟谁同组" }
   ]);
   fs.rmSync(root, { recursive: true, force: true });
 }
 
 /*
- * 一格读不出行列坐标（缺字段 / 空串 / 布尔 / 非整数 / 负数）：不拿一个位置顶上，照「没归宿」说给界面。
+ * 一格读不出行列坐标（缺字段 / 空串 / 布尔 / 非整数 / 负数）：不拿一个位置顶上，照「摆不进树」说给界面。
  * 注意「0 起」不是读不出 —— 产物那侧有从 0 起也有从 1 起的，非负整数都算数。
  */
 function caseCellWithoutPosition() {
@@ -274,8 +349,8 @@ function caseCellWithoutPosition() {
     "utf8"
   );
   const state = read(root);
-  assert.deepStrictEqual(state.regions[0].cells, [cell("1:9", "", 1, 1), cell("1:10", "", 0, 0)]);
-  assert.deepStrictEqual(state.unresolved, [
+  assert.deepStrictEqual(state.regions[0].cells, [cell("1:10", "", 0, 0), cell("1:9", "", 1, 1)]);
+  assert.deepStrictEqual(state.unplaced, [
     { ref: "1:11", reason: "推导产物里这一格没有行列坐标" },
     { ref: "1:12", reason: "推导产物里这一格没有行列坐标" },
     { ref: "1:13", reason: "推导产物里这一格没有行列坐标" },
@@ -288,7 +363,10 @@ function caseCellWithoutPosition() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
-/* 摆不进树的那一格里面还装着控件：它们不能跟着消失，整棵子树照「外面那格没坐标」记出去。 */
+/*
+ * 摆不进树的那一格里面还装着控件：它们不能跟着消失，整棵子树照「外面那格没坐标」记出去。
+ * 容器自己列在子网格里的那一条不算一格（它的坐标本来就不参与），不跟着变成一条「摆不进树」。
+ */
 function caseContainerWithoutPosition() {
   const root = sandbox();
   fs.writeFileSync(
@@ -310,7 +388,7 @@ function caseContainerWithoutPosition() {
                     /* 容器自己那一条：不重复记。 */
                     { ref: "9:1" },
                     { ref: "9:2", controlType: "IconButton", row: 0, column: 0 },
-                    { ref: "9:3" }
+                    { ref: "9:3", controlType: "TextBlock", row: 1, column: 0 }
                   ]
                 }
               }
@@ -323,7 +401,7 @@ function caseContainerWithoutPosition() {
   );
   const state = read(root);
   assert.deepStrictEqual(state.regions[0].cells, []);
-  assert.deepStrictEqual(state.unresolved, [
+  assert.deepStrictEqual(state.unplaced, [
     { ref: "9:1", reason: "推导产物里这一格没有行列坐标" },
     { ref: "9:2", reason: "外面那一格没有行列坐标，里面的控件摆不进树" },
     { ref: "9:3", reason: "外面那一格没有行列坐标，里面的控件摆不进树" }
@@ -331,8 +409,11 @@ function caseContainerWithoutPosition() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
-/* 跨度：没给或给得不合法都按 1 —— 跨度只在这一处归一，界面直接用。 */
-function caseSpans() {
+/*
+ * 子网格里的一格读不出坐标：它自己摆不进树（整棵子树照同一原因记出去），
+ * 但外面那一层照常摆出来 —— 少的是那一格，不是那一整组。
+ */
+function caseNestedCellWithoutPosition() {
   const root = sandbox();
   fs.writeFileSync(
     productFile(root),
@@ -346,10 +427,18 @@ function caseSpans() {
             rows: [1],
             columns: [1],
             cells: [
-              { ref: "1:9", row: 1, column: 1, rowSpan: 0, columnSpan: -2 },
-              { ref: "1:10", row: 2, column: 1, rowSpan: 2, columnSpan: 3 },
-              /* 数字串与布尔不算数（与坐标同一条类型口径）。 */
-              { ref: "1:11", row: 3, column: 1, rowSpan: "2", columnSpan: true }
+              {
+                ref: "group", row: 1, column: 1,
+                children: {
+                  cells: [
+                    { ref: "g1", controlType: "TextBlock", row: 0, column: 0 },
+                    {
+                      ref: "g2", column: 1,
+                      children: { cells: [{ ref: "g3", controlType: "TextBlock", row: 0, column: 0 }] }
+                    }
+                  ]
+                }
+              }
             ]
           }
         }
@@ -357,10 +446,13 @@ function caseSpans() {
     }),
     "utf8"
   );
-  assert.deepStrictEqual(read(root).regions[0].cells, [
-    cell("1:9", "", 1, 1),
-    cell("1:10", "", 2, 1, 2, 3),
-    cell("1:11", "", 3, 1)
+  const state = read(root);
+  assert.deepStrictEqual(state.regions[0].cells, [
+    cell("group", "", 1, 1, [cell("g1", "TextBlock", 0, 0)], "", { rows: [], columns: [] })
+  ]);
+  assert.deepStrictEqual(state.unplaced, [
+    { ref: "g2", reason: "推导产物里这一格没有行列坐标" },
+    { ref: "g3", reason: "外面那一格没有行列坐标，里面的控件摆不进树" }
   ]);
   fs.rmSync(root, { recursive: true, force: true });
 }
@@ -370,13 +462,15 @@ try {
     ["这一步还没跑过：说一句原因，不摆空的树", caseNoProduct],
     ["产物在但读不出 regions：按没有算", caseBrokenProduct],
     ["不读产物时的空读数", caseEmptyDerived],
-    ["分区与格子归一（只注册 / 缺字段 / 缺网格）", caseRegions],
-    ["格子里还套着格子（子网格照带出去）", caseNestedCells],
-    ["没归宿的从同趟报告取", caseUnresolved],
-    ["报告那条出口也剥容器标记", caseReportRefStripped],
-    ["一格读不出坐标：照「没归宿」说，不拿一个位置顶上", caseCellWithoutPosition],
+    ["分区与格子归一（只注册 / 缺字段 / 缺网格 / 同层排序）", caseRegions],
+    ["格子里还套着格子（子网格照带出去，容器那层前缀剥掉）", caseNestedCells],
+    ["一格往哪个方向排照产物给（合成容器与成层容器各一处）", caseAxis],
+    ["同层的先后按行列（子网格里那一层也一样）", caseSiblingOrder],
+    ["单条目栏从同趟报告取（与「摆不进树」分开）", caseSingles],
+    ["报告那条出口也剥容器前缀", caseReportRefStripped],
+    ["一格读不出坐标：照「摆不进树」说，不拿一个位置顶上", caseCellWithoutPosition],
     ["摆不进树的容器：里面的控件跟着记出去", caseContainerWithoutPosition],
-    ["跨度按至少 1 归一", caseSpans]
+    ["子网格里的一格读不出坐标：那一格不摆，那一组照常", caseNestedCellWithoutPosition]
   ];
   for (const [name, run] of cases) {
     run();

@@ -1,23 +1,25 @@
-import type { DerivedLayout, LayoutBand, LayoutChild, LayoutControl } from "@/lib/api"
-import {
-  controlLineKey,
-  displayNameOf,
-  groupsOf,
-  groupKey,
-  numberOf,
-  regionKey,
-  shapeOfRegion,
-  UNRESOLVED_KEY
-} from "@/lib/layout-edit"
+import type { DerivedLayout, LayoutBand, LayoutCell, LayoutControl } from "@/lib/api"
+import { displayNameOf, numberOf } from "@/lib/layout-edit"
 import { cn } from "@/lib/utils"
 
 /*
- * 布局树：作业A **第 8 步推出来的布局**，摆成正常的树 —— 分区 → 组（分区里的某一行）→ 格子 → 格子里的格子。
+ * 布局树：作业A **第 8 步推出来的布局**，摆成正常的树 —— 分区 → 组（装着子网格的格子，可以再套）→ 控件。
  *
- * 每一行都带得起「人怎么指它」的名字：控件行是它的号加名字（#6 Camera；清单里没有的按产物给的类型或 ref 显示），
- * 组行是它在这个分区里的号（组 #2）。
- * 点一行，把它盖住的控件在画布上描出来（key → refs 只有 refsOfDerived 一处）。
+ * 组行说两件事：它是这一层里的第几个组、往哪个方向排（方向是产物给的，没给就说方向不明）；
+ * 控件行说它在清单里的号加名字（#6 Camera；清单里没有的按产物给的类型或 ref 显示）。
+ * 点一行，把它盖住的控件在画布上描出来 —— 那一行的 refs 由读视图一处摊平，界面不自己再算一遍。
+ *
+ * 树下面另摆两份读数（都在树上没位置的那几条谈不上，所以分开说）：
+ *   摆不进树的 —— 产物里读不出行列坐标的格子，界面摆不出来；
+ *   插件报的单条目栏 —— 没进任何组的散条目，它们在树上照旧有位置。
  */
+
+/* 树上的每一行：key 是这一行的身份（React key 与选中态都用它），hit 是点它要描的控件。 */
+type TreeLine = { key: string; depth: number; kind: "region" | "group" | "control"; label: string; hit: string[] }
+
+/* 树下面那两行的 key：它们不属于任何分区，就各自一句。 */
+const UNPLACED_KEY = "unplaced"
+const SINGLES_KEY = "singles"
 
 /* 一个控件在树上的名字：清单里有它就用清单的（号 + value），没有就退回产物给的类型，再没有才是 ref。 */
 function nameOf(controls: LayoutControl[], ref: string, controlType: string): string {
@@ -26,81 +28,139 @@ function nameOf(controls: LayoutControl[], ref: string, controlType: string): st
   return controlType || displayNameOf(controls, ref)
 }
 
-/* 吃剩余的那几条带（第几条，1 起）：行/列标题上要标 * 的号 —— 判据只有这一处。 */
+/* 一条带是不是吃剩余（*）：第几条（1 起）—— 行带列带共用这一处。 */
 function starBands(bands: LayoutBand[] | undefined): number[] {
   return (bands ?? []).map((band, index) => (band.star ? index + 1 : 0)).filter((index) => index > 0)
 }
 
-/* 一个格子在树上的文案：名字 + 它是不是容器（垂直/水平布局）/ 跨了几行几列（都是产物给的事实）。 */
-function cellLabel(controls: LayoutControl[], cell: LayoutChild): string {
-  const marks: string[] = []
-  if (cell.container) {
-    const axis = cell.axis === "column" ? "垂直布局" : cell.axis === "row" ? "水平布局" : "方向不明"
-    marks.push("组：" + axis)
-  }
-  if (cell.rowSpan > 1 || cell.columnSpan > 1) marks.push("跨 " + cell.rowSpan + " 行 × " + cell.columnSpan + " 列")
-  /*
-   * 名字：容器优先用 DSL 给的那个层名（产物不带名字）；容器没有层名时也要看得出它是容器，
-   * 所以给「容器 <ref>」——不编名字，但也不留一个读不出是什么的裸 ref。叶子照旧按清单那条。
-   */
-  const name = cell.container ? cell.name || "容器 " + cell.ref : nameOf(controls, cell.ref, cell.controlType)
-  return marks.length > 0 ? name + "（" + marks.join("，") + "）" : name
+/*
+ * 一层网格里谁吃剩余怎么写：行、列各一段，都没有就是空串 —— 分区行与组行共用这一处。
+ * 只有一条带的那种方向不写：那一条必然占满整层，说「它吃剩余」等于没说什么。
+ */
+function starNote(bands: { rows: LayoutBand[]; columns: LayoutBand[] } | undefined): string {
+  const rows = starBands(bands?.rows)
+  const columns = starBands(bands?.columns)
+  const parts: string[] = []
+  if (rows.length > 0 && (bands?.rows.length ?? 0) > 1) parts.push("第 " + rows.join("、") + " 行")
+  if (columns.length > 0 && (bands?.columns.length ?? 0) > 1) parts.push("第 " + columns.join("、") + " 列")
+  return parts.length > 0 ? " · " + parts.join("、") + "吃剩余（*）" : ""
 }
 
-/* 树上的每一行（纯数据）：key / 缩进 / 是否加粗 / 文案 —— 从哪里来（分区/组/格子/没归宿）只在这一处拼。 */
-type TreeLine = { key: string; depth: number; strong: boolean; label: string }
+/* 这一层网格几行几列（按产物给的带数）；没有带就不写这两数。 */
+function shapeNote(bands: { rows: LayoutBand[]; columns: LayoutBand[] } | undefined): string {
+  if (!bands || bands.rows.length === 0) return ""
+  return " · " + bands.rows.length + " 行 × " + bands.columns.length + " 列"
+}
 
-/* 一格连同它里面装着的那几层：套几层就往下摆几层。 */
-function pushCell(
+/* 组往哪个方向排：照产物给的方向念，产物没给就说方向不明。 */
+function axisLabel(axis: LayoutCell["axis"]): string {
+  return axis === "column" ? "垂直布局" : axis === "row" ? "水平布局" : "方向不明"
+}
+
+/*
+ * 一层格子摆成一组行：是组的先摆一行、再往里摆一层，是控件的直接摆一行。
+ * 组的序号是「这一层里的第几个组」；这一格的 ref 在清单里（例如 GroupBox 这类自己也带子网格的控件）时，
+ * 连它的号与名字一起写出来 —— 与画布上的号对得上。
+ */
+function pushCells(
   lines: TreeLine[],
   regionId: string,
-  group: number,
+  cells: LayoutCell[],
   path: string[],
-  cell: LayoutChild,
   depth: number,
   controls: LayoutControl[]
 ) {
-  const next = [...path, cell.ref]
-  lines.push({ key: controlLineKey(regionId, group, next), depth: depth, strong: true, label: cellLabel(controls, cell) })
-  for (const child of cell.children) pushCell(lines, regionId, group, next, child, depth + 1, controls)
+  let group = 0
+  for (const cell of cells) {
+    const next = [...path, cell.ref]
+    const line = { key: lineKey(regionId, next), depth: depth, hit: cell.refs }
+    if (cell.children.length > 0) {
+      group += 1
+      const own = numberOf(controls, cell.ref)
+      lines.push({
+        ...line,
+        kind: "group",
+        label:
+          "组 " + group + "（" + axisLabel(cell.axis) + "）" +
+          (own > 0 ? " · " + nameOf(controls, cell.ref, cell.controlType) : "") +
+          starNote(cell.bands)
+      })
+      pushCells(lines, regionId, cell.children, next, depth + 1, controls)
+      continue
+    }
+    lines.push({ ...line, kind: "control", label: nameOf(controls, cell.ref, cell.controlType) })
+  }
+}
+
+/* 分区那一行的 key；往下每套一层接一段 ref（只用来认这一行，不再从 key 反解控件）。 */
+function lineKey(regionId: string, path: string[]): string {
+  return "region:" + regionId + path.map((ref) => "/ref:" + ref).join("")
 }
 
 function linesOfDerived(derived: DerivedLayout, controls: LayoutControl[]): TreeLine[] {
   const lines: TreeLine[] = []
   for (const region of derived.regions) {
-    const shape = shapeOfRegion(region)
-    /* 行列都按格子算（与下面摆出来的组、格子同一处口径）；一个格子都没有的分区就不写这两数。 */
-    const size = shape.rows > 0 ? " · " + shape.rows + " 行 × " + shape.columns + " 列" : ""
-    /* 列带里吃剩余的那几条：窗口变大时变宽的就是它们（行带在下面每一行上标）。 */
-    const starColumns = starBands(region.bands?.columns)
-    const columnsNote = starColumns.length > 0 ? " · 第 " + starColumns.join("、") + " 列吃剩余（*）" : ""
     lines.push({
-      key: regionKey(region.id),
+      key: lineKey(region.id, []),
       depth: 0,
-      strong: true,
-      label: region.name + " · " + (region.emit ? "发射" : "只注册") + size + columnsNote
+      kind: "region",
+      hit: region.cells.flatMap((cell) => cell.refs),
+      label:
+        region.name + " · " + (region.emit ? "发射" : "只注册") +
+        shapeNote(region.bands) + starNote(region.bands)
     })
-    const starRows = starBands(region.bands?.rows)
-    /*
-     * 每一组展开的是「从这一行起始的格子」—— 跨行的只在它起始的那一组里展开一次（跨了几行已经写在标签里），
-     * 否则一个跨 6 行的容器会把整棵子树在 6 个组里各复制一遍。点某一组时画布上照旧会描出盖住它的控件。
-     */
-    groupsOf(region).forEach(({ group, starting }) => {
-      /*
-       * 一「组」是分区里的一行：行号就是产物给的那条行带。这一行里不止一个格子时（含从上面跨下来的），
-       * 它们在那一行里左右排；哪一条行带吃剩余也标在标题上。
-       */
-      /* 「横排」只看**从这一行开始**的格子是否 ≥2：跨行下来的格子盖住每一行，拿它判会每行都写「横排」。 */
-      const across = starting.length > 1 ? "（横排）" : ""
-      const star = starRows.includes(group) ? "（* 吃剩余）" : ""
-      lines.push({ key: groupKey(region.id, group), depth: 1, strong: false, label: "第 " + group + " 行" + star + across })
-      for (const cell of starting) pushCell(lines, region.id, group, [], cell, 2, controls)
-    })
-  }
-  if (derived.unresolved.length > 0) {
-    lines.push({ key: UNRESOLVED_KEY, depth: 0, strong: true, label: "没归宿的 " + derived.unresolved.length + " 个" })
+    pushCells(lines, region.id, region.cells, [], 1, controls)
   }
   return lines
+}
+
+/* 行的轻重：分区与组是结构（加深），控件按普通字重。 */
+const KIND_CLASS: Record<TreeLine["kind"], string> = {
+  region: "text-foreground font-semibold",
+  group: "text-foreground font-medium",
+  control: "text-foreground"
+}
+
+/*
+ * 树下面那两份读数各自一块：一行标题（可点，点了在画布上描出这几条）+ 每条的 ref 与原因。
+ * 两块的摆法一样，只有 key、标题与条目从调用处给。
+ */
+function ExtraRows(props: {
+  lineKey: string
+  title: string
+  items: { ref: string; reason: string }[]
+  controls: LayoutControl[]
+  selected: string
+  onPick: (key: string, refs: string[]) => void
+}) {
+  if (props.items.length === 0) return null
+  const on = props.selected === props.lineKey
+  return (
+    <div className="mt-2 flex flex-col gap-1">
+      <button
+        type="button"
+        data-selected={on}
+        onClick={() => props.onPick(props.lineKey, props.items.map((item) => item.ref))}
+        className={cn(
+          "rounded px-1 py-0.5 text-left text-xs hover:bg-accent text-foreground font-semibold",
+          on && "bg-accent text-accent-foreground"
+        )}
+      >
+        {props.title}
+      </button>
+      {props.items.map((item, index) => (
+        /* 原因照产物 / 插件的原话说（鼠标停上去看），不在条目上另写一句。 */
+        <span
+          key={index + ":" + item.ref}
+          className="text-muted-foreground text-xs"
+          style={{ paddingLeft: 16 }}
+          title={item.reason}
+        >
+          {nameOf(props.controls, item.ref, "")}
+        </span>
+      ))}
+    </div>
+  )
 }
 
 export function LayoutTree(props: {
@@ -109,8 +169,8 @@ export function LayoutTree(props: {
   controls: LayoutControl[]
   /** 现在选中的是哪一行（调用方持有；空串＝没选）。 */
   selected: string
-  /** 点了一行：把它的 key 回给调用方（选中态与要描的控件都由调用方一处管）。 */
-  onPick: (key: string) => void
+  /** 点了一行：把它的 key 与它盖住的控件回给调用方（选中态与高亮都由调用方一处管）。 */
+  onPick: (key: string, refs: string[]) => void
 }) {
   if (!props.derived) return null
 
@@ -129,7 +189,7 @@ export function LayoutTree(props: {
       <div className="flex flex-wrap items-baseline gap-2">
         <span className="text-sm font-medium">布局树</span>
         <span className="text-muted-foreground text-xs">
-          布局那一步推出来的分区 → 组（它推出来的某一行）→ 格子；点一行，它会盖住的控件在画布上描出来。
+          布局那一步推出来的分区 → 组（装着东西的格子，可以再套）→ 控件；点一行，它盖住的控件在画布上描出来。
         </span>
       </div>
       <div className="max-h-80 overflow-auto rounded-md border p-2">
@@ -139,29 +199,34 @@ export function LayoutTree(props: {
               key={line.key}
               type="button"
               data-selected={props.selected === line.key}
-              onClick={() => props.onPick(line.key)}
+              onClick={() => props.onPick(line.key, line.hit)}
               className={cn(
                 "rounded px-1 py-0.5 text-left text-xs hover:bg-accent",
                 props.selected === line.key && "bg-accent text-accent-foreground",
-                line.strong ? "text-foreground" : "text-muted-foreground"
+                KIND_CLASS[line.kind]
               )}
               style={{ paddingLeft: 4 + line.depth * 12 }}
             >
               {line.label}
             </button>
           ))}
-          {/* 没归宿那几条的下面是插件给的原因（鼠标停上去看），不进树的行里。 */}
-          {props.derived.unresolved.map((item, index) => (
-            <span
-              key={index + ":" + item.ref}
-              className="text-muted-foreground text-xs"
-              style={{ paddingLeft: 16 }}
-              title={item.reason}
-            >
-              {nameOf(props.controls, item.ref, "")}
-            </span>
-          ))}
         </div>
+        <ExtraRows
+          lineKey={UNPLACED_KEY}
+          title={"摆不进树的 " + props.derived.unplaced.length + " 个"}
+          items={props.derived.unplaced}
+          controls={props.controls}
+          selected={props.selected}
+          onPick={props.onPick}
+        />
+        <ExtraRows
+          lineKey={SINGLES_KEY}
+          title={"插件报的单条目栏 · " + props.derived.singles.length + " 个"}
+          items={props.derived.singles}
+          controls={props.controls}
+          selected={props.selected}
+          onPick={props.onPick}
+        />
       </div>
     </div>
   )

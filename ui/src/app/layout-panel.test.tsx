@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { LayoutPanel } from "@/app/layout-panel"
-import { cell } from "@/lib/layout-fixtures"
+import { bands, cell } from "@/lib/layout-fixtures"
 import type { DerivedLayout, LayoutControl, LayoutGroup } from "@/lib/api"
 import { drive } from "@/lib/settings-fixtures"
 
@@ -79,7 +79,7 @@ function stub(
             // 画板尺寸：界面拿它把控件坐标换算成百分比（编号画到图上）；判据在后端。
             canvas: options.canvas === undefined ? { width: 1000, height: 500 } : options.canvas,
             imageStamp: options.imageStamp === undefined ? "2048-1" : options.imageStamp,
-            derived: options.derived ?? { available: false, reason: "还没有推导产物", regions: [], unresolved: [] },
+            derived: options.derived ?? { available: false, reason: "还没有推导产物", regions: [], unplaced: [], singles: [] },
             groups: options.groups ?? [],
             hasGroups: (options.groups ?? []).length > 0,
             // 后端的口径：控件够不够问 AI 由它给（阈值在 lib/layout-groups.js），界面照它禁用按钮。
@@ -160,10 +160,12 @@ describe("LayoutPanel", () => {
             id: "work-area",
             name: "工作区",
             emit: true,
+            bands: bands(1, 1),
             cells: [cell("1:9", "IconButton", 1, 1)]
           }
         ],
-        unresolved: []
+        unplaced: [],
+        singles: []
       }
     })
     render(panel())
@@ -201,7 +203,7 @@ describe("LayoutPanel", () => {
         new Response(
           JSON.stringify({
             ok: true,
-            layout: { available: true, reason: "", controls: CONTROLS, canvas: null, imageStamp: "", derived: { available: false, reason: "", regions: [], unresolved: [] }, groups: [], hasGroups: false, canSuggest: true, autoPass: true }
+            layout: { available: true, reason: "", controls: CONTROLS, canvas: null, imageStamp: "", derived: { available: false, reason: "", regions: [], unplaced: [], singles: [] }, groups: [], hasGroups: false, canSuggest: true, autoPass: true }
           }),
           { status: 200 }
         )
