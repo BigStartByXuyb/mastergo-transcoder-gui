@@ -86,7 +86,13 @@ function pendingFor(root) {
 function caseNothingYet() {
   const root = sandbox();
   // 还没跑到取数那一步：没有图、没有清单 —— 不是待办。
-  assert.deepStrictEqual(layoutOf(root, pendingFor(root)), { needsGroups: false, waiting: 0, controls: [] });
+  /* 形状照实钉住：canSuggest 是自动出分组那条判据（lib/layout-groups.js 一处算），少一栏就等于门禁恒为真。 */
+  assert.deepStrictEqual(layoutOf(root, pendingFor(root)), {
+    needsGroups: false,
+    waiting: 0,
+    controls: [],
+    canSuggest: false
+  });
   fs.rmSync(root, { recursive: true, force: true });
 }
 
