@@ -39,8 +39,11 @@ function cellLabel(controls: LayoutControl[], cell: LayoutChild): string {
     marks.push("组：" + axis)
   }
   if (cell.rowSpan > 1 || cell.columnSpan > 1) marks.push("跨 " + cell.rowSpan + " 行 × " + cell.columnSpan + " 列")
-  /* 容器的层名用 DSL 给的那个（产物不带名字）；取不到就退回清单里那条的名字。 */
-  const name = cell.container && cell.name ? cell.name : nameOf(controls, cell.ref, cell.controlType)
+  /*
+   * 名字：容器优先用 DSL 给的那个层名（产物不带名字）；容器没有层名时也要看得出它是容器，
+   * 所以给「容器 <ref>」——不编名字，但也不留一个读不出是什么的裸 ref。叶子照旧按清单那条。
+   */
+  const name = cell.container ? cell.name || "容器 " + cell.ref : nameOf(controls, cell.ref, cell.controlType)
   return marks.length > 0 ? name + "（" + marks.join("，") + "）" : name
 }
 
@@ -82,12 +85,13 @@ function linesOfDerived(derived: DerivedLayout, controls: LayoutControl[]): Tree
      * 每一组展开的是「从这一行起始的格子」—— 跨行的只在它起始的那一组里展开一次（跨了几行已经写在标签里），
      * 否则一个跨 6 行的容器会把整棵子树在 6 个组里各复制一遍。点某一组时画布上照旧会描出盖住它的控件。
      */
-    groupsOf(region).forEach(({ group, covering, starting }) => {
+    groupsOf(region).forEach(({ group, starting }) => {
       /*
        * 一「组」是分区里的一行：行号就是产物给的那条行带。这一行里不止一个格子时（含从上面跨下来的），
        * 它们在那一行里左右排；哪一条行带吃剩余也标在标题上。
        */
-      const across = covering.length > 1 ? "（横排）" : ""
+      /* 「横排」只看**从这一行开始**的格子是否 ≥2：跨行下来的格子盖住每一行，拿它判会每行都写「横排」。 */
+      const across = starting.length > 1 ? "（横排）" : ""
       const star = starRows.includes(group) ? "（* 吃剩余）" : ""
       lines.push({ key: groupKey(region.id, group), depth: 1, strong: false, label: "第 " + group + " 行" + star + across })
       for (const cell of starting) pushCell(lines, region.id, group, [], cell, 2, controls)

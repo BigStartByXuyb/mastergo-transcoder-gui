@@ -83,7 +83,7 @@ describe("LayoutTree", () => {
   it("容器与它里面的格子往下摆一层；清单里没有的用产物给的类型", () => {
     render(<LayoutTree derived={DERIVED} controls={CONTROLS} selected="" onPick={() => undefined} />)
 
-    expect(screen.getByText("9:9（组：方向不明）")).toBeTruthy()
+    expect(screen.getByText("容器 9:9（组：方向不明）")).toBeTruthy()
     expect(screen.getByText("NumberBox")).toBeTruthy()
   })
 
