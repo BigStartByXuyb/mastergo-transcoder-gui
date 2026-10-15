@@ -1,0 +1,421 @@
+#!/usr/bin/env node
+"use strict";
+
+// 更新器：五态流转、差分只下变化的内容、切换与回退、有任务在跑时拒绝、外壳下限。
+// 远端用假 fetch 顶替（GitHub Releases 的两种地址），全程不联网。
+// 跑法：node tests/update.test.js
+
+const assert = require("assert");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+
+const { buildManifest } = require("../lib/app-manifest.js");
+const { createUpdate } = require("../lib/update.js");
+
+const { compareVersions } = require("../lib/versions.js");
+// 源类型名单只有 lib/source.js 一处（KINDS）：状态里给前端的就是它，用例按它断言。
+const sourceDefaults = require("../lib/source.js");
+// 程序更新这条线的源由装配处必给（与插件那条线同一条规矩）：用例统一注入内置默认那一份。
+const SOURCE = { kind: "github", base: sourceDefaults.DEFAULT_BASE };
+/*
+ * 装配处注入的那份「有没有凭据」的廉价判断（只看设置里记的标记，不解密）：生产由 server.js 注入，
+ * 用例里按「没有凭据」注入 —— 这个模块不留没注入就自己往下问的回落。
+ */
+const NO_TOKEN = function () { return false; };
+
+function makeTree(files) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-update-"));
+  for (const rel of Object.keys(files)) {
+    const abs = path.join(root, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, files[rel], "utf8");
+  }
+  return root;
+}
+
+function ok(text) {
+  const buffer = Buffer.from(text, "utf8");
+  return {
+    ok: true,
+    status: 200,
+    arrayBuffer: async function () {
+      return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+    }
+  };
+}
+
+// 假远端：清单一份，文件按 sha256 命名；发布前没传上去的哈希回 404。
+function remote(root, version, extra) {
+  const manifest = Object.assign(buildManifest(root, version), extra || {});
+  const byHash = new Map();
+  for (const rel of Object.keys(manifest.files)) {
+    byHash.set(manifest.files[rel], fs.readFileSync(path.join(root, rel)));
+  }
+  const urls = [];
+  return {
+    manifest: manifest,
+    urls: urls,
+    fetchImpl: async function (url) {
+      urls.push(url);
+      // 每个 release 都带自己的 manifest.json：latest 那个是同一份内容。
+      if (url.endsWith("/releases/latest/download/manifest.json") || url.endsWith("/releases/download/v" + version + "/manifest.json")) {
+        return ok(JSON.stringify(manifest));
+      }
+      const hit = /\/releases\/download\/v([^/]+)\/([0-9a-f]{64})$/.exec(url);
+      if (hit) {
+        const buffer = byHash.get(hit[2]);
+        if (buffer) return ok(buffer.toString("utf8"));
+        return { ok: false, status: 404 };
+      }
+      // 其它某一版的清单：GitHub 上就是 404（这一版没有这个资产）。
+      if (/\/releases\/download\/v[^/]+\/manifest\.json$/.test(url)) return { ok: false, status: 404 };
+      return { ok: false, status: 500 };
+    }
+  };
+}
+
+function sleep(ms) {
+  return new Promise(function (resolve) { setTimeout(resolve, ms); });
+}
+
+async function settle(update) {
+  for (let index = 0; index < 200; index += 1) {
+    const phase = update.status().task.phase;
+    if (phase !== "downloading" && phase !== "materializing") return update.status();
+    await sleep(5);
+  }
+  throw new Error("下载没有收敛");
+}
+
+async function main() {
+  assert.strictEqual(compareVersions("0.10.0", "0.9.0"), 1, "按数字段比，不是字符串比");
+  assert.strictEqual(compareVersions("1.0", "1.0.0"), 0);
+  assert.strictEqual(compareVersions("0.1.0", "0.2.0"), -1);
+  assert.strictEqual(compareVersions("dev", "1.0.0") < 0 || compareVersions("dev", "1.0.0") > 0, true, "非数字段有兜底");
+
+  const home = makeTree({
+    "server.js": "server 0.1.0",
+    "launch.js": "launch",
+    "package.json": "{\"version\":\"0.1.0\"}",
+    "lib/a.js": "a",
+    "public/index.html": "html"
+  });
+  const next = makeTree({
+    "server.js": "server 0.2.0 改过",
+    "launch.js": "launch",
+    "package.json": "{\"version\":\"0.2.0\"}",
+    "lib/a.js": "a",
+    "lib/b.js": "b 新增",
+    "public/index.html": "html 改过"
+  });
+
+  let busy = "";
+  const server = remote(next, "0.2.0");
+  const update = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: home, home: home, version: "0.1.0", fetchImpl: server.fetchImpl, isBusy: function () { return busy; } });
+
+  const initial = update.status();
+  assert.strictEqual(initial.state, "unchecked", "没查过又没缓存＝还没问过远端（不说「已是最新」）");
+  assert.deepStrictEqual(initial.staged.map(function (item) { return item.version; }), ["0.1.0"], "安装根自己这一份算本地的一份");
+  assert.strictEqual(initial.rollback, "", "只有一份时没有可回退的");
+
+  const checked = await update.check();
+  assert.strictEqual(checked.state, "update_available");
+  assert.strictEqual(checked.available.version, "0.2.0");
+  assert.strictEqual(checked.available.changed, 4, "改过的 server/package/public 与新增的 lib/b.js");
+  assert.strictEqual(checked.available.removed, 0);
+  assert.strictEqual(checked.available.freshRunRequired, true, "默认要求新开一次运行");
+
+  // 界面上那个全局标注读的是这份精简快照：要有状态、当前版本、可切版本与目标版本，但不带版本历史。
+  const hinted = update.hint();
+  assert.deepStrictEqual(hinted, {
+    state: "update_available",
+    current: "0.1.0",
+    target: "0.2.0",
+    ready: "",
+    busy: "",
+    availableVersion: "0.2.0",
+    stagedFreshRunRequired: null
+  });
+
+  // 下载：只下缺的内容，落进 versions/0.2.0，进度一路报上来。
+  const started = await update.stage("0.2.0");
+  assert.strictEqual(started.started, true);
+  // 同一时刻只跑一条下载：还没拼完就再点，会被拒。
+  await assert.rejects(function () { return update.stage("0.2.0"); }, /已经在下载了/);
+  const done = await settle(update);
+  assert.strictEqual(done.state, "download_ready");
+  assert.strictEqual(done.ready, "0.2.0");
+  assert.strictEqual(done.task.downloaded, 4, "四份新内容，lib/a.js 与上一版同内容就不用下");
+  assert.strictEqual(fs.readFileSync(path.join(home, "versions", "0.2.0", "lib", "b.js"), "utf8"), "b 新增");
+  assert.strictEqual(fs.existsSync(path.join(home, "versions", "0.2.0", "lib", "a.js")), true);
+
+  // 有任务在跑：不许切。
+  busy = "1 次流水线正在跑";
+  assert.throws(function () { update.apply(); }, /有任务在跑/);
+  assert.strictEqual(update.status().busy, "1 次流水线正在跑");
+  busy = "";
+
+  const applied = update.apply();
+  assert.strictEqual(applied.version, "0.2.0");
+  assert.strictEqual(applied.restartRequired, true);
+  const pointer = JSON.parse(fs.readFileSync(path.join(home, "current.json"), "utf8"));
+  assert.deepStrictEqual({ version: pointer.version, previous: pointer.previous }, { version: "0.2.0", previous: "0.1.0" });
+  assert.strictEqual(update.status().rollback, "0.1.0", "回退目标就是刚才那一版");
+
+  const back = update.rollback();
+  assert.strictEqual(back.version, "0.1.0");
+  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(home, "current.json"), "utf8")).version, "0.1.0");
+  assert.strictEqual(update.status().rollback, "", "切回去之后没有可再回退的目标");
+
+  assert.throws(function () { update.apply("0.1.0"); }, /已经运行在/);
+  assert.throws(function () { update.rollback(); }, /没有可回退的版本/);
+
+  // 本地这一版的字节被改过：切换时按清单校验能看出来，不许切过去；
+  // 被看出来之后，设置页与探活都不再说它可切换（免得点来点去都是同一条报错）。
+  fs.writeFileSync(path.join(home, "versions", "0.2.0", "server.js"), "被人改过", "utf8");
+  assert.throws(function () { update.apply("0.2.0"); }, /和清单对不上/);
+  const broken = update.status();
+  assert.strictEqual(broken.ready, "", "对不上就不算可切换");
+  assert.strictEqual(broken.state, "update_available", "退回「有新版本待下载」");
+  assert.strictEqual(update.hint().state, "update_available", "探活快照说同一句话");
+
+  // 重新下一份就恢复「可切换」：坏掉的记号要跟着下载成功一起摘掉。
+  const again = await update.stage("0.2.0");
+  assert.strictEqual(again.started, true, "坏了的那一份可以重下");
+  const repaired = await settle(update);
+  assert.strictEqual(repaired.ready, "0.2.0", "重下之后又可切换");
+  assert.strictEqual(repaired.state, "download_ready");
+  assert.strictEqual(update.hint().state, "download_ready");
+
+  /*
+   * 手上有可切的一份、远端又出了更新的一版：说的该是「有新版」，入口（hint.target）指向远端那一版。
+   * 设置页那句摘要与顶栏那条入口读的是同一处（readState 的 state / target），
+   * 不能一边说「v0.2.0 已就绪」一边说「有新版 v0.3.0」—— 那正是「点红点切的是另一版」的来源。
+   */
+  const newerTree = makeTree({
+    "server.js": "server 0.3.0",
+    "launch.js": "launch",
+    "package.json": "{\"version\":\"0.3.0\"}",
+    "lib/a.js": "a",
+    "public/index.html": "html"
+  });
+  const newerServer = remote(newerTree, "0.3.0");
+  const facingNewer = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: home, home: home, version: "0.1.0", fetchImpl: newerServer.fetchImpl });
+  await facingNewer.check();
+  const facing = facingNewer.status();
+  assert.strictEqual(facing.ready, "0.2.0", "手上那份 0.2.0 仍然可以切");
+  assert.strictEqual(facing.state, "update_available", "远端还有更新的一版，就该说「有新版」");
+  assert.strictEqual(facingNewer.hint().target, "0.3.0", "入口指向远端那一版");
+  assert.strictEqual(facingNewer.hint().ready, "0.2.0", "「已下好」说的还是手上那一份");
+
+  // 本地已经是最新时不重复下载：这条分支不能因为判据改名而断掉。
+  const alreadyNew = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: next, home: next, version: "0.2.0", fetchImpl: server.fetchImpl });
+  await alreadyNew.check();
+  const noop = await alreadyNew.stage("0.2.0");
+  assert.strictEqual(noop.started, false);
+  assert.strictEqual(noop.reason, "本地已经有这一版");
+
+  /*
+   * 历史版本也要能补回本机：清单按那一版的 tag 取（不是 latest），下完就能切过去 ——
+   * 更新页里「历史版本」那几行的「下载」按钮走的就是这条。
+   */
+  const older = makeTree({
+    "server.js": "server 0.0.9",
+    "launch.js": "launch",
+    "package.json": "{\"version\":\"0.0.9\"}",
+    "lib/a.js": "a",
+    "public/index.html": "html"
+  });
+  const olderRemote = remote(older, "0.0.9");
+  const olderHome = makeTree({
+    "server.js": "server 0.2.0",
+    "launch.js": "launch",
+    "package.json": "{\"version\":\"0.2.0\"}",
+    "lib/a.js": "a",
+    "public/index.html": "html"
+  });
+  const stageUpdate = createUpdate({ hasToken: NO_TOKEN, source: SOURCE,
+    root: olderHome,
+    home: olderHome,
+    version: "0.2.0",
+    fetchImpl: async function (url) {
+      // 假远端只发了 0.0.9 这一版：清单按 tag 取，内容按哈希取。
+      if (url.endsWith("/releases/download/v0.0.9/manifest.json")) return ok(JSON.stringify(olderRemote.manifest));
+      const hit = /\/releases\/download\/v([^/]+)\/([0-9a-f]{64})$/.exec(url);
+      if (hit && hit[1] === "0.0.9") {
+        const rel = Object.keys(olderRemote.manifest.files).find(function (name) {
+          return olderRemote.manifest.files[name] === hit[2];
+        });
+        if (rel) return ok(fs.readFileSync(path.join(older, rel), "utf8"));
+      }
+      return { ok: false, status: 404 };
+    }
+  });
+  const staged = await stageUpdate.stage("0.0.9");
+  assert.strictEqual(staged.started, true, "历史版本可以下回来");
+  const stagedDone = await settle(stageUpdate);
+  assert.strictEqual(stagedDone.ready, "", "它比当前版本旧，不算「有新版可切」");
+  const stagedRow = stagedDone.staged.find(function (item) { return item.version === "0.0.9"; });
+  assert.ok(stagedRow && stagedRow.ready, "下完之后本机就有这一份，可以切过去");
+  // 这一版要不要新开一次运行跟着清单一起留下来：界面在切换确认弹窗里要说明。
+  assert.strictEqual(stagedRow.freshRunRequired, true);
+  assert.strictEqual(stagedDone.ready, "", "比当前旧的版本不算「有新版可切」");
+  // 历史版本切换前也要按它自己的清单逐文件校验（清单是 stage 下载时留下的那一份）。
+  fs.writeFileSync(path.join(olderHome, "versions", "0.0.9", "lib", "a.js"), "被人改过", "utf8");
+  assert.throws(function () { stageUpdate.apply("0.0.9"); }, /和清单对不上/, "历史版本也要校验");
+  fs.writeFileSync(path.join(olderHome, "versions", "0.0.9", "lib", "a.js"), "a", "utf8");
+  assert.strictEqual(stageUpdate.apply("0.0.9").version, "0.0.9", "能切到历史版本");
+  await assert.rejects(function () { return stageUpdate.stage("9.9.9"); }, /远端没有 v9.9.9/);
+
+  // 外壳下限：清单要求比当前更高的客户端外壳时，下载与切换都拒。
+  const gated = remote(next, "0.2.1", { minClientVersion: "9.9.9" });
+  const gatedHome = makeTree({ "server.js": "旧客户端", "package.json": "{\"version\":\"0.1.0\"}" });
+  const gatedUpdate = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: gatedHome, home: gatedHome, version: "0.1.0", fetchImpl: gated.fetchImpl });
+  const gatedStatus = await gatedUpdate.check();
+  assert.strictEqual(gatedStatus.state, "update_available");
+  assert.strictEqual(gatedStatus.available.blocked.code, "CLIENT_TOO_OLD");
+  await assert.rejects(function () { return gatedUpdate.stage("0.2.1"); }, /要求客户端至少/);
+  assert.strictEqual(gatedUpdate.status().state, "error", "拒绝之后界面要显示原因");
+
+  /*
+   * 手上有一份可切的、远端最新那版却被外壳下限挡住：入口给的是手上这份 —— 被挡住的那版不是这条入口
+   * 能动的（先升外壳的事在设置页那句 blockedNote 里说），拿它当目标等于把手上可切的那份顶掉。
+   */
+  const holdHome = makeTree({ "server.js": "旧客户端", "package.json": "{\"version\":\"0.1.0\"}" });
+  const hold = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: holdHome, home: holdHome, version: "0.1.0", fetchImpl: server.fetchImpl });
+  await hold.check();
+  await hold.stage("0.2.0");
+  await settle(hold);
+  const holdGated = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: holdHome, home: holdHome, version: "0.1.0", fetchImpl: gated.fetchImpl });
+  await holdGated.check();
+  const holdState = holdGated.status();
+  assert.strictEqual(holdState.available.blocked.code, "CLIENT_TOO_OLD", "远端那版确实被挡住");
+  assert.strictEqual(holdState.ready, "0.2.0", "手上那份仍然可切");
+  assert.strictEqual(holdGated.hint().target, "0.2.0", "入口给手上这份，不给被挡住的那版");
+  assert.strictEqual(holdState.state, "download_ready", "状态与入口同出一处");
+  /*
+   * 同一版重发时把外壳下限抬高：已经下好的那一份也不再算「可以切过去」——
+   * 远端那份被挡只是明面上的那一半，手上这份同样过不了切换前那一刻的校验。
+   */
+  const reReleased = remote(next, "0.2.0", { minClientVersion: "9.9.9" });
+  const holdRaised = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: holdHome, home: holdHome, version: "0.1.0", fetchImpl: reReleased.fetchImpl });
+  await holdRaised.check();
+  assert.strictEqual(holdRaised.status().available.blocked.code, "CLIENT_TOO_OLD", "远端这一版被抬高了外壳下限");
+  assert.strictEqual(holdRaised.status().ready, "", "已下好的那一份被同一版的下限挡住，不算可切");
+  assert.strictEqual(
+    holdRaised.status().staged.find(function (item) { return item.version === "0.2.0"; }).ready,
+    false,
+    "版本表那一行也不该说它可以切（两处读同一条判据）"
+  );
+  assert.strictEqual(holdRaised.hint().target, "", "入口也不指它");
+  assert.throws(function () { holdRaised.apply("0.2.0"); }, /要求客户端至少/, "真要点它，切换前那一刻也拒");
+
+  // 远端没有这一版就下不了 / 没下过就点切换。
+  const blank = makeTree({ "server.js": "空白", "package.json": "{\"version\":\"0.1.0\"}" });
+  const blankUpdate = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: blank, home: blank, version: "0.1.0", fetchImpl: server.fetchImpl });
+  await assert.rejects(function () { return blankUpdate.stage("9.9.9"); }, /远端没有 v9.9.9/);
+  assert.throws(function () { blankUpdate.apply(); }, /还没有下载好的新版本/);
+
+  // 联网失败：显式检查报 error，启动时的静默检查不打扰。
+  const offline = createUpdate({ hasToken: NO_TOKEN, source: SOURCE,
+    root: blank,
+    home: blank,
+    version: "0.1.0",
+    fetchImpl: async function () { throw new Error("getaddrinfo ENOTFOUND"); }
+  });
+  const failed = await offline.check();
+  assert.strictEqual(failed.state, "error");
+  assert.strictEqual(failed.error.code, "DOWNLOAD_FAILED");
+  assert.match(failed.error.hint, /ENOTFOUND/);
+  const silent = await offline.check({ silent: true });
+  assert.strictEqual(silent.state, "error", "已经记下的错误不因为一次静默检查就消失");
+
+  /*
+   * 新版本就住在安装根那一份里（界面上的「本地这一份」）：装了新版、又切回旧版之后，
+   * 新版没有 versions/<版本> 目录，但它本来就跑得起来 —— 这一份必须仍然算「可切换」。
+   * 曾经的错法：拿 versions/<版本> 去校验，校验不通过就当没下载，切换按钮不出现。
+   */
+  const rootNewer = makeTree({
+    "server.js": "server 0.2.0",
+    "launch.js": "launch",
+    "package.json": "{\"version\":\"0.2.0\"}",
+    "lib/a.js": "a",
+    "public/index.html": "html"
+  });
+  const runningOld = path.join(rootNewer, "versions", "0.1.0");
+  for (const rel of ["server.js", "launch.js", "package.json", "lib/a.js", "public/index.html"]) {
+    const abs = path.join(runningOld, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, rel === "package.json" ? "{\"version\":\"0.1.0\"}" : "old", "utf8");
+  }
+  const rootServer = remote(rootNewer, "0.2.0");
+  const rootUpdate = createUpdate({ hasToken: NO_TOKEN, source: SOURCE,
+    root: rootNewer,
+    home: rootNewer,
+    version: "0.1.0",
+    fetchImpl: rootServer.fetchImpl
+  });
+  await rootUpdate.check();
+  const rootStatus = rootUpdate.status();
+  const rootRow = rootStatus.staged.find(function (item) { return item.version === "0.2.0"; });
+  assert.ok(rootRow, "安装根那一份要出现在本地版本里");
+  assert.strictEqual(rootRow.ready, true, "安装根那一份与清单一致就是可切换");
+  assert.strictEqual(rootStatus.ready, "0.2.0", "可以切过去");
+  // 顶上那个红点读的是探活快照：它必须与设置页说同一句话，否则会把「可切换」说成「有新版」。
+  assert.strictEqual(rootUpdate.hint().state, "download_ready", "探活快照也要认安装根那一份");
+  assert.strictEqual(rootUpdate.hint().ready, "0.2.0");
+
+  /*
+   * 安装根那一份（就是「本地这一版」）同样要按清单校验 —— 而且「算不算可切」当场就知道，
+   * 不必等到点「切换」那一刻才报错（发布件里那份 exe 是 CI 现编的、本地这份是本机编的，
+   * 光比版本号会把这种树当成那一版）。
+   */
+  fs.writeFileSync(path.join(rootNewer, "lib", "a.js"), "被人改过", "utf8");
+  // 核过的结论是缓存着的（探活每 5 秒问一次，不能每次读整棵树）；检查一次就重算。
+  await rootUpdate.check();
+  const dirty = rootUpdate.status();
+  assert.strictEqual(dirty.staged.find(function (item) { return item.version === "0.2.0"; }).ready, false, "改过的安装根那一份不算可切");
+  assert.strictEqual(dirty.ready, "", "所以「可切到哪一版」也不指着它");
+  // 改回来、再检查一次：结论跟着重新算，又是可切的。
+  fs.writeFileSync(path.join(rootNewer, "lib", "a.js"), "a", "utf8");
+  await rootUpdate.check();
+  assert.strictEqual(rootUpdate.status().ready, "0.2.0", "改回来之后重新算，又是可切的了");
+  // 切换前那一刻照样逐文件校验（挡住「先报可切、点之前又被改」）：改过就拒。
+  fs.writeFileSync(path.join(rootNewer, "lib", "a.js"), "又被改过", "utf8");
+  assert.throws(function () { rootUpdate.apply("0.2.0"); }, /和清单对不上/, "安装根那一份也要校验");
+  fs.writeFileSync(path.join(rootNewer, "lib", "a.js"), "a", "utf8");
+
+  const switched = rootUpdate.apply("0.2.0");
+  assert.strictEqual(switched.version, "0.2.0");
+
+  /*
+   * 监督进程按指针把新的那一份拉起来之后（同一份 home，跑的是 0.2.0）：
+   * 它既不该说「有新版」，也不该说「可切换到 0.2.0」——那是自己正在跑的版本，点下去只会得到 SAME_VERSION。
+   */
+  const restarted = createUpdate({ hasToken: NO_TOKEN, source: SOURCE, root: rootNewer, home: rootNewer, version: "0.2.0", fetchImpl: rootServer.fetchImpl });
+  assert.strictEqual(restarted.status().state, "up_to_date", "重启后设置页不再说可切换");
+  assert.strictEqual(restarted.hint().state, "up_to_date", "探活快照同样不再说可切换");
+  assert.strictEqual(restarted.hint().ready, "");
+
+  /*
+   * 有没有 token 与 token 的值分开问：值要走 DPAPI 解密（同步起 PowerShell），
+   * 而 status() 是每 15 秒轮询一次的口子 —— 这里用「一解密就抛」的假实现盯住它。
+   */
+  const cheap = createUpdate({ source: SOURCE,
+    root: home,
+    home: home,
+    version: "0.1.0",
+    fetchImpl: server.fetchImpl,
+    token: function () { throw new Error("status 不该去解密 token"); },
+    hasToken: function () { return true; }
+  });
+  const cheapStatus = cheap.status();
+  assert.strictEqual(cheapStatus.hasToken, true, "有 token 由廉价的判断回答");
+  assert.deepStrictEqual(cheapStatus.source.kinds, sourceDefaults.KINDS, "源类型名单由后端给前端");
+
+  for (const dir of [home, next, gatedHome, blank, rootNewer]) fs.rmSync(dir, { recursive: true, force: true });
+  process.stdout.write("update ok\n");
+}
+
+main();
