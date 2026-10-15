@@ -1,0 +1,161 @@
+"use strict";
+
+/*
+ * winget 的包：同一份事实渲染成两种形状。
+ *
+ *   三个 YAML —— 提公网源（winget-pkgs）用；客户机 `winget install --manifest <目录>` 也吃这一份。
+ *   REST 清单 —— 内网源服务发出去的包对象（scripts/winget-source.js 落成数据文件）。
+ *
+ * 包是 portable：zip 里就是我们的启动器，winget 把 zip 解进自己的包目录、把 mastergo-transcoder.exe
+ * 链进 PATH，不跑任何安装程序。
+ *
+ * 放在 scripts/lib 而不是 lib：它不是运行时代码（客户端那份运行树的清单只收 lib/public/vendor，
+ * 放 lib 会跟着每个客户机的更新包走）。用它的是两个生成器与内网源服务。
+ *
+ * 边界：只渲染调用方给的事实（标识 / 版本 / 包地址 / 哈希 / 包内目录），自身不做 IO、不认识请求 ——
+ * 「这一版的事实」怎么装配（读 package.json、算哈希）在 scripts/lib/winget-facts.js，
+ * 源服务怎么回答搜索与取清单在 scripts/lib/winget-source-api.js。
+ */
+
+// 公网那一份的标识；内网那一份用 INTERNAL_ID（同一台机器上两个同名包会打架）。
+const DEFAULT_ID = "BigStart.MasterGoTranscoder";
+const INTERNAL_ID = "BigStart.MasterGoTranscoder.Internal";
+const PUBLISHER = "BigStart";
+const PACKAGE_NAME = "MasterGo 转码客户端";
+const SHORT_DESCRIPTION = "MasterGo 设计稿转码客户端：看板跑流水线、待确认、更新与回退";
+// 内部工具：清单里必须有一项 License。这里按「公司内部使用」写，改发布策略时改这一处。
+const LICENSE = "Proprietary";
+// 搜索用的别名；与下面那个命令名当前同值，但含义不同（winget 拿它搜包，那个是装完链进 PATH 的命令）。
+const MONIKER = "mastergo-transcoder";
+// 装完链进 PATH 的命令名。
+const COMMAND_ALIAS = "mastergo-transcoder";
+const LOCALE = "zh-CN";
+// winget 清单的模式版本：三份 YAML 的 schema 注释与 ManifestVersion 都取它（升版本只改这一处）。
+const MANIFEST_VERSION = "1.6.0";
+// zip 里保留着那一层目录，所以入口的相对路径要带上包内目录。
+const ENTRY_EXE = "mastergo-transcoder.exe";
+// 内网源的数据文件：生成器写它、服务读它，名字只在这一处。
+const SOURCE_FILE = "winget-source.json";
+// 内网源里的静态资产（zip、部署时生成的证书）放在这个子目录下。
+const SOURCE_FILES_DIR = "files";
+
+// 入口在包里的相对路径。
+function entryOf(pkg) {
+  return pkg.folder + "/" + ENTRY_EXE;
+}
+
+/*
+ * 包这一层的两组字段：locale 与 installer。
+ * 两种形状（三个 YAML、REST 清单）都从这两处取字段，winget 的模式加一个字段时只加一次。
+ * 序列化各写各的：YAML 是行、REST 是对象，嵌套本来就不一样。
+ */
+function localeFields() {
+  return {
+    PackageLocale: LOCALE,
+    Publisher: PUBLISHER,
+    PackageName: PACKAGE_NAME,
+    ShortDescription: SHORT_DESCRIPTION,
+    License: LICENSE,
+    Moniker: MONIKER
+  };
+}
+
+function installerFields(pkg) {
+  return {
+    Architecture: "x64",
+    InstallerType: "zip",
+    NestedInstallerType: "portable",
+    NestedInstallerFiles: [{ RelativeFilePath: entryOf(pkg), PortableCommandAlias: COMMAND_ALIAS }],
+    InstallerUrl: pkg.url,
+    InstallerSha256: pkg.sha256
+  };
+}
+
+/* 三个 YAML。字段名与结构由 winget 的模式定死，这里只把上面那两组字段摊成行。 */
+function yamlFiles(pkg) {
+  const locale = localeFields(pkg);
+  const installer = installerFields(pkg);
+  const installerFile = installer.NestedInstallerFiles[0];
+  const schema = "https://aka.ms/winget-manifest.";
+  return [
+    {
+      name: pkg.id + ".yaml",
+      body: [
+        "# yaml-language-server: $schema=" + schema + "version." + MANIFEST_VERSION + ".schema.json",
+        "PackageIdentifier: " + pkg.id,
+        "PackageVersion: " + pkg.version,
+        "DefaultLocale: " + LOCALE,
+        "ManifestType: version",
+        "ManifestVersion: " + MANIFEST_VERSION,
+        ""
+      ].join("\n")
+    },
+    {
+      name: pkg.id + ".locale." + LOCALE + ".yaml",
+      body: [
+        "# yaml-language-server: $schema=" + schema + "defaultLocale." + MANIFEST_VERSION + ".schema.json",
+        "PackageIdentifier: " + pkg.id,
+        "PackageVersion: " + pkg.version,
+        "PackageLocale: " + locale.PackageLocale,
+        "Publisher: " + locale.Publisher,
+        "PackageName: " + locale.PackageName,
+        "ShortDescription: " + locale.ShortDescription,
+        "License: " + locale.License,
+        "Moniker: " + locale.Moniker,
+        "ManifestType: defaultLocale",
+        "ManifestVersion: " + MANIFEST_VERSION,
+        ""
+      ].join("\n")
+    },
+    {
+      name: pkg.id + ".installer.yaml",
+      body: [
+        "# yaml-language-server: $schema=" + schema + "installer." + MANIFEST_VERSION + ".schema.json",
+        "PackageIdentifier: " + pkg.id,
+        "PackageVersion: " + pkg.version,
+        "InstallerType: " + installer.InstallerType,
+        "NestedInstallerType: " + installer.NestedInstallerType,
+        "NestedInstallerFiles:",
+        "  - RelativeFilePath: " + installerFile.RelativeFilePath,
+        "    PortableCommandAlias: " + installerFile.PortableCommandAlias,
+        "Installers:",
+        "  - Architecture: " + installer.Architecture,
+        "    InstallerUrl: " + installer.InstallerUrl,
+        "    InstallerSha256: " + installer.InstallerSha256,
+        "ManifestType: installer",
+        "ManifestVersion: " + MANIFEST_VERSION,
+        ""
+      ].join("\n")
+    }
+  ];
+}
+
+/* 一个包的 REST 形状：版本、默认区域、安装器（字段与 YAML 那份同源）。 */
+function restPackage(pkg) {
+  return {
+    PackageIdentifier: pkg.id,
+    Versions: [
+      {
+        PackageVersion: pkg.version,
+        DefaultLocale: localeFields(pkg),
+        Installers: [installerFields(pkg)]
+      }
+    ]
+  };
+}
+
+/* 内网源服务读的那一份文件的内容：它一问，服务就照包对象回答。 */
+function sourceDocument(packages) {
+  return { Packages: packages.slice() };
+}
+
+module.exports = {
+  DEFAULT_ID: DEFAULT_ID,
+  INTERNAL_ID: INTERNAL_ID,
+  ENTRY_EXE: ENTRY_EXE,
+  SOURCE_FILE: SOURCE_FILE,
+  SOURCE_FILES_DIR: SOURCE_FILES_DIR,
+  yamlFiles: yamlFiles,
+  restPackage: restPackage,
+  sourceDocument: sourceDocument
+};

@@ -1,0 +1,23 @@
+/*
+ * 页面上一次填的表单存在 localStorage 里。读写都必须能容忍「存储不可用 / 存的是坏 JSON」：
+ * 隐私模式下 localStorage 会抛异常 —— 那种情况就用默认值，不打断操作。
+ */
+
+export function readStored<T>(key: string, fallback: T, pick: (raw: Record<string, unknown>) => T): T {
+  try {
+    const raw = JSON.parse(localStorage.getItem(key) ?? "{}")
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return fallback
+    return pick(raw as Record<string, unknown>)
+  } catch {
+    return fallback
+  }
+}
+
+export function writeStored(key: string, value: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    /* 存储不可用就只影响这次记忆，不该打断操作 */
+  }
+}
+

@@ -1,0 +1,51 @@
+node_modules/
+*.log
+
+# 用户状态：设置与 DPAPI 加密的凭据，绝不入库
+local.json
+credentials
+*-credentials
+
+# 看板状态与任务工作目录（方案 B 的产物隔离区）
+board.json
+work/
+
+# 对话存档
+chats.json
+chats/
+
+# 服务日志（安装根下按天落盘，闪退时靠它说话）
+logs/
+
+# 前端覆盖率报告（每次由 vitest 生成，不进仓库）
+ui/coverage/
+
+# 界面验收截图（playwright 产物，不进仓库）
+output/
+.playwright-cli/
+
+# 更新器状态：内容寻址缓存、已下载的版本、当前版本指针
+blobs/
+versions/
+update-cache/
+current.json
+
+# 发布产物（scripts/publish.js 生成，上传到 GitHub Release）
+dist/
+
+# Codex 引擎：按需下载的运行文件与隔离的会话目录
+agents/
+
+# 客户端自带的那一份插件（客户端自己下载到安装根，属于用户状态：版本目录 + blobs + 清单缓存）
+plugins/
+
+# 运行时：客户端自带并解压出来的 Node / PowerShell 7 与它们的安装包
+runtime/
+
+# 模型依赖：从 node_modules 收成的压缩件与解出来的那一份（发布时由 CI 现收，不入库）
+vendor/openai.tgz
+vendor/openai/
+
+# 发版时生成的启动器与它的钉死表（构建产物，不进仓库；见 tools/launcher 与 scripts/runtime-assets.js）
+mastergo-transcoder.exe
+runtime-assets.json

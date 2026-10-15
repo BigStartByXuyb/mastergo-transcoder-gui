@@ -1,0 +1,133 @@
+name: CI
+
+# 调用共享 CI 仓库里的 reusable workflow：单测 + 覆盖率门禁 + 确定性检查 + AI 语义审计。
+# ci_ref 固定到 cicd 仓库的一个 commit：CI 逻辑变了要显式改这里，不让上游静默改变门禁。
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  ci:
+    # 取 480094b 这一版（cicd PR #6 的头）：插件夹具仍按「客户端自带那一份」摆（安装根 plugins/ 下），
+    # 另外几处是这版新修的 —— 审计报告缺 front matter / 缺一级标题 / 版本号写错 / 条数不符 / result 写成小写 /
+    # finding 标题没写方括号 / finding 漏写 Confidence 时按正文采信并记备注（不再判 INVALID，也不再丢 finding）、
+    # semantic-audit 等 runtime-tests 跑完再取覆盖率产物（不再抢跑）、审计 diff 排除生成产物（public/assets 等）。
+    # 合并 PR #6 之后这个 commit 就是 main 上的同一个 commit，不用再改。
+    uses: BigStartByXuyb/cicd/.github/workflows/desktop-app.yml@480094be25ffb8cbf5b9aa44f5479b90422efd1a
+    with:
+      ci_ref: 480094be25ffb8cbf5b9aa44f5479b90422efd1a
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+      FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+      FEISHU_DEFAULT_CHAT_ID: ${{ secrets.FEISHU_DEFAULT_CHAT_ID }}
+      FEISHU_RECIPIENT_MAP_JSON: ${{ secrets.FEISHU_RECIPIENT_MAP_JSON }}
+
+  # 启动器（不依赖 Node 的那个 exe）单独一关：它只有在打 tag 时才会被真正打进发布件，
+  # 所以推代码时就得把「能不能编、测试过不过」验掉，别等到发版才发现。
+  launcher:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Vet, test and build the launcher
+        run: |
+          cd tools/launcher
+          go vet ./...
+          go test ./...
+          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /tmp/mastergo-transcoder.exe .
+
+  # 打 v* tag 才发版：产物是 Release 上的 manifest.json + 按内容哈希命名的文件。
+  # 客户端不查 API，直接读 releases/latest/download/manifest.json，所以 tag 必须先过。
+  release:
+    needs: ci
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # 启动器（不依赖 Node 的那个 exe）与它的钉死表：干净机器上第一次跑的就是它们，
+      # 所以必须在打清单之前就位 —— 清单是从工作树现算的。
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build the launcher and export the pinned runtime table
+        run: |
+          cd tools/launcher
+          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o ../../mastergo-transcoder.exe .
+          cd ../..
+          node scripts/runtime-assets.js
+
+      - name: Require tag and package.json to declare the same version
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          pkg_version="$(node -p "require('./package.json').version")"
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "::error title=版本号不一致::tag 是 v$tag_version，package.json 是 $pkg_version"
+            exit 1
+          fi
+
+      - name: Build frontend
+        run: |
+          npm ci --ignore-scripts
+          npm --prefix ui ci --ignore-scripts
+          npm run build:ui
+
+      # 模型依赖收成一份 vendor/openai.tgz：发布件与「解压即用」包里都带着它，首次用到时自己解开。
+      - name: Vendor the model dependency
+        run: npm run vendor
+
+      # 产物与源码不一致就说明这版打出来的界面不是仓库里那一份，宁可发不出去。
+      - name: Require the built output to match the commit
+        run: |
+          if ! git diff --quiet -- public; then
+            echo "::error title=构建产物与源码不一致::先本地 npm run build:ui 并提交 public/，再打 tag。"
+            git --no-pager diff --stat -- public
+            exit 1
+          fi
+
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/publish.js --upload
+
+      # 「解压即用」包：拿到的人双击 start.cmd 就能跑；清单最后传的不变式不受影响（它是额外资产）。
+      - name: Pack the unzip-and-run bundle
+        run: |
+          node scripts/pack-bundle.js --version "${GITHUB_REF_NAME#v}"
+          gh release upload "$GITHUB_REF_NAME" "dist/mastergo-transcoder-gui-${GITHUB_REF_NAME#v}.zip" --clobber
+          # 安装脚本按这份校验下载到的 zip（zip 的 sha256 不在更新清单里，单独一份）。
+          gh release upload "$GITHUB_REF_NAME" dist/checksums.json --clobber
+          # winget 清单：portable 包，入口就是包里的 mastergo-transcoder.exe。
+          # 默认基址＝这个仓库的 release；换公司地址时用 --base <公司地址> 重生成即可（见 docs/install.md）。
+          node scripts/winget-manifest.js --base "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+          gh release upload "$GITHUB_REF_NAME" dist/winget/*.yaml --clobber
+          # 一条命令装（不依赖 winget 源、不需要管理员）：也作为资产发出去，客户机下一个文件就能装。
+          gh release upload "$GITHUB_REF_NAME" scripts/install-client.ps1 --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+
