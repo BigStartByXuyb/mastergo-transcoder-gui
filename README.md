@@ -1,6 +1,6 @@
-# mastergo-transcoder-gui
+# MW 插件系统桌面客户端
 
-MasterGo 设计稿转 MTSLG IOContorl / MW WPF 的本地客户端。
+MW 插件系统的 MasterGo 转换客户端，可将设计稿转换为 MTSLG IOContorl / MW WPF 页面。
 
 前端 React + Vite + shadcn/ui，后端 Node 内置 `http`，两者通过 HTTP 通信。后端唯一的运行时依赖是 `openai`（模型客户端，零传递依赖）。
 
