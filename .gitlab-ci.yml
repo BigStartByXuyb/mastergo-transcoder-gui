@@ -4,14 +4,14 @@
 # 密钥不写在这里：CI/CD 变量在本仓库的 Settings → CI/CD → Variables（作用域 app-cicd）。
 include:
   - project: data_ai/cicd
-    ref: 1b65188184bb775cf45fbffe6ce4626ca1e4f8be
+    ref: 07c7f3d5f76f742ebd93e1138254b921ef44964b
     file: /templates/common.yml
   - project: data_ai/cicd
-    ref: 1b65188184bb775cf45fbffe6ce4626ca1e4f8be
+    ref: 07c7f3d5f76f742ebd93e1138254b921ef44964b
     file: /templates/desktop-app.yml
 
 variables:
-  CI_IMPL_REF: 1b65188184bb775cf45fbffe6ce4626ca1e4f8be
+  CI_IMPL_REF: 07c7f3d5f76f742ebd93e1138254b921ef44964b
 
 # 启动器（不依赖 Node 的那个 exe）只有在打 tag 时才会被真正打进发布件，
 # 所以推代码时就得把「能不能编、测试过不过」验掉，别等到发版才发现。
