@@ -1,26 +1,32 @@
-# 应用仓库的流水线入口：逻辑在 CI 实现仓库（cicd）里，这里只做引用与钉版本。
-#
-# 这三处的 ref 必须是同一个 commit：换任意一处就等于换了这一版的流水线逻辑。
-# 密钥不写在这里：CI/CD 变量在本仓库的 Settings → CI/CD → Variables（作用域 app-cicd）。
-include:
-  - project: data_ai/cicd
-    ref: 07c7f3d5f76f742ebd93e1138254b921ef44964b
-    file: /templates/common.yml
-  - project: data_ai/cicd
-    ref: 07c7f3d5f76f742ebd93e1138254b921ef44964b
-    file: /templates/desktop-app.yml
+stages: [dispatch]
 
-variables:
-  CI_IMPL_REF: 07c7f3d5f76f742ebd93e1138254b921ef44964b
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
 
-# 启动器（不依赖 Node 的那个 exe）只有在打 tag 时才会被真正打进发布件，
-# 所以推代码时就得把「能不能编、测试过不过」验掉，别等到发版才发现。
-app:launcher:
-  image: golang:1.22
-  stage: test
+app:central-ci:
+  stage: dispatch
   interruptible: true
-  script:
-    - cd tools/launcher
-    - go vet ./...
-    - go test ./...
-    - GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /tmp/mastergo-transcoder.exe .
+  trigger:
+    project: data_ai/cicd
+    branch: fix/ci-runtime-tools-20261017
+    strategy: depend
+    forward:
+      yaml_variables: true
+      pipeline_variables: false
+  variables:
+    CALLER_CI_SUITE: desktop-app
+    CALLER_PROJECT_ID: "$CI_PROJECT_ID"
+    CALLER_PROJECT_PATH: "$CI_PROJECT_PATH"
+    CALLER_COMMIT_SHA: "$CI_COMMIT_SHA"
+    CALLER_REF_NAME: "$CI_COMMIT_REF_NAME"
+    CALLER_BASE_SHA: "$CI_MERGE_REQUEST_DIFF_BASE_SHA"
+    CALLER_PREVIOUS_SHA: "$CI_COMMIT_BEFORE_SHA"
+    CALLER_MR_IID: "$CI_MERGE_REQUEST_IID"
+    CALLER_MR_TITLE: "$CI_MERGE_REQUEST_TITLE"
+    CALLER_MR_TARGET_BRANCH: "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    CALLER_PIPELINE_URL: "$CI_PIPELINE_URL"
+    CALLER_PIPELINE_SOURCE: "$CI_PIPELINE_SOURCE"
+    CALLER_USER_LOGIN: "$GITLAB_USER_LOGIN"
