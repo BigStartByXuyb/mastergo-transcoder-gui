@@ -11,7 +11,7 @@ app:central-ci:
   interruptible: true
   trigger:
     project: data_ai/cicd
-    branch: fix/ci-runtime-tools-20261017
+    branch: main
     strategy: depend
     forward:
       yaml_variables: true
