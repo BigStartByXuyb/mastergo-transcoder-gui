@@ -43,12 +43,31 @@ function writeControls(root) {
   fs.mkdirSync(path.join(generated, "runs", TARGET), { recursive: true });
   fs.writeFileSync(
     path.join(generated, TARGET + ".component-types.json"),
-    JSON.stringify({ nodes: [{ ref: "a", controlType: "IconButton", absX: 10, absY: 20, w: 100, h: 40 }] }),
+    JSON.stringify({
+      nodes: [
+        { ref: "a", controlType: "IconButton", absX: 10, absY: 20, w: 100, h: 40 },
+        { ref: "b", controlType: "IconButton", absX: 10, absY: 70, w: 100, h: 40 }
+      ]
+    }),
     "utf8"
   );
   fs.writeFileSync(
     path.join(generated, "runs", TARGET, "dsl.snapshot.json"),
     JSON.stringify({ dsl: { nodes: [{ type: "FRAME", id: "root", layoutStyle: { width: 1280, height: 1024 } }] } }),
+    "utf8"
+  );
+  /* 分组表能引用的条目清单也是这一步的输入（判据在 lib/layout-candidates.js）：没有它就没得自动出分组。 */
+  fs.writeFileSync(
+    path.join(generated, "_inputs", TARGET + ".layout-group-candidates.json"),
+    JSON.stringify({
+      schemaVersion: "mw-wpf-layout-group-candidates/1",
+      pageTarget: TARGET,
+      source: { dslPath: "", dslSha256: "" },
+      entries: [
+        { ref: "a", controlType: "IconButton", text: "A" },
+        { ref: "b", controlType: "IconButton", text: "B" }
+      ]
+    }),
     "utf8"
   );
 }
@@ -86,7 +105,12 @@ function pendingFor(root) {
 function caseNothingYet() {
   const root = sandbox();
   // 还没跑到取数那一步：没有图、没有清单 —— 不是待办。
-  assert.deepStrictEqual(layoutOf(root, pendingFor(root)), { needsGroups: false, waiting: 0, controls: [] });
+  /* 形状照实钉住：canSuggest 是自动出分组那条判据（lib/layout-groups.js 一处算），少一栏就等于门禁恒为真。 */
+  assert.deepStrictEqual(layoutOf(root, pendingFor(root)), {
+    needsGroups: false,
+    waiting: 0,
+    canSuggest: false
+  });
   fs.rmSync(root, { recursive: true, force: true });
 }
 
@@ -104,7 +128,8 @@ function caseImageWithoutGroups() {
   const layout = layoutOf(root, pendingFor(root));
   assert.strictEqual(layout.needsGroups, true, "有图没有表 = 要人确认");
   assert.strictEqual(layout.waiting, 1, "要人确认的条数是 1");
-  assert.strictEqual(layout.controls.length, 1, "控件清单跟着一起给出来（AI 出候选要用）");
+  /* 自动出分组那条判据跟着一起给出来（判据在 lib/layout-groups.js 一处算）：少了它，自动那条路会恒被挡。 */
+  assert.strictEqual(layout.canSuggest, true, "这一层条目够分组，自动那条路可以问模型");
   fs.rmSync(root, { recursive: true, force: true });
 }
 

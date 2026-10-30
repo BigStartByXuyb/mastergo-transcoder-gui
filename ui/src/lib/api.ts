@@ -193,6 +193,11 @@ export type LayoutControl = {
   absY: number
   w: number
   h: number
+  /**
+   * 这个 ref 在不在这一层的可引用条目里（分组表只能写这些 ref）：
+   * 结论由后端一处给（判据在 lib/layout-candidates.js 的 refsOf），界面按它分「能拖 / 不能写进表」。
+   */
+  citable: boolean
 }
 
 export type LayoutGroup = {
@@ -252,6 +257,17 @@ export type LayoutGroups = {
   available: boolean
   reason: string
   controls: LayoutControl[]
+  /**
+   * 这一步的「分组表可引用的条目」清单（作业A 第 8 步的产物，转发 lib/layout-candidates.js）：
+   * 表里的 ref 只能从 entries 里取；entries 为空＝这一层不参与分组（表只能是空表）；
+   * available 为 false 时还没有这份清单（这一步没跑过），界面按 reason 说清、不给写回。
+   */
+  candidates: {
+    available: boolean
+    reason: string
+    pageTarget: string
+    entries: { ref: string; controlType: string; text: string }[]
+  }
   /** 画板尺寸（界面把控件坐标换算成百分比用）；固化快照那一步还没跑时是 null。判据在后端。 */
   canvas: { width: number; height: number } | null
   /** 这一页那张图的身份（空串＝没有图）：画布据此挂图并拼预览地址；判据在后端。 */
@@ -261,8 +277,13 @@ export type LayoutGroups = {
   groups: LayoutGroup[]
   /** 这一页有没有分组表（空表也算有）：与「表里有什么」同一次读给出。 */
   hasGroups: boolean
-  /** 现在问 AI 有没有意义（控件太少时分不出组）：阈值在后端，界面只管按它禁用按钮。 */
-  canSuggest: boolean
+  /**
+   * 「能不能问模型」这份读数：ready 为假时 reason / hint 就是不能问的那件事与出路（后端 suggestBlocker 的原话）。
+   * 条件三样缺一不可：这一层的条目清单在、条目够、这一页有设计稿位图（这一步是看图判分组）。
+   */
+  suggest: { ready: boolean; code: string; reason: string; hint: string }
+  /** 这一页有没有设计稿位图：与 suggest 同一次读数（待确认那节据它算在不在布局这一步停）。 */
+  hasImage: boolean
   /** 「自动通过」是全局开关，值随这一页一起读回来（面板不必再取一遍设置）。 */
   autoPass: boolean
 }
@@ -482,7 +503,11 @@ export type PendingLayout = {
   needsGroups: boolean
   /** 要人确认的条数：0 或 1。口径在 lib/pending.js 算一次，界面只取数。 */
   waiting: number
-  controls: LayoutControl[]
+  /**
+   * 这一层的条目凑不凑得出组（自动补输入据此决定要不要问模型）：
+   * 判据在 lib/layout-groups.js 一处算，这里只转发；界面不读它。
+   */
+  canSuggest: boolean
 }
 
 export type Pending = {
@@ -1107,13 +1132,15 @@ export const api = {
       kind: "glossary",
       texts
     }),
-  /* 带上工程与页面：后端据此把这一页的设计稿位图一起给模型（插件口径里这一步是「看图判分组」）。 */
-  aiLayoutGroups: (projectRoot: string, target: string, controls: LayoutControl[]) =>
+  /*
+   * 带上工程与页面：后端据此取这一层的条目清单与这一页的设计稿位图（插件口径里这一步是「看图判分组」，
+   * 表里的 ref 只能从那几条条目里取 —— 输入只有服务端一处拼法，界面不把控件清单塞进来）。
+   */
+  aiLayoutGroups: (projectRoot: string, target: string) =>
     post<{ ok: true; groups: LayoutGroup[] }>("/api/ai/suggest", {
       kind: "layout-groups",
       projectRoot,
-      target,
-      controls
+      target
     }),
   confirm: (body: {
     projectRoot: string
