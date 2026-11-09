@@ -33,6 +33,7 @@ import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
 import { discardCreatedTasks, picksForCreated, stagePickedImages } from "@/app/stage-design-images"
 import { FINISHED_STATES } from "@/lib/task-state"
+import { modeTakesRoute } from "@/lib/task-form"
 import { useSettings } from "@/lib/use-settings"
 
 // 一页十条：一屏放得下，多出来的翻页。
@@ -115,7 +116,7 @@ export function BoardPage() {
       toast.error("一行一个 MasterGo 链接，至少一行")
       return
     }
-    if (form.mode === "A") {
+    if (modeTakesRoute(form.mode, "A")) {
       const missing = items.find((item) => !images[item.link])
       if (missing) {
         toast.error("还有链接没有配页面 PNG，请为每一行选一张图")

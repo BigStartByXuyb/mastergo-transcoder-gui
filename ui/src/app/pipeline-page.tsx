@@ -145,7 +145,7 @@ export function PipelinePage({
       setFailure("请先填工程目录和 MasterGo 链接")
       return
     }
-    if (form.mode === "A" && !stagedImage) {
+    if (modeTakesRoute(form.mode, "A") && !stagedImage) {
       setFailure("请选择这一页按原始尺寸导出的 PNG")
       return
     }
