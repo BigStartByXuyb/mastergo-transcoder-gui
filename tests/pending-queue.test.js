@@ -38,8 +38,8 @@ function caseEntryShape() {
   const items = queue.snapshot().items;
 
   assert.strictEqual(items.length, 1);
-  assert.deepStrictEqual(items[0].counts, { icons: 2, translations: 1 }, "人工待办条数各取一处算出来的数");
-  assert.strictEqual(items[0].total, 3, "合计数是图标与文案之和");
+  assert.deepStrictEqual(items[0].counts, { icons: 2, translations: 1, layout: 0 }, "人工待办条数各取一处算出来的数");
+  assert.strictEqual(items[0].total, 3, "合计数是图标、文案与布局之和");
   assert.strictEqual(items[0].source, "board");
   assert.strictEqual(items[0].taskId, "task-1");
   assert.strictEqual(items[0].runState, "waiting");
@@ -74,13 +74,16 @@ function caseEmptyIsSkipped() {
   assert.deepStrictEqual(queue.snapshot().items, [], "没有要填的就不列出来");
 }
 
-// 只剩布局分组待自动补时，不进人工待确认列表。
-function caseLayoutOnlyIsSkipped() {
+// 只剩布局分组时也要进列表：自动分组失败后必须有显式写空表的入口。
+function caseLayoutOnlyIsListed() {
   const queue = makeQueue({
     tasks: [{ id: "task-1", state: "waiting", jobId: "job-1", workDir: WORK, request: { target: "DemoPage" } }],
     pending: { icons: { waiting: 0 }, translations: { waiting: 0 }, layout: { waiting: 1 } }
   });
-  assert.deepStrictEqual(queue.snapshot().items, [], "布局分组由流水线 A 自动处理");
+  const items = queue.snapshot().items;
+  assert.strictEqual(items.length, 1);
+  assert.deepStrictEqual(items[0].counts, { icons: 0, translations: 0, layout: 1 });
+  assert.strictEqual(items[0].total, 1);
 }
 
 /*
@@ -109,7 +112,7 @@ try {
     ["条目形状：条数、来源、状态名", caseEntryShape],
     ["看板来源按整段路径判（work 不吃 work2、大小写不敏感）", caseWorkRootPrefix],
     ["一条都不需要填的不进列表", caseEmptyIsSkipped],
-    ["只剩布局分组时不进人工列表", caseLayoutOnlyIsSkipped],
+    ["只剩布局分组时仍可人工写空表", caseLayoutOnlyIsListed],
     ["同一页只列一条", caseDedupeByProjectAndTarget]
   ];
   for (const [name, run] of cases) {

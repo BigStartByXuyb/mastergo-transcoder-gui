@@ -4,7 +4,7 @@
  * 这一页的主体是任务表；工程、模式、链接只在要加任务时填，收进「创建任务」弹窗。
  * 上面一排筛选（工作区 / 区域 / 状态），列表按页给，一页十条，页面本身不往下拖。
  */
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { GitMerge, Loader2, Play, Plus } from "lucide-react"
 import { toast } from "sonner"
 
@@ -45,6 +45,7 @@ export function BoardPage() {
   const [form, setForm] = useRemembered(readBoardForm, writeBoardForm)
   const [busy, setBusy] = useState("")
   const [adding, setAdding] = useState(false)
+  const addInFlight = useRef(false)
   /** 创建任务时先选好的设计稿位图：一行（一个页面）一份，按链接记；文件不进 localStorage。 */
   const [images, setImages] = useState<Record<string, File>>({})
   const [page, setPage] = useState(1)
@@ -124,52 +125,62 @@ export function BoardPage() {
       }
     }
 
-    let outgoing = items
-    let ui = form.ui.trim()
-    let autoMerge = form.autoMerge
-    let overwrite = form.overwrite
-    let stopAfter = form.stopAfter.trim()
-    if (form.mode === "A") {
-      const prepared = await preparePipelineAItems(items, projectRoot)
-      if (!prepared.ok) {
-        setProblem(prepared.reason)
-        toast.error(prepared.reason)
-        return
-      }
-      outgoing = prepared.items
-      ui = ""
-      autoMerge = true
-      overwrite = true
-      stopAfter = ""
-    }
-
-    void run(
-      "add",
-      async () => {
-        const added = await api.boardAdd({
-          projectRoot,
-          ui,
-          autoMerge,
-          overwrite,
-          stopAfter,
-          items: outgoing
+    if (addInFlight.current) return
+    addInFlight.current = true
+    setBusy("add")
+    try {
+      let outgoing = items
+      let ui = form.ui.trim()
+      let autoMerge = form.autoMerge
+      let overwrite = form.overwrite
+      let stopAfter = form.stopAfter.trim()
+      if (form.mode === "A") {
+        const prepared = await preparePipelineAItems(items, projectRoot, {
+          useAi: (settings?.automation ?? "assist") !== "off"
         })
-        // 建完任务才暂存（暂存件按任务 id 落键）：门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts。
-        const staged = await stagePickedImages(form.mode, picksForCreated(added.board, added.created, images))
-        if (!staged.ok) {
-          setBoard(await discardCreatedTasks(added.board, added.created))
-          throw new Error(staged.failure)
+        if (!prepared.ok) {
+          setProblem(prepared.reason)
+          toast.error(prepared.reason)
+          return
         }
-        if (form.mode !== "A") return added
-        let board = added.board
-        for (const id of added.created) board = (await api.boardStart(id)).board
-        return { ...added, board }
-      },
-      applyBoard
-    ).then((added) => {
+        outgoing = prepared.items
+        ui = ""
+        autoMerge = true
+        overwrite = true
+        stopAfter = ""
+      }
+
+      const added = await run(
+        "add",
+        async () => {
+          const created = await api.boardAdd({
+            projectRoot,
+            ui,
+            autoMerge,
+            overwrite,
+            stopAfter,
+            items: outgoing
+          })
+          // 建完任务才暂存（暂存件按任务 id 落键）：门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts。
+          const staged = await stagePickedImages(form.mode, picksForCreated(created.board, created.created, images))
+          if (!staged.ok) {
+            setBoard(await discardCreatedTasks(created.board, created.created))
+            throw new Error(staged.failure)
+          }
+          if (form.mode !== "A") return created
+          let board = created.board
+          for (const id of created.created) board = (await api.boardStart(id)).board
+          return { ...created, board }
+        },
+        applyBoard
+      )
       if (added) setImages({})
       setAdding(false)
-    })
+    }
+    finally {
+      addInFlight.current = false
+      setBusy("")
+    }
   }
 
   function fillIdentity() {

@@ -34,7 +34,7 @@ describe("preparePipelineAItems", () => {
       throw new Error("unexpected " + url)
     })
 
-    const result = await preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project")
+    const result = await preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { useAi: true })
     expect(result).toEqual({
       ok: true,
       items: [{ link: LINK, target: "F3StopAdjust", ui: "F3", mode: "A" }]
@@ -67,7 +67,7 @@ describe("preparePipelineAItems", () => {
       throw new Error("unexpected " + url)
     })
 
-    await expect(preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project")).resolves.toEqual({
+    await expect(preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { useAi: true })).resolves.toEqual({
       ok: true,
       items: [{ link: LINK, target: "F3StopAdjust", ui: "F3", mode: "A" }]
     })
@@ -83,7 +83,7 @@ describe("preparePipelineAItems", () => {
       throw new Error("unexpected " + url)
     })
 
-    await expect(preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project")).resolves.toEqual({
+    await expect(preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { useAi: true })).resolves.toEqual({
       ok: false,
       reason: "这一页还没登记区域"
     })
@@ -108,10 +108,28 @@ describe("preparePipelineAItems", () => {
       throw new Error("unexpected " + url)
     })
 
-    await expect(preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project")).resolves.toEqual({
+    await expect(preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { useAi: true })).resolves.toEqual({
       ok: false,
       reason: "设计页改过名，需要人工确认"
     })
+    expect(bodies.some((body) => body.useAi === true)).toBe(false)
+  })
+
+  it("自动化关闭时身份准备也不调用模型", async () => {
+    const bodies: Array<Record<string, unknown>> = []
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {}
+      bodies.push(body)
+      if (url.includes("/api/design/page-name")) return Promise.resolve(json({ ok: true, pageName: "停止调整", rootId: "1:1" }))
+      if (url.includes("/api/identity/candidates")) {
+        return Promise.resolve(json({ ok: true, candidates: [], ai: { used: false, items: [] }, blocked: "" }))
+      }
+      throw new Error("unexpected " + url)
+    })
+
+    const result = await preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { useAi: false })
+    expect(result.ok).toBe(false)
     expect(bodies.some((body) => body.useAi === true)).toBe(false)
   })
 })

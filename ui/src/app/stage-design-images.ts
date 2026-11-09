@@ -48,7 +48,10 @@ export function picksForCreated(
   })
 }
 
-/* 逐张送：一张被后端挡回来（不是 PNG/JPEG、太大）不连累其余几张，回第一条原话（没有就是空串）。 */
+/*
+ * 逐张送：先把每一张都送完，保留第一条后端原话，让用户一次看到所有需要修的问题。
+ * 任一张失败时调用方按批次原子回滚，不留下半批已启动的 A 段任务。
+ */
 async function sendAll(picks: StagedPick[]): Promise<string> {
   let firstFailure = ""
   for (const pick of picks) {

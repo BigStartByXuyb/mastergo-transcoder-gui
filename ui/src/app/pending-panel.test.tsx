@@ -53,8 +53,12 @@ function stub() {
 }
 
 /* AI 候选：手动按钮那条路要它回一份候选，验「候选按同一处口径落进输入框」。 */
-function stubWith(options: { iconNames?: { index: number; name: string; comment: string }[] }) {
-  vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
+function stubWith(options: {
+  iconNames?: { index: number; name: string; comment: string }[]
+  pending?: Pending
+  onConfirm?: (body: Record<string, unknown>) => void
+}) {
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     if (url.includes("/api/settings")) {
       return Promise.resolve(
@@ -66,7 +70,13 @@ function stubWith(options: { iconNames?: { index: number; name: string; comment:
         new Response(JSON.stringify({ ok: true, items: options.iconNames ?? [{ index: 1, name: "MenuOk", comment: "候选" }] }), { status: 200 })
       )
     }
-    return Promise.resolve(new Response(JSON.stringify({ ok: true, pending: pending() }), { status: 200 }))
+    if (url.includes("/api/confirm")) {
+      options.onConfirm?.(JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>)
+      return Promise.resolve(
+        new Response(JSON.stringify({ ok: true, written: [], job: null }), { status: 200 })
+      )
+    }
+    return Promise.resolve(new Response(JSON.stringify({ ok: true, pending: options.pending ?? pending() }), { status: 200 }))
   })
 }
 
@@ -115,5 +125,26 @@ describe("PendingPanel", () => {
     ask.click()
     const input = await screen.findByDisplayValue("MenuOk")
     expect(input).toBeTruthy()
+  })
+
+  it("只剩布局停点时给出显式空表出口，提交载荷写 groups: []", async () => {
+    const layoutPending = pending()
+    layoutPending.icons.waiting = 0
+    layoutPending.icons.missing = 0
+    layoutPending.icons.needsNaming = false
+    layoutPending.layout = { needsGroups: true, waiting: 1 }
+    let confirmed: Record<string, unknown> | null = null
+    stubWith({
+      pending: layoutPending,
+      onConfirm: (body) => {
+        confirmed = body
+      }
+    })
+    render(panel("waiting"))
+
+    const empty = await screen.findByRole("button", { name: /写空表并继续/ })
+    empty.click()
+    await vi.waitFor(() => expect(confirmed).not.toBeNull())
+    expect(confirmed).toEqual(expect.objectContaining({ groups: [] }))
   })
 })

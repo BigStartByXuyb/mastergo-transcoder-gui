@@ -82,7 +82,7 @@ export function ReviewPage() {
         // 手填的条目没有来源运行，因而没有状态可显示。
         stateLabel: "",
         orphan: false,
-        counts: { icons: 0, translations: 0 },
+        counts: { icons: 0, translations: 0, layout: 0 },
         total: 0,
         manual: true
       }
@@ -160,6 +160,7 @@ export function ReviewPage() {
                         <span className="flex flex-wrap gap-x-2">
                           {entry.counts.icons > 0 && <span>图标 {entry.counts.icons}</span>}
                           {entry.counts.translations > 0 && <span>文案 {entry.counts.translations}</span>}
+                          {entry.counts.layout > 0 && <span>布局 1</span>}
                         </span>
                       </TableCell>
                       <TableCell

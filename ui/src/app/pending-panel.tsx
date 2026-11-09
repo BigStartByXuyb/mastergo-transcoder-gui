@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PENDING_BUSY, usePendingInputs } from "@/app/use-pending-inputs"
-import { api } from "@/lib/api"
+import { api, type PendingLayoutGroup } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { inFlightNote, isInFlight, pendingInputCount, waitingCounts } from "@/lib/task-state"
 
@@ -111,8 +111,14 @@ export function PendingPanel({
   const duplicateCount = duplicateGroups.length
   const langCount = pending?.translations.available ? pending.translations.pendingTranslations.length : 0
   const glossaryCount = pending?.translations.available ? pending.translations.glossaryRequired.length : 0
-  // 本页还缺多少条人工语义输入：这里只数图标 + 文案（同一个判据给看板那张卡用）。
+  const layoutWaiting = pending?.layout.waiting ?? 0
+  // 本页还缺多少条人工语义输入：三节共用一个计数判据。
   const waiting = pendingInputCount(waitingCounts(pending))
+  const otherWaiting = pendingInputCount({
+    icons: pending?.icons.waiting ?? 0,
+    translations: pending?.translations.waiting ?? 0,
+    layout: 0
+  })
 
   /*
    * 「本页没有图标槽位」只有一种情形：插件判定必须登记的候选一条都没有。
@@ -122,6 +128,7 @@ export function PendingPanel({
   const noIconSlots = Boolean(pending?.icons.available) && (pending?.icons.mustName.length ?? 0) === 0
   // 有待办才让提交；没有图标槽位时靠「按空台账继续」这一个显式声明兜底。
   const canSubmit = Boolean(pending) && (waiting > 0 || (noIconSlots && allowEmptyLedger))
+  const hasSource = Boolean(taskId || runId)
   /*
    * 跑着的时候不给续跑：这条判据在任务状态模块（ui/src/lib/task-state.ts 的 isInFlight）。
    * 待确认清单不按运行状态过滤，正在跑的任务照样会列在这里 —— 两个入口的口径必须一样。
@@ -134,7 +141,8 @@ export function PendingPanel({
       resume: boolean,
       naming: { index: number; name: string; comment: string; fromDsl?: boolean }[],
       translations: Record<string, string>,
-      glossaryMap: Record<string, string>
+      glossaryMap: Record<string, string>,
+      groups?: PendingLayoutGroup[]
     ) => {
       if (!pending) return
       clearFailure()
@@ -148,6 +156,7 @@ export function PendingPanel({
           naming: pending.icons.available && pending.icons.needsNaming ? naming : undefined,
           translations: pending.translations.available ? translations : undefined,
           glossary: pending.translations.available ? glossaryMap : undefined,
+          groups,
           allowEmptyLedger: noIconSlots && allowEmptyLedger,
           // 命名表写歪了（旧下标 / 重名）就顺手修好：这次提交不只是补名字。
           pruneNaming: Boolean(pending.icons.available && pending.icons.needsRepair),
@@ -164,12 +173,19 @@ export function PendingPanel({
         setSubmitBusy("")
       }
     },
-    [pending, taskId, runId, allowEmptyLedger, load, onResumed, clearFailure, writeFailure]
+    [pending, taskId, runId, allowEmptyLedger, noIconSlots, load, onResumed, clearFailure, writeFailure]
   )
 
   const submit = useCallback(
-    (resume: boolean) => submitWith(resume, namingPayload(), translationsPayload(), glossaryPayload()),
-    [submitWith, namingPayload, translationsPayload, glossaryPayload]
+    (resume: boolean) =>
+      submitWith(
+        resume,
+        namingPayload(),
+        translationsPayload(),
+        glossaryPayload(),
+        pending?.layout.needsGroups ? [] : undefined
+      ),
+    [submitWith, namingPayload, translationsPayload, glossaryPayload, pending?.layout.needsGroups]
   )
 
   /*
@@ -182,6 +198,8 @@ export function PendingPanel({
     // 跑着的时候连自动那条路也不续跑：那会与人工点「确认并继续」一样起第二次运行。
     if (inFlight) return
     if (waiting === 0) return
+    // 面板没有单独调用布局模型的入口：布局是唯一待办时等人显式写空表。
+    if (otherWaiting === 0 && layoutWaiting > 0) return
     if (aiReady !== true) return
     const key =
       projectRoot + "|" + target + "|" + iconCount + "|" + staleCount + "|" + duplicateCount + "|" + langCount + "|" + glossaryCount
@@ -223,11 +241,16 @@ export function PendingPanel({
     automation,
     inFlight,
     waiting,
+    otherWaiting,
+    layoutWaiting,
     iconCount,
+    staleCount,
+    duplicateCount,
     langCount,
     glossaryCount,
     projectRoot,
     target,
+    taskId,
     aiReady,
     namingPayload,
     translationsPayload,
@@ -270,13 +293,34 @@ export function PendingPanel({
         </Alert>
       )}
 
-      {waiting > 0 && aiReady === false && automation !== "off" && (
+      {otherWaiting > 0 && aiReady === false && automation !== "off" && (
         <Alert>
           <AlertTitle>还没配模型，暂时只能人工填</AlertTitle>
           <AlertDescription>
             到「设置」填厂商 / base_url / 模型名 / key 之后，这里会自动出候选。下面仍然可以手填。
           </AlertDescription>
         </Alert>
+      )}
+
+      {layoutWaiting > 0 && (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium">布局分组</span>
+            <Badge variant="destructive">自动分组未完成</Badge>
+          </div>
+          <Alert>
+            <AlertTitle>这一页有 PNG，但还没有分组表</AlertTitle>
+            <AlertDescription>
+              自动分组没有产出可用结果。确认本页没有需要声明的控件分组后，可以写一张空表并继续；空表是插件的合法输入。
+            </AlertDescription>
+          </Alert>
+          <div>
+            <Button size="sm" variant="outline" disabled={busy !== "" || inFlight} onClick={() => void submit(hasSource)}>
+              <Send className="size-4" />
+              {hasSource ? "本页没有可分组控件，写空表并继续" : "本页没有可分组控件，只写入空表"}
+            </Button>
+          </div>
+        </div>
       )}
 
       {icons.available && (
@@ -468,7 +512,7 @@ export function PendingPanel({
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button disabled={busy === SUBMIT_BUSY || !canSubmit || inFlight} onClick={() => void submit(true)}>
+        <Button disabled={busy === SUBMIT_BUSY || !canSubmit || inFlight || !hasSource} onClick={() => void submit(true)}>
           {busy === SUBMIT_BUSY ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           确认并继续
         </Button>
@@ -482,6 +526,9 @@ export function PendingPanel({
         {inFlight && canSubmit && <span className="text-muted-foreground text-xs">{inFlightNote("确认并继续")}</span>}
         {!canSubmit && pending && (
           <span className="text-muted-foreground text-xs">这个页面当前没有要填的东西。</span>
+        )}
+        {!hasSource && canSubmit && (
+          <span className="text-muted-foreground text-xs">手填条目没有来源运行：可以写文件，不能自动续跑。</span>
         )}
       </div>
     </div>

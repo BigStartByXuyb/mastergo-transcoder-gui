@@ -69,7 +69,7 @@ export function SettingsAgentPanel() {
           </div>
           <p className="text-muted-foreground text-xs">
             「辅助」自动出候选、你确认后继续；「自动」出完候选直接续跑（看板任务由客户端自己补，不必开着这个页面）。
-            流水线 A 的布局分组始终由客户端自动补齐，不再需要人工确认。
+            流水线 A 在「辅助 / 自动」下由客户端补布局分组；选「关」时不会调用模型，停在待确认面板里显式写空表继续。
           </p>
         </CardContent>
       </Card>

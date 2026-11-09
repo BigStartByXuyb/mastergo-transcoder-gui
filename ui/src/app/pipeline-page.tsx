@@ -9,7 +9,7 @@
  * ui/src/lib/step-rows.ts，身份补全在 use-identity，运行日志在 use-run-log。每个面板自己知道自己要什么。
  */
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { DoneBoard } from "@/app/done-board"
@@ -52,6 +52,8 @@ export function PipelinePage({
   const [currentId, setCurrentId] = useState(taskId)
   const [failure, setFailure] = useState("")
   const [automation, setAutomation] = useState("assist")
+  const [starting, setStarting] = useState(false)
+  const startInFlight = useRef(false)
   /* 填过的值改一下就写回本地（写回时机只有 app/use-remembered.ts 一处）：填一半切走再回来还在。 */
   const [form, setForm] = useRemembered(readTaskForm, writeTaskForm)
   /** 详情区现在看哪一步（空串 = 任务总览）。 */
@@ -149,87 +151,97 @@ export function PipelinePage({
       setFailure("请选择这一页按原始尺寸导出的 PNG")
       return
     }
-
-    let target = form.target
-    let ui = form.ui
-    let stopAfter = form.stopAfter
-    let overwrite = form.overwrite
-    if (form.mode === "A") {
-      const prepared = await preparePipelineAItems([{ link, target: "", mode: "A" }], projectRoot)
-      if (!prepared.ok) {
-        setFailure(prepared.reason)
-        return
-      }
-      target = prepared.items[0].target
-      ui = prepared.items[0].ui
-      stopAfter = ""
-      overwrite = true
-    }
-    else {
-      const decision = await decideStartIdentity({
-        link,
-        projectRoot,
-        target: form.target,
-        ui: form.ui,
-        automation,
-        loadCandidates: async () =>
-          (
-            await candidatesForLink({
-              link,
-              projectRoot,
-              pageName: identity.name,
-              ui: form.ui,
-              useAi: false
-            })
-          ).items,
-        autoPick: () => identity.pick(),
-        autoApply: (item) => identity.apply(item)
-      })
-      if (!decision.ok) {
-        if (decision.reason) setFailure(decision.reason)
-        return
-      }
-      target = decision.target
-      ui = decision.ui
-    }
-
-    // 失败时动作返回 null，原话已经由 use-task-actions 写进 failure：这一次点击到这儿就收尾。
-    const added = await actions.start({
-      projectRoot,
-      ui,
-      autoMerge: true,
-      stopAfter,
-      overwrite,
-      items: [{ link, target, mode: form.mode as "A" | "B" | "AB" }]
-    })
-    if (!added) return
-    // 后端建不出来就不会回成功（lib/board.js 的 add 在没解析出链接时直接抛），所以这里一定有这一条。
-    const created = added.created[0]
-    /*
-     * 先选好的位图跟着任务暂存（暂存件的键是任务 id）：那时画板尺寸还不知道，核不了尺寸 ——
-     * 任务跑到「取数 + 固化快照」之后由看板那侧核对尺寸再落地。
-     * 图被后端挡回来（不是 PNG/JPEG、太大）时撤掉刚建的任务并把原话放回表单；A 不启动没有 PNG 的任务。
-     */
-    if (stagedImage) {
-      // 门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts（与看板那条同源）。
-      const staged = await stagePickedImages(form.mode, [{ taskId: created, file: stagedImage }])
-      if (!staged.ok) {
-        try {
-          setBoard(await discardCreatedTasks(added.board, [created]))
-        }
-        catch (error) {
-          setFailure(describeFailure(error))
+    if (startInFlight.current) return
+    startInFlight.current = true
+    setStarting(true)
+    try {
+      let target = form.target
+      let ui = form.ui
+      let stopAfter = form.stopAfter
+      let overwrite = form.overwrite
+      if (form.mode === "A") {
+        const prepared = await preparePipelineAItems([{ link, target: "", mode: "A" }], projectRoot, {
+          useAi: automation !== "off"
+        })
+        if (!prepared.ok) {
+          setFailure(prepared.reason)
           return
         }
-        setFailure(staged.failure)
-        return
+        target = prepared.items[0].target
+        ui = prepared.items[0].ui
+        stopAfter = ""
+        overwrite = true
       }
+      else {
+        const decision = await decideStartIdentity({
+          link,
+          projectRoot,
+          target: form.target,
+          ui: form.ui,
+          automation,
+          loadCandidates: async () =>
+            (
+              await candidatesForLink({
+                link,
+                projectRoot,
+                pageName: identity.name,
+                ui: form.ui,
+                useAi: false
+              })
+            ).items,
+          autoPick: () => identity.pick(),
+          autoApply: (item) => identity.apply(item)
+        })
+        if (!decision.ok) {
+          if (decision.reason) setFailure(decision.reason)
+          return
+        }
+        target = decision.target
+        ui = decision.ui
+      }
+
+      // 失败时动作返回 null，原话已经由 use-task-actions 写进 failure：这一次点击到这儿就收尾。
+      const added = await actions.start({
+        projectRoot,
+        ui,
+        autoMerge: true,
+        stopAfter,
+        overwrite,
+        items: [{ link, target, mode: form.mode as "A" | "B" | "AB" }]
+      })
+      if (!added) return
+      // 后端建不出来就不会回成功（lib/board.js 的 add 在没解析出链接时直接抛），所以这里一定有这一条。
+      const created = added.created[0]
+      /*
+       * 先选好的位图跟着任务暂存（暂存件的键是任务 id）：那时画板尺寸还不知道，核不了尺寸 ——
+       * 任务跑到「取数 + 固化快照」之后由看板那侧核对尺寸再落地。
+       * 图被后端挡回来（不是 PNG/JPEG、太大）时撤掉刚建的任务并把原话放回表单；A 不启动没有 PNG 的任务。
+       */
+      if (stagedImage) {
+        // 门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts（与看板那条同源）。
+        const staged = await stagePickedImages(form.mode, [{ taskId: created, file: stagedImage }])
+        if (!staged.ok) {
+          try {
+            setBoard(await discardCreatedTasks(added.board, [created]))
+          }
+          catch (error) {
+            setFailure(describeFailure(error))
+            return
+          }
+          setFailure(staged.failure)
+          return
+        }
+      }
+      await actions.startJob(created)
+      setCurrentId(created)
+      setImages({})
+      window.location.hash = "pipeline?task=" + created
+      toast.success("已加入看板并开始")
     }
-    await actions.startJob(created)
-    setCurrentId(created)
-    setImages({})
-    window.location.hash = "pipeline?task=" + created
-    toast.success("已加入看板并开始")
+    finally {
+      startInFlight.current = false
+      setStarting(false)
+    }
   }
 
   const failedStep = contract.find((item) => item.Name === stopStep) ?? null
@@ -247,7 +259,7 @@ export function PipelinePage({
           identity={identity}
           image={stagedImage}
           onPickImage={(file) => setImages((current) => withPickedImage(current, form.link, file))}
-          busy={actions.busy}
+          busy={actions.busy || (starting ? "start" : "")}
           failure={failure}
           canStop={task !== null && canStop(task.state)}
           onStart={() => void start()}

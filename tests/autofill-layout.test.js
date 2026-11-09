@@ -111,8 +111,10 @@ async function caseAutomationOff() {
   const projectRoot = sandbox(png(1280, 1024));
   const fx = harness({ automation: "off", groups: [], projectRoot });
   const result = await fx.autoFill.fill({ projectRoot, target: "T1", runId: "job-1", request: { mode: "A" } });
-  assert.strictEqual(result.ok, true);
-  assert.strictEqual(fx.inputs.length, 1);
+  assert.strictEqual(result.ok, false);
+  assert.match(result.reason, /自动化未开启/);
+  assert.strictEqual(fx.inputs.length, 0, "关（不叫模型）时 A 路线也不得绕过设置");
+  assert.deepStrictEqual(fx.committed, []);
   fs.rmSync(projectRoot, { recursive: true, force: true });
 }
 
@@ -129,7 +131,7 @@ async function caseBitmapGoesToModel() {
 
 /*
  * 没有位图：这一步不问模型（它是对着图判分组，没图时分组由机械判据决定）——
- * 判据在 lib/layout-groups.js 的 suggest.ready；待确认读数只负责把 needsGroups 给出来。
+ * 判据由 lib/layout-groups.js 的 candidatesInput 在生产路径上执行；待确认读数只给 needsGroups。
  */
 async function caseNoBitmap() {
   const projectRoot = sandbox();
@@ -162,7 +164,7 @@ const CASES = [
   ["模型给出分组就照写", caseGroupsWritten],
   ["模型一组没给：空表也是结论", caseEmptyIsAConclusion],
   ["条目清单不在：整句交回给人、不写盘", caseNoCandidatesBlocks],
-  ["布局分组在全局自动化关闭时仍会自动执行", caseAutomationOff],
+  ["全局自动化关闭时布局分组也不叫模型", caseAutomationOff],
   ["有图就把位图一起给模型", caseBitmapGoesToModel],
   ["没有位图：不问模型，按哪一条没满足交回", caseNoBitmap],
   ["图坏了：整句交回给人、不写盘", caseBrokenBitmapBlocks]

@@ -101,24 +101,33 @@ function main() {
     const root = sandbox();
     const info = layout.inspect({ projectRoot: root, target: TARGET });
     assert.strictEqual(info.available, true);
-    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "hasGroups", "hasImage", "reason", "suggest"]);
-    assert.strictEqual(info.suggest.ready, false, "还没传图：这一步是看图判分组，不必问模型");
+    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "hasGroups", "hasImage", "reason"]);
+    assert.throws(
+      () => layout.candidatesInput({ projectRoot: root, target: TARGET }),
+      /这一步要对着设计稿位图判分组/,
+      "还没传图：这一步是看图判分组，候选取数必须拒绝"
+    );
     assert.strictEqual(info.hasGroups, false, "还没写过分组表");
     /* 传上图之后：这一层的条目够分组，才谈得上问模型（两个条件缺一不可）。 */
     writeImage(root);
-    assert.strictEqual(layout.inspect({ projectRoot: root, target: TARGET }).suggest.ready, true, "有图 + 条目够 = 可以问模型");
+    const input = layout.candidatesInput({ projectRoot: root, target: TARGET });
+    assert.match(input.image, /^data:image\/png;base64,/, "有图 + 条目够 = 可以问模型");
+    assert.strictEqual(input.entries.length, 3);
   }
 
   /*
-   * 这一步还没跑过（清单不在）：读数说清是哪一件事、suggest.ready 关掉；这时不许写表
+   * 这一步还没跑过（清单不在）：候选取数说清是哪一件事；这时不许写表
    * （没有「能写哪些 ref」这条事实），空表也不行 —— 表是给人确认的结论，不是猜的。
    */
   {
     const root = sandbox();
     writeCandidates(root, null);
     const info = layout.inspect({ projectRoot: root, target: TARGET });
-    assert.strictEqual(info.suggest.ready, false, "清单不在就不必问模型");
-    assert.match(info.suggest.reason, /还没有这一步的条目清单/);
+    assert.throws(
+      () => layout.candidatesInput({ projectRoot: root, target: TARGET }),
+      /还没有这一步的条目清单/,
+      "清单不在就不必问模型"
+    );
     assert.throws(
       () => layout.save({ projectRoot: root, target: TARGET, groups: [] }),
       /还没有这一步的条目清单/
@@ -135,8 +144,11 @@ function main() {
     const root = sandbox();
     writeCandidates(root, []);
     const info = layout.inspect({ projectRoot: root, target: TARGET });
-    assert.strictEqual(info.suggest.ready, false, "这一层凑不出组");
-    assert.match(info.suggest.reason, /条目凑不出分组/);
+    assert.throws(
+      () => layout.candidatesInput({ projectRoot: root, target: TARGET }),
+      /条目凑不出分组/,
+      "这一层凑不出组"
+    );
     assert.throws(
       () => layout.save({ projectRoot: root, target: TARGET, groups: [{ id: "g1", kind: "column", members: ["a", "b"] }] }),
       /这一层的条目清单是空的（这一层不参与分组）：表里不声明任何组/

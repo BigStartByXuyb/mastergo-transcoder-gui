@@ -15,13 +15,13 @@ export type PreparedPipelineItems =
   | { ok: true; items: PreparedPipelineItem[] }
   | { ok: false; reason: string }
 
-async function prepareOne(item: BoardItem, projectRoot: string): Promise<PreparedPipelineItem | string> {
+async function prepareOne(item: BoardItem, projectRoot: string, useAi: boolean): Promise<PreparedPipelineItem | string> {
   try {
     const named = await api.designPageName(item.link)
     const base = { link: item.link, projectRoot, pageName: named.pageName, ui: "" }
     let got = await candidatesForLink({ ...base, useAi: false })
     let decision = pickIdentityCandidate(got.items, got.blocked)
-    if (!decision.pick && !got.blocked) {
+    if (!decision.pick && !got.blocked && useAi) {
       got = await candidatesForLink({ ...base, useAi: true })
       decision = pickIdentityCandidate(got.items, got.blocked)
     }
@@ -36,11 +36,12 @@ async function prepareOne(item: BoardItem, projectRoot: string): Promise<Prepare
 /** 逐项准备，避免多页同时改写同一个项目登记表。 */
 export async function preparePipelineAItems(
   items: BoardItem[],
-  projectRoot: string
+  projectRoot: string,
+  options: { useAi: boolean }
 ): Promise<PreparedPipelineItems> {
   const prepared: PreparedPipelineItem[] = []
   for (const item of items) {
-    const result = await prepareOne(item, projectRoot)
+    const result = await prepareOne(item, projectRoot, options.useAi)
     if (typeof result === "string") return { ok: false, reason: result }
     prepared.push(result)
   }

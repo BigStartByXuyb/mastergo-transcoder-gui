@@ -105,8 +105,13 @@ function pendingFor(root) {
 function caseNothingYet() {
   const root = sandbox();
   // 还没跑到取数那一步：没有图、没有清单 —— 不是待办。
+  const pending = pendingFor(root).inspect({ projectRoot: root, target: TARGET });
+  assert.deepStrictEqual(pending.icons.mustName, [], "图标清单不可用时也必须给前端完整的空数组");
+  assert.deepStrictEqual(pending.icons.candidates, []);
+  assert.deepStrictEqual(pending.translations.pendingTranslations, [], "译文清单不可用时也必须给前端完整的空数组");
+  assert.deepStrictEqual(pending.translations.glossaryRequired, []);
   /* 形状照实钉住：布局待补只报 needsGroups / waiting，不再转发已无消费方的 suggest 状态。 */
-  assert.deepStrictEqual(layoutOf(root, pendingFor(root)), {
+  assert.deepStrictEqual(pending.layout, {
     needsGroups: false,
     waiting: 0
   });
