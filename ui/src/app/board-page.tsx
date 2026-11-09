@@ -46,7 +46,7 @@ export function BoardPage() {
   const [busy, setBusy] = useState("")
   const [adding, setAdding] = useState(false)
   const addInFlight = useRef(false)
-  /** 创建任务时先选好的设计稿位图：一行（一个页面）一份，按链接记；文件不进 localStorage。 */
+  /** 创建任务时先选好的页面 PNG：一行（一个页面）一份，按链接记；文件不进 localStorage。 */
   const [images, setImages] = useState<Record<string, File>>({})
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useRemembered(readBoardFilters, writeBoardFilters)
@@ -127,32 +127,26 @@ export function BoardPage() {
 
     if (addInFlight.current) return
     addInFlight.current = true
-    setBusy("add")
     try {
-      let outgoing = items
-      let ui = form.ui.trim()
-      let autoMerge = form.autoMerge
-      let overwrite = form.overwrite
-      let stopAfter = form.stopAfter.trim()
-      if (form.mode === "A") {
-        const prepared = await preparePipelineAItems(items, projectRoot, {
-          useAi: (settings?.automation ?? "assist") !== "off"
-        })
-        if (!prepared.ok) {
-          setProblem(prepared.reason)
-          toast.error(prepared.reason)
-          return
-        }
-        outgoing = prepared.items
-        ui = ""
-        autoMerge = true
-        overwrite = true
-        stopAfter = ""
-      }
-
       const added = await run(
         "add",
         async () => {
+          let outgoing = items
+          let ui = form.ui.trim()
+          let autoMerge = form.autoMerge
+          let overwrite = form.overwrite
+          let stopAfter = form.stopAfter.trim()
+          if (form.mode === "A") {
+            const prepared = await preparePipelineAItems(items, projectRoot, {
+              useAi: (settings?.automation ?? "assist") !== "off"
+            })
+            if (!prepared.ok) throw new Error(prepared.reason)
+            outgoing = prepared.items
+            ui = ""
+            autoMerge = true
+            overwrite = true
+            stopAfter = ""
+          }
           const created = await api.boardAdd({
             projectRoot,
             ui,
@@ -179,7 +173,6 @@ export function BoardPage() {
     }
     finally {
       addInFlight.current = false
-      setBusy("")
     }
   }
 

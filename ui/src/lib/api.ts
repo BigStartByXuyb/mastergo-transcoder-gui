@@ -161,7 +161,7 @@ export type PluginInfo = {
 }
 
 /**
- * 作业A 的设计稿位图：这一页「读图」那条开关的输入（口径见后端 lib/design-image.js）。
+ * 作业A 的页面 PNG：这一页「读图」那条开关的输入（口径见后端 lib/design-image.js）。
  * 图必须按设计稿原始尺寸导出 —— 尺寸要等于 DSL 画板尺寸；有图就必须先有分组表，否则布局推导那一步停下。
  */
 export type DesignImage = {
@@ -387,7 +387,7 @@ export type PendingTranslations = {
 }
 
 export type PendingLayout = {
-  /** 有页面 PNG、还没有分组表、控件清单也在手上 —— 服务端需要自动补分组。 */
+  /** 有页面 PNG、还没有分组表、条目清单也在手上 —— 服务端需要自动补分组。 */
   needsGroups: boolean
   /** 自动补分组的条数：0 或 1。口径在 lib/pending.js 算一次。 */
   waiting: number
@@ -542,7 +542,7 @@ export type BoardTask = {
   /** 冲突处已做的选择（相对路径 → mine / main），合并成功后清空。 */
   resolutions: Record<string, "mine" | "main">
   error: string
-  /** 新建时先选的设计稿位图没能落地时的那句话（不是任务的失败原因）；空串表示没有要说的。 */
+  /** 新建时先选的页面 PNG 没能落地时的那句话（不是任务的失败原因）；空串表示没有要说的。 */
   designImage: string
 }
 
@@ -945,7 +945,7 @@ export const api = {
       "/api/design-image?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
     ),
   /**
-   * 这一页那张设计稿位图的地址（位图卡的预览与布局确认的画布都用它当 <img src>）。
+   * 这一页那张页面 PNG 的地址（预览与模型读图都用它）。
    * 地址怎么拼只有这一处；没有图时后端回明确错误（那两处也只在有图时显示）。
    */
   designImageUrl: (projectRoot: string, target: string, stamp: string) =>
@@ -953,7 +953,7 @@ export const api = {
     /* 图的身份并进地址：换了图（大小 / 修改时间变了）地址就变，<img> 才会重新取一次。 */
     "&stamp=" + encodeURIComponent(stamp),
   /**
-   * 存一张设计稿位图（整份替换）。格式按**内容**认，落盘后缀也按它取，所以不用传文件名；
+   * 存一张页面 PNG（整份替换）。格式按**内容**认，落盘后缀也按它取，所以不用传文件名；
    * 尺寸与画板不一致、内容不是 PNG/JPEG 时，后端按原话拒绝。
    */
   saveDesignImage: (body: { projectRoot: string; target: string; data: string }) =>
@@ -1059,7 +1059,14 @@ export const api = {
   /** 从链接取设计页名（中文原名，如「停止调整」）：Target 由它翻译 + 区域前缀得到。 */
   designPageName: (link: string) =>
     post<{ ok: true; pageName: string; rootId: string }>("/api/design/page-name", { link }),
-  identityCandidates: (body: { projectRoot: string; pageName: string; useAi?: boolean; ui?: string; link?: string }) =>
+  identityCandidates: (body: {
+    projectRoot: string
+    pageName: string
+    useAi?: boolean
+    ui?: string
+    link?: string
+    autoAdopt?: boolean
+  }) =>
     post<{ ok: true } & IdentityCandidates>("/api/identity/candidates", body),
   identityApply: (body: {
     projectRoot: string

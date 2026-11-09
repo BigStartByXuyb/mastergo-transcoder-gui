@@ -44,4 +44,11 @@ describe("pickIdentityCandidate", () => {
     expect(decision.reason).toContain("语义名要由人给")
     expect(decision.reason).toContain("F1StopAdjust")
   })
+
+  it("A 自动入口不说 A 表单里不存在的区域/Target 输入", () => {
+    const decision = pickIdentityCandidate([candidate({ ui: "F1", needsSemanticName: true })], "", { autoOnly: true })
+    expect(decision.pick).toBeNull()
+    expect(decision.reason).toContain("把 MasterGo 页面名改成英文")
+    expect(decision.reason).not.toContain("UI 区域")
+  })
 })

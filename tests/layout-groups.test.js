@@ -90,7 +90,7 @@ function writeCandidates(root, entries) {
   );
 }
 
-/* 写一张本页的设计稿位图（尺寸与快照的画板一致）：这一步是看图判分组，没有图就不问模型。 */
+/* 写一张本页的页面 PNG（尺寸与快照的画板一致）：这一步是看图判分组，没有图就不问模型。 */
 function writeImage(root) {
   fs.writeFileSync(path.join(root, "Generated", "_inputs", TARGET + ".design.png"), png(1280, 1024));
 }
@@ -104,7 +104,7 @@ function main() {
     assert.deepStrictEqual(Object.keys(info).sort(), ["available", "hasGroups", "hasImage", "reason"]);
     assert.throws(
       () => layout.candidatesInput({ projectRoot: root, target: TARGET }),
-      /这一步要对着设计稿位图判分组/,
+      /这一步要对着页面 PNG 判分组/,
       "还没传图：这一步是看图判分组，候选取数必须拒绝"
     );
     assert.strictEqual(info.hasGroups, false, "还没写过分组表");

@@ -5,7 +5,7 @@ import { linkLabel, pickedForLink, type BoardRow } from "@/lib/board-items"
 import { DESIGN_IMAGE_LABEL, READ_IMAGE_HINT } from "@/lib/task-form"
 
 /*
- * 创建任务弹窗「可选」组里的设计稿位图：一行（一个页面）一个框。
+ * 创建任务弹窗「可选」组里的页面 PNG：一行（一个页面）一个框。
  * 选哪一张由调用方按链接记（ui/src/lib/board-items.ts），暂存与尺寸核对在任务建出来之后
  * （ui/src/app/stage-design-images.ts）。
  */

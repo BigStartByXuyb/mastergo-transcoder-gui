@@ -40,6 +40,7 @@ describe("candidatesForLink", () => {
     expect(sentBody(mock)).toEqual({
       projectRoot: "/project",
       pageName: "Stop Adjust",
+      autoAdopt: false,
       useAi: true,
       ui: "F1",
       link: "https://mastergo.com/goto/x?file=1&layer_id=2:3"

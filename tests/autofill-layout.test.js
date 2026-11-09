@@ -45,15 +45,20 @@ function sandbox(bytes) {
 function harness(options) {
   const committed = [];
   const inputs = [];
+  const otherCalls = [];
   const autoFill = createAutoFill({
     ai: {
       suggestLayoutGroups: async (input) => {
         inputs.push(input);
         return { groups: options.groups };
+      },
+      suggestIconNames: async () => {
+        otherCalls.push("icons");
+        return { items: [] };
       }
     },
     pending: {
-      inspect: () => ({
+      inspect: () => options.pending || ({
         icons: {},
         translations: {},
         layout: { needsGroups: true, waiting: 1 }
@@ -67,7 +72,7 @@ function harness(options) {
     },
     settings: { read: () => ({ automation: options.automation }) }
   });
-  return { autoFill: autoFill, committed: committed, inputs: inputs };
+  return { autoFill: autoFill, committed: committed, inputs: inputs, otherCalls: otherCalls };
 }
 
 async function caseGroupsWritten() {
@@ -87,6 +92,46 @@ async function caseEmptyIsAConclusion() {
   assert.strictEqual(result.ok, true, "一组都没给也要往下，不能当成「模型没给出可用结果」");
   assert.deepStrictEqual(fx.committed[0].groups, [], "写出空表：本页没有要声明的分组");
   assert.match(result.filled[0], /空表/);
+  fs.rmSync(projectRoot, { recursive: true, force: true });
+}
+
+async function caseAssistDoesNotAutoWriteOthers() {
+  const projectRoot = sandbox(png(1280, 1024));
+  const icons = {
+    needsNaming: true,
+    mustName: [{ index: 1 }],
+    naming: [],
+    duplicates: [],
+    needsRepair: false
+  };
+  const fx = harness({
+    automation: "assist",
+    groups: [{ id: "Row", kind: "row", members: ["1:9", "1:10"] }],
+    pending: { icons, translations: {}, layout: { needsGroups: true, waiting: 1 } }
+  });
+  const result = await fx.autoFill.fill({ projectRoot, target: "T1", request: { mode: "A" } });
+  assert.strictEqual(result.ok, true, "辅助层级仍自动补 A 的布局分组");
+  assert.deepStrictEqual(fx.otherCalls, [], "辅助层级不得自动写图标、译文或术语");
+  assert.strictEqual(fx.committed[0].naming, undefined);
+  fs.rmSync(projectRoot, { recursive: true, force: true });
+}
+
+async function caseAutoWritesOthers() {
+  const projectRoot = sandbox(png(1280, 1024));
+  const icons = {
+    needsNaming: true,
+    mustName: [{ index: 1 }],
+    naming: [],
+    duplicates: [],
+    needsRepair: false
+  };
+  const fx = harness({
+    automation: "auto",
+    groups: [{ id: "Row", kind: "row", members: ["1:9", "1:10"] }],
+    pending: { icons, translations: {}, layout: { needsGroups: true, waiting: 1 } }
+  });
+  await fx.autoFill.fill({ projectRoot, target: "T1", request: { mode: "A" } });
+  assert.deepStrictEqual(fx.otherCalls, ["icons"], "全自动层级才自动写图标、译文或术语");
   fs.rmSync(projectRoot, { recursive: true, force: true });
 }
 
@@ -163,6 +208,8 @@ async function caseBrokenBitmapBlocks() {
 const CASES = [
   ["模型给出分组就照写", caseGroupsWritten],
   ["模型一组没给：空表也是结论", caseEmptyIsAConclusion],
+  ["辅助层级只自动补 A 的布局分组", caseAssistDoesNotAutoWriteOthers],
+  ["全自动层级才自动补图标等语义输入", caseAutoWritesOthers],
   ["条目清单不在：整句交回给人、不写盘", caseNoCandidatesBlocks],
   ["全局自动化关闭时布局分组也不叫模型", caseAutomationOff],
   ["有图就把位图一起给模型", caseBitmapGoesToModel],

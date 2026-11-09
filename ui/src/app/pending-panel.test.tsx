@@ -22,7 +22,22 @@ function pending(): Pending {
       namingPath: "",
       registrationSummary: null,
       candidates: [],
-      mustName: [{ index: 1, name: "", sourceId: "1:9", controlType: "IconButton", text: "确定", fromDsl: false }],
+      mustName: [{
+        index: 1,
+        sourceRef: "1:9",
+        svgName: "",
+        nodeName: "",
+        status: "must-name",
+        reason: "",
+        ownerText: "确定",
+        ownerControlType: "IconButton",
+        parentType: "",
+        siblingPathCount: 1,
+        registration: { register: true, basis: "icon-policy-single-path", source: "" },
+        ledgerFields: {},
+        sourceIsPageRoot: false,
+        filled: false
+      }],
       missing: 1,
       stale: 0,
       staleIndexes: [],
@@ -44,8 +59,8 @@ function pending(): Pending {
       needsGlossary: false,
       waiting: 0
     },
-    layout: { needsGroups: false, waiting: 0, controls: [] }
-  } as unknown as Pending
+    layout: { needsGroups: false, waiting: 0 }
+  }
 }
 
 function stub() {

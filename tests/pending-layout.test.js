@@ -184,6 +184,20 @@ function caseImageBeforeControls() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+function caseImageWithoutCandidates() {
+  const root = sandbox();
+  writeImage(root);
+  fs.writeFileSync(
+    path.join(root, "Generated", TARGET + ".component-types.json"),
+    JSON.stringify({ nodes: [{ ref: "a" }, { ref: "b" }] }),
+    "utf8"
+  );
+  const layout = layoutOf(root, pendingFor(root));
+  assert.strictEqual(layout.needsGroups, false, "条目清单缺失时不列成可写空表的待办");
+  assert.strictEqual(layout.waiting, 0);
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 function caseBrokenGroupsAsksAgain() {
   const root = sandbox();
   writeControls(root);
@@ -203,6 +217,7 @@ try {
     ["有图没有表 = 要人确认", caseImageWithoutGroups],
     ["空分组表也算有表", caseImageWithEmptyGroups],
     ["只有图、还没有控件清单", caseImageBeforeControls],
+    ["只有图、类型产物在但条目清单缺失", caseImageWithoutCandidates],
     ["分组表损坏 = 按没有表处理，让人重写一次", caseBrokenGroupsAsksAgain]
   ];
   for (const [name, run] of cases) {

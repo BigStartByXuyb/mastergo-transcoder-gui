@@ -40,7 +40,7 @@ describe("preparePipelineAItems", () => {
       items: [{ link: LINK, target: "F3StopAdjust", ui: "F3", mode: "A" }]
     })
     expect(bodies.filter((body) => "useAi" in body)).toEqual([
-      expect.objectContaining({ useAi: false })
+      expect.objectContaining({ useAi: false, autoAdopt: true })
     ])
     expect(urls.some((url) => url.includes("/api/design/page-name"))).toBe(true)
     expect(urls.some((url) => url.includes("/api/identity/apply"))).toBe(true)
@@ -131,5 +131,17 @@ describe("preparePipelineAItems", () => {
     const result = await preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { useAi: false })
     expect(result.ok).toBe(false)
     expect(bodies.some((body) => body.useAi === true)).toBe(false)
+  })
+
+  it("A 行不接受只属于 B/AB 的 Target 后缀", async () => {
+    const fetch = vi.fn()
+    vi.stubGlobal("fetch", fetch)
+    await expect(
+      preparePipelineAItems([{ link: LINK, target: "F3StopAdjust", mode: "A" }], "project", { useAi: true })
+    ).resolves.toEqual({
+      ok: false,
+      reason: "流水线 A 只收 MasterGo 链接；`链接 | Target` 只用于 B / AB。请删掉 A 行的 Target 后重试。"
+    })
+    expect(fetch).not.toHaveBeenCalled()
   })
 })

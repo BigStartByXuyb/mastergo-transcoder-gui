@@ -17,13 +17,16 @@ export type PreparedPipelineItems =
 
 async function prepareOne(item: BoardItem, projectRoot: string, useAi: boolean): Promise<PreparedPipelineItem | string> {
   try {
+    if (item.target.trim()) {
+      return "流水线 A 只收 MasterGo 链接；`链接 | Target` 只用于 B / AB。请删掉 A 行的 Target 后重试。"
+    }
     const named = await api.designPageName(item.link)
     const base = { link: item.link, projectRoot, pageName: named.pageName, ui: "" }
-    let got = await candidatesForLink({ ...base, useAi: false })
-    let decision = pickIdentityCandidate(got.items, got.blocked)
+    let got = await candidatesForLink({ ...base, useAi: false, autoAdopt: true })
+    let decision = pickIdentityCandidate(got.items, got.blocked, { autoOnly: true })
     if (!decision.pick && !got.blocked && useAi) {
-      got = await candidatesForLink({ ...base, useAi: true })
-      decision = pickIdentityCandidate(got.items, got.blocked)
+      got = await candidatesForLink({ ...base, useAi: true, autoAdopt: true })
+      decision = pickIdentityCandidate(got.items, got.blocked, { autoOnly: true })
     }
     if (!decision.pick) return decision.reason
     await applyIdentity({ ...base, item: decision.pick })

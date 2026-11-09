@@ -52,7 +52,7 @@ const SUBMIT_BUSY = "submit"
  *
  * 自动化层级（来自设置）：
  *   off   —— 只列清单，不叫模型
- *   assist—— 自动叫模型出候选并预填，等人确认（默认）
+ *   assist—— 自动叫模型出候选并预填，等人确认（默认）；A 的布局分组按页面 PNG 自动补
  *   auto  —— 自动叫模型，拿到候选直接提交并续跑（人可在日志里回看）
  */
 export function PendingPanel({

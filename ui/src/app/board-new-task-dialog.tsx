@@ -26,7 +26,7 @@ import { modeTakesRoute } from "@/lib/task-form"
  * 创建任务：工程、模式、链接这些只在要加任务时才需要，收进弹窗，
  * 看板一进来看到的就是任务本身。
  * Target 与区域能按链接补齐（与新建任务卡片同一套实现），补完直接写进上面的链接行。
- * 走 A 路线时每一行（一个页面）各选一张设计稿位图：一行一个任务，图跟着那一行那条任务走。
+ * 走 A 路线时每一行（一个页面）各选一张页面 PNG：一行一个任务，图跟着那一行那条任务走。
  */
 export function BoardNewTaskDialog(props: {
   open: boolean
@@ -80,7 +80,9 @@ export function BoardNewTaskDialog(props: {
                 id="board-links"
                 rows={5}
                 spellCheck={false}
-                placeholder={"https://mastergo.com/goto/xxxx?file=…&layer_id=…\nhttps://mastergo.com/goto/yyyy?file=…&layer_id=… | F3Align"}
+                placeholder={pipelineA
+                  ? "https://mastergo.com/goto/xxxx?file=…&layer_id=…\nhttps://mastergo.com/goto/yyyy?file=…&layer_id=…"
+                  : "https://mastergo.com/goto/xxxx?file=…&layer_id=…\nhttps://mastergo.com/goto/yyyy?file=…&layer_id=… | F3Align"}
                 value={form.links}
                 onChange={(event) => props.onChange({ ...form, links: event.target.value })}
               />
@@ -147,7 +149,7 @@ export function BoardNewTaskDialog(props: {
             </>
           )}
 
-          {/* 一行一个页面：走 A 路线时每行各配一张设计稿位图（一个任务一份）。 */}
+          {/* 一行一个页面：走 A 路线时每行各配一张页面 PNG（一个任务一份）。 */}
           {usesA && (
             <BoardImageRows rows={rows} images={props.images} onPickImage={props.onPickImage} />
           )}

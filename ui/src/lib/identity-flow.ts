@@ -14,6 +14,8 @@ export type CandidatesInput = {
   /** 人已经在区域框里写了区域时按它算候选。 */
   ui: string
   useAi: boolean
+  /** 流水线 A 的无人值守入口：只允许采用项目里唯一、无需改名的既有区域。 */
+  autoAdopt?: boolean
 }
 
 export type Candidates = {
@@ -28,6 +30,7 @@ export async function candidatesForLink(input: CandidatesInput): Promise<Candida
     // 设计页名只认「从链接取到 / 人填的」那一个：拿 Target 顶替会让后端把这一页误判成改过名。
     pageName: input.pageName.trim(),
     useAi: input.useAi,
+    autoAdopt: input.autoAdopt === true,
     ui: input.ui.trim(),
     link: input.link.trim()
   })

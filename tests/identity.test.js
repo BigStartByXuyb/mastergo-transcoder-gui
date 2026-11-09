@@ -162,6 +162,61 @@ function caseExplicitUi() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+// 流水线 A 没有区域输入：只有项目里唯一、无需改名的既有区域才允许自动采用。
+function caseAutoAdopt() {
+  const unique = project({
+    pages: [{ target: "F4TargetTeaching", ui: "F4", designSource: { fileId: "1", layerId: "1:1" } }]
+  });
+  const adopted = candidatesFor({
+    projectRoot: unique,
+    pageName: "StopAdjust",
+    fileId: "1",
+    layerId: "1:2",
+    autoAdopt: true
+  });
+  assert.strictEqual(adopted.blocked, "", "项目只有一个既有区域时 A 自动采用");
+  assert.strictEqual(adopted.candidates[0].target, "F4StopAdjust");
+
+  const multiple = project({
+    pages: [
+      { target: "F4TargetTeaching", ui: "F4", designSource: { fileId: "1", layerId: "1:1" } },
+      { target: "F5Teach", ui: "F5", designSource: { fileId: "1", layerId: "5:1" } }
+    ]
+  });
+  const ambiguous = candidatesFor({
+    projectRoot: multiple,
+    pageName: "StopAdjust",
+    fileId: "1",
+    layerId: "1:2",
+    autoAdopt: true
+  });
+  assert.match(ambiguous.blocked, /多个区域约定/, "多个区域时不替人猜");
+
+  const empty = project();
+  const missing = candidatesFor({ projectRoot: empty, pageName: "StopAdjust", autoAdopt: true });
+  assert.match(missing.blocked, /需要项目里先有一个区域约定/, "空项目说清唯一缺口");
+
+  const renamed = project({
+    pages: [{
+      target: "F4TargetTeaching",
+      ui: "F4",
+      designSource: { fileId: "1", layerId: "1:1", designPageName: "旧页名" }
+    }]
+  });
+  const changed = candidatesFor({
+    projectRoot: renamed,
+    pageName: "StopAdjust",
+    fileId: "1",
+    layerId: "1:1",
+    autoAdopt: true
+  });
+  assert.match(changed.blocked, /改了名/, "改名不能被自动采用吞掉");
+  fs.rmSync(unique, { recursive: true, force: true });
+  fs.rmSync(multiple, { recursive: true, force: true });
+  fs.rmSync(empty, { recursive: true, force: true });
+  fs.rmSync(renamed, { recursive: true, force: true });
+}
+
 function caseWrite() {
   const root = project();
   const first = writeRegistryEntry({
@@ -234,6 +289,7 @@ function main() {
     ["候选推导", caseCandidates],
     ["页帧范围：登记过才自动", caseLayerScope],
     ["人指定区域：只按那个区域算", caseExplicitUi],
+    ["A 自动采用只接受唯一既有区域", caseAutoAdopt],
     ["原始登记表读取只此一份", caseRegistryDocument],
     ["写登记表：追加与替换", caseWrite],
     ["写登记表：拒绝不合法输入", caseWriteRejections]
