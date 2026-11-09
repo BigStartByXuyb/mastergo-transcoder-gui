@@ -13,7 +13,7 @@ afterEach(() => {
 })
 
 describe("preparePipelineAItems", () => {
-  it("登记表已有这一页时直接沿用，不再取设计页名或写登记表", async () => {
+  it("登记表已有这一页时仍走同一套页名、候选与写回流程", async () => {
     const urls: string[] = []
     const bodies: Array<Record<string, unknown>> = []
     vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
@@ -42,8 +42,9 @@ describe("preparePipelineAItems", () => {
     expect(bodies.filter((body) => "useAi" in body)).toEqual([
       expect.objectContaining({ useAi: false })
     ])
-    expect(urls.some((url) => url.includes("/api/design/page-name"))).toBe(false)
-    expect(urls.some((url) => url.includes("/api/identity/apply"))).toBe(false)
+    expect(urls.some((url) => url.includes("/api/design/page-name"))).toBe(true)
+    expect(urls.some((url) => url.includes("/api/identity/apply"))).toBe(true)
+    expect(bodies[bodies.length - 1]).toEqual(expect.objectContaining({ designPageName: "停止调整" }))
   })
 
   it("登记表给不出时让模型出语义名，直接采用可用候选", async () => {
@@ -53,13 +54,13 @@ describe("preparePipelineAItems", () => {
       if (url.includes("/api/design/page-name")) return Promise.resolve(json({ ok: true, pageName: "停止调整", rootId: "1:1" }))
       if (url.includes("/api/identity/candidates")) {
         if (body.useAi === false) {
-          return Promise.resolve(json({ ok: true, candidates: [], ai: { used: false, items: [] }, blocked: "还没有区域" }))
+          return Promise.resolve(json({ ok: true, candidates: [], ai: { used: false, items: [] }, blocked: "" }))
         }
         return Promise.resolve(json({
           ok: true,
           candidates: [],
           ai: { used: true, items: [{ target: "F3StopAdjust", ui: "F3", basis: "模型", needsSemanticName: false }] },
-          blocked: "还没有区域"
+          blocked: ""
         }))
       }
       if (url.includes("/api/identity/apply")) return Promise.resolve(json({ ok: true, replaced: false }))
@@ -72,7 +73,7 @@ describe("preparePipelineAItems", () => {
     })
   })
 
-  it("机械与模型都给不出身份时整批停在启动前", async () => {
+  it("机械候选不给身份且后端未放行时整批停在启动前", async () => {
     vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
       const url = String(input)
       if (url.includes("/api/design/page-name")) return Promise.resolve(json({ ok: true, pageName: "", rootId: "1:1" }))
@@ -86,5 +87,31 @@ describe("preparePipelineAItems", () => {
       ok: false,
       reason: "这一页还没登记区域"
     })
+  })
+
+  it("后端 blocked 时即使 AI 给出候选也不采用", async () => {
+    const bodies: Array<Record<string, unknown>> = []
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {}
+      bodies.push(body)
+      if (url.includes("/api/design/page-name")) return Promise.resolve(json({ ok: true, pageName: "停止调整", rootId: "1:1" }))
+      if (url.includes("/api/identity/candidates")) {
+        return Promise.resolve(json({
+          ok: true,
+          candidates: [],
+          ai: { used: true, items: [{ target: "F3StopAdjust", ui: "F3", basis: "模型", needsSemanticName: false }] },
+          blocked: "设计页改过名，需要人工确认"
+        }))
+      }
+      if (url.includes("/api/identity/apply")) throw new Error("blocked 时不得写回")
+      throw new Error("unexpected " + url)
+    })
+
+    await expect(preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project")).resolves.toEqual({
+      ok: false,
+      reason: "设计页改过名，需要人工确认"
+    })
+    expect(bodies.some((body) => body.useAi === true)).toBe(false)
   })
 })

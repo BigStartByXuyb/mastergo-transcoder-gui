@@ -43,7 +43,7 @@ export function StepCard({
             {STEP_TEXT[row.status] ?? row.status}
           </Badge>
           {row.seconds > 0 && <span className="text-muted-foreground text-xs tabular-nums">{row.seconds}s</span>}
-          {row.humanInput && <Badge variant="outline">人/AI 语义输入</Badge>}
+          {row.humanInput && <Badge variant="outline">自动语义输入</Badge>}
         </CardTitle>
         {contractStep && (
           <CardDescription className="text-xs">

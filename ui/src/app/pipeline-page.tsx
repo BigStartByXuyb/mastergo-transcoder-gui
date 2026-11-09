@@ -34,7 +34,7 @@ import { keepPickedImages, pickedForLink, withPickedImage } from "@/lib/board-it
 import { describeFailure } from "@/lib/describe-failure"
 import { candidatesForLink } from "@/lib/identity-flow"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
-import { stagePickedImages } from "@/app/stage-design-images"
+import { discardCreatedTasks, stagePickedImages } from "@/app/stage-design-images"
 import { AUTOMATION_LABEL, modeTakesRoute, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
 import { decideStartIdentity } from "@/lib/task-start"
 import { canStop, hasProducts } from "@/lib/task-state"
@@ -208,12 +208,22 @@ export function PipelinePage({
     /*
      * 先选好的位图跟着任务暂存（暂存件的键是任务 id）：那时画板尺寸还不知道，核不了尺寸 ——
      * 任务跑到「取数 + 固化快照」之后由看板那侧核对尺寸再落地。
-     * 图被后端挡回来（不是 PNG/JPEG、太大）弹一句原话 + 后果，与看板那条同源：任务已经建好并在跑，
-     * 不占表单上的「启动失败」（那不是启动没成）。
+     * 图被后端挡回来（不是 PNG/JPEG、太大）时撤掉刚建的任务并把原话放回表单；A 不启动没有 PNG 的任务。
      */
     if (stagedImage) {
       // 门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts（与看板那条同源）。
-      await stagePickedImages(form.mode, [{ taskId: created, file: stagedImage }])
+      const staged = await stagePickedImages(form.mode, [{ taskId: created, file: stagedImage }])
+      if (!staged.ok) {
+        try {
+          setBoard(await discardCreatedTasks(added.board, [created]))
+        }
+        catch (error) {
+          setFailure(describeFailure(error))
+          return
+        }
+        setFailure(staged.failure)
+        return
+      }
     }
     await actions.startJob(created)
     setCurrentId(created)

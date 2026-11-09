@@ -432,6 +432,44 @@ async function caseStagedImageNotice() {
 }
 
 /*
+ * A 路线跑完后唯一允许进入待合并的前提，是工作目录里已有与 DSL 画板同尺寸的页面 PNG。
+ * 没有图时 task.designImage 不能代替输入事实，更不能自动合并。
+ */
+async function casePipelineARequiresImageBeforeReady() {
+  const project = makeProject();
+  write(
+    path.join(project, "Generated", "runs", "T1", "dsl.snapshot.json"),
+    JSON.stringify({ dsl: { nodes: [{ type: "FRAME", id: "1:1", layoutStyle: { width: 1280, height: 1024 } }] } })
+  );
+  const fx = makeBoard({ project: project });
+  const added = fx.board.add({
+    projectRoot: project,
+    autoMerge: true,
+    items: [{ link: LINK, target: "T1", mode: "A" }]
+  });
+  const id = added.created[0];
+  fx.board.start(id);
+  const task = await waitForTask(fx.board, id, hasJob, "启动完成");
+  fx.runs.seed(task.jobId, { id: task.jobId, state: "done", request: {}, runs: [] }, task.workDir);
+
+  await sleep(TICK + 300);
+  const after = fx.board.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(after.state, "waiting", "没有页面 PNG 的 A 任务不得进入待合并");
+  assert.strictEqual(after.failure.kind, "semantic");
+  assert.match(after.failure.message, /流水线 A 需要页面 PNG/);
+  assert.strictEqual(after.error, "", "页面 PNG 是可补齐的语义停点，不是运行错误");
+
+  designImage.stage({ home: fx.home, taskId: id, data: png(1280, 1023).toString("base64") });
+  await sleep(TICK + 300);
+  const mismatched = fx.board.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(mismatched.state, "waiting", "尺寸不符同样不得进入待合并");
+  assert.match(mismatched.failure.message, /与画板尺寸不一致：图 1280×1023，画板 1280×1024/);
+
+  fs.rmSync(fx.home, { recursive: true, force: true });
+  fs.rmSync(project, { recursive: true, force: true });
+}
+
+/*
  * 「哪一步吃布局输入」按契约的 Inputs 判，不看步骤名：契约里叫 layout 的那一步若不吃分组表，
  * 界面就不会把位图恢复入口挂到别的步骤上（另有一个 decoy 故意叫这个名字）。
  */
@@ -602,6 +640,7 @@ async function main() {
     ["输入读不出来（位图坏了）：整句写回、不占额度", caseAutoFillBlockedByInput],
     ["补输入抛出来的错误也带修法", caseAutoFillThrownErrorKeepsHint],
     ["先选的设计稿位图：尺寸不符写在行上、条件解除自清", caseStagedImageNotice],
+    ["A 路线没有页面 PNG 时停在待确认，不自动合并", casePipelineARequiresImageBeforeReady],
     ["任务离开看板（移除 / 清理 / 清空区域）：暂存件跟着走", caseRemovalDropsStagedImage],
     ["「哪一步吃布局输入」按契约的 Inputs 判，不认步骤名", caseLayoutStepComesFromContract],
     ["「能不能续、续哪一步」的两支边界（没跑过 / 跑到一半）", caseResumeStepBoundary],

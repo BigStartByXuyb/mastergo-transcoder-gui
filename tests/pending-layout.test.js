@@ -105,11 +105,10 @@ function pendingFor(root) {
 function caseNothingYet() {
   const root = sandbox();
   // 还没跑到取数那一步：没有图、没有清单 —— 不是待办。
-  /* 形状照实钉住：canSuggest 是自动出分组那条判据（lib/layout-groups.js 一处算），少一栏就等于门禁恒为真。 */
+  /* 形状照实钉住：布局待补只报 needsGroups / waiting，不再转发已无消费方的 suggest 状态。 */
   assert.deepStrictEqual(layoutOf(root, pendingFor(root)), {
     needsGroups: false,
-    waiting: 0,
-    canSuggest: false
+    waiting: 0
   });
   fs.rmSync(root, { recursive: true, force: true });
 }
@@ -128,8 +127,6 @@ function caseImageWithoutGroups() {
   const layout = layoutOf(root, pendingFor(root));
   assert.strictEqual(layout.needsGroups, true, "有图没有表 = 要人确认");
   assert.strictEqual(layout.waiting, 1, "要人确认的条数是 1");
-  /* 自动出分组那条判据跟着一起给出来（判据在 lib/layout-groups.js 一处算）：少了它，自动那条路会恒被挡。 */
-  assert.strictEqual(layout.canSuggest, true, "这一层条目够分组，自动那条路可以问模型");
   fs.rmSync(root, { recursive: true, force: true });
 }
 

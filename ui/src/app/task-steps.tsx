@@ -79,7 +79,7 @@ export function StepRail(props: {
             <span className="text-muted-foreground flex items-center gap-2 pl-6 text-[0.7rem]">
               <span>{STEP_TEXT[row.status] ?? row.status}</span>
               {row.seconds > 0 && <span className="tabular-nums">{row.seconds}s</span>}
-              {row.humanInput && <span>人/AI 语义输入</span>}
+              {row.humanInput && <span>自动语义输入</span>}
             </span>
           </button>
         )

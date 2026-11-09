@@ -1,5 +1,3 @@
-import { toast } from "sonner"
-
 import { pickedForLink } from "@/lib/board-items"
 import { api, type Board } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
@@ -11,17 +9,18 @@ import { fileToBase64 } from "@/lib/upload-files"
  * stagedPathOf 定这个键），所以选图这一步不必等页面 Target 有值，暂存也只能在任务建出来之后做。
  *
  * 两个新建入口（流水线页的表单、看板的创建任务弹窗）共用这一份编排 —— 过门禁、逐张送、失败怎么说
- * 都在这里，页面那侧只给「哪几行配了哪张图」。图没暂存上不影响任务本身：流水线跑到那一步会在任务详情里问。
+ * 都在这里，页面那侧只给「哪几行配了哪张图」。A 的页面 PNG 是启动前置输入：暂存失败时由调用方
+ * 撤掉刚建的任务，保留表单里的选图，供用户修好后重试。
  */
 
 export type StagedPick = { taskId: string; file: File }
+export type StageResult = { ok: boolean; failure: string }
 
 /*
  * 暂存没成时接在后端原话后面的那半句：只有这一处说（两个新建入口都显示同一句）。
- * 它说的是这件事的后果 —— 图不跟任务走，任务本身照常跑。不提步骤名：吃布局输入的是哪一步由插件契约说
- * （与 ui/src/lib/task-form.ts 的 READ_IMAGE_HINT 同一口径）。
+ * 它说的是这件事的后果 —— A 任务不会自动启动；用户补一张图后再提交。
  */
-export const STAGE_FAILED_NOTE = "（先选的那张图没暂存上，任务照常跑；图可以在任务详情里再传一张）"
+export const STAGE_FAILED_NOTE = "（先选的那张图没暂存上，A 任务没有启动；修好后重新提交）"
 
 /*
  * 只有跑 A 路线才读设计稿位图（这条判据在 ui/src/lib/task-form.ts 的 modeTakesRoute）：
@@ -63,11 +62,15 @@ async function sendAll(picks: StagedPick[]): Promise<string> {
   return firstFailure
 }
 
-/*
- * 唯一出口：过路线门禁 → 逐张送 → 失败弹一句（不走页内那条「看板没读到最新状态」的提示：
- * 标题对不上这件事，而且轮询一到就清）。不抛错 —— 图没跟上不算这次新建失败。
- */
-export async function stagePickedImages(mode: string, picks: StagedPick[]): Promise<void> {
+/** 唯一出口：过路线门禁 → 逐张送 → 返回同一句失败原话，由两个入口按各自的失败面显示。 */
+export async function stagePickedImages(mode: string, picks: StagedPick[]): Promise<StageResult> {
   const failure = await sendAll(routePicks(mode, picks))
-  if (failure) toast.error(failure)
+  return { ok: !failure, failure }
+}
+
+/** 暂存失败时撤销这一批刚建的任务：队列里不留没有页面 PNG 的 A 任务。 */
+export async function discardCreatedTasks(board: Board, taskIds: string[]): Promise<Board> {
+  let current = board
+  for (const taskId of taskIds) current = (await api.boardRemove(taskId)).board
+  return current
 }

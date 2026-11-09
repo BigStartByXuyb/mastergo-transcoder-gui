@@ -31,7 +31,7 @@ import { coverageOf, visibleByCoverage, type Coverage } from "@/lib/board-effect
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
-import { picksForCreated, stagePickedImages } from "@/app/stage-design-images"
+import { discardCreatedTasks, picksForCreated, stagePickedImages } from "@/app/stage-design-images"
 import { FINISHED_STATES } from "@/lib/task-state"
 import { useSettings } from "@/lib/use-settings"
 
@@ -116,7 +116,7 @@ export function BoardPage() {
       return
     }
     if (form.mode === "A") {
-      const missing = parseBoardItems(form.links, "A").find((item) => !images[item.link])
+      const missing = items.find((item) => !images[item.link])
       if (missing) {
         toast.error("还有链接没有配页面 PNG，请为每一行选一张图")
         return
@@ -154,7 +154,11 @@ export function BoardPage() {
           items: outgoing
         })
         // 建完任务才暂存（暂存件按任务 id 落键）：门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts。
-        await stagePickedImages(form.mode, picksForCreated(added.board, added.created, images))
+        const staged = await stagePickedImages(form.mode, picksForCreated(added.board, added.created, images))
+        if (!staged.ok) {
+          setBoard(await discardCreatedTasks(added.board, added.created))
+          throw new Error(staged.failure)
+        }
         if (form.mode !== "A") return added
         let board = added.board
         for (const id of added.created) board = (await api.boardStart(id)).board

@@ -56,8 +56,7 @@ function harness(options) {
       inspect: () => ({
         icons: {},
         translations: {},
-        /* canSuggest 是「能不能自动出分组」的判据（与界面上那个按钮同一条，lib/layout-groups.js 一处算）。 */
-        layout: { needsGroups: true, waiting: 1, canSuggest: options.canSuggest !== false }
+        layout: { needsGroups: true, waiting: 1 }
       })
     },
     confirm: {
@@ -130,11 +129,11 @@ async function caseBitmapGoesToModel() {
 
 /*
  * 没有位图：这一步不问模型（它是对着图判分组，没图时分组由机械判据决定）——
- * 判据在 lib/layout-groups.js 的 canSuggest，这里由待确认读数给出来。
+ * 判据在 lib/layout-groups.js 的 suggest.ready；待确认读数只负责把 needsGroups 给出来。
  */
 async function caseNoBitmap() {
   const projectRoot = sandbox();
-  const fx = harness({ automation: "assist", groups: [], projectRoot: projectRoot, canSuggest: false });
+  const fx = harness({ automation: "assist", groups: [], projectRoot: projectRoot });
   const result = await fx.autoFill.fill({ projectRoot: projectRoot, target: "T1", runId: "job-1", request: { mode: "A" } });
   assert.deepStrictEqual(fx.inputs, [], "没有图就不问模型");
   assert.strictEqual(result.ok, false);

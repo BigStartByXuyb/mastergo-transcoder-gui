@@ -1,19 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { Board } from "@/lib/api"
-import { STAGE_FAILED_NOTE, picksForCreated, stagePickedImages } from "@/app/stage-design-images"
+import { STAGE_FAILED_NOTE, discardCreatedTasks, picksForCreated, stagePickedImages } from "@/app/stage-design-images"
 
 /*
- * 新建时先选好的位图 → 暂存件（一条任务一份）：走真的 api 层，只把 fetch 与 toast 换掉。
+ * 新建时先选好的位图 → 暂存件（一条任务一份）：走真的 api 层，只把 fetch 换掉。
  * 要验的是「每张图各送各的任务 id」「不跑 A 就不送」「一张被挡回来不连累其余几张，且原话弹得出来」。
  */
-
-const toasted: string[] = []
-vi.mock("sonner", () => ({
-  toast: {
-    error: (message: string) => toasted.push(message)
-  }
-}))
 
 function stub(handler: (url: string, body: { taskId: string; data: string }) => Response) {
   const seen: { taskId: string; data: string }[] = []
@@ -32,19 +25,18 @@ const file = (content: string) =>
 
 afterEach(() => {
   vi.unstubAllGlobals()
-  toasted.length = 0
 })
 
 describe("stagePickedImages", () => {
   it("每一张各送各的任务 id", async () => {
     const seen = stub(() => new Response(okBody, { status: 200 }))
-    await stagePickedImages("A", [
+    const result = await stagePickedImages("A", [
       { taskId: "task-1", file: file("a") },
       { taskId: "task-2", file: file("b") }
     ])
     expect(seen.map((item) => item.taskId)).toEqual(["task-1", "task-2"])
     expect(seen.every((item) => item.data.length > 0)).toBe(true)
-    expect(toasted).toEqual([])
+    expect(result).toEqual({ ok: true, failure: "" })
   })
 
   it("一张被挡回来不连累同一批里其余的，原话照后端给", async () => {
@@ -53,25 +45,45 @@ describe("stagePickedImages", () => {
         ? new Response(JSON.stringify({ error: { code: "BAD_IMAGE", message: "这张图不是位图", hint: "传 PNG / JPEG" } }), { status: 400 })
         : new Response(okBody, { status: 200 })
     )
-    await stagePickedImages("A", [
+    const result = await stagePickedImages("A", [
       { taskId: "task-1", file: file("a") },
       { taskId: "task-2", file: file("b") }
     ])
     expect(seen.map((item) => item.taskId)).toEqual(["task-1", "task-2"])
-    expect(toasted).toEqual(["这张图不是位图：传 PNG / JPEG" + STAGE_FAILED_NOTE])
+    expect(result).toEqual({ ok: false, failure: "这张图不是位图：传 PNG / JPEG" + STAGE_FAILED_NOTE })
   })
 
   it("都没选图时什么都不发", async () => {
     const seen = stub(() => new Response(okBody, { status: 200 }))
-    await stagePickedImages("A", [])
+    const result = await stagePickedImages("A", [])
     expect(seen).toEqual([])
+    expect(result).toEqual({ ok: true, failure: "" })
   })
 
   it("不跑 A 路线就不送：选了也不送，也不弹提示", async () => {
     const seen = stub(() => new Response(okBody, { status: 200 }))
-    await stagePickedImages("B", [{ taskId: "task-1", file: file("a") }])
+    const result = await stagePickedImages("B", [{ taskId: "task-1", file: file("a") }])
     expect(seen).toEqual([])
-    expect(toasted).toEqual([])
+    expect(result).toEqual({ ok: true, failure: "" })
+  })
+})
+
+describe("discardCreatedTasks", () => {
+  it("暂存失败时撤掉刚建的任务", async () => {
+    const seen: string[] = []
+    vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
+      expect(String(input)).toContain("/api/board/remove")
+      seen.push(String(input))
+      return Promise.resolve(
+        new Response(JSON.stringify({ ok: true, board: { workRoot: "", limits: { logical: 1, limit: 1 }, running: 0, tasks: [] } }), {
+          status: 200
+        })
+      )
+    })
+    const board = { workRoot: "", limits: { logical: 1, limit: 1 }, running: 1, tasks: [] } as unknown as Board
+    const next = await discardCreatedTasks(board, ["task-1"])
+    expect(seen).toHaveLength(1)
+    expect(next.tasks).toEqual([])
   })
 })
 

@@ -175,7 +175,7 @@ function TaskRow({
           )}
           {task.state === "waiting" && (
             <span className="text-muted-foreground text-xs">
-              AI 会自动补输入；补不动就去「待确认」列表处理。
+              AI 会自动补输入；补不动就点「详情」处理。
             </span>
           )}
           {task.merge && task.merge.conflicts.length === 0 && (
