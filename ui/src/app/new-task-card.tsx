@@ -41,14 +41,17 @@ type Props = {
 
 export function NewTaskCard(props: Props) {
   const { form, onForm, plugin, contract, identity, busy, failure, canStop, onStart, onStop, onReloadContract } = props
+  const pipelineA = form.mode === "A"
+  const usesA = modeTakesRoute(form.mode, "A")
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>新建转码任务</CardTitle>
         <CardDescription>
-          一次任务只走一条路线；选 AB 会跑两次（先 A 后 B），两条进度独立，互不覆盖。任务会进看板，
-          有自己的工作目录，跑完自动合并回工程。
+          {pipelineA
+            ? "流水线 A：上传 MasterGo 页面链接和页面 PNG。页面身份、布局分组、图标命名与译文会自动补齐。"
+            : "一次任务只走一条路线；选 AB 会跑两次（先 A 后 B），两条进度独立，互不覆盖。任务会进看板，跑完自动合并回工程。"}
         </CardDescription>
         <div className="flex flex-wrap items-center gap-2 pt-2">
           {plugin && <Badge variant="outline">插件 {plugin.version ? "v" + plugin.version : "未知版本"}</Badge>}
@@ -62,7 +65,7 @@ export function NewTaskCard(props: Props) {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {/* 三组各成一个框：必填参数 / 可自动生成参数 / 可选参数（标题与提示语在 field-group.tsx 一处）。 */}
-        <div className="grid items-start gap-4 sm:grid-cols-2">
+        <div className={pipelineA ? "grid items-start gap-4" : "grid items-start gap-4 sm:grid-cols-2"}>
           <div className="flex flex-col gap-4">
             <FieldGroup {...FIELD_GROUPS.required}>
               <div className="flex flex-col gap-2">
@@ -89,83 +92,89 @@ export function NewTaskCard(props: Props) {
             </FieldGroup>
 
             <FieldGroup {...FIELD_GROUPS.optional}>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="run-stop">停在某一步</Label>
-                <Input
-                  id="run-stop"
-                  spellCheck={false}
-                  placeholder="例如 discover —— 先出待命名清单"
-                  value={form.stopAfter}
-                  onChange={(event) => onForm({ stopAfter: event.target.value })}
-                />
-              </div>
-              {modeTakesRoute(form.mode, "A") && (
+              {!pipelineA && (
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="run-stop">停在某一步</Label>
+                  <Input
+                    id="run-stop"
+                    spellCheck={false}
+                    placeholder="例如 discover —— 先出待命名清单"
+                    value={form.stopAfter}
+                    onChange={(event) => onForm({ stopAfter: event.target.value })}
+                  />
+                </div>
+              )}
+              {usesA && (
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="run-image">{DESIGN_IMAGE_LABEL}</Label>
                   <DesignImagePicker id="run-image" file={props.image} onPick={props.onPickImage} />
                   <p className="text-muted-foreground text-xs">{READ_IMAGE_HINT}</p>
                 </div>
               )}
-              {/* 与看板弹窗同一排法与同一句话（ui/src/app/switch-row.tsx）。 */}
-              <SwitchRow
-                id="run-overwrite"
-                {...SWITCH_ROWS.overwrite}
-                checked={form.overwrite}
-                onChange={(checked) => onForm({ overwrite: checked })}
-              />
+              {!pipelineA && (
+                /* 与看板弹窗同一排法与同一句话（ui/src/app/switch-row.tsx）。 */
+                <SwitchRow
+                  id="run-overwrite"
+                  {...SWITCH_ROWS.overwrite}
+                  checked={form.overwrite}
+                  onChange={(checked) => onForm({ overwrite: checked })}
+                />
+              )}
             </FieldGroup>
           </div>
 
-          <div className="flex flex-col gap-4">
-            <FieldGroup {...FIELD_GROUPS.autofill}>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="run-target">页面 Target</Label>
-                <Input
-                  id="run-target"
-                  spellCheck={false}
-                  placeholder="页面名 —— 产物文件名与 UI 区域都按它算"
-                  value={form.target}
-                  onChange={(event) => onForm({ target: event.target.value })}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="run-ui">UI 区域</Label>
-                <Input
-                  id="run-ui"
-                  spellCheck={false}
-                  placeholder="F3 —— 登记表没登记时才要填"
-                  value={form.ui}
-                  onChange={(event) => onForm({ ui: event.target.value })}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="run-identity-name">设计页名</Label>
-                <Input
-                  id="run-identity-name"
-                  spellCheck={false}
-                  placeholder="设计稿里的中文名，例如 停止调整"
-                  value={identity.name}
-                  onChange={(event) => identity.setName(event.target.value)}
-                />
-              </div>
+          {!pipelineA && (
+            <div className="flex flex-col gap-4">
+              <FieldGroup {...FIELD_GROUPS.autofill}>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="run-target">页面 Target</Label>
+                  <Input
+                    id="run-target"
+                    spellCheck={false}
+                    placeholder="页面名 —— 产物文件名与 UI 区域都按它算"
+                    value={form.target}
+                    onChange={(event) => onForm({ target: event.target.value })}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="run-ui">UI 区域</Label>
+                  <Input
+                    id="run-ui"
+                    spellCheck={false}
+                    placeholder="F3 —— 登记表没登记时才要填"
+                    value={form.ui}
+                    onChange={(event) => onForm({ ui: event.target.value })}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="run-identity-name">设计页名</Label>
+                  <Input
+                    id="run-identity-name"
+                    spellCheck={false}
+                    placeholder="设计稿里的中文名，例如 停止调整"
+                    value={identity.name}
+                    onChange={(event) => identity.setName(event.target.value)}
+                  />
+                </div>
 
-              <IdentityFillPanel
-                inputs={identity.inputs}
-                state={{
-                  candidates: identity.candidates,
-                  busy: identity.busy,
-                  derivedUi: identity.derivedUi,
-                  pages: identity.pages
-                }}
-                actions={{
-                  onFill: () => void identity.fill(),
-                  onApply: (item) => void identity.apply(item),
-                  onTakePageName: identity.takeDesignPageName,
-                  onPick: onForm
-                }}
-              />
-            </FieldGroup>
-          </div>
+                <IdentityFillPanel
+                  inputs={identity.inputs}
+                  state={{
+                    candidates: identity.candidates,
+                    busy: identity.busy,
+                    derivedUi: identity.derivedUi,
+                    pages: identity.pages
+                  }}
+                  actions={{
+                    onFill: () => void identity.fill(),
+                    onApply: (item) => void identity.apply(item),
+                    onTakePageName: identity.takeDesignPageName,
+                    onPick: onForm
+                  }}
+                />
+              </FieldGroup>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
@@ -178,7 +187,7 @@ export function NewTaskCard(props: Props) {
             )}
             <Button disabled={busy !== ""} onClick={onStart}>
               {busy === "start" ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-              加入看板并开始
+              {pipelineA ? "开始自动转码" : "加入看板并开始"}
             </Button>
           </div>
         </div>

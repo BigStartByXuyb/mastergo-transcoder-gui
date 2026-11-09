@@ -69,7 +69,7 @@ export function SettingsAgentPanel() {
           </div>
           <p className="text-muted-foreground text-xs">
             「辅助」自动出候选、你确认后继续；「自动」出完候选直接续跑（看板任务由客户端自己补，不必开着这个页面）。
-            布局确认那一节另有它自己的「自动通过」开关：开着时它自己出分组并直接通过，不等你确认。
+            流水线 A 的布局分组始终由客户端自动补齐，不再需要人工确认。
           </p>
         </CardContent>
       </Card>

@@ -14,13 +14,13 @@ afterEach(() => {
 })
 
 describe("task-form", () => {
-  it("没存过时给缺省表单（路线默认 B）", () => {
+  it("没存过时给缺省表单（路线默认 A）", () => {
     expect(readTaskForm()).toEqual({
       link: "",
       projectRoot: "",
       target: "",
       ui: "",
-      mode: "B",
+      mode: "A",
       stopAfter: "",
       overwrite: false
     })
@@ -49,7 +49,7 @@ describe("task-form", () => {
 
   it("存的是坏 JSON 或非对象时退回缺省，不抛异常", () => {
     localStorage.setItem("mastergo-transcoder-gui.pipeline", "{不是 JSON")
-    expect(readTaskForm().mode).toBe("B")
+    expect(readTaskForm().mode).toBe("A")
     localStorage.setItem("mastergo-transcoder-gui.pipeline", "[1,2,3]")
     expect(readTaskForm().link).toBe("")
   })

@@ -19,7 +19,7 @@ const EMPTY_TASK_FORM: TaskForm = {
   projectRoot: "",
   target: "",
   ui: "",
-  mode: "B",
+  mode: "A",
   stopAfter: "",
   overwrite: false
 }
@@ -27,8 +27,8 @@ const EMPTY_TASK_FORM: TaskForm = {
 // 下拉框里只显示短值，长说明放下面一行：否则触发按钮的宽度会随选中项变化，
 // 弹层每次重新定位，看起来像「选一下就跳位置」。
 export const MODE_HINT: Record<string, string> = {
-  B: "B —— MTSLG IOContorl 页面 XML（缺省）",
   A: "A —— MW WPF XAML 页面",
+  B: "B —— MTSLG IOContorl 页面 XML",
   AB: "AB —— 两条都跑，两次独立运行（先 A 后 B）"
 }
 
@@ -46,10 +46,10 @@ export function modeTakesRoute(mode: string, route: "A" | "B"): boolean {
  * 也可以不在这里选，等跑到那一步在任务详情里传。这句话只有这一处。
  */
 export const READ_IMAGE_HINT =
-  "A 路线要读设计稿位图（按设计稿原尺寸导出）：现在选好就跟着任务一起暂存，流水线产出画板尺寸之后自动核对落地；也可以等那一步在任务详情里传。"
+  "按 MasterGo 画板原始尺寸导出。现在选好就跟着任务一起暂存，流水线产出画板尺寸之后自动核对落地。"
 
 /* 这一项的标题：新建任务表单与看板弹窗都读它（两张表单对同一项说法一致）。 */
-export const DESIGN_IMAGE_LABEL = "设计稿位图"
+export const DESIGN_IMAGE_LABEL = "页面 PNG"
 
 export const AUTOMATION_LABEL: Record<string, string> = {
   off: "关（不叫模型）",

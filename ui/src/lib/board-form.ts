@@ -20,7 +20,7 @@ export type BoardTaskForm = {
 export const EMPTY_BOARD_FORM: BoardTaskForm = {
   projectRoot: "",
   ui: "",
-  mode: "B",
+  mode: "A",
   autoMerge: true,
   overwrite: false,
   stopAfter: "",
@@ -31,7 +31,7 @@ export function readBoardForm(): BoardTaskForm {
   return readStored(STORAGE_KEY, EMPTY_BOARD_FORM, (raw) => ({
     projectRoot: String(raw.projectRoot ?? ""),
     ui: String(raw.ui ?? ""),
-    mode: raw.mode === "A" || raw.mode === "AB" ? raw.mode : "B",
+    mode: raw.mode === "B" || raw.mode === "AB" ? raw.mode : "A",
     autoMerge: raw.autoMerge !== false,
     overwrite: raw.overwrite === true,
     stopAfter: String(raw.stopAfter ?? ""),

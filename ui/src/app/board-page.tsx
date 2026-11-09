@@ -22,6 +22,7 @@ import { useValueRunner } from "@/app/use-action-runner"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentityFill } from "@/app/use-identity-fill"
 import { useOnlyEffective } from "@/app/use-only-effective"
+import { preparePipelineAItems } from "@/app/prepare-pipeline-items"
 import { useRemembered } from "@/app/use-remembered"
 import { api, type Board } from "@/lib/api"
 import { fillTargets, keepPickedImages, parseBoardItems, withPickedImage } from "@/lib/board-items"
@@ -103,7 +104,8 @@ export function BoardPage() {
     [run, applyBoard]
   )
 
-  function addTasks() {
+  async function addTasks() {
+    const projectRoot = form.projectRoot.trim()
     const items = parseBoardItems(form.links, form.mode)
     if (!form.projectRoot.trim()) {
       toast.error("先填工程目录")
@@ -113,20 +115,50 @@ export function BoardPage() {
       toast.error("一行一个 MasterGo 链接，至少一行")
       return
     }
+    if (form.mode === "A") {
+      const missing = parseBoardItems(form.links, "A").find((item) => !images[item.link])
+      if (missing) {
+        toast.error("还有链接没有配页面 PNG，请为每一行选一张图")
+        return
+      }
+    }
+
+    let outgoing = items
+    let ui = form.ui.trim()
+    let autoMerge = form.autoMerge
+    let overwrite = form.overwrite
+    let stopAfter = form.stopAfter.trim()
+    if (form.mode === "A") {
+      const prepared = await preparePipelineAItems(items, projectRoot)
+      if (!prepared.ok) {
+        setProblem(prepared.reason)
+        toast.error(prepared.reason)
+        return
+      }
+      outgoing = prepared.items
+      ui = ""
+      autoMerge = true
+      overwrite = true
+      stopAfter = ""
+    }
+
     void run(
       "add",
       async () => {
         const added = await api.boardAdd({
-          projectRoot: form.projectRoot.trim(),
-          ui: form.ui.trim(),
-          autoMerge: form.autoMerge,
-          overwrite: form.overwrite,
-          stopAfter: form.stopAfter.trim(),
-          items
+          projectRoot,
+          ui,
+          autoMerge,
+          overwrite,
+          stopAfter,
+          items: outgoing
         })
         // 建完任务才暂存（暂存件按任务 id 落键）：门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts。
         await stagePickedImages(form.mode, picksForCreated(added.board, added.created, images))
-        return added
+        if (form.mode !== "A") return added
+        let board = added.board
+        for (const id of added.created) board = (await api.boardStart(id)).board
+        return { ...added, board }
       },
       applyBoard
     ).then((added) => {

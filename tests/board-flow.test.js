@@ -433,7 +433,7 @@ async function caseStagedImageNotice() {
 
 /*
  * 「哪一步吃布局输入」按契约的 Inputs 判，不看步骤名：契约里叫 layout 的那一步若不吃分组表，
- * 界面就不会把设计稿位图与布局确认挂上去（另有一个 decoy 故意叫这个名字）。
+ * 界面就不会把位图恢复入口挂到别的步骤上（另有一个 decoy 故意叫这个名字）。
  */
 function contractStep(detail) {
   return { Outputs: ["x"], Failures: ["f"], Recovery: ["r"], Inputs: [], ...detail };
@@ -459,8 +459,8 @@ async function caseLayoutStepComesFromContract() {
   const task = await waitForTask(fx.board, id, hasJob, "启动完成");
   const byName = new Map(task.steps.map((step) => [step.name, step]));
   assert.strictEqual(task.layoutStep, "layoutManifest", "吃分组表的那一步就是布局那一步（叫 layout 的那一步不算）");
-  assert.strictEqual(byName.get("ledger").humanInput, true, "吃命名表那一步仍标「人/AI 语义输入」");
-  assert.strictEqual(byName.get("layoutManifest").humanInput, true, "吃分组表那一步同样是人/AI 语义输入");
+  assert.strictEqual(byName.get("ledger").humanInput, true, "吃命名表那一步标自动语义输入");
+  assert.strictEqual(byName.get("layoutManifest").humanInput, true, "吃分组表那一步同样标自动语义输入");
   assert.strictEqual(byName.get("layout").humanInput, false, "不吃这些输入的那一步不标");
 
   // 插件来源可以在运行中被换掉（换一份契约）：看板这份事实跟着契约走，不在自己这边留一份缓存。

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 
-// 布局确认：读控件清单 + 分组表，写回分组表。
+// 流水线 A 的布局分组：读停点、自动生成并写回分组表。
 // 跑法：node tests/layout-groups.test.js
 
 const assert = require("assert");
@@ -17,7 +17,7 @@ const TARGET = "DemoPage";
 /* 本文件建的沙盒目录：用例自己建，main 跑完一起收掉。 */
 const sandboxes = [];
 
-/* 最小工程：类型判定产物 + DSL 快照（文本）+ _inputs 目录。 */
+/* 最小工程：类型判定产物 + DSL 快照 + _inputs 目录。 */
 function sandbox() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-layout-groups-"));
   sandboxes.push(root);
@@ -96,50 +96,14 @@ function writeImage(root) {
 }
 
 function main() {
-  // 读控件清单 + 补文本。
+  // 停点读数。
   {
     const root = sandbox();
     const info = layout.inspect({ projectRoot: root, target: TARGET });
     assert.strictEqual(info.available, true);
-    assert.strictEqual(info.controls.length, 3);
-    assert.strictEqual(info.controls[0].ref, "a");
-    assert.strictEqual(info.controls[0].text, "A");
-    assert.strictEqual(info.controls[2].text, "C");
-    /* 「这个 ref 在不在本层条目里」的结论由后端一处给（判据在 lib/layout-candidates.js 的 refsOf）。 */
-    assert.deepStrictEqual(info.controls.map(function (item) { return [item.ref, item.citable]; }), [
-      ["a", true],
-      ["b", true],
-      ["c", true]
-    ]);
-    assert.deepStrictEqual(info.groups, []);
-    // 读图状态不在这里（lib/design-image.js 一处）；hasGroups 与 canSuggest 都由后端给
-    // （hasGroups 与 tables 同一次读，界面照 canSuggest 禁用「AI 辅助」）。
-    // canvas 是画板尺寸（界面拿它把控件坐标换算成百分比，把编号画到图上），判据仍在 design-image 那一处。
-    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "candidates", "canvas", "controls", "derived", "groups", "hasGroups", "hasImage", "imageStamp", "reason", "suggest"]);
-    assert.deepStrictEqual(info.canvas, { width: 1280, height: 1024 }, "画板尺寸取 DSL 快照根节点");
-    assert.strictEqual(info.imageStamp, "", "还没传图：图的身份是空串（判据在 lib/design-image.js 的 imageStamp）");
-    // 推导结果（布局那一步的产物）这一份工程里还没有：只给一句原因，界面据此不摆空的树。
-    assert.strictEqual(info.derived.available, false);
-    assert.match(info.derived.reason, /布局那一步跑完/);
-    assert.deepStrictEqual(info.derived.regions, []);
-    assert.deepStrictEqual(info.derived.unplaced, []);
-    assert.deepStrictEqual(info.derived.singles, []);
+    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "hasGroups", "hasImage", "reason", "suggest"]);
     assert.strictEqual(info.suggest.ready, false, "还没传图：这一步是看图判分组，不必问模型");
     assert.strictEqual(info.hasGroups, false, "还没写过分组表");
-    assert.deepStrictEqual(
-      info.candidates,
-      {
-        available: true,
-        reason: "",
-        pageTarget: TARGET,
-        entries: [
-          { ref: "a", controlType: "IconButton", text: "A" },
-          { ref: "b", controlType: "IconButton", text: "B" },
-          { ref: "c", controlType: "TextBlock", text: "C" }
-        ]
-      },
-      "条目清单照产物给（ref / 类型 / 文本）"
-    );
     /* 传上图之后：这一层的条目够分组，才谈得上问模型（两个条件缺一不可）。 */
     writeImage(root);
     assert.strictEqual(layout.inspect({ projectRoot: root, target: TARGET }).suggest.ready, true, "有图 + 条目够 = 可以问模型");
@@ -153,10 +117,8 @@ function main() {
     const root = sandbox();
     writeCandidates(root, null);
     const info = layout.inspect({ projectRoot: root, target: TARGET });
-    assert.strictEqual(info.candidates.available, false);
-    assert.match(info.candidates.reason, /还没有这一步的条目清单/);
-    assert.deepStrictEqual(info.candidates.entries, []);
     assert.strictEqual(info.suggest.ready, false, "清单不在就不必问模型");
+    assert.match(info.suggest.reason, /还没有这一步的条目清单/);
     assert.throws(
       () => layout.save({ projectRoot: root, target: TARGET, groups: [] }),
       /还没有这一步的条目清单/
@@ -173,9 +135,8 @@ function main() {
     const root = sandbox();
     writeCandidates(root, []);
     const info = layout.inspect({ projectRoot: root, target: TARGET });
-    assert.strictEqual(info.candidates.available, true);
-    assert.deepStrictEqual(info.candidates.entries, []);
     assert.strictEqual(info.suggest.ready, false, "这一层凑不出组");
+    assert.match(info.suggest.reason, /条目凑不出分组/);
     assert.throws(
       () => layout.save({ projectRoot: root, target: TARGET, groups: [{ id: "g1", kind: "column", members: ["a", "b"] }] }),
       /这一层的条目清单是空的（这一层不参与分组）：表里不声明任何组/
@@ -187,13 +148,6 @@ function main() {
   {
     const root = sandbox();
     writeCandidates(root, [{ ref: "a", controlType: "IconButton", text: "A" }, { ref: "b", controlType: "IconButton", text: "B" }]);
-    /* 清单只有 a、b：c 不在本层条目里，读数里它的 citable 是 false（界面据此不让拖）。 */
-    const info = layout.inspect({ projectRoot: root, target: TARGET });
-    assert.deepStrictEqual(info.controls.map(function (item) { return [item.ref, item.citable]; }), [
-      ["a", true],
-      ["b", true],
-      ["c", false]
-    ]);
     assert.throws(
       () => layout.save({ projectRoot: root, target: TARGET, groups: [{ id: "g1", kind: "column", members: ["a", "c"] }] }),
       /分组 g1 的 ref 不在本层条目里: c/
@@ -221,63 +175,6 @@ function main() {
       [],
       "丢掉清单外那条后不够 2 个：这一组不留"
     );
-  }
-
-  // 推导结果：分区 → 组（装着子网格的格子）→ 控件 + 摆不进树的那几条（都从布局那一步的两份产物里读）。
-  {
-    const root = sandbox();
-    fs.writeFileSync(
-      path.join(root, "Generated", TARGET + ".wpf-layout.json"),
-      JSON.stringify({
-        pageTarget: TARGET,
-        regions: [
-          { id: "top", name: "顶部栏", emit: false, grid: { rows: [{}], columns: [{}], cells: [] } },
-          {
-            id: "work", name: "工作区", emit: true,
-            grid: {
-              rows: [{}, {}],
-              columns: [{}, {}, {}],
-              cells: [
-                { ref: "c", row: 2, column: 1 },
-                { ref: "a", row: 1, column: 2 }
-              ]
-            }
-          }
-        ]
-      }),
-      "utf8"
-    );
-    fs.writeFileSync(
-      path.join(root, "Generated", "_inputs", TARGET + ".wpf-layout.report.json"),
-      JSON.stringify({ pageTarget: TARGET, unresolved: [{ ref: "b", reason: "单条目栏：几何判不出它跟谁同组" }] }),
-      "utf8"
-    );
-    const info = layout.inspect({ projectRoot: root, target: TARGET });
-    assert.strictEqual(info.derived.available, true);
-    assert.strictEqual(info.derived.reason, "");
-    assert.deepStrictEqual(info.derived.regions, [
-      {
-        /* 带照产物给（夹具那几条是空对象：认不出 Star，照实说不吃剩余）。 */
-        id: "top", name: "顶部栏", emit: false,
-        bands: { rows: [{ star: false }], columns: [{ star: false }] },
-        cells: []
-      },
-      {
-        id: "work",
-        name: "工作区",
-        emit: true,
-        bands: {
-          rows: [{ star: false }, { star: false }],
-          columns: [{ star: false }, { star: false }, { star: false }]
-        },
-        cells: [
-          /* 产物那一列是倒着写的，出去按行列排好了（坐标不往界面搬）。 */
-          { ref: "a", group: false, axis: "", controlType: "", children: [], refs: ["a"] },
-          { ref: "c", group: false, axis: "", controlType: "", children: [], refs: ["c"] }
-        ]
-      }
-    ]);
-    assert.deepStrictEqual(info.derived.singles, [{ ref: "b", reason: "单条目栏：几何判不出它跟谁同组" }]);
   }
 
   // 写回分组表并读回。

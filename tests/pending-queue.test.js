@@ -38,8 +38,8 @@ function caseEntryShape() {
   const items = queue.snapshot().items;
 
   assert.strictEqual(items.length, 1);
-  assert.deepStrictEqual(items[0].counts, { icons: 2, translations: 1, layout: 0 }, "三节条数各取一处算出来的数");
-  assert.strictEqual(items[0].total, 3, "合计数是三者之和");
+  assert.deepStrictEqual(items[0].counts, { icons: 2, translations: 1 }, "人工待办条数各取一处算出来的数");
+  assert.strictEqual(items[0].total, 3, "合计数是图标与文案之和");
   assert.strictEqual(items[0].source, "board");
   assert.strictEqual(items[0].taskId, "task-1");
   assert.strictEqual(items[0].runState, "waiting");
@@ -74,6 +74,15 @@ function caseEmptyIsSkipped() {
   assert.deepStrictEqual(queue.snapshot().items, [], "没有要填的就不列出来");
 }
 
+// 只剩布局分组待自动补时，不进人工待确认列表。
+function caseLayoutOnlyIsSkipped() {
+  const queue = makeQueue({
+    tasks: [{ id: "task-1", state: "waiting", jobId: "job-1", workDir: WORK, request: { target: "DemoPage" } }],
+    pending: { icons: { waiting: 0 }, translations: { waiting: 0 }, layout: { waiting: 1 } }
+  });
+  assert.deepStrictEqual(queue.snapshot().items, [], "布局分组由流水线 A 自动处理");
+}
+
 /*
  * 同一个页面被两条线各跑过一次（看板任务的工作目录 + 流水线直跑的运行）：按「工程目录 + 页面」去重，
  * 看板那条先算，后来的同名条目丢掉 —— 不然人会在列表里看到同一页两次。
@@ -100,6 +109,7 @@ try {
     ["条目形状：条数、来源、状态名", caseEntryShape],
     ["看板来源按整段路径判（work 不吃 work2、大小写不敏感）", caseWorkRootPrefix],
     ["一条都不需要填的不进列表", caseEmptyIsSkipped],
+    ["只剩布局分组时不进人工列表", caseLayoutOnlyIsSkipped],
     ["同一页只列一条", caseDedupeByProjectAndTarget]
   ];
   for (const [name, run] of cases) {

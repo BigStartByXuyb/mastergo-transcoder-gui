@@ -117,7 +117,7 @@ function caseNothingYet() {
 function caseNoImageNoTodo() {
   const root = sandbox();
   writeControls(root);
-  assert.strictEqual(layoutOf(root, pendingFor(root)).waiting, 0, "没有设计稿位图就不停在布局确认（纯机械推导照常走）");
+  assert.strictEqual(layoutOf(root, pendingFor(root)).waiting, 0, "没有页面 PNG 就不停等自动分组（纯机械推导照常走）");
   fs.rmSync(root, { recursive: true, force: true });
 }
 

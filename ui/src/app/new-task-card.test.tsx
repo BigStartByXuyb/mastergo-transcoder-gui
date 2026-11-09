@@ -52,14 +52,28 @@ function show(patch: Partial<Parameters<typeof NewTaskCard>[0]> = {}) {
 }
 
 describe("NewTaskCard 的选图", () => {
-  it("走 A 路线、页面 Target 空着也给选图框（而且不是禁用的）", () => {
+  it("走 A 路线时只要求链接、工程目录和页面 PNG", () => {
     const inputs = show()
     expect(inputs.length).toBe(1)
     expect(inputs[0].disabled).toBe(false)
-    expect(screen.getByText(/按设计稿原尺寸导出/)).toBeTruthy()
+    expect(screen.getByText(/画板原始尺寸导出/)).toBeTruthy()
+    expect(screen.getByText("A —— MW WPF XAML 页面")).toBeTruthy()
+    expect(screen.queryByLabelText("页面 Target")).toBeNull()
+    expect(screen.queryByLabelText("UI 区域")).toBeNull()
+    expect(screen.queryByLabelText("停在某一步")).toBeNull()
+    expect(screen.getByRole("button", { name: "开始自动转码" })).toBeTruthy()
   })
 
-  it("不跑 A 路线就不给选图", () => {
+  it("B 路线保留原有 Target/区域与可选参数，但不给选图", () => {
     expect(show({ form: form({ mode: "B" }) }).length).toBe(0)
+    expect(screen.getByLabelText("页面 Target")).toBeTruthy()
+    expect(screen.getByLabelText("UI 区域")).toBeTruthy()
+    expect(screen.getByLabelText("停在某一步")).toBeTruthy()
+  })
+
+  it("AB 路线同时保留 A 的选图与 B 的身份字段", () => {
+    expect(show({ form: form({ mode: "AB" }) }).length).toBe(1)
+    expect(screen.getByLabelText("页面 Target")).toBeTruthy()
+    expect(screen.getByLabelText("UI 区域")).toBeTruthy()
   })
 })

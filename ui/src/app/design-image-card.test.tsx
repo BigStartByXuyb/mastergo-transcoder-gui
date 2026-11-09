@@ -6,7 +6,7 @@ import type { BoardTask, DesignImage } from "@/lib/api"
 import { drive } from "@/lib/settings-fixtures"
 
 /*
- * 作业A 的读图输入：图在哪、尺寸对不对、分组表在不在，以及传一张图这一条路。
+ * 流水线 A 的位图恢复：图在哪、尺寸对不对，以及换一张图这一条路。
  * 判定（尺寸不一致、不是位图）的判据在后端，这里只验界面把后端说的照实渲染、把文件按约定传上去。
  */
 
@@ -86,15 +86,14 @@ afterEach(() => {
 })
 
 describe("DesignImageCard", () => {
-  it("没有图时：说清画板尺寸、图该放哪、分组表还没有", async () => {
+  it("没有图时：说清画板尺寸与图该放哪", async () => {
     stub(state())
     render(<DesignImageCard task={task()} />)
 
     expect(await screen.findByText("没有图")).toBeTruthy()
     expect(screen.getByText("1280×1024")).toBeTruthy()
     expect(screen.getByText(/还没有。传上来的话放到/)).toBeTruthy()
-    expect(screen.getByText("还没有", { selector: "span" })).toBeTruthy()
-    expect(screen.getByRole("button", { name: /选择位图/ })).toBeTruthy()
+    expect(screen.getByRole("button", { name: /选择 PNG/ })).toBeTruthy()
   })
 
   it("后端说现在不能传时：按它的原话显示并禁用按钮", async () => {
@@ -102,10 +101,10 @@ describe("DesignImageCard", () => {
     render(<DesignImageCard task={task()} />)
 
     expect(await screen.findByText(/先让流水线跑到第 2 步/)).toBeTruthy()
-    expect(screen.getByRole("button", { name: /选择位图/ }).hasAttribute("disabled")).toBe(true)
+    expect(screen.getByRole("button", { name: /选择 PNG/ }).hasAttribute("disabled")).toBe(true)
   })
 
-  it("有图且与画板一致、分组表也在：三格事实都标出来", async () => {
+  it("有图且与画板一致", async () => {
     stub(state({ image: IMAGE, matches: true, groups: { path: "x", exists: true } }))
     render(<DesignImageCard task={task()} />)
 
@@ -113,16 +112,14 @@ describe("DesignImageCard", () => {
     expect(screen.getByText("尺寸一致")).toBeTruthy()
     expect(screen.getByText("DemoPage.design.png")).toBeTruthy()
     expect(screen.getByText("2 KB")).toBeTruthy()
-    expect(screen.getByText("有")).toBeTruthy()
     expect(screen.getByRole("button", { name: /换一张/ })).toBeTruthy()
   })
 
-  it("尺寸不一致、或漏了分组表：都当场说清（那两条判据是第 8 步的）", async () => {
+  it("尺寸不一致时当场说清", async () => {
     stub(state({ image: IMAGE, matches: false }))
     render(<DesignImageCard task={task()} />)
 
     expect(await screen.findByText("尺寸不一致")).toBeTruthy()
-    expect(screen.getByText("缺分组表")).toBeTruthy()
   })
 
   it("选一张图：按 base64 传上去（不用传文件名，格式由内容定），界面换成新状态", async () => {

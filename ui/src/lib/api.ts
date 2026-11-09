@@ -181,113 +181,6 @@ export type DesignImage = {
   blocked: string
 }
 
-/**
- * 作业A 的布局确认：控件清单 + 分组表（口径见后端 lib/layout-groups.js）。
- * 分组表是「语义输入」之一，人/AI 看图后写，布局推导那一步消费它。
- */
-export type LayoutControl = {
-  ref: string
-  controlType: string
-  text: string
-  absX: number
-  absY: number
-  w: number
-  h: number
-  /**
-   * 这个 ref 在不在这一层的可引用条目里（分组表只能写这些 ref）：
-   * 结论由后端一处给（判据在 lib/layout-candidates.js 的 refsOf），界面按它分「能拖 / 不能写进表」。
-   */
-  citable: boolean
-}
-
-export type LayoutGroup = {
-  id: string
-  kind: "column" | "row"
-  members: string[]
-}
-
-/** 推导结果里的一个格子（分区自己那一层、或某个容器那一层里的一个）：格子里装着什么就看 children。 */
-export type LayoutCell = {
-  ref: string
-  /** 这一格是不是一组（读视图按「里面有子网格」定）：界面按它摆组行还是控件行，不自己再判一遍。 */
-  group: boolean
-  /** 这一格往哪个方向排（column = 上下排，row = 左右排，空串 = 产物没给）。判据在后端读视图。 */
-  axis: "" | "column" | "row"
-  /** 产物给的类型（合成出来的容器常常没有这个）：界面在清单里找不到这一格时按它显示。 */
-  controlType: string
-  /** 组那一层网格的行列带（`group` 为真时才有）：界面据它说明谁吃剩余。 */
-  bands?: { rows: LayoutBand[]; columns: LayoutBand[] }
-  /** 这一格子网格里的格子（可以再套），已按产物给的行列排好：空表就是这一格只是个控件。 */
-  children: LayoutCell[]
-  /** 这一格连同它里面装着的全部 ref：界面点它要高亮的就是这些（往下摊平由读视图一处做）。 */
-  refs: string[]
-}
-
-/** 推导结果里的一个分区：名字 / 发不发射 + 它自己那一层网格（行带列带 + 格子）。 */
-export type LayoutRegion = {
-  id: string
-  name: string
-  emit: boolean
-  /** 这一层的行带 / 列带：界面据它写「N 行 × M 列」并标出谁吃剩余（*）。判据在后端读视图。 */
-  bands: { rows: LayoutBand[]; columns: LayoutBand[] }
-  cells: LayoutCell[]
-}
-
-/** 一条带：吃剩余（star）还是固定像素。像素值不往界面搬 —— 界面只用「谁吃剩余」这一件事实。 */
-export type LayoutBand = { star: boolean }
-
-/*
- * 推导出来的布局（作业A 第 8 步的产物，界面那栏「布局树」显示的就是它 —— 不是设计稿原始层级）：
- *   分区 → 组（装着子网格的格子，可以再套）→ 控件。
- * 树之外还有两份读数，各说各的事：unplaced 是界面摆不进树的（产物里读不出行列坐标的格子，
- * 缺字段 / 空串 / 数字串 / 布尔 / 非整数 / 负数）；singles 是插件那一步报的单条目栏（它们在树上有位置）。
- * 这一步没跑过时 available:false，reason 是给界面看的那句话。
- */
-export type DerivedLayout = {
-  available: boolean
-  reason: string
-  regions: LayoutRegion[]
-  /** 摆不进树的那几条：ref + 为什么（它连同它里面那些控件都不摆）。 */
-  unplaced: { ref: string; reason: string }[]
-  /** 插件报的单条目栏（没进任何组）：ref + 插件给的那句原话。 */
-  singles: { ref: string; reason: string }[]
-}
-
-export type LayoutGroups = {
-  available: boolean
-  reason: string
-  controls: LayoutControl[]
-  /**
-   * 这一步的「分组表可引用的条目」清单（作业A 第 8 步的产物，转发 lib/layout-candidates.js）：
-   * 表里的 ref 只能从 entries 里取；entries 为空＝这一层不参与分组（表只能是空表）；
-   * available 为 false 时还没有这份清单（这一步没跑过），界面按 reason 说清、不给写回。
-   */
-  candidates: {
-    available: boolean
-    reason: string
-    pageTarget: string
-    entries: { ref: string; controlType: string; text: string }[]
-  }
-  /** 画板尺寸（界面把控件坐标换算成百分比用）；固化快照那一步还没跑时是 null。判据在后端。 */
-  canvas: { width: number; height: number } | null
-  /** 这一页那张图的身份（空串＝没有图）：画布据此挂图并拼预览地址；判据在后端。 */
-  imageStamp: string
-  /** 推导出来的布局（分区 → 组 → 控件）：跑完布局那一步才有；界面据此摆「布局树」。 */
-  derived: DerivedLayout
-  groups: LayoutGroup[]
-  /** 这一页有没有分组表（空表也算有）：与「表里有什么」同一次读给出。 */
-  hasGroups: boolean
-  /**
-   * 「能不能问模型」这份读数：ready 为假时 reason / hint 就是不能问的那件事与出路（后端 suggestBlocker 的原话）。
-   * 条件三样缺一不可：这一层的条目清单在、条目够、这一页有设计稿位图（这一步是看图判分组）。
-   */
-  suggest: { ready: boolean; code: string; reason: string; hint: string }
-  /** 这一页有没有设计稿位图：与 suggest 同一次读数（待确认那节据它算在不在布局这一步停）。 */
-  hasImage: boolean
-  /** 「自动通过」是全局开关，值随这一页一起读回来（面板不必再取一遍设置）。 */
-  autoPass: boolean
-}
-
 export type ResolvedNode = {
   ref: string
   id: string
@@ -381,11 +274,6 @@ export type Settings = {
   providers: ProviderPreset[]
   ai: { provider: string; baseUrl: string; model: string; hasKey: boolean }
   automation: "off" | "assist" | "auto"
-  /**
-   * 布局确认的独立开关：默认关（有图无表时停在布局确认等人）。
-   * 生效条件与后端同一处（lib/autofill.js 的 fill()）：还得自动化层级不是「关」、这一页确实停在那里、控件至少 2 个。
-   */
-  layoutAutoPass: boolean
   /** 插件来源的手动选择：来源 id，空串 = 按查找顺序自动选（见 docs/plugin-sources.md）。 */
   pluginOverride: string
   /** 对话/自动模式的写盘开关：关着时 Codex 只读，开着才允许它直接改工程文件。 */
@@ -499,9 +387,9 @@ export type PendingTranslations = {
 }
 
 export type PendingLayout = {
-  /** 有设计稿位图、还没有分组表、控件清单也在手上 —— 这一页要人确认布局。 */
+  /** 有页面 PNG、还没有分组表、控件清单也在手上 —— 服务端需要自动补分组。 */
   needsGroups: boolean
-  /** 要人确认的条数：0 或 1。口径在 lib/pending.js 算一次，界面只取数。 */
+  /** 自动补分组的条数：0 或 1。口径在 lib/pending.js 算一次。 */
   waiting: number
   /**
    * 这一层的条目凑不凑得出组（自动补输入据此决定要不要问模型）：
@@ -638,7 +526,7 @@ export type BoardTask = {
    * 结果写在完成提示里 —— 快照里这个步名不拿来当承诺。
    */
   resumeStep: string
-  /** 吃布局输入（设计稿位图 / 分组表）的那一步叫什么：任务详情把位图卡片与布局确认挂在这一步上。 */
+  /** 吃布局输入（页面 PNG / 分组表）的那一步叫什么。 */
   layoutStep: string
   aiFills: BoardAiFill[]
   failure: {
@@ -710,8 +598,8 @@ export type PendingQueueEntry = {
   stateLabel: string
   /** 看板任务已经被移除，但工作目录与产物还在。 */
   orphan: boolean
-  /** 三节的待办条数，与看板 / 流水线详情同一份口径（图标一节、文案一节、布局一节）。 */
-  counts: { icons: number; translations: number; layout: number }
+  /** 人工待办条数：图标与文案。布局分组由流水线 A 自动处理。 */
+  counts: { icons: number; translations: number }
   total: number
 }
 
@@ -1067,11 +955,6 @@ export const api = {
    */
   stageDesignImage: (body: { taskId: string; data: string }) =>
     post<{ ok: true; staged: { path: string; width: number; height: number } }>("/api/design-image/stage", body),
-  /** 作业A 的布局确认：读控件清单 + 现有分组（后端 lib/layout-groups.js）。 */
-  layoutGroups: (projectRoot: string, target: string) =>
-    request<{ ok: true; layout: LayoutGroups }>(
-      "/api/layout-groups?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
-    ),
   /** 在文件管理器里打开一个目录（插件页各行的「打开目录」）。打不开时 ok=false，reason 是原话。 */
   openFolder: (path: string) => post<{ ok: boolean; reason: string }>("/api/system/open-folder", { path }),
   pluginUpdateStatus: () => request<{ ok: true; status: PluginUpdateStatus }>("/api/plugin/update/status"),
@@ -1132,16 +1015,6 @@ export const api = {
       kind: "glossary",
       texts
     }),
-  /*
-   * 带上工程与页面：后端据此取这一层的条目清单与这一页的设计稿位图（插件口径里这一步是「看图判分组」，
-   * 表里的 ref 只能从那几条条目里取 —— 输入只有服务端一处拼法，界面不把控件清单塞进来）。
-   */
-  aiLayoutGroups: (projectRoot: string, target: string) =>
-    post<{ ok: true; groups: LayoutGroup[] }>("/api/ai/suggest", {
-      kind: "layout-groups",
-      projectRoot,
-      target
-    }),
   confirm: (body: {
     projectRoot: string
     target: string
@@ -1152,8 +1025,6 @@ export const api = {
     naming?: { index: number; name: string; comment: string; fromDsl?: boolean }[]
     translations?: Record<string, string>
     glossary?: Record<string, string>
-    /** 分组表：空数组也照写，表示「本页没有要声明的分组」。 */
-    groups?: LayoutGroup[]
     allowEmptyLedger?: boolean
     /** 顺手把命名表里当前不认的旧下标裁掉。 */
     pruneNaming?: boolean

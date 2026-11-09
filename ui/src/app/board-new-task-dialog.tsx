@@ -46,6 +46,8 @@ export function BoardNewTaskDialog(props: {
   const form = props.form
   const identity = props.identity
   const rows = parseBoardRows(form.links, form.mode)
+  const pipelineA = form.mode === "A"
+  const usesA = modeTakesRoute(form.mode, "A")
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
@@ -53,12 +55,14 @@ export function BoardNewTaskDialog(props: {
         <DialogHeader>
           <DialogTitle>创建任务</DialogTitle>
           <DialogDescription>
-            一行一个链接；要指定页面名就写 链接 | Target。没写的可以点下面的「按链接补 Target / 区域」。
+            {pipelineA
+              ? "流水线 A：一行一个 MasterGo 页面链接，并为每行选择按画板原始尺寸导出的 PNG。"
+              : "一行一个链接；要指定页面名就写 链接 | Target。没写的可以点下面的「按链接补 Target / 区域」。"}
           </DialogDescription>
         </DialogHeader>
 
         {/* 三组的标题与提示语与新建任务那张表单同源（ui/src/app/field-group.tsx 的 FIELD_GROUPS）。 */}
-        <div className="grid items-start gap-4 sm:grid-cols-2">
+        <div className={pipelineA ? "grid items-start gap-4" : "grid items-start gap-4 sm:grid-cols-2"}>
           <FieldGroup {...FIELD_GROUPS.required}>
             <div className="flex flex-col gap-2">
               <Label htmlFor="board-project">工程目录</Label>
@@ -88,57 +92,63 @@ export function BoardNewTaskDialog(props: {
             />
           </FieldGroup>
 
-          <FieldGroup {...FIELD_GROUPS.autofill}>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="board-ui">Ui 前缀</Label>
-              <Input
-                id="board-ui"
-                spellCheck={false}
-                placeholder="例如 F1；Target 推不出来时必填"
-                value={form.ui}
-                onChange={(event) => props.onChange({ ...form, ui: event.target.value })}
+          {!pipelineA && (
+            <FieldGroup {...FIELD_GROUPS.autofill}>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="board-ui">Ui 前缀</Label>
+                <Input
+                  id="board-ui"
+                  spellCheck={false}
+                  placeholder="例如 F1；Target 推不出来时必填"
+                  value={form.ui}
+                  onChange={(event) => props.onChange({ ...form, ui: event.target.value })}
+                />
+              </div>
+              <BoardIdentityFill
+                rows={identity.rows}
+                busy={identity.busy}
+                automation={props.automation}
+                failure={props.identityFailure}
+                onFill={props.onFill}
+                onTake={(row, item) => void identity.take(row, item)}
               />
-            </div>
-            <BoardIdentityFill
-              rows={identity.rows}
-              busy={identity.busy}
-              automation={props.automation}
-              failure={props.identityFailure}
-              onFill={props.onFill}
-              onTake={(row, item) => void identity.take(row, item)}
-            />
-          </FieldGroup>
+            </FieldGroup>
+          )}
         </div>
 
         <FieldGroup {...FIELD_GROUPS.optional}>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="board-stop">停在某一步</Label>
-            <Input
-              id="board-stop"
-              spellCheck={false}
-              placeholder="例如 discover —— 先出待命名清单"
-              value={form.stopAfter}
-              onChange={(event) => props.onChange({ ...form, stopAfter: event.target.value })}
-            />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {/* 排法与说法与新建任务那张表单同源（ui/src/app/switch-row.tsx）。 */}
-            <SwitchRow
-              id="board-auto-merge"
-              {...SWITCH_ROWS.autoMerge}
-              checked={form.autoMerge}
-              onChange={(value) => props.onChange({ ...form, autoMerge: value })}
-            />
-            <SwitchRow
-              id="board-overwrite"
-              {...SWITCH_ROWS.overwrite}
-              checked={form.overwrite}
-              onChange={(value) => props.onChange({ ...form, overwrite: value })}
-            />
-          </div>
+          {!pipelineA && (
+            <>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="board-stop">停在某一步</Label>
+                <Input
+                  id="board-stop"
+                  spellCheck={false}
+                  placeholder="例如 discover —— 先出待命名清单"
+                  value={form.stopAfter}
+                  onChange={(event) => props.onChange({ ...form, stopAfter: event.target.value })}
+                />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {/* 排法与说法与新建任务那张表单同源（ui/src/app/switch-row.tsx）。 */}
+                <SwitchRow
+                  id="board-auto-merge"
+                  {...SWITCH_ROWS.autoMerge}
+                  checked={form.autoMerge}
+                  onChange={(value) => props.onChange({ ...form, autoMerge: value })}
+                />
+                <SwitchRow
+                  id="board-overwrite"
+                  {...SWITCH_ROWS.overwrite}
+                  checked={form.overwrite}
+                  onChange={(value) => props.onChange({ ...form, overwrite: value })}
+                />
+              </div>
+            </>
+          )}
 
           {/* 一行一个页面：走 A 路线时每行各配一张设计稿位图（一个任务一份）。 */}
-          {modeTakesRoute(form.mode, "A") && (
+          {usesA && (
             <BoardImageRows rows={rows} images={props.images} onPickImage={props.onPickImage} />
           )}
         </FieldGroup>
@@ -149,7 +159,7 @@ export function BoardNewTaskDialog(props: {
           </Button>
           <Button disabled={props.busy} onClick={props.onSubmit}>
             {props.busy ? <Loader2 className="animate-spin" /> : null}
-            加入看板
+            {pipelineA ? "创建并开始" : "加入看板"}
           </Button>
         </DialogFooter>
       </DialogContent>

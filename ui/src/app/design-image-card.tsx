@@ -4,7 +4,6 @@ import { Image as ImageIcon, Loader2, Upload } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { IdentifierText } from "@/app/identifier-text"
 import { IMAGE_ACCEPT, useFilePick } from "@/app/use-file-pick"
 import { useValueRunner } from "@/app/use-action-runner"
 import { useAlive } from "@/app/use-alive"
@@ -14,8 +13,7 @@ import { fileToBase64, humanSize } from "@/lib/upload-files"
 /*
  * 作业A 的设计稿位图：那条「读图」开关的输入。
  *
- * 这一块只说三件事，与后端 lib/design-image.js 一一对应：图在哪（那一处目录由后端给）／
- * 尺寸对不对（必须等于 DSL 画板尺寸）／分组表在不在（有图必须有表，否则布局推导那一步停下）。
+ * 这一块只在先选的图没有自动落地时出现：说明图在哪、尺寸对不对，并允许换一张。
  * 目录、约定名、「尺寸不对 / 不是位图 / 画板尺寸还不知道」的原话都由后端给（判据都在它那一处），这里只渲染。
  */
 
@@ -78,15 +76,13 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center gap-2">
-          设计稿位图
+          页面 PNG
           <Badge variant={image ? "secondary" : "outline"}>{image ? "有图" : "没有图"}</Badge>
           {matched && <Badge variant="outline">尺寸一致</Badge>}
           {mismatch && <Badge variant="destructive">尺寸不一致</Badge>}
-          {image && !state?.groups.exists && <Badge variant="destructive">缺分组表</Badge>}
         </CardTitle>
         <CardDescription>
-          作业A 读图是一个开关：按设计稿原始尺寸导出，位图尺寸必须等于 DSL 画板尺寸；有图就必须先有分组表，
-          否则布局推导那一步会停下报告。不传图就按纯机械判据推导，照常跑。分组表放在哪、叫什么，下面那一行照实显示。
+          按 MasterGo 画板原始尺寸重新导出一张。尺寸核对通过后，流水线会自动继续。
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 text-sm">
@@ -107,7 +103,7 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
                 <span>{image.width > 0 ? image.width + "×" + image.height : "这一份读不出尺寸"}</span>
                 <span className="text-muted-foreground text-xs">{humanSize(image.bytes)}</span>
               </span>
-              {/* 图本身，不只文件名：布局确认里的编号对的是画板哪儿，就得看它。 */}
+              {/* 图本身，不只文件名：换图时先确认尺寸和内容。 */}
               <img
                 src={api.designImageUrl(projectRoot, target, image.stamp)}
                 alt="这一页放着的设计稿位图"
@@ -119,12 +115,6 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
               {state ? "还没有。传上来的话放到 " + state.dir : "请稍等，正在读这一页的目录"}
             </span>
           )}
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <span className="text-muted-foreground text-xs">分组表（有图就必须有）</span>
-          <span>{state?.groups.exists ? "有" : "还没有"}</span>
-          {state && <IdentifierText className="text-muted-foreground text-xs" text={state.groups.path} />}
         </div>
 
         {failure && <span className="text-destructive text-xs">{failure}</span>}
@@ -140,7 +130,7 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
           {/* 不能传时按后端给的 reason 显示并禁用（判据在后端，这里只渲染）。 */}
           <Button size="sm" variant="outline" disabled={busy !== "" || Boolean(state?.blocked)} onClick={() => picked.input.current?.click()}>
             {busy !== "" ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-            {image ? "换一张" : "选择位图…"}
+            {image ? "换一张" : "选择 PNG…"}
           </Button>
           <span className="text-muted-foreground text-xs">
             {state?.blocked || "按设计稿原始尺寸导出（不是截图工具随手截的那一张）"}

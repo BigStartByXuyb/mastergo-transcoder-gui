@@ -53,11 +53,14 @@ function show(patch: Partial<Parameters<typeof BoardNewTaskDialog>[0]> = {}) {
 }
 
 describe("BoardNewTaskDialog 的选图", () => {
-  it("走 A 路线：一行一个选图框", () => {
+  it("走 A 路线：保留路线选择，一行一个选图框，不显示身份与停点设置", () => {
     const { inputs } = show({ form: form({ links: LINK + "\n" + OTHER }) })
     expect(inputs.length).toBe(2)
     expect(screen.getByText("第 1 行")).toBeTruthy()
     expect(screen.getByText("第 2 行")).toBeTruthy()
+    expect(screen.getByText("默认模式")).toBeTruthy()
+    expect(screen.queryByLabelText("Ui 前缀")).toBeNull()
+    expect(screen.queryByLabelText("停在某一步")).toBeNull()
   })
 
   it("选的是哪一行的那一份：按链接交出去", () => {
@@ -82,6 +85,8 @@ describe("BoardNewTaskDialog 的选图", () => {
     const { inputs } = show({ form: form({ mode: "B" }) })
     expect(inputs.length).toBe(0)
     expect(screen.queryByText("第 1 行")).toBeNull()
+    expect(screen.getByLabelText("Ui 前缀")).toBeTruthy()
+    expect(screen.getByLabelText("停在某一步")).toBeTruthy()
   })
 
   it("行还没写时说明一行配一张", () => {

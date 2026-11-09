@@ -31,7 +31,7 @@ const WRITTEN_LABEL: Record<string, string> = {
   "icon-naming.json": "图标命名",
   "lang-translations.json": "译文",
   "lang-glossary.json": "术语",
-  // 分组表由布局确认面板写回（同一份 /api/confirm），写进去的文件名这里也认。
+  // 分组表由自动补输入写回（同一份 /api/confirm），写进去的文件名这里也认。
   "layout-groups.json": "布局分组"
 }
 
@@ -111,7 +111,7 @@ export function PendingPanel({
   const duplicateCount = duplicateGroups.length
   const langCount = pending?.translations.available ? pending.translations.pendingTranslations.length : 0
   const glossaryCount = pending?.translations.available ? pending.translations.glossaryRequired.length : 0
-  // 本页还缺多少条语义输入：布局确认在 layout-panel 单独处理，这里只数图标 + 文案（同一个判据给看板那张卡用）。
+  // 本页还缺多少条人工语义输入：这里只数图标 + 文案（同一个判据给看板那张卡用）。
   const waiting = pendingInputCount(waitingCounts(pending))
 
   /*
@@ -123,7 +123,7 @@ export function PendingPanel({
   // 有待办才让提交；没有图标槽位时靠「按空台账继续」这一个显式声明兜底。
   const canSubmit = Boolean(pending) && (waiting > 0 || (noIconSlots && allowEmptyLedger))
   /*
-   * 跑着的时候不给续跑：这条判据与布局确认面板同一处（ui/src/lib/task-state.ts 的 isInFlight）。
+   * 跑着的时候不给续跑：这条判据在任务状态模块（ui/src/lib/task-state.ts 的 isInFlight）。
    * 待确认清单不按运行状态过滤，正在跑的任务照样会列在这里 —— 两个入口的口径必须一样。
    */
   const inFlight = isInFlight(state)

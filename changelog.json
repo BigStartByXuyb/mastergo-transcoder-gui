@@ -1,5 +1,27 @@
 [
   {
+    "version": "0.6.77",
+    "date": "2026-11-09",
+    "notes": [
+      "保留 A / B / AB 三条路线选择；A 的稳定结果来自插件侧已确认的问题，不再作为删掉 B 的理由",
+      "流水线 A 只需工程目录、MasterGo 页面链接和按画板原始尺寸导出的页面 PNG，页面身份与布局分组自动补齐",
+      "B 与 AB 保留原有身份、区域、停点与覆盖选项；A 的布局确认、布局树和布局画布全部移除",
+      "看板创建流水线 A 时按行链接配 PNG，建完任务后直接开始",
+      "流水线 B 不显示、不接收页面 PNG；只有 A 与 AB 的 A 段读取图片"
+    ],
+    "features": [
+      {
+        "id": "pipeline-a-auto-layout",
+        "label": "流水线 A 自动补页面身份与布局分组"
+      }
+    ],
+    "drops": [
+      "layout-confirmation-panel",
+      "layout-tree-derived",
+      "layout-canvas"
+    ]
+  },
+  {
     "version": "0.6.76",
     "date": "2026-10-12",
     "notes": [

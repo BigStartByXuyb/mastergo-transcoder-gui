@@ -14,7 +14,6 @@ import { toast } from "sonner"
 
 import { DoneBoard } from "@/app/done-board"
 import { DesignImageCard } from "@/app/design-image-card"
-import { LayoutPanel } from "@/app/layout-panel"
 import { NewTaskCard } from "@/app/new-task-card"
 import { PendingPanel } from "@/app/pending-panel"
 import { StepCard } from "@/app/step-card"
@@ -24,6 +23,7 @@ import { StepRail } from "@/app/task-steps"
 import { ClampText } from "@/app/clamp-text"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentity } from "@/app/use-identity"
+import { preparePipelineAItems } from "@/app/prepare-pipeline-items"
 import { useRemembered } from "@/app/use-remembered"
 import { useRunLog } from "@/app/use-run-log"
 import { useTaskActions } from "@/app/use-task-actions"
@@ -35,7 +35,7 @@ import { describeFailure } from "@/lib/describe-failure"
 import { candidatesForLink } from "@/lib/identity-flow"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
 import { stagePickedImages } from "@/app/stage-design-images"
-import { AUTOMATION_LABEL, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
+import { AUTOMATION_LABEL, modeTakesRoute, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
 import { decideStartIdentity } from "@/lib/task-start"
 import { canStop, hasProducts } from "@/lib/task-state"
 
@@ -139,43 +139,72 @@ export function PipelinePage({
 
   // 开始 = 新建看板任务 + 启动它；看板负责建工作目录、并发与合并。
   async function start() {
-    const decision = await decideStartIdentity({
-      link: form.link,
-      projectRoot: form.projectRoot,
-      target: form.target,
-      ui: form.ui,
-      automation,
-      loadCandidates: async () =>
-        (
-          await candidatesForLink({
-            link: form.link,
-            projectRoot: form.projectRoot,
-            pageName: identity.name,
-            ui: form.ui,
-            useAi: false
-          })
-        ).items,
-      autoPick: () => identity.pick(),
-      autoApply: (item) => identity.apply(item)
-    })
-    if (!decision.ok) {
-      if (decision.reason) setFailure(decision.reason)
+    const projectRoot = form.projectRoot.trim()
+    const link = form.link.trim()
+    if (!projectRoot || !link) {
+      setFailure("请先填工程目录和 MasterGo 链接")
       return
     }
+    if (form.mode === "A" && !stagedImage) {
+      setFailure("请选择这一页按原始尺寸导出的 PNG")
+      return
+    }
+
+    let target = form.target
+    let ui = form.ui
+    let stopAfter = form.stopAfter
+    let overwrite = form.overwrite
+    if (form.mode === "A") {
+      const prepared = await preparePipelineAItems([{ link, target: "", mode: "A" }], projectRoot)
+      if (!prepared.ok) {
+        setFailure(prepared.reason)
+        return
+      }
+      target = prepared.items[0].target
+      ui = prepared.items[0].ui
+      stopAfter = ""
+      overwrite = true
+    }
+    else {
+      const decision = await decideStartIdentity({
+        link,
+        projectRoot,
+        target: form.target,
+        ui: form.ui,
+        automation,
+        loadCandidates: async () =>
+          (
+            await candidatesForLink({
+              link,
+              projectRoot,
+              pageName: identity.name,
+              ui: form.ui,
+              useAi: false
+            })
+          ).items,
+        autoPick: () => identity.pick(),
+        autoApply: (item) => identity.apply(item)
+      })
+      if (!decision.ok) {
+        if (decision.reason) setFailure(decision.reason)
+        return
+      }
+      target = decision.target
+      ui = decision.ui
+    }
+
     // 失败时动作返回 null，原话已经由 use-task-actions 写进 failure：这一次点击到这儿就收尾。
     const added = await actions.start({
-      projectRoot: form.projectRoot,
-      ui: decision.ui,
+      projectRoot,
+      ui,
       autoMerge: true,
-      stopAfter: form.stopAfter,
-      overwrite: form.overwrite,
-      items: [{ link: form.link, target: decision.target, mode: form.mode as "A" | "B" | "AB" }]
+      stopAfter,
+      overwrite,
+      items: [{ link, target, mode: form.mode as "A" | "B" | "AB" }]
     })
     if (!added) return
     // 后端建不出来就不会回成功（lib/board.js 的 add 在没解析出链接时直接抛），所以这里一定有这一条。
     const created = added.created[0]
-    await actions.startJob(created)
-    setCurrentId(created)
     /*
      * 先选好的位图跟着任务暂存（暂存件的键是任务 id）：那时画板尺寸还不知道，核不了尺寸 ——
      * 任务跑到「取数 + 固化快照」之后由看板那侧核对尺寸再落地。
@@ -186,6 +215,8 @@ export function PipelinePage({
       // 门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts（与看板那条同源）。
       await stagePickedImages(form.mode, [{ taskId: created, file: stagedImage }])
     }
+    await actions.startJob(created)
+    setCurrentId(created)
     setImages({})
     window.location.hash = "pipeline?task=" + created
     toast.success("已加入看板并开始")
@@ -281,23 +312,10 @@ export function PipelinePage({
               >
                 {/*
                   走 A 路线（mw-wpf）的任务才读图：AB 的 A 段同样读，所以判据是「路线里有 A」。
-                  图与分组表都属于「布局」那一步的输入；那一步叫什么由后端按插件契约的 Inputs 算出来
-                  （task.layoutStep），界面不认步骤名。它们就挂在这一步的界面里。
+                  图属于布局那一步的输入；分组表由服务端自动补齐，界面不再显示布局编辑器。
                 */}
-                {step === task.layoutStep && task.workDir && task.request.target && task.routes.includes("A") && (
-                  <div className="flex flex-col gap-3">
-                    <DesignImageCard task={task} />
-                    <LayoutPanel
-                      taskId={task.id}
-                      runId={task.jobId}
-                      resume
-                      projectRoot={task.workDir}
-                      target={task.request.target}
-                      updatedAt={task.updatedAt}
-                      progressDone={task.progress?.done}
-                      state={task.state}
-                    />
-                  </div>
+                {step === task.layoutStep && task.workDir && task.request.target && modeTakesRoute(task.request.mode, "A") && (
+                  <DesignImageCard task={task} />
                 )}
 
                 {/*
@@ -309,7 +327,7 @@ export function PipelinePage({
                   <div className="flex flex-col gap-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-muted-foreground text-xs">
-                        {/* 只报这一层级的名字：每层什么意思、布局确认那一节怎么另算，都在设置 → AI Agent 那一处说。 */}
+                        {/* 只报这一层级的名字：每层什么意思在设置 → AI Agent 那一处说。 */}
                         当前自动化层级：{AUTOMATION_LABEL[automation] ?? automation}
                       </span>
                       <Button

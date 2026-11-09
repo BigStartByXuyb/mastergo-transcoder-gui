@@ -58,7 +58,7 @@ function stubWith(options: { iconNames?: { index: number; name: string; comment:
     const url = String(input)
     if (url.includes("/api/settings")) {
       return Promise.resolve(
-        new Response(JSON.stringify({ ok: true, settings: { automation: "off", layoutAutoPass: false, ai: { hasKey: false, baseUrl: "", model: "" } } }), { status: 200 })
+        new Response(JSON.stringify({ ok: true, settings: { automation: "off", ai: { hasKey: false, baseUrl: "", model: "" } } }), { status: 200 })
       )
     }
     if (url.includes("/api/ai/suggest")) {
