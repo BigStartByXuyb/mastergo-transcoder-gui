@@ -583,7 +583,15 @@ export type BoardAddBody = {
   stopAfter: string
   /** 目标工程里已经有同名页面时是否替换（对应流水线的「替换已有产物」）。 */
   overwrite: boolean
-  items: { link: string; target: string; mode: "A" | "B" | "AB" }[]
+  items: {
+    link: string
+    target: string
+    mode: "A" | "B" | "AB"
+    ui?: string
+    stopAfter?: string
+    fileId?: string
+    layerId?: string
+  }[]
 }
 
 /** 一条「还缺语义输入」的页面。board = 看板任务（产物在它自己的工作目录里），pipeline = 流水线页直跑的运行。 */

@@ -118,6 +118,35 @@ function caseNothingYet() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+function caseSectionShapesStayStable() {
+  const root = sandbox();
+  const pending = pendingFor(root);
+  const before = pending.inspect({ projectRoot: root, target: TARGET });
+  writeControls(root);
+  fs.writeFileSync(
+    path.join(root, "Generated", "_inputs", TARGET + ".icon-candidates.json"),
+    JSON.stringify({ candidates: [], mustName: [] }),
+    "utf8"
+  );
+  fs.writeFileSync(
+    path.join(root, "Generated", TARGET + ".mapping.json"),
+    JSON.stringify({ nodes: [], textAudit: [] }),
+    "utf8"
+  );
+  const after = pending.inspect({ projectRoot: root, target: TARGET });
+  assert.deepStrictEqual(
+    Object.keys(before.icons).sort(),
+    Object.keys(after.icons).sort(),
+    "图标节的可读/不可读分支必须共用同一形状"
+  );
+  assert.deepStrictEqual(
+    Object.keys(before.translations).sort(),
+    Object.keys(after.translations).sort(),
+    "译文节的可读/不可读分支必须共用同一形状"
+  );
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 function caseNoImageNoTodo() {
   const root = sandbox();
   writeControls(root);
@@ -169,6 +198,7 @@ function caseBrokenGroupsAsksAgain() {
 try {
   const cases = [
     ["还没跑到取数那一步", caseNothingYet],
+    ["待确认各节形状不随来源是否产出而变化", caseSectionShapesStayStable],
     ["没有位图就不是待办", caseNoImageNoTodo],
     ["有图没有表 = 要人确认", caseImageWithoutGroups],
     ["空分组表也算有表", caseImageWithEmptyGroups],

@@ -160,7 +160,7 @@ export function ReviewPage() {
                         <span className="flex flex-wrap gap-x-2">
                           {entry.counts.icons > 0 && <span>图标 {entry.counts.icons}</span>}
                           {entry.counts.translations > 0 && <span>文案 {entry.counts.translations}</span>}
-                          {entry.counts.layout > 0 && <span>布局 1</span>}
+                          {entry.counts.layout > 0 && <span>布局 {entry.counts.layout}</span>}
                         </span>
                       </TableCell>
                       <TableCell

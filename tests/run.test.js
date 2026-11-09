@@ -11,7 +11,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { createRunManager, routesOfMode, MODE_LABEL } = require("../lib/run.js");
+const { createRunManager, routesOfMode, modeTakesRoute, MODE_LABEL } = require("../lib/run.js");
 const { UserError } = require("../lib/errors.js");
 // token 的环境变量名只有一处（lib/mcp-token.js）：用例照它设与读。
 const { TOKEN_ENV_KEY } = require("../lib/mcp-token.js");
@@ -81,6 +81,10 @@ function caseRoutesOfMode() {
   assert.throws(() => routesOfMode("C"), /路线只能是 A \/ B \/ AB/);
   assert.strictEqual(MODE_LABEL["mw-wpf"], "A", "路线名与界面标签的对应也只有这一处");
   assert.strictEqual(MODE_LABEL["mtslg-iocontrol"], "B");
+  assert.strictEqual(modeTakesRoute("A", "A"), true);
+  assert.strictEqual(modeTakesRoute("AB", "A"), true);
+  assert.strictEqual(modeTakesRoute("B", "A"), false);
+  assert.throws(() => modeTakesRoute("A", "C"), /路线只能是 A \/ B/);
 }
 
 function manager(options = {}) {

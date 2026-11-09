@@ -147,4 +147,22 @@ describe("PendingPanel", () => {
     await vi.waitFor(() => expect(confirmed).not.toBeNull())
     expect(confirmed).toEqual(expect.objectContaining({ groups: [] }))
   })
+
+  it("主提交不替用户写空布局表", async () => {
+    const layoutPending = pending()
+    layoutPending.layout = { needsGroups: true, waiting: 1 }
+    let confirmed: Record<string, unknown> | null = null
+    stubWith({
+      pending: layoutPending,
+      onConfirm: (body) => {
+        confirmed = body
+      }
+    })
+    render(panel("waiting"))
+
+    const submit = await screen.findByRole("button", { name: /确认并继续/ })
+    submit.click()
+    await vi.waitFor(() => expect(confirmed).not.toBeNull())
+    expect(confirmed).not.toHaveProperty("groups")
+  })
 })

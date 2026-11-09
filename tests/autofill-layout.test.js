@@ -112,7 +112,7 @@ async function caseAutomationOff() {
   const fx = harness({ automation: "off", groups: [], projectRoot });
   const result = await fx.autoFill.fill({ projectRoot, target: "T1", runId: "job-1", request: { mode: "A" } });
   assert.strictEqual(result.ok, false);
-  assert.match(result.reason, /自动化未开启/);
+  assert.match(result.reason, /自动化已关闭/);
   assert.strictEqual(fx.inputs.length, 0, "关（不叫模型）时 A 路线也不得绕过设置");
   assert.deepStrictEqual(fx.committed, []);
   fs.rmSync(projectRoot, { recursive: true, force: true });

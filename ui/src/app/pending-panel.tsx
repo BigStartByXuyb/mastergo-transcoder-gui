@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PENDING_BUSY, usePendingInputs } from "@/app/use-pending-inputs"
-import { api, type PendingLayoutGroup } from "@/lib/api"
+import { api } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { inFlightNote, isInFlight, pendingInputCount, waitingCounts } from "@/lib/task-state"
 
@@ -127,7 +127,7 @@ export function PendingPanel({
    */
   const noIconSlots = Boolean(pending?.icons.available) && (pending?.icons.mustName.length ?? 0) === 0
   // 有待办才让提交；没有图标槽位时靠「按空台账继续」这一个显式声明兜底。
-  const canSubmit = Boolean(pending) && (waiting > 0 || (noIconSlots && allowEmptyLedger))
+  const canSubmit = Boolean(pending) && (otherWaiting > 0 || (noIconSlots && allowEmptyLedger))
   const hasSource = Boolean(taskId || runId)
   /*
    * 跑着的时候不给续跑：这条判据在任务状态模块（ui/src/lib/task-state.ts 的 isInFlight）。
@@ -142,7 +142,7 @@ export function PendingPanel({
       naming: { index: number; name: string; comment: string; fromDsl?: boolean }[],
       translations: Record<string, string>,
       glossaryMap: Record<string, string>,
-      groups?: PendingLayoutGroup[]
+      confirmEmptyGroups = false
     ) => {
       if (!pending) return
       clearFailure()
@@ -156,7 +156,7 @@ export function PendingPanel({
           naming: pending.icons.available && pending.icons.needsNaming ? naming : undefined,
           translations: pending.translations.available ? translations : undefined,
           glossary: pending.translations.available ? glossaryMap : undefined,
-          groups,
+          groups: confirmEmptyGroups ? [] : undefined,
           allowEmptyLedger: noIconSlots && allowEmptyLedger,
           // 命名表写歪了（旧下标 / 重名）就顺手修好：这次提交不只是补名字。
           pruneNaming: Boolean(pending.icons.available && pending.icons.needsRepair),
@@ -182,10 +182,15 @@ export function PendingPanel({
         resume,
         namingPayload(),
         translationsPayload(),
-        glossaryPayload(),
-        pending?.layout.needsGroups ? [] : undefined
+        glossaryPayload()
       ),
-    [submitWith, namingPayload, translationsPayload, glossaryPayload, pending?.layout.needsGroups]
+    [submitWith, namingPayload, translationsPayload, glossaryPayload]
+  )
+
+  const submitLayoutEmpty = useCallback(
+    (resume: boolean) =>
+      submitWith(resume, namingPayload(), translationsPayload(), glossaryPayload(), true),
+    [submitWith, namingPayload, translationsPayload, glossaryPayload]
   )
 
   /*
@@ -315,7 +320,12 @@ export function PendingPanel({
             </AlertDescription>
           </Alert>
           <div>
-            <Button size="sm" variant="outline" disabled={busy !== "" || inFlight} onClick={() => void submit(hasSource)}>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy !== "" || inFlight}
+              onClick={() => void submitLayoutEmpty(hasSource)}
+            >
               <Send className="size-4" />
               {hasSource ? "本页没有可分组控件，写空表并继续" : "本页没有可分组控件，只写入空表"}
             </Button>
@@ -524,7 +534,7 @@ export function PendingPanel({
           只写入，不继续
         </Button>
         {inFlight && canSubmit && <span className="text-muted-foreground text-xs">{inFlightNote("确认并继续")}</span>}
-        {!canSubmit && pending && (
+        {!canSubmit && pending && layoutWaiting === 0 && (
           <span className="text-muted-foreground text-xs">这个页面当前没有要填的东西。</span>
         )}
         {!hasSource && canSubmit && (
