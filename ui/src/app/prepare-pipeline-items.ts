@@ -1,7 +1,7 @@
 import { api, type BoardAddBody, type IdentityCandidate } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import type { BoardItem } from "@/lib/board-items"
-import { applyIdentity, candidatesForLink } from "@/lib/identity-flow"
+import { applyIdentities, candidatesForLink } from "@/lib/identity-flow"
 import { pickIdentityCandidate } from "@/lib/identity-pick"
 
 /*
@@ -95,14 +95,12 @@ export async function preparePipelineAItems(
   }
 }
 
-/** 任务已经创建、页面 PNG 已经暂存后写回身份；任一条失败由创建编排整批撤销任务。 */
+/** 任务已经创建、页面 PNG 已经暂存后写回身份；登记表同样整批成功或整批不写。 */
 export async function commitPipelineAIdentities(identities: PreparedPipelineIdentity[]): Promise<void> {
-  for (const identity of identities) {
-    await applyIdentity({
-      link: identity.link,
-      projectRoot: identity.projectRoot,
-      pageName: identity.pageName,
-      item: identity.item
-    })
-  }
+  await applyIdentities(identities.map((identity) => ({
+    link: identity.link,
+    projectRoot: identity.projectRoot,
+    pageName: identity.pageName,
+    item: identity.item
+  })))
 }

@@ -705,6 +705,16 @@ export type IdentityCandidates = {
   blocked: string
 }
 
+export type IdentityApplyBody = {
+  projectRoot: string
+  target: string
+  ui: string
+  fileId?: string
+  layerId?: string
+  link?: string
+  designPageName?: string
+}
+
 export class ApiFailure extends Error {
   code: string
   hint: string
@@ -1086,15 +1096,13 @@ export const api = {
     autoAdopt?: boolean
   }) =>
     post<{ ok: true } & IdentityCandidates>("/api/identity/candidates", body),
-  identityApply: (body: {
-    projectRoot: string
-    target: string
-    ui: string
-    fileId?: string
-    layerId?: string
-    link?: string
-    designPageName?: string
-  }) => post<{ ok: true; registryPath: string; replaced: boolean }>("/api/identity/apply", body),
+  identityApply: (body: IdentityApplyBody) =>
+    post<{ ok: true; registryPath: string; replaced: boolean }>("/api/identity/apply", body),
+  identityApplyBatch: (entries: IdentityApplyBody[]) =>
+    post<{ ok: true; registryPath: string; replaced: boolean[] }>("/api/identity/apply-batch", {
+      projectRoot: entries[0]?.projectRoot ?? "",
+      entries
+    }),
   boardAdd: (body: BoardAddBody) => post<{ ok: true; board: Board; created: string[] }>("/api/board/add", body),
   boardStart: (id = "") => post<{ ok: true; board: Board }>("/api/board/start", { id }),
   boardStop: (id: string) => post<{ ok: true; board: Board }>("/api/board/stop", { id }),

@@ -9,7 +9,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { candidatesFor, writeRegistryEntry, pascalFromPageName } = require("../lib/identity.js");
+const { candidatesFor, writeRegistryEntry, writeRegistryEntries, pascalFromPageName } = require("../lib/identity.js");
 const { readRegistryDocument } = require("../lib/project-pages.js");
 
 function write(file, text) {
@@ -250,6 +250,34 @@ function caseWrite() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+function caseWriteBatchIsAtomic() {
+  const root = project({ pages: [{ target: "F1Keep", ui: "F1" }] });
+  const registryPath = path.join(root, "docs", "page-registry.json");
+  const before = fs.readFileSync(registryPath, "utf8");
+  assert.throws(() => writeRegistryEntries({
+    projectRoot: root,
+    entries: [
+      { target: "F3ManualAlign", ui: "F3", fileId: "1", layerId: "3:1" },
+      { target: "WrongPrefix", ui: "F3", fileId: "1", layerId: "3:2" }
+    ]
+  }), /Target 与区域不匹配/);
+  assert.strictEqual(fs.readFileSync(registryPath, "utf8"), before, "任一条不合法时整批不落盘");
+
+  const written = writeRegistryEntries({
+    projectRoot: root,
+    entries: [
+      { target: "F3ManualAlign", ui: "F3", fileId: "1", layerId: "3:1" },
+      { target: "F2Teach", ui: "F2", fileId: "1", layerId: "2:1" }
+    ]
+  });
+  assert.deepStrictEqual(written.replaced, [false, false]);
+  assert.deepStrictEqual(
+    JSON.parse(fs.readFileSync(registryPath, "utf8")).pages.map((page) => page.target),
+    ["F1Keep", "F3ManualAlign", "F2Teach"]
+  );
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 // 原始文档读取只此一份：坏 JSON 的文案与 identity 写回用的是同一处。
 function caseRegistryDocument() {
   const root = project();
@@ -292,6 +320,7 @@ function main() {
     ["A 自动采用只接受唯一既有区域", caseAutoAdopt],
     ["原始登记表读取只此一份", caseRegistryDocument],
     ["写登记表：追加与替换", caseWrite],
+    ["写登记表：批次整批落盘", caseWriteBatchIsAtomic],
     ["写登记表：拒绝不合法输入", caseWriteRejections]
   ];
   for (const [name, run] of cases) {

@@ -138,7 +138,7 @@ function caseLoadMarksDeadTasksStopped() {
   const states = snapshot.tasks.map((task) => task.state);
   assert.deepStrictEqual(states, ["stopped", "merged", "failed"], "重启后不可能还在跑，未完成延后启动的任务要有明确终态");
   const deferred = snapshot.tasks.find((task) => task.id === queuedId);
-  assert.match(deferred.error, /页面 PNG 暂存与启动之间/, "延后启动窗口被打断时给出明确原因");
+  assert.match(deferred.error, /任务创建与显式启动之间/, "延后启动窗口被打断时给出明确原因");
   assert.ok(!fs.existsSync(staged.path), "无法恢复的延后任务同时清掉暂存件");
   fs.rmSync(home, { recursive: true, force: true });
 }

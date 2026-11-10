@@ -62,7 +62,9 @@ describe("preparePipelineAItems", () => {
     ])
     expect(urls.some((url) => url.includes("/api/design/page-name"))).toBe(true)
     expect(urls.some((url) => url.includes("/api/identity/apply"))).toBe(true)
-    expect(bodies[bodies.length - 1]).toEqual(expect.objectContaining({ designPageName: "停止调整" }))
+    expect(bodies[bodies.length - 1]).toEqual(expect.objectContaining({
+      entries: [expect.objectContaining({ designPageName: "停止调整" })]
+    }))
   })
 
   it("登记表给不出时让模型出语义名，直接采用可用候选", async () => {

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { PendingPanel } from "@/app/pending-panel"
@@ -71,13 +71,24 @@ function stub() {
 function stubWith(options: {
   iconNames?: { index: number; name: string; comment: string }[]
   pending?: Pending
+  aiReady?: boolean
   onConfirm?: (body: Record<string, unknown>) => void
 }) {
   vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     if (url.includes("/api/settings")) {
       return Promise.resolve(
-        new Response(JSON.stringify({ ok: true, settings: { automation: "off", ai: { hasKey: false, baseUrl: "", model: "" } } }), { status: 200 })
+        new Response(JSON.stringify({
+          ok: true,
+          settings: {
+            automation: "off",
+            ai: {
+              hasKey: options.aiReady === true,
+              baseUrl: options.aiReady === true ? "https://ai.example" : "",
+              model: options.aiReady === true ? "model" : ""
+            }
+          }
+        }), { status: 200 })
       )
     }
     if (url.includes("/api/ai/suggest")) {
@@ -115,6 +126,14 @@ function panel(state: string, overrides: Partial<Parameters<typeof PendingPanel>
 }
 
 describe("PendingPanel", () => {
+  it("手填条目自动补候选后只写文件，不伪造续跑", async () => {
+    let confirmed: Record<string, unknown> | null = null
+    stubWith({ aiReady: true, onConfirm: (body) => { confirmed = body } })
+    render(panel("waiting", { automation: "auto", runId: "", taskId: "" }))
+    await waitFor(() => expect(confirmed).not.toBeNull())
+    expect(confirmed).toMatchObject({ resume: false, runId: "", taskId: "" })
+  })
+
   it("跑着的时候不给续跑：按钮禁用，并把原因说出来", async () => {
     stub()
     render(panel("running"))

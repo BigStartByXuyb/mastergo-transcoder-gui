@@ -311,4 +311,10 @@
 | 2026-10-13 第 87 遍 | REVIEW-002 | 面板用 `!canSuggest && !imageStamp` 反推「为什么不能问模型」，与后端判据成了两份（清单不在又没图时还多挂一句误导的「传一张图」） | 已收 | 后端把 `canSuggest` 换成整条读数 `suggest: { ready, code, reason, hint }`（就是 `suggestBlocker` 的原话）；面板只显示那句话，不再由布尔反推；写回那条路仍读 `candidates` |
 | 2026-10-13 第 87 遍 | 非阻断 | `api.ts` 与 `pending.js` 对 `canSuggest` 的注释漏了「没有位图时不问」 | 已收 | 两处随 `suggest` 改名一并写全三条前提（清单在 / 条目够 / 有位图） |
 | 2026-10-13 第 88 遍 | BLOCK-001 | `lib/pending.js` 的 `designImage` require 已无任何引用（死代码；`orphan-exports` 只管导出，后端注释又不在 lint 范围） | 已收 | 删掉那一行 require；「有没有位图」继续只从 `inspect` 取；另把改名后残留的几处旧说法（`layout-groups.js` 两处、`autofill.js` 一处注释）一并改齐 |
+| 2026-11-10 GitHub 第 1 遍 | REVIEW-001 | 自动层级下手填待确认条目仍会发起没有来源运行的续跑 | 已收 | 自动路径与按钮共用 `hasSource`；手填条目只写文件，`pending-panel.test.tsx` 补回归 |
+| 2026-11-10 GitHub 第 1 遍 | REVIEW-002 | A 路线身份写回失败只撤销任务，已写入的登记表条目留在工程里 | 已收 | 身份写回收成 `/api/identity/apply-batch` 一次校验、一次写盘；`identity.test.js` 与前端流程用例补回归 |
+| 2026-11-10 GitLab 第 1 遍 | BLOCK-001 | 重启后停在页面 PNG 停点的任务不会再次结算 | 已收 | 重启后恢复自动补输入并确保轮询继续；缺分组表时运行仍在与运行已丢失都走 `restartLayoutIfNeeded`，看板流程用例补重启后收尾回归 |
+| 2026-11-10 GitLab 第 1 遍 | REVIEW-002 | 待确认面板的自动路径绕过来源门禁 | 已收 | 与 GitHub 第 1 遍 REVIEW-001 同族，自动路径改传 `hasSource` |
+| 2026-11-10 GitLab 第 1 遍 | REVIEW-003 | 前端仍硬编码 A/B/AB 清单，与后端能力表约定不一致 | 已收 | 下拉、文案与图片入口统一消费后端 `modes` 能力；A 启动请求沿用命中的 mode |
+| 2026-11-10 最新报告 | 非阻断 | 延后启动重启文案把所有路线都写成页面 PNG 暂存窗口，B 的表述不成立 | 已收 | 文案改成路线无关的「任务创建与显式启动之间」，后端流程用例同步 |
 

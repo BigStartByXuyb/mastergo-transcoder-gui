@@ -1,4 +1,4 @@
-import { api, type IdentityCandidate } from "@/lib/api"
+import { api, type IdentityApplyBody, type IdentityCandidate } from "@/lib/api"
 
 /*
  * 页面身份的取数与写入：一处拼输入字段，两条入口共用 ——
@@ -38,14 +38,15 @@ export async function candidatesForLink(input: CandidatesInput): Promise<Candida
   return { items: [...(payload.ai.items ?? []), ...(payload.candidates ?? [])], blocked: payload.blocked }
 }
 
-/** 把选中的候选写进工程登记表。 */
-export async function applyIdentity(input: {
+export type ApplyIdentityInput = {
   link: string
   projectRoot: string
   pageName: string
   item: IdentityCandidate
-}): Promise<{ replaced: boolean }> {
-  const written = await api.identityApply({
+}
+
+function applyBodyOf(input: ApplyIdentityInput): IdentityApplyBody {
+  return {
     projectRoot: input.projectRoot.trim(),
     target: input.item.target,
     ui: input.item.ui,
@@ -53,7 +54,19 @@ export async function applyIdentity(input: {
     link: input.link.trim(),
     // 沿用登记过的页时页名常常是空的：这时带上候选里那条，别把登记里的页名抹掉。
     designPageName: input.pageName.trim() || input.item.designPageName || ""
-  })
+  }
+}
+
+/** 把选中的候选写进工程登记表。 */
+export async function applyIdentity(input: ApplyIdentityInput): Promise<{ replaced: boolean }> {
+  const written = await api.identityApply(applyBodyOf(input))
+  return { replaced: written.replaced }
+}
+
+/** A 的批次写回：所有条目一次校验、一次落盘；任一条不合法时整批不写。 */
+export async function applyIdentities(inputs: ApplyIdentityInput[]): Promise<{ replaced: boolean[] }> {
+  if (inputs.length === 0) return { replaced: [] }
+  const written = await api.identityApplyBatch(inputs.map(applyBodyOf))
   return { replaced: written.replaced }
 }
 

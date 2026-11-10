@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { applyIdentity, candidatesForLink, identityConflict } from "@/lib/identity-flow"
+import { applyIdentities, applyIdentity, candidatesForLink, identityConflict } from "@/lib/identity-flow"
 
 /*
  * 走真的 api 层（只把 fetch 换掉）：要验的就是「拼了哪些字段出去、模型那几条排哪」，
@@ -91,6 +91,35 @@ describe("applyIdentity", () => {
       item: { target: "F1StopAdjust", ui: "F1", semanticName: "", basis: "", needsSemanticName: false, designPageName: "旧的" }
     })
     expect(sentBody(mock).designPageName).toBe("StopAdjust")
+  })
+})
+
+describe("applyIdentities", () => {
+  it("同一批次只发一次请求，所有条目一次交给后端", async () => {
+    const mock = stub(() => ok({ ok: true, replaced: [false, true] }))
+    const written = await applyIdentities([
+      {
+        link: "l1",
+        projectRoot: " p ",
+        pageName: "PageOne",
+        item: { target: "F1One", ui: "F1", semanticName: "", basis: "", needsSemanticName: false }
+      },
+      {
+        link: "l2",
+        projectRoot: "p",
+        pageName: "",
+        item: { target: "F2Two", ui: "F2", semanticName: "", basis: "", needsSemanticName: false, designPageName: "第二页" }
+      }
+    ])
+    expect(written.replaced).toEqual([false, true])
+    expect(String((mock.mock.calls[0] as unknown as [string])[0])).toContain("/api/identity/apply-batch")
+    expect(sentBody(mock)).toEqual({
+      projectRoot: "p",
+      entries: [
+        { projectRoot: "p", target: "F1One", ui: "F1", link: "l1", designPageName: "PageOne" },
+        { projectRoot: "p", target: "F2Two", ui: "F2", link: "l2", designPageName: "第二页" }
+      ]
+    })
   })
 })
 

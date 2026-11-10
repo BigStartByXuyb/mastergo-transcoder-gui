@@ -241,7 +241,7 @@ export function PendingPanel({
        *（lib/board.js 的 autoFillWaiting → lib/autofill.js，它读同一个 automation 设置，
        * 而且不需要浏览器在场）；这里只对没有看板任务的条目（流水线直跑 / 孤儿）发起，免得同一个停点起两次运行。
        */
-      if (automation === "auto" && !taskId) await submitWith(true, naming, translations, glossaryMap)
+      if (automation === "auto" && !taskId) await submitWith(hasSource, naming, translations, glossaryMap)
     })()
   }, [
     pending,
@@ -258,6 +258,7 @@ export function PendingPanel({
     projectRoot,
     target,
     taskId,
+    hasSource,
     aiReady,
     namingPayload,
     translationsPayload,
