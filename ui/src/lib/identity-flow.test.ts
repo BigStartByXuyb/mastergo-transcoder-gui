@@ -116,10 +116,29 @@ describe("applyIdentities", () => {
     expect(sentBody(mock)).toEqual({
       projectRoot: "p",
       entries: [
-        { projectRoot: "p", target: "F1One", ui: "F1", link: "l1", designPageName: "PageOne" },
-        { projectRoot: "p", target: "F2Two", ui: "F2", link: "l2", designPageName: "第二页" }
+        { target: "F1One", ui: "F1", link: "l1", designPageName: "PageOne" },
+        { target: "F2Two", ui: "F2", link: "l2", designPageName: "第二页" }
       ]
     })
+  })
+
+  it("不同工程不能混进同一批次", async () => {
+    const mock = stub(() => ok({ ok: true, replaced: [] }))
+    await expect(applyIdentities([
+      {
+        link: "l1",
+        projectRoot: "p1",
+        pageName: "PageOne",
+        item: { target: "F1One", ui: "F1", semanticName: "", basis: "", needsSemanticName: false }
+      },
+      {
+        link: "l2",
+        projectRoot: "p2",
+        pageName: "PageTwo",
+        item: { target: "F2Two", ui: "F2", semanticName: "", basis: "", needsSemanticName: false }
+      }
+    ])).rejects.toThrow("工程目录必须一致")
+    expect(mock).not.toHaveBeenCalled()
   })
 })
 

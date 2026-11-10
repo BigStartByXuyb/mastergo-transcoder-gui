@@ -1,4 +1,4 @@
-import { api, type IdentityApplyBody, type IdentityCandidate } from "@/lib/api"
+import { api, type IdentityApplyEntry, type IdentityCandidate } from "@/lib/api"
 
 /*
  * 页面身份的取数与写入：一处拼输入字段，两条入口共用 ——
@@ -45,9 +45,8 @@ export type ApplyIdentityInput = {
   item: IdentityCandidate
 }
 
-function applyBodyOf(input: ApplyIdentityInput): IdentityApplyBody {
+function applyEntryOf(input: ApplyIdentityInput): IdentityApplyEntry {
   return {
-    projectRoot: input.projectRoot.trim(),
     target: input.item.target,
     ui: input.item.ui,
     // 链接解析只有插件那一份实现，前端不自己拆 URL。
@@ -59,14 +58,19 @@ function applyBodyOf(input: ApplyIdentityInput): IdentityApplyBody {
 
 /** 把选中的候选写进工程登记表。 */
 export async function applyIdentity(input: ApplyIdentityInput): Promise<{ replaced: boolean }> {
-  const written = await api.identityApply(applyBodyOf(input))
+  const written = await api.identityApply({
+    projectRoot: input.projectRoot.trim(),
+    ...applyEntryOf(input)
+  })
   return { replaced: written.replaced }
 }
 
 /** A 的批次写回：所有条目一次校验、一次落盘；任一条不合法时整批不写。 */
 export async function applyIdentities(inputs: ApplyIdentityInput[]): Promise<{ replaced: boolean[] }> {
   if (inputs.length === 0) return { replaced: [] }
-  const written = await api.identityApplyBatch(inputs.map(applyBodyOf))
+  const roots = [...new Set(inputs.map((input) => input.projectRoot.trim()))]
+  if (roots.length !== 1 || roots[0] === "") throw new Error("批次里的工程目录必须一致且不能为空")
+  const written = await api.identityApplyBatch(roots[0], inputs.map(applyEntryOf))
   return { replaced: written.replaced }
 }
 
