@@ -106,10 +106,10 @@ describe("DesignImageCard", () => {
   })
 
   it("合并期间冻结换图，避免合并与布局重跑同时读写工作目录", async () => {
-    stub(state())
+    stub(state({ blocked: "任务正在合并，结束后才能换图。" }))
     render(<DesignImageCard task={task({ state: "merging" })} />)
 
-    expect(await screen.findByText("任务正在合并，结束后才能换图")).toBeTruthy()
+    expect(await screen.findByText("任务正在合并，结束后才能换图。")).toBeTruthy()
     expect(screen.getByRole("button", { name: /选择 PNG/ }).hasAttribute("disabled")).toBe(true)
   })
 
@@ -132,9 +132,9 @@ describe("DesignImageCard", () => {
   })
 
   it("选一张图：按 base64 传上去（不用传文件名，格式由内容定），界面换成新状态", async () => {
-    let sent: { data?: string; target?: string } = {}
+    let sent: { taskId?: string; data?: string; target?: string } = {}
     stub(state(), {
-      onSave: (body) => (sent = body as { data: string; target: string }),
+      onSave: (body) => (sent = body as { taskId: string; data: string; target: string }),
       save: state({ image: IMAGE, matches: true, groups: { path: "x", exists: true } })
     })
     render(<DesignImageCard task={task()} />)
@@ -142,6 +142,7 @@ describe("DesignImageCard", () => {
 
     pick("DemoPage.design.png")
     await waitFor(() => expect(sent.target).toBe("DemoPage"))
+    expect(sent.taskId).toBe("task-1")
     expect(sent.target).toBe("DemoPage")
     expect(sent.data).toBe(Buffer.from([1, 2, 3, 4]).toString("base64"))
     expect(await screen.findByText("有图")).toBeTruthy()

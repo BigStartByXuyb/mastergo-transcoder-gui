@@ -21,6 +21,7 @@
 | 面板动作的骨架（置忙 → 清旧错 → 跑 → 收尾） | `ui/src/app/use-action-runner.ts` · `export function useValueRunner(` | `useActionRunner`（同文件）、`use-task-actions.ts`、`use-plugin-sources.ts`、`use-plugin-update.ts`、`board-page.tsx`、`design-image-card.tsx`、设置页（`update-card` / `codex-card` / `runtime-panel` / `source-dialog` / `settings-agent-panel`） |
 | 界面唯一的网络出口 | `ui/src/lib/api.ts` · `fetch(` | 所有界面件（别的文件不直接发请求） |
 | 先选的位图暂存在哪（键是什么） | `lib/design-image.js` · `function stagedPathOf(` | 暂存（`lib/routes.js` 的 `POST /api/design-image/stage`）、落地与清理（`lib/board.js`）；界面只把任务 id 交给暂存接口，不自己拼键（`ui/src/app/stage-design-images.ts`） |
+| 任务级换图门禁（工作目录 / 页面 / 合并状态） | `lib/board.js` · `function imageWriteBlock(` | `GET /api/design-image` 把阻断原因并入 `blocked`；`POST /api/design-image` 在写盘前用同一函数拒绝 |
 | 位图尺寸不符时那两个数怎么写 | `lib/design-image.js` · `function sizeMismatchText(` | 存图被拒的原话（同文件的 `save`）、看板任务行上那句提示（`lib/board.js`） |
 | 「要当文件名的一段名字」的收口（空 / 非法分开说） | `lib/name-safety.js` · `function requireSafeName(` | 页面 Target 与任务 id 两个包装（同文件）；工程目录存在性走同文件的 `requireProjectDirectory` |
 | 「这一份与清单对不上的是哪几个文件」 | `lib/update.js` · `function mismatchedFiles(` | 切换前的校验（同文件的 `apply`）、安装根那一份的核验（`installRootIsVersion`） |

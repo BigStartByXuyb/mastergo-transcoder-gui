@@ -942,9 +942,14 @@ export const api = {
   /** 手动切换插件来源：override 是来源 id，空串 = 回到自动查找顺序。 */
   pluginOverride: (override: string) => post<PluginSources>("/api/plugin/override", { override }),
   /** 作业A 的读图输入：这一页放着哪张图、尺寸对不对、分组表在不在。 */
-  designImage: (projectRoot: string, target: string) =>
+  designImage: (projectRoot: string, target: string, taskId: string) =>
     request<{ ok: true; image: DesignImage }>(
-      "/api/design-image?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
+      "/api/design-image?projectRoot=" +
+        encodeURIComponent(projectRoot) +
+        "&target=" +
+        encodeURIComponent(target) +
+        "&taskId=" +
+        encodeURIComponent(taskId)
     ),
   /**
    * 这一页那张页面 PNG 的地址（预览与模型读图都用它）。
@@ -958,7 +963,7 @@ export const api = {
    * 存一张页面 PNG（整份替换）。格式按**内容**认，落盘后缀也按它取，所以不用传文件名；
    * 尺寸与画板不一致、内容不是 PNG/JPEG 时，后端按原话拒绝。
    */
-  saveDesignImage: (body: { projectRoot: string; target: string; data: string }) =>
+  saveDesignImage: (body: { taskId: string; projectRoot: string; target: string; data: string }) =>
     post<{ ok: true; image: DesignImage }>("/api/design-image", body),
   /**
    * 新建任务时先把位图暂存起来（那时还不知道画板尺寸）：任务跑到「取数 + 固化快照」之后

@@ -222,6 +222,28 @@ async function caseDeferredTaskWaitsForExplicitStart() {
   fs.rmSync(fx.home, { recursive: true, force: true });
 }
 
+async function caseStartAllKeepsDeferredTasks() {
+  const fx = makeBoard();
+  const deferred = fx.board.add({
+    projectRoot: fx.project,
+    deferStart: true,
+    items: [{ link: LINK + "&deferred-all=1", target: "Deferred", mode: "A" }]
+  });
+  const regular = fx.board.add({
+    projectRoot: fx.project,
+    items: [{ link: LINK + "&regular-all=1", target: "Regular", mode: "B" }]
+  });
+
+  fx.board.start();
+  await waitForTask(fx.board, regular.created[0], hasJob, "启动全部先启动未延后的任务");
+  const stillWaiting = fx.board.snapshot().tasks.find((task) => task.id === deferred.created[0]);
+  assert.strictEqual(stillWaiting.state, "queued", "启动全部不得越过页面 PNG 暂存门禁");
+  assert.strictEqual(stillWaiting.jobId, "", "延后任务还没跑");
+
+  fx.board.stop(regular.created[0]);
+  fs.rmSync(fx.home, { recursive: true, force: true });
+}
+
 async function caseTickSyncsReadyAndMerges() {
   const fx = makeBoard();
   const added = fx.board.add({ projectRoot: fx.project, items: [{ link: LINK, target: "T1", mode: "B" }] });
@@ -599,6 +621,14 @@ async function caseMergingDoesNotRestartLayout() {
   try {
     fx.board.mergeOne(id);
     assert.strictEqual(fx.board.snapshot().tasks.find((item) => item.id === id).state, "merging");
+    assert.strictEqual(
+      fx.board.imageWriteBlock({ id: id, projectRoot: task.workDir, target: "T1" }),
+      "任务正在合并，结束后才能换图。"
+    );
+    assert.throws(
+      () => fx.board.requireImageWrite({ id: id, projectRoot: task.workDir, target: "T1" }),
+      (error) => error.code === "TASK_MERGING"
+    );
     fs.rmSync(workdir.layoutGroupsPath(task.workDir, "T1"), { force: true });
     const before = fx.runs.started.length;
     await sleep(TICK + 300);
@@ -781,6 +811,7 @@ async function main() {
     ["加任务：校验与参数落地", caseAddValidationAndFields],
     ["启动：工作目录与并发队列", caseStartUsesWorkDirAndKeepsQueue],
     ["deferStart 等暂存完成再启动", caseDeferredTaskWaitsForExplicitStart],
+    ["启动全部不越过暂存门禁", caseStartAllKeepsDeferredTasks],
     ["tick 同步：跑完自动合并", caseTickSyncsReadyAndMerges],
     ["语义停点与自动补输入", caseSemanticStopAndAutoFill],
     ["补输入到上限与真失败", caseAutoFillLimitAndRealFailure],

@@ -41,10 +41,10 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
 
   const load = useCallback(async () => {
     if (!projectRoot || !target) return
-    await runRead("", () => api.designImage(projectRoot, target), (payload) => {
+    await runRead("", () => api.designImage(projectRoot, target, task.id), (payload) => {
       if (alive.current) setState(payload.image)
     })
-  }, [alive, projectRoot, target, runRead])
+  }, [alive, projectRoot, target, task.id, runRead])
 
   /*
    * 任务每往前走一步（看板在轮询）就重读一次：画板尺寸来自固化快照那一步的产物，
@@ -59,7 +59,7 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
     // 上传完直接落状态（不重读一次）；卸载之后迟到的响应不回写，与 load() 同一套守卫。
     await run(
       "save",
-      async () => api.saveDesignImage({ projectRoot, target, data: await fileToBase64(file) }),
+      async () => api.saveDesignImage({ taskId: task.id, projectRoot, target, data: await fileToBase64(file) }),
       (payload) => {
         if (alive.current) setState(payload.image)
       }
@@ -71,8 +71,7 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
   // 「一致 / 不一致」直接读后端给的 matches（那条判据只有一处），界面不再拿 image+canvas 重算一遍。
   const matched = Boolean(state?.matches)
   const mismatch = Boolean(image && canvas && !matched)
-  const merging = task.state === "merging" || (task.state === "ready" && task.autoMerge)
-  const blocked = merging ? "任务正在合并，结束后才能换图" : (state?.blocked || "")
+  const blocked = state?.blocked || ""
 
   return (
     <Card>
