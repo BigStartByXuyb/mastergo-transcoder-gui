@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest"
 
+import type { BoardModePolicy } from "@/lib/api"
 import {
   AUTOMATION_LABEL,
   MODE_HINT,
@@ -75,11 +76,11 @@ describe("task-form", () => {
   })
 
   it("路线能力只从后端表里查，不在前端解释 mode 字符串", () => {
-    const policies = [
-      { mode: "A", routes: ["A"] as const, takesPageImage: true, startsWithPipelineA: true },
-      { mode: "B", routes: ["B"] as const, takesPageImage: false, startsWithPipelineA: false },
-      { mode: "AB", routes: ["A", "B"] as const, takesPageImage: true, startsWithPipelineA: false }
-    ].map((item) => ({ ...item, routes: [...item.routes] }))
+    const policies: BoardModePolicy[] = [
+      { mode: "A", routes: ["A"], takesPageImage: true, startsWithPipelineA: true },
+      { mode: "B", routes: ["B"], takesPageImage: false, startsWithPipelineA: false },
+      { mode: "AB", routes: ["A", "B"], takesPageImage: true, startsWithPipelineA: false }
+    ]
     expect(modePolicyOf(policies, " ab ")).toEqual(policies[2])
     expect(modePolicyOf(policies, "B")).toEqual(policies[1])
     expect(modePolicyOf(policies, "C")).toBeNull()

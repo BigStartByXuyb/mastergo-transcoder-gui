@@ -458,7 +458,7 @@ export type BoardTaskState =
 
 /** 后端从 routesOfMode 展开的路线能力：表单只读这一份，不自己解释 mode 字符串。 */
 export type BoardModePolicy = {
-  mode: string
+  mode: "A" | "B" | "AB"
   routes: ("A" | "B")[]
   takesPageImage: boolean
   startsWithPipelineA: boolean
