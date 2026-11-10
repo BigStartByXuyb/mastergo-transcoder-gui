@@ -101,7 +101,8 @@ function main() {
     const root = sandbox();
     const info = layout.inspect({ projectRoot: root, target: TARGET });
     assert.strictEqual(info.available, true);
-    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "hasGroups", "hasImage", "reason"]);
+    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "hasGroups", "hasImage", "needsGroups", "reason"]);
+    assert.strictEqual(info.needsGroups, false, "还没有页面 PNG 时不要求自动补分组");
     assert.throws(
       () => layout.candidatesInput({ projectRoot: root, target: TARGET }),
       /这一步要对着页面 PNG 判分组/,
@@ -110,6 +111,8 @@ function main() {
     assert.strictEqual(info.hasGroups, false, "还没写过分组表");
     /* 传上图之后：这一层的条目够分组，才谈得上问模型（两个条件缺一不可）。 */
     writeImage(root);
+    assert.strictEqual(layout.inspect({ projectRoot: root, target: TARGET }).needsGroups, true,
+      "有页面 PNG、没有分组表且条目可读时才需要自动补分组");
     const input = layout.candidatesInput({ projectRoot: root, target: TARGET });
     assert.match(input.image, /^data:image\/png;base64,/, "有图 + 条目够 = 可以问模型");
     assert.strictEqual(input.entries.length, 3);

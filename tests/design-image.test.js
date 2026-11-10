@@ -33,6 +33,17 @@ function upload(projectRoot, buffer, name) {
   return designImage.save({ projectRoot: projectRoot, target: TARGET, name: name || "DemoPage.design.png", data: buffer.toString("base64") });
 }
 
+function writeGroups(projectRoot, groups) {
+  const file = path.join(projectRoot, "Generated", "_inputs", TARGET + ".layout-groups.json");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(
+    file,
+    JSON.stringify({ schemaVersion: "mw-wpf-layout-groups/1", pageTarget: TARGET, groups: groups }),
+    "utf8"
+  );
+  return file;
+}
+
 function caseSaveAndRead() {
   const root = sandbox();
   const before = designImage.read({ projectRoot: root, target: TARGET });
@@ -104,6 +115,7 @@ function caseJpeg() {
 function caseReplace() {
   const root = sandbox();
   upload(root, png(1280, 1024));
+  const groups = writeGroups(root, []);
   upload(root, jpeg(1280, 1024), "shot.jpg");
   const dir = path.join(root, "Generated", "_inputs");
   const left = fs.readdirSync(dir).filter((name) => name.startsWith("DemoPage.design."));
@@ -111,6 +123,7 @@ function caseReplace() {
   const now = designImage.read({ projectRoot: root, target: TARGET });
   assert.strictEqual(now.image.name, "DemoPage.design.jpg");
   assert.strictEqual(now.matches, true);
+  assert.ok(!fs.existsSync(groups), "换页面 PNG 后旧分组结论失效并删除");
   fs.rmSync(root, { recursive: true, force: true });
 }
 
@@ -197,9 +210,11 @@ function caseStageThenInstall() {
   fs.rmSync(noSnapshot, { recursive: true, force: true });
 
   const workDir = sandbox();
+  const groups = writeGroups(workDir, []);
   const installed = designImage.installStaged({ home: home, taskId: TASK, target: TARGET, workDir: workDir });
   assert.match(installed.installed, /DemoPage\.design\.png$/);
   assert.ok(designImage.read({ projectRoot: workDir, target: TARGET }).matches, "装进去之后与画板尺寸一致");
+  assert.ok(!fs.existsSync(groups), "首次落地页面 PNG 时旧分组结论失效");
   assert.ok(!fs.existsSync(staged.path), "落地之后暂存件删掉（不留第二份）");
   assert.strictEqual(designImage.installStaged({ home: home, taskId: TASK, target: TARGET, workDir: workDir }), null);
 

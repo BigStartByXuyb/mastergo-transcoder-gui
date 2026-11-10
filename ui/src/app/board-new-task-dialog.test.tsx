@@ -59,6 +59,7 @@ describe("BoardNewTaskDialog 的选图", () => {
     expect(screen.getByText("第 1 行")).toBeTruthy()
     expect(screen.getByText("第 2 行")).toBeTruthy()
     expect(screen.getByText("默认模式")).toBeTruthy()
+    expect(screen.getByText("页面 PNG").closest("section")?.textContent).toContain("必填参数")
     expect(screen.queryByLabelText("Ui 前缀")).toBeNull()
     expect(screen.queryByLabelText("停在某一步")).toBeNull()
   })

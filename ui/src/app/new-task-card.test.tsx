@@ -57,6 +57,7 @@ describe("NewTaskCard 的选图", () => {
     expect(inputs.length).toBe(1)
     expect(inputs[0].disabled).toBe(false)
     expect(screen.getByText(/画板原始尺寸导出/)).toBeTruthy()
+    expect(screen.getByText("页面 PNG").closest("section")?.textContent).toContain("必填参数")
     expect(screen.getByText("A —— MW WPF XAML 页面")).toBeTruthy()
     expect(screen.queryByLabelText("页面 Target")).toBeNull()
     expect(screen.queryByLabelText("UI 区域")).toBeNull()

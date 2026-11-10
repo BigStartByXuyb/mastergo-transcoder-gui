@@ -153,6 +153,7 @@ export function BoardPage() {
             autoMerge,
             overwrite,
             stopAfter,
+            deferStart: modeTakesRoute(form.mode, "A"),
             items: outgoing
           })
           // 建完任务才暂存（暂存件按任务 id 落键）：门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts。

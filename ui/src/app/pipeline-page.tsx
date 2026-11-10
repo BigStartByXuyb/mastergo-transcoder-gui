@@ -207,6 +207,7 @@ export function PipelinePage({
         autoMerge: true,
         stopAfter,
         overwrite,
+        deferStart: modeTakesRoute(form.mode, "A"),
         items: [{ link, target, mode: form.mode as "A" | "B" | "AB" }]
       })
       if (!added) return

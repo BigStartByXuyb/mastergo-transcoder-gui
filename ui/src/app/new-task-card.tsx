@@ -89,6 +89,13 @@ export function NewTaskCard(props: Props) {
                 />
               </div>
               <ModeField label="路线" value={form.mode} onChange={(mode) => onForm({ mode })} />
+              {usesA && (
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="run-image">{DESIGN_IMAGE_LABEL}</Label>
+                  <DesignImagePicker id="run-image" file={props.image} onPick={props.onPickImage} />
+                  <p className="text-muted-foreground text-xs">{READ_IMAGE_HINT}</p>
+                </div>
+              )}
             </FieldGroup>
 
             <FieldGroup {...FIELD_GROUPS.optional}>
@@ -102,13 +109,6 @@ export function NewTaskCard(props: Props) {
                     value={form.stopAfter}
                     onChange={(event) => onForm({ stopAfter: event.target.value })}
                   />
-                </div>
-              )}
-              {usesA && (
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="run-image">{DESIGN_IMAGE_LABEL}</Label>
-                  <DesignImagePicker id="run-image" file={props.image} onPick={props.onPickImage} />
-                  <p className="text-muted-foreground text-xs">{READ_IMAGE_HINT}</p>
                 </div>
               )}
               {!pipelineA && (

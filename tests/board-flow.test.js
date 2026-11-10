@@ -186,6 +186,28 @@ async function caseStartUsesWorkDirAndKeepsQueue() {
   fs.rmSync(fx.home, { recursive: true, force: true });
 }
 
+async function caseDeferredTaskWaitsForExplicitStart() {
+  const fx = makeBoard();
+  const live = fx.board.add({ projectRoot: fx.project, items: [{ link: LINK, target: "Live", mode: "B" }] });
+  fx.board.start(live.created[0]);
+  const liveTask = await waitForTask(fx.board, live.created[0], hasJob, "先有一条运行中的任务");
+  fx.runs.seed(liveTask.jobId, { id: liveTask.jobId, state: "running", request: {}, runs: [] }, liveTask.workDir);
+
+  const added = fx.board.add({
+    projectRoot: fx.project,
+    deferStart: true,
+    items: [{ link: LINK + "&deferred=1", target: "Deferred", mode: "A" }]
+  });
+  await sleep(TICK * 2 + 300);
+  const deferred = fx.board.snapshot().tasks.find((item) => item.id === added.created[0]);
+  assert.strictEqual(deferred.state, "queued", "tick 不得抢跑等页面 PNG 暂存的新任务");
+  assert.strictEqual(deferred.jobId, "", "还没有工作目录与运行");
+
+  fx.board.start(added.created[0]);
+  await waitForTask(fx.board, added.created[0], hasJob, "暂存完成后显式启动");
+  fs.rmSync(fx.home, { recursive: true, force: true });
+}
+
 async function caseTickSyncsReadyAndMerges() {
   const fx = makeBoard();
   const added = fx.board.add({ projectRoot: fx.project, items: [{ link: LINK, target: "T1", mode: "B" }] });
@@ -469,6 +491,40 @@ async function casePipelineARequiresImageBeforeReady() {
   fs.rmSync(project, { recursive: true, force: true });
 }
 
+async function caseLayoutRerunsAfterProgressWhenImageNeedsGroups() {
+  const project = makeProject();
+  write(
+    path.join(project, "Generated", "runs", "T1", "dsl.snapshot.json"),
+    JSON.stringify({ dsl: { nodes: [{ type: "FRAME", id: "1:1", layoutStyle: { width: 1280, height: 1024 } }] } })
+  );
+  write(
+    path.join(project, "Generated", "_inputs", "T1.layout-group-candidates.json"),
+    JSON.stringify({ schemaVersion: "mw-wpf-layout-group-candidates/1", pageTarget: "T1", entries: [{ ref: "a" }, { ref: "b" }] })
+  );
+  const steps = [
+    contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
+  ];
+  const fx = makeBoard({ project: project, steps: steps });
+  const id = fx.board.add({ projectRoot: project, items: [{ link: LINK, target: "T1", mode: "A" }] }).created[0];
+  const staged = designImage.stage({ home: fx.home, taskId: id, data: png(1280, 1024).toString("base64") });
+  fx.board.start(id);
+  const task = await waitForTask(fx.board, id, hasJob, "任务启动");
+  designImage.installStaged({ home: fx.home, taskId: id, target: "T1", workDir: task.workDir });
+  assert.ok(!fs.existsSync(staged.path), "页面 PNG 已落地");
+  fx.runs.seed(task.jobId, {
+    id: task.jobId,
+    state: "done",
+    request: { progress: "layoutManifest", stopAfter: "" },
+    runs: []
+  }, task.workDir);
+
+  await sleep(TICK + 300);
+  assert.ok(fx.runs.started.some((request) => request.progress === "layoutManifest"),
+    "即使本次运行本身就是从布局续起，只要当前页面 PNG 缺分组表也要重推");
+  fs.rmSync(fx.home, { recursive: true, force: true });
+  fs.rmSync(project, { recursive: true, force: true });
+}
+
 /*
  * 「哪一步吃布局输入」按契约的 Inputs 判，不看步骤名：契约里叫 layout 的那一步若不吃分组表，
  * 界面就不会把位图恢复入口挂到别的步骤上（另有一个 decoy 故意叫这个名字）。
@@ -634,6 +690,7 @@ async function main() {
     ["重启后把不可能还在跑的任务标成已停止", caseLoadMarksDeadTasksStopped],
     ["加任务：校验与参数落地", caseAddValidationAndFields],
     ["启动：工作目录与并发队列", caseStartUsesWorkDirAndKeepsQueue],
+    ["deferStart 等暂存完成再启动", caseDeferredTaskWaitsForExplicitStart],
     ["tick 同步：跑完自动合并", caseTickSyncsReadyAndMerges],
     ["语义停点与自动补输入", caseSemanticStopAndAutoFill],
     ["补输入到上限与真失败", caseAutoFillLimitAndRealFailure],
@@ -641,6 +698,7 @@ async function main() {
     ["补输入抛出来的错误也带修法", caseAutoFillThrownErrorKeepsHint],
     ["先选的设计稿位图：尺寸不符写在行上、条件解除自清", caseStagedImageNotice],
     ["A 路线没有页面 PNG 时停在待确认，不自动合并", casePipelineARequiresImageBeforeReady],
+    ["从布局续跑完成也要按当前页面 PNG 检查分组", caseLayoutRerunsAfterProgressWhenImageNeedsGroups],
     ["任务离开看板（移除 / 清理 / 清空区域）：暂存件跟着走", caseRemovalDropsStagedImage],
     ["「哪一步吃布局输入」按契约的 Inputs 判，不认步骤名", caseLayoutStepComesFromContract],
     ["「能不能续、续哪一步」的两支边界（没跑过 / 跑到一半）", caseResumeStepBoundary],

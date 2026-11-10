@@ -583,6 +583,8 @@ export type BoardAddBody = {
   stopAfter: string
   /** 目标工程里已经有同名页面时是否替换（对应流水线的「替换已有产物」）。 */
   overwrite: boolean
+  /** A 新建任务先暂存页面 PNG：看板 tick 不自动起步，暂存完成后由界面显式启动。 */
+  deferStart?: boolean
   items: {
     link: string
     target: string

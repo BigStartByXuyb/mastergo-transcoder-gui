@@ -92,6 +92,10 @@ export function BoardNewTaskDialog(props: {
               value={form.mode}
               onChange={(mode) => props.onChange({ ...form, mode: mode as BoardTaskForm["mode"] })}
             />
+            {/* 一行一个页面：走 A 路线时每行各配一张页面 PNG（一个任务一份）。 */}
+            {usesA && (
+              <BoardImageRows rows={rows} images={props.images} onPickImage={props.onPickImage} />
+            )}
           </FieldGroup>
 
           {!pipelineA && (
@@ -149,10 +153,6 @@ export function BoardNewTaskDialog(props: {
             </>
           )}
 
-          {/* 一行一个页面：走 A 路线时每行各配一张页面 PNG（一个任务一份）。 */}
-          {usesA && (
-            <BoardImageRows rows={rows} images={props.images} onPickImage={props.onPickImage} />
-          )}
         </FieldGroup>
 
         <DialogFooter>
