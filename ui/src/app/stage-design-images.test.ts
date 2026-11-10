@@ -190,6 +190,9 @@ describe("createTasksWithPageImages", () => {
 
     expect(vi.mocked(api.boardStart).mock.calls.map(([taskId]) => taskId)).toEqual(["task-1", "task-2"])
     expect(api.board).toHaveBeenCalled()
-    expect(result).toMatchObject({ ok: false, failure: "启动失败", board: refreshed })
+    expect(result).toMatchObject({ ok: false, board: refreshed, created: ["task-1", "task-2"] })
+    expect(result.ok ? "" : result.failure).toContain(
+      "启动失败（本批任务仍保留在看板：task-1、task-2；已启动成功的会继续跑，未启动的需手动启动或移除）"
+    )
   })
 })

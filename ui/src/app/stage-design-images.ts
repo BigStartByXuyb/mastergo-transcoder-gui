@@ -12,12 +12,12 @@ import { fileToBase64 } from "@/lib/upload-files"
  */
 
 type StagedPick = { taskId: string; file: File }
-type CreatedTasks = { board: Board; created: string[] }
-type CreateTasksResult =
+export type CreatedTasks = { board: Board; created: string[] }
+export type CreateTasksResult =
   | { ok: true; board: Board; created: string[] }
-  | { ok: false; failure: string; board: Board | null }
+  | { ok: false; failure: string; board: Board | null; created?: string[] }
 
-type TaskCreationApi = {
+export type TaskCreationApi = {
   stageDesignImage: (body: { taskId: string; data: string }) => Promise<{ ok: true }>
   boardStart: (taskId?: string) => Promise<{ board: Board }>
   boardRemove: (taskId: string) => Promise<{ board: Board }>
@@ -32,6 +32,11 @@ const ROLLBACK_OUTCOME = "刚建的任务已撤销；修好后重新提交"
 export const STAGE_FAILED_NOTE = "（先选的那张图没暂存上，" + ROLLBACK_OUTCOME + "）"
 export const ROLLED_BACK_NOTE = "（" + ROLLBACK_OUTCOME + "）"
 const PAGE_IMAGE_REQUIRED = "含 A 的路线需要为每个页面选择页面 PNG"
+
+function startFailedNote(taskIds: string[]): string {
+  return "（本批任务仍保留在看板：" + taskIds.join("、") +
+    "；已启动成功的会继续跑，未启动的需手动启动或移除）"
+}
 
 /*
  * 只有后端路线能力标记需要页面 PNG 时才送图；选图框露不露与这里读同一份 takesPageImage。
@@ -161,8 +166,9 @@ export async function createTasksWithPageImages(input: {
   if (firstStartFailure) {
     return {
       ok: false,
-      failure: firstStartFailure,
-      board: await reloadBoard(apiClient)
+      failure: firstStartFailure + startFailedNote(created.created),
+      board: await reloadBoard(apiClient),
+      created: created.created
     }
   }
   return { ok: true, board: current, created: created.created }

@@ -55,6 +55,13 @@ describe("task-form", () => {
     expect(readTaskForm().link).toBe("")
   })
 
+  it("本地记住的路线与看板表单使用同一份归一", () => {
+    localStorage.setItem("mastergo-transcoder-gui.pipeline", JSON.stringify({ mode: " c " }))
+    expect(readTaskForm().mode).toBe("A")
+    localStorage.setItem("mastergo-transcoder-gui.pipeline", JSON.stringify({ mode: "b" }))
+    expect(readTaskForm().mode).toBe("B")
+  })
+
   it("路线文案与自动化层级文案各有一份", () => {
     expect(MODE_HINT.A).toContain("MW WPF")
     expect(MODE_HINT.AB).toContain("两次独立运行")

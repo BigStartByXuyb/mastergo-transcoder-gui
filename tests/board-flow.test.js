@@ -538,6 +538,7 @@ async function casePipelineARequiresImageBeforeReady() {
   // 登记表即使显示全部完成，也必须重新经过页面 PNG 门禁。
   stored[0].state = "running";
   stored[0].jobId = "";
+  stored[0].error = "自动补输入已到上限";
   write(path.join(fx.home, "board.json"), JSON.stringify(stored, null, 2) + "\n");
   const restarted = createBoard({
     runs: makeRuns().api,
@@ -553,6 +554,7 @@ async function casePipelineARequiresImageBeforeReady() {
   const afterRestart = restarted.snapshot().tasks.find((item) => item.id === id);
   assert.strictEqual(afterRestart.state, "waiting", "重启对表不得绕过页面 PNG 门禁");
   assert.match(afterRestart.failure.message, /页面 PNG/);
+  assert.strictEqual(afterRestart.error, "", "进入等图停点要清掉旧错误，任务行只显示当前结论");
 
   fs.rmSync(fx.home, { recursive: true, force: true });
   fs.rmSync(project, { recursive: true, force: true });

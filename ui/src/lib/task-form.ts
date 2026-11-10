@@ -5,12 +5,14 @@ import type { BoardModePolicy } from "@/lib/api"
  * 新建任务表单：值跨刷新记住；两个展示用文案表在这里统一一份，界面各处引用同一处。
  */
 
+export type TaskMode = "A" | "B" | "AB"
+
 export type TaskForm = {
   link: string
   projectRoot: string
   target: string
   ui: string
-  mode: string
+  mode: TaskMode
   stopAfter: string
   overwrite: boolean
 }
@@ -31,6 +33,14 @@ export const MODE_HINT: Record<string, string> = {
   A: "A —— MW WPF XAML 页面",
   B: "B —— MTSLG IOContorl 页面 XML",
   AB: "AB —— 两条都跑，两次独立运行（先 A 后 B）"
+}
+
+const TASK_MODES = Object.keys(MODE_HINT) as TaskMode[]
+
+/** 两个新建表单对本地记住的路线共用这一份归一。 */
+export function normalizeStoredMode(value: unknown, fallback: TaskMode = "A"): TaskMode {
+  const raw = String(value ?? "").trim().toUpperCase()
+  return TASK_MODES.includes(raw as TaskMode) ? raw as TaskMode : fallback
 }
 
 /* 路线能力由后端 modePolicies 给；界面只按 mode 查表，不自己从字符串推断。 */
@@ -74,7 +84,7 @@ export function readTaskForm(): TaskForm {
     projectRoot: String(raw.projectRoot ?? ""),
     target: String(raw.target ?? ""),
     ui: String(raw.ui ?? ""),
-    mode: String(raw.mode ?? "") || EMPTY_TASK_FORM.mode,
+    mode: normalizeStoredMode(raw.mode, "A"),
     stopAfter: String(raw.stopAfter ?? ""),
     overwrite: raw.overwrite === true
   }))

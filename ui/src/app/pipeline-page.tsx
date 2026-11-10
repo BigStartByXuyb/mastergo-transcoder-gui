@@ -22,14 +22,11 @@ import { TaskDetailCard } from "@/app/task-detail-card"
 import { TaskLogCard } from "@/app/task-log-card"
 import { StepRail } from "@/app/task-steps"
 import { ClampText } from "@/app/clamp-text"
-import { createTasksWithPageImages } from "@/app/stage-design-images"
+import { createTasksWithPageImages, type CreateTasksResult } from "@/app/stage-design-images"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentity } from "@/app/use-identity"
-import {
-  commitPipelineAIdentities,
-  preparePipelineAItems,
-  requestDefaultsOf
-} from "@/app/prepare-pipeline-items"
+import { requestDefaultsOf } from "@/app/prepare-pipeline-items"
+import { startPipelineA } from "@/app/start-pipeline-a"
 import { useRemembered } from "@/app/use-remembered"
 import { useRunLog } from "@/app/use-run-log"
 import { useTaskActions } from "@/app/use-task-actions"
@@ -149,26 +146,7 @@ export function PipelinePage({
   async function prepareStartRequest(
     projectRoot: string,
     link: string
-  ): Promise<{ body: BoardAddBody; beforeStart?: () => Promise<void> } | null> {
-    if (form.mode === "A") {
-      const prepared = await preparePipelineAItems([{ link, target: "", mode: "A" }], projectRoot, {
-        useAi: automation !== "off"
-      })
-      if (!prepared.ok) {
-        setFailure(prepared.reason)
-        return null
-      }
-      return {
-        body: {
-          projectRoot,
-          ...prepared.defaults,
-          deferStart: true,
-          items: prepared.items
-        },
-        beforeStart: () => commitPipelineAIdentities(prepared.identities)
-      }
-    }
-
+  ): Promise<BoardAddBody | null> {
     const decision = await decideStartIdentity({
       link,
       projectRoot,
@@ -199,12 +177,10 @@ export function PipelinePage({
       stopAfter: form.stopAfter
     })
     return {
-      body: {
-        projectRoot,
-        ...defaults,
-        deferStart: true,
-        items: [{ link, target: decision.target, mode: form.mode as "A" | "B" | "AB" }]
-      }
+      projectRoot,
+      ...defaults,
+      deferStart: true,
+      items: [{ link, target: decision.target, mode: form.mode as "A" | "B" | "AB" }]
     }
   }
 
@@ -217,22 +193,35 @@ export function PipelinePage({
       return
     }
     if (!currentMode) {
-      setFailure("路线能力还没读到，请稍后重试")
+      setFailure(board ? "当前记住的路线已不可用，请重新选择路线" : "路线能力还没读到，请稍后重试")
       return
     }
     if (startInFlight.current) return
     startInFlight.current = true
     setStarting(true)
     try {
-      const prepared = await prepareStartRequest(projectRoot, link)
-      if (!prepared) return
-      const result = await createTasksWithPageImages({
-        takesPageImage: takesPageImage,
-        links: prepared.body.items.map((item) => item.link),
-        images: stagedImage ? { [link]: stagedImage } : {},
-        beforeStart: prepared.beforeStart,
-        add: () => api.boardAdd(prepared.body)
-      })
+      const images = stagedImage ? { [link]: stagedImage } : {}
+      let result: CreateTasksResult
+      if (form.mode === "A") {
+        result = await startPipelineA({
+          items: [{ link, target: "", mode: "A" }],
+          projectRoot,
+          useAi: automation !== "off",
+          takesPageImage,
+          images,
+          add: api.boardAdd
+        })
+      }
+      else {
+        const body = await prepareStartRequest(projectRoot, link)
+        if (!body) return
+        result = await createTasksWithPageImages({
+          takesPageImage,
+          links: body.items.map((item) => item.link),
+          images,
+          add: () => api.boardAdd(body)
+        })
+      }
       if (result.board) setBoard(result.board)
       if (!result.ok) {
         setFailure(result.failure)

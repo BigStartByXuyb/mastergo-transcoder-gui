@@ -88,7 +88,7 @@ export function NewTaskCard(props: Props) {
                   onChange={(event) => onForm({ projectRoot: event.target.value })}
                 />
               </div>
-              <ModeField label="路线" value={form.mode} onChange={(mode) => onForm({ mode })} />
+              <ModeField label="路线" value={form.mode} onChange={(mode) => onForm({ mode: mode as TaskForm["mode"] })} />
               {props.takesPageImage && (
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="run-image">{DESIGN_IMAGE_LABEL}</Label>

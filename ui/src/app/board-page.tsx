@@ -22,11 +22,8 @@ import { useValueRunner } from "@/app/use-action-runner"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentityFill } from "@/app/use-identity-fill"
 import { useOnlyEffective } from "@/app/use-only-effective"
-import {
-  commitPipelineAIdentities,
-  preparePipelineAItems,
-  requestDefaultsOf
-} from "@/app/prepare-pipeline-items"
+import { requestDefaultsOf } from "@/app/prepare-pipeline-items"
+import { startPipelineA } from "@/app/start-pipeline-a"
 import { useRemembered } from "@/app/use-remembered"
 import { api, type Board } from "@/lib/api"
 import { fillTargets, keepPickedImages, parseBoardItems, withPickedImage } from "@/lib/board-items"
@@ -124,7 +121,7 @@ export function BoardPage() {
       return
     }
     if (!currentMode) {
-      toast.error("路线能力还没读到，请稍后重试")
+      toast.error(board ? "当前记住的路线已不可用，请重新选择路线" : "路线能力还没读到，请稍后重试")
       return
     }
 
@@ -134,30 +131,26 @@ export function BoardPage() {
       const added = await run(
         "add",
         async () => {
-          let outgoing = items
-          let beforeStart: (() => Promise<void>) | undefined
-          let defaults = requestDefaultsOf(form)
-          if (form.mode === "A") {
-            const prepared = await preparePipelineAItems(items, projectRoot, {
-              useAi: (settings?.automation ?? "assist") !== "off"
+          const created = form.mode === "A"
+            ? await startPipelineA({
+                items,
+                projectRoot,
+                useAi: (settings?.automation ?? "assist") !== "off",
+                takesPageImage,
+                images,
+                add: api.boardAdd
+              })
+            : await createTasksWithPageImages({
+                takesPageImage,
+                links: items.map((item) => item.link),
+                images,
+                add: () => api.boardAdd({
+                  projectRoot,
+                  ...requestDefaultsOf(form),
+                  deferStart: true,
+                  items
+                })
             })
-            if (!prepared.ok) throw new Error(prepared.reason)
-            outgoing = prepared.items
-            defaults = prepared.defaults
-            beforeStart = () => commitPipelineAIdentities(prepared.identities)
-          }
-          const created = await createTasksWithPageImages({
-            takesPageImage: takesPageImage,
-            links: outgoing.map((item) => item.link),
-            images,
-            beforeStart,
-            add: () => api.boardAdd({
-              projectRoot,
-              ...defaults,
-              deferStart: true,
-              items: outgoing
-            })
-          })
           if (created.board) setBoard(created.board)
           if (!created.ok) throw new Error(created.failure)
           return created
