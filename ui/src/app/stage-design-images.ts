@@ -31,7 +31,7 @@ type TaskCreationApi = {
 const ROLLBACK_OUTCOME = "刚建的任务已撤销；修好后重新提交"
 export const STAGE_FAILED_NOTE = "（先选的那张图没暂存上，" + ROLLBACK_OUTCOME + "）"
 export const ROLLED_BACK_NOTE = "（" + ROLLBACK_OUTCOME + "）"
-const PAGE_IMAGE_REQUIRED = "流水线 A 需要为每个页面选择页面 PNG"
+const PAGE_IMAGE_REQUIRED = "含 A 的路线需要为每个页面选择页面 PNG"
 
 /*
  * 只有后端路线能力标记需要页面 PNG 时才送图；选图框露不露与这里读同一份 takesPageImage。

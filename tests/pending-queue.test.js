@@ -86,6 +86,20 @@ function caseLayoutOnlyIsListed() {
   assert.strictEqual(items[0].total, 1);
 }
 
+function caseLayoutOnlyForPipelineA() {
+  const queue = makeQueue({
+    tasks: [{ id: "task-1", state: "waiting", jobId: "job-1", workDir: WORK, request: { target: "DemoPage", mode: "B" } }],
+    pending: { icons: { waiting: 0 }, translations: { waiting: 0 }, layout: { waiting: 1 } }
+  });
+  assert.deepStrictEqual(queue.snapshot().items, [], "B 不消费布局分组，不把布局待办列进待确认");
+
+  const ab = makeQueue({
+    tasks: [{ id: "task-2", state: "waiting", jobId: "job-2", workDir: WORK, request: { target: "DemoPage", mode: "AB" } }],
+    pending: { icons: { waiting: 0 }, translations: { waiting: 0 }, layout: { waiting: 1 } }
+  });
+  assert.strictEqual(ab.snapshot().items[0].counts.layout, 1, "AB 的 A 段仍消费布局分组");
+}
+
 /*
  * 同一个页面被两条线各跑过一次（看板任务的工作目录 + 流水线直跑的运行）：按「工程目录 + 页面」去重，
  * 看板那条先算，后来的同名条目丢掉 —— 不然人会在列表里看到同一页两次。
@@ -113,6 +127,7 @@ try {
     ["看板来源按整段路径判（work 不吃 work2、大小写不敏感）", caseWorkRootPrefix],
     ["一条都不需要填的不进列表", caseEmptyIsSkipped],
     ["只剩布局分组时仍可人工写空表", caseLayoutOnlyIsListed],
+    ["布局待办只列给含 A 的路线", caseLayoutOnlyForPipelineA],
     ["同一页只列一条", caseDedupeByProjectAndTarget]
   ];
   for (const [name, run] of cases) {

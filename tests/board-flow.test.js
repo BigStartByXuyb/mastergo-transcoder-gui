@@ -514,7 +514,7 @@ async function casePipelineARequiresImageBeforeReady() {
   const after = fx.board.snapshot().tasks.find((item) => item.id === id);
   assert.strictEqual(after.state, "waiting", "没有页面 PNG 的 A 任务不得进入待合并");
   assert.strictEqual(after.failure.kind, "semantic");
-  assert.match(after.failure.message, /流水线 A 需要页面 PNG/);
+  assert.match(after.failure.message, /含 A 的路线需要页面 PNG/);
   assert.strictEqual(after.error, "", "页面 PNG 是可补齐的语义停点，不是运行错误");
   const waitingAt = after.updatedAt;
   const store = path.join(fx.home, "board.json");
@@ -532,7 +532,7 @@ async function casePipelineARequiresImageBeforeReady() {
 
   const stored = JSON.parse(fs.readFileSync(path.join(fx.home, "board.json"), "utf8"));
   assert.strictEqual(stored[0].state, "waiting", "等图状态先落盘，不能只改内存");
-  assert.match(stored[0].failure.message, /流水线 A 需要页面 PNG|页面 PNG 与画板尺寸不一致/);
+  assert.match(stored[0].failure.message, /含 A 的路线需要页面 PNG|页面 PNG 与画板尺寸不一致/);
 
   // 模拟进程重启：磁盘上原本还在运行的旧状态会被 load 改成 stopped，
   // 登记表即使显示全部完成，也必须重新经过页面 PNG 门禁。
@@ -639,6 +639,50 @@ async function caseBadImageStopsBeforeLayoutRerun() {
 
   fs.rmSync(fx.home, { recursive: true, force: true });
   fs.rmSync(project, { recursive: true, force: true });
+}
+
+function caseUnsafeImageIdentityStopsInsteadOfThrowing() {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-home-"));
+  const project = makeProject();
+  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-work-"));
+  write(path.join(home, "board.json"), JSON.stringify([{
+    id: "t-unsafe",
+    state: "stopped",
+    request: {
+      mode: "A",
+      link: LINK,
+      target: "../Unsafe",
+      projectRoot: project,
+      stopAfter: "",
+      overwrite: true
+    },
+    workDir: workDir,
+    jobId: "",
+    autoMerge: false,
+    failure: null,
+    error: "客户端重启，这个任务已中断"
+  }], null, 2) + "\n");
+  const steps = [
+    contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
+  ];
+  const runs = makeRuns(steps);
+  const board = createBoard({
+    runs: runs.api,
+    pending: null,
+    layout: { register: () => ({ ok: true }) },
+    artifacts: { stepsOf: () => [{ id: 8, name: "layoutManifest", status: "ok", seconds: 1, note: "" }] },
+    home: home
+  });
+  let snapshot;
+  assert.doesNotThrow(() => { snapshot = board.snapshot(); }, "不合规页面身份不能从看板轮询里逸出");
+  const task = snapshot.tasks.find((item) => item.id === "t-unsafe");
+  assert.strictEqual(task.state, "waiting");
+  assert.match(task.failure.message, /无法核对页面 PNG/);
+  assert.strictEqual(runs.started.length, 0, "页面身份读不出来时不得重推布局");
+
+  fs.rmSync(home, { recursive: true, force: true });
+  fs.rmSync(project, { recursive: true, force: true });
+  fs.rmSync(workDir, { recursive: true, force: true });
 }
 
 async function caseMergingDoesNotRestartLayout() {
@@ -879,6 +923,7 @@ async function main() {
     ["A 路线没有页面 PNG 时停在待确认，不自动合并", casePipelineARequiresImageBeforeReady],
     ["从布局续跑完成也要按当前页面 PNG 检查分组", caseLayoutRerunsAfterProgressWhenImageNeedsGroups],
     ["坏图先停页面 PNG 核对点，不抢跑布局", caseBadImageStopsBeforeLayoutRerun],
+    ["页面身份不合规时停在等图点，不从轮询逸出", caseUnsafeImageIdentityStopsInsteadOfThrowing],
     ["合并期间不因换图重启布局", caseMergingDoesNotRestartLayout],
     ["任务离开看板（移除 / 清理 / 清空区域）：暂存件跟着走", caseRemovalDropsStagedImage],
     ["「哪一步吃布局输入」按契约的 Inputs 判，不认步骤名", caseLayoutStepComesFromContract],

@@ -114,11 +114,7 @@ export function PendingPanel({
   const layoutWaiting = pending?.layout.waiting ?? 0
   // 本页还缺多少条人工语义输入：三节共用一个计数判据。
   const waiting = pendingInputCount(waitingCounts(pending))
-  const otherWaiting = pendingInputCount({
-    icons: pending?.icons.waiting ?? 0,
-    translations: pending?.translations.waiting ?? 0,
-    layout: 0
-  })
+  const otherWaiting = waiting - layoutWaiting
 
   /*
    * 「本页没有图标槽位」只有一种情形：插件判定必须登记的候选一条都没有。
@@ -128,7 +124,8 @@ export function PendingPanel({
   const noIconSlots = Boolean(pending?.icons.available) && (pending?.icons.mustName.length ?? 0) === 0
   // 有待办才让提交；没有图标槽位时靠「按空台账继续」这一个显式声明兜底。
   const canSubmit = Boolean(pending) && (otherWaiting > 0 || (noIconSlots && allowEmptyLedger))
-  const hasSource = Boolean(taskId || runId)
+  // 后端续跑只认来源运行；只有 taskId 而没有 runId 时不能承诺「并继续」。
+  const hasSource = Boolean(runId)
   /*
    * 跑着的时候不给续跑：这条判据在任务状态模块（ui/src/lib/task-state.ts 的 isInFlight）。
    * 待确认清单不按运行状态过滤，正在跑的任务照样会列在这里 —— 两个入口的口径必须一样。
@@ -164,7 +161,10 @@ export function PendingPanel({
         })
         const written = payload.written.map(labelOfWritten)
         const summary = written.join("、")
-        toast.success("已写入：" + (summary || "无") + (payload.job ? "，已从断点继续" : ""))
+        const writtenText = "已写入：" + (summary || "无")
+        if (payload.job) toast.success(writtenText + "，已从断点继续")
+        else if (resume) toast.success(payload.note || writtenText + "；未续跑：当前没有可续跑的上一次运行")
+        else toast.success(writtenText)
         await load()
         if (payload.job) onResumed?.({ filled: written, resumedFrom: payload.resumedFrom ?? "" })
       } catch (error) {

@@ -109,7 +109,7 @@ describe("createTasksWithPageImages", () => {
 
     expect(api.stageDesignImage).not.toHaveBeenCalled()
     expect(api.boardStart).not.toHaveBeenCalled()
-    expect(result).toEqual({ ok: false, failure: "流水线 A 需要为每个页面选择页面 PNG", board: null })
+    expect(result).toEqual({ ok: false, failure: "含 A 的路线需要为每个页面选择页面 PNG", board: null })
   })
 
   it("回滚失败也继续撤销其余任务，并回读服务端看板", async () => {

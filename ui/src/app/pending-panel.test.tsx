@@ -99,7 +99,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-function panel(state: string) {
+function panel(state: string, overrides: Partial<Parameters<typeof PendingPanel>[0]> = {}) {
   return (
     <PendingPanel
       projectRoot={drive("D", "work", "task-1")}
@@ -108,6 +108,7 @@ function panel(state: string) {
       runId="job-1"
       state={state}
       automation="off"
+      {...overrides}
     />
   )
 }
@@ -130,6 +131,15 @@ describe("PendingPanel", () => {
     const submit = await screen.findByRole("button", { name: /确认并继续/ })
     expect(submit.hasAttribute("disabled")).toBe(false)
     expect(screen.queryByText(/流水线正在跑/)).toBeNull()
+  })
+
+  it("只有任务 id、没有来源运行时只允许写文件，不承诺续跑", async () => {
+    stub()
+    render(panel("waiting", { runId: "" }))
+
+    const submit = await screen.findByRole("button", { name: /确认并继续/ })
+    expect(submit.hasAttribute("disabled")).toBe(true)
+    expect(screen.getByText(/没有来源运行：可以写文件，不能自动续跑/)).toBeTruthy()
   })
 
   it("手动叫 AI 出候选：候选按同一处口径填进输入框", async () => {
