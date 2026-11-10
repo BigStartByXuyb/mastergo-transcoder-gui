@@ -574,7 +574,11 @@ async function caseLayoutRerunsAfterProgressWhenImageNeedsGroups() {
     contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
   ];
   const fx = makeBoard({ project: project, steps: steps });
-  const id = fx.board.add({ projectRoot: project, items: [{ link: LINK, target: "T1", mode: "A" }] }).created[0];
+  const id = fx.board.add({
+    projectRoot: project,
+    autoMerge: false,
+    items: [{ link: LINK, target: "T1", mode: "A" }]
+  }).created[0];
   const staged = designImage.stage({ home: fx.home, taskId: id, data: png(1280, 1024).toString("base64") });
   fx.board.start(id);
   const task = await waitForTask(fx.board, id, hasJob, "任务启动");
@@ -607,6 +611,19 @@ async function caseLayoutRerunsAfterProgressWhenImageNeedsGroups() {
   assert.strictEqual(restartedTask.state, "running", "重启对表后缺分组表也要重新进入运行");
   assert.ok(restartedRuns.started.some((request) => request.progress === "layoutManifest"),
     "运行已丢失时也要按当前页面 PNG 重推布局，不能直接待合并");
+  const resumed = restarted.byId(id);
+  write(workdir.layoutGroupsPath(resumed.workDir, "T1"), '{ "groups": [] }\n');
+  restartedRuns.seed(
+    resumed.jobId,
+    { id: resumed.jobId, state: "done", request: { progress: "layoutManifest", stopAfter: "" }, runs: [] },
+    resumed.workDir
+  );
+  await sleep(TICK + 300);
+  assert.strictEqual(
+    restarted.snapshot().tasks.find((item) => item.id === id).state,
+    "ready",
+    "重启后补起的布局运行必须继续被 tick 跟到收尾"
+  );
 
   fs.rmSync(fx.home, { recursive: true, force: true });
   fs.rmSync(project, { recursive: true, force: true });
