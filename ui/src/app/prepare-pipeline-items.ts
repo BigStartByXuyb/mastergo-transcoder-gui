@@ -97,10 +97,5 @@ export async function preparePipelineAItems(
 
 /** 任务已经创建、页面 PNG 已经暂存后写回身份；登记表同样整批成功或整批不写。 */
 export async function commitPipelineAIdentities(identities: PreparedPipelineIdentity[]): Promise<void> {
-  await applyIdentities(identities.map((identity) => ({
-    link: identity.link,
-    projectRoot: identity.projectRoot,
-    pageName: identity.pageName,
-    item: identity.item
-  })))
+  await applyIdentities(identities)
 }

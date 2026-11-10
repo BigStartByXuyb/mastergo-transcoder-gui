@@ -324,4 +324,6 @@
 | 2026-11-10 GitHub 第 3 遍 | FIND-003 | 两个创建入口重复维护工程、链接与路线校验 | 已收 | 统一走 `taskEntryFailure`；提示文案只有这一份，页面只决定 toast 或内联显示 |
 | 2026-11-10 GitHub 第 3 遍 | FIND-004 | 页面 PNG 的硬前置校验排在身份准备之后 | 已收 | `startPipelineA` 在取设计页名、候选和模型调用之前调用 `pageImageFailure`；回归断言缺图时不发请求、不建任务 |
 | 2026-11-10 GitHub 第 3 遍 | FIND-005 | 看板流程测试直接替换 `workdir.readManifest` 导出 | 已收 | `createBoard` 支持注入 `merge`；测试用注入的挂起实现控制合并，并在 `finally` 中先判断释放函数存在 |
+| 2026-11-10 GitHub 第 3 遍 | 非阻断 | `lib/layout-groups.js` 文件头把 AI 候选清理写成直接调用 `uniqueMembers` | 已收 | 注释改为实际消费者 `cleanGroups`；`uniqueMembers` 仍是两个清理/校验路径共用的内部实现 |
+| 2026-11-10 GitHub 第 3 遍 | 非阻断 | `commitPipelineAIdentities` 把同形状 identity 再逐字段映射一次 | 已收 | 直接把 `PreparedPipelineIdentity[]` 交给 `applyIdentities`，删除无语义的映射 |
 
