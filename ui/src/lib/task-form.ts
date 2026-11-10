@@ -40,6 +40,11 @@ export function modeTakesRoute(mode: string, route: "A" | "B"): boolean {
   return mode === "AB" || mode === route
 }
 
+/* 两个新建入口的提交按钮用同一句话：含 A 的路线会先暂存页面 PNG，再显式启动。 */
+export function startActionLabel(mode: string): string {
+  return modeTakesRoute(mode, "A") ? "创建并开始" : "加入看板并开始"
+}
+
 /*
  * A 路线多一道输入：页面 PNG。图必须与设计稿画板同尺寸，而画板尺寸要等流水线取数之后才知道 ——
  * 所以新建时选好的图先跟**任务**一起暂存（键是任务 id），任务跑到「取数 + 固化快照」之后自动核对尺寸再落地。

@@ -6,6 +6,7 @@ import {
   adoptsIdentityWithoutConfirm,
   modeTakesRoute,
   readTaskForm,
+  startActionLabel,
   writeTaskForm
 } from "@/lib/task-form"
 
@@ -73,5 +74,11 @@ describe("task-form", () => {
     expect(modeTakesRoute("AB", "A")).toBe(true)
     expect(modeTakesRoute("AB", "B")).toBe(true)
     expect(modeTakesRoute("", "A")).toBe(false)
+  })
+
+  it("创建按钮对 A、AB 用同一句启动文案", () => {
+    expect(startActionLabel("A")).toBe("创建并开始")
+    expect(startActionLabel("AB")).toBe("创建并开始")
+    expect(startActionLabel("B")).toBe("加入看板并开始")
   })
 })

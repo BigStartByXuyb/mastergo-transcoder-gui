@@ -89,7 +89,7 @@ describe("BoardNewTaskDialog 的选图", () => {
     expect(screen.queryByText("第 1 行")).toBeNull()
     expect(screen.getByLabelText("Ui 前缀")).toBeTruthy()
     expect(screen.getByLabelText("停在某一步")).toBeTruthy()
-    expect(screen.getByRole("button", { name: "加入看板" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "加入看板并开始" })).toBeTruthy()
   })
 
   it("AB 也要求选图并在暂存后开始，同时保留 B 的身份、停点和覆盖设置", () => {

@@ -62,7 +62,7 @@ describe("NewTaskCard 的选图", () => {
     expect(screen.queryByLabelText("页面 Target")).toBeNull()
     expect(screen.queryByLabelText("UI 区域")).toBeNull()
     expect(screen.queryByLabelText("停在某一步")).toBeNull()
-    expect(screen.getByRole("button", { name: "开始自动转码" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "创建并开始" })).toBeTruthy()
   })
 
   it("B 路线保留原有 Target/区域与可选参数，但不给选图", () => {

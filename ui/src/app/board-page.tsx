@@ -31,7 +31,7 @@ import { coverageOf, visibleByCoverage, type Coverage } from "@/lib/board-effect
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
-import { discardCreatedTasks, picksForCreated, stagePickedImages, startStagedTasks } from "@/app/stage-design-images"
+import { createTasksWithPageImages } from "@/app/stage-design-images"
 import { FINISHED_STATES } from "@/lib/task-state"
 import { modeTakesRoute } from "@/lib/task-form"
 import { useSettings } from "@/lib/use-settings"
@@ -136,7 +136,6 @@ export function BoardPage() {
           let autoMerge = form.autoMerge
           let overwrite = form.overwrite
           let stopAfter = form.stopAfter.trim()
-          const startsAfterStaging = modeTakesRoute(form.mode, "A")
           if (form.mode === "A") {
             const prepared = await preparePipelineAItems(items, projectRoot, {
               useAi: (settings?.automation ?? "assist") !== "off"
@@ -148,25 +147,22 @@ export function BoardPage() {
             overwrite = true
             stopAfter = ""
           }
-          const created = await api.boardAdd({
-            projectRoot,
-            ui,
-            autoMerge,
-            overwrite,
-            stopAfter,
-            deferStart: startsAfterStaging,
-            items: outgoing
+          const created = await createTasksWithPageImages({
+            mode: form.mode,
+            images,
+            add: () => api.boardAdd({
+              projectRoot,
+              ui,
+              autoMerge,
+              overwrite,
+              stopAfter,
+              deferStart: true,
+              items: outgoing
+            })
           })
-          // 建完任务才暂存（暂存件按任务 id 落键）：门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts。
-          const staged = await stagePickedImages(form.mode, picksForCreated(created.board, created.created, images))
-          if (!staged.ok) {
-            setBoard(await discardCreatedTasks(created.board, created.created))
-            throw new Error(staged.failure)
-          }
-          const board = startsAfterStaging
-            ? await startStagedTasks(created.board, created.created, api.boardStart)
-            : created.board
-          return { ...created, board }
+          if (created.board) setBoard(created.board)
+          if (!created.ok) throw new Error(created.failure)
+          return created
         },
         applyBoard
       )

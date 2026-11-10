@@ -21,7 +21,7 @@
 | 面板动作的骨架（置忙 → 清旧错 → 跑 → 收尾） | `ui/src/app/use-action-runner.ts` · `export function useValueRunner(` | `useActionRunner`（同文件）、`use-task-actions.ts`、`use-plugin-sources.ts`、`use-plugin-update.ts`、`board-page.tsx`、`design-image-card.tsx`、设置页（`update-card` / `codex-card` / `runtime-panel` / `source-dialog` / `settings-agent-panel`） |
 | 界面唯一的网络出口 | `ui/src/lib/api.ts` · `fetch(` | 所有界面件（别的文件不直接发请求） |
 | 先选的位图暂存在哪（键是什么） | `lib/design-image.js` · `function stagedPathOf(` | 暂存（`lib/routes.js` 的 `POST /api/design-image/stage`）、落地与清理（`lib/board.js`）；界面只把任务 id 交给暂存接口，不自己拼键（`ui/src/app/stage-design-images.ts`） |
-| 任务级换图门禁（工作目录 / 页面 / 合并状态） | `lib/board.js` · `function imageWriteBlock(` | `GET /api/design-image` 把阻断原因并入 `blocked`；`POST /api/design-image` 在写盘前用同一函数拒绝 |
+| 任务级换图门禁（工作目录 / 页面 / 合并状态） | `lib/board.js` · `function imageWriteBlocked(` | `GET /api/design-image` 把阻断原因并入 `blocked`；`POST /api/design-image`、`POST /api/design-image/stage` 与暂存件落地共用这一条判据 |
 | 位图尺寸不符时那两个数怎么写 | `lib/design-image.js` · `function sizeMismatchText(` | 存图被拒的原话（同文件的 `save`）、看板任务行上那句提示（`lib/board.js`） |
 | 「要当文件名的一段名字」的收口（空 / 非法分开说） | `lib/name-safety.js` · `function requireSafeName(` | 页面 Target 与任务 id 两个包装（同文件）；工程目录存在性走同文件的 `requireProjectDirectory` |
 | 「这一份与清单对不上的是哪几个文件」 | `lib/update.js` · `function mismatchedFiles(` | 切换前的校验（同文件的 `apply`）、安装根那一份的核验（`installRootIsVersion`） |
@@ -31,7 +31,7 @@
 | 某一版能不能用在这一台上（外壳下限） | `lib/update.js` · `function usableHere(` | 「这一份可以切过去」（`switchable`：选版与版本表逐行都读它，清单都按 `manifestOf` 取）；与 `apply` 前那一刻的 `versionBlocked` 同源 |
 | 流水线 A 的自动布局范围 | `lib/autofill.js` · `const autoLayoutPipelineA =` | 看板任务由服务端发起（`lib/board.js` 的 `autoFillWaiting`）；A 在 `assist` / `auto` 下按页面 PNG 补布局分组，`off` 不调用模型 |
 | 图标 / 译文 / 术语自动写回的范围 | `lib/autofill.js` · `const canAutoOthers = automation === "auto";` | `assist` 只出候选并等确认；`auto` 写回并续跑；`off` 不调用模型。与设置页、待确认面板同一口径 |
-| 位图落地要等的那一步怎么说 | `lib/design-image.js` · `const NO_CANVAS_REASON =` | 界面那一块照后端给的原话显示（`/api/design-image` 的 `blocked`）；表单的指引不提步骤名，只说「流水线产出画板尺寸之后」 |
+| 位图落地要等的那一步怎么说 | `lib/design-image.js` · `const NO_CANVAS_REASON =` | 界面那一块照后端给的原话显示（`/api/design-image` 的 `blocked`）；A 路线等图停点（`lib/board.js`）也拼这一句；表单指引不提步骤名，只说「流水线产出画板尺寸之后」 |
 | 本地记住的值什么时候写回 | `ui/src/app/use-remembered.ts` · `export function useRemembered<` | 两张「新建任务」表单（`ui/src/app/pipeline-page.tsx`、`board-page.tsx`）、看板筛选（`board-page.tsx`）、只看生效（`ui/src/app/use-only-effective.ts`） |
 | 布局分组这一步喂给模型的输入（本层可引用条目 + 本页页面 PNG 的 data URL） | `lib/layout-groups.js` · `function candidatesInput(` | 自动补输入（`lib/autofill.js`）；模型层（`lib/ai.js`）只吃这个入参，不碰磁盘 |
 | 布局待办、自动续跑与空表写回的前置判据 | `lib/layout-groups.js` · `needsGroups: hasImage && !hasGroups && pendingCandidates.available` | `inspect` 的统一结论（待确认面板、看板 done 分支）；`save` 的写回校验读同一份 `layout-group-candidates.json` |

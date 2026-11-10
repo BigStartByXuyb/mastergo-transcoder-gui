@@ -21,6 +21,7 @@ import { TaskDetailCard } from "@/app/task-detail-card"
 import { TaskLogCard } from "@/app/task-log-card"
 import { StepRail } from "@/app/task-steps"
 import { ClampText } from "@/app/clamp-text"
+import { createTasksWithPageImages } from "@/app/stage-design-images"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentity } from "@/app/use-identity"
 import { preparePipelineAItems } from "@/app/prepare-pipeline-items"
@@ -29,12 +30,11 @@ import { useRunLog } from "@/app/use-run-log"
 import { useTaskActions } from "@/app/use-task-actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { api, type PipelineStep, type PluginSummary } from "@/lib/api"
+import { api, type BoardAddBody, type PipelineStep, type PluginSummary } from "@/lib/api"
 import { keepPickedImages, pickedForLink, withPickedImage } from "@/lib/board-items"
 import { describeFailure } from "@/lib/describe-failure"
 import { candidatesForLink } from "@/lib/identity-flow"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
-import { discardCreatedTasks, stagePickedImages, startStagedTasks } from "@/app/stage-design-images"
 import { AUTOMATION_LABEL, modeTakesRoute, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
 import { decideStartIdentity } from "@/lib/task-start"
 import { canStop, hasProducts } from "@/lib/task-state"
@@ -139,7 +139,63 @@ export function PipelinePage({
     if (stopStep) setStep(stopStep)
   }, [stopStep, task?.jobId])
 
-  // 开始 = 新建看板任务 + 启动它；看板负责建工作目录、并发与合并。
+  async function prepareStartRequest(projectRoot: string, link: string): Promise<BoardAddBody | null> {
+    let target = form.target
+    let ui = form.ui
+    let stopAfter = form.stopAfter
+    let overwrite = form.overwrite
+    if (form.mode === "A") {
+      const prepared = await preparePipelineAItems([{ link, target: "", mode: "A" }], projectRoot, {
+        useAi: automation !== "off"
+      })
+      if (!prepared.ok) {
+        setFailure(prepared.reason)
+        return null
+      }
+      target = prepared.items[0].target
+      ui = prepared.items[0].ui
+      stopAfter = ""
+      overwrite = true
+    }
+    else {
+      const decision = await decideStartIdentity({
+        link,
+        projectRoot,
+        target: form.target,
+        ui: form.ui,
+        automation,
+        loadCandidates: async () =>
+          (
+            await candidatesForLink({
+              link,
+              projectRoot,
+              pageName: identity.name,
+              ui: form.ui,
+              useAi: false
+            })
+          ).items,
+        autoPick: () => identity.pick(),
+        autoApply: (item) => identity.apply(item)
+      })
+      if (!decision.ok) {
+        if (decision.reason) setFailure(decision.reason)
+        return null
+      }
+      target = decision.target
+      ui = decision.ui
+    }
+    return {
+      projectRoot,
+      ui,
+      autoMerge: true,
+      stopAfter,
+      overwrite,
+      deferStart: true,
+      items: [{ link, target, mode: form.mode as "A" | "B" | "AB" }]
+    }
+  }
+
+  // 开始 = 准备身份 → 共用创建编排（建任务、暂存、回滚、启动）→ 打开详情。
   async function start() {
     const projectRoot = form.projectRoot.trim()
     const link = form.link.trim()
@@ -155,96 +211,30 @@ export function PipelinePage({
     startInFlight.current = true
     setStarting(true)
     try {
-      let target = form.target
-      let ui = form.ui
-      let stopAfter = form.stopAfter
-      let overwrite = form.overwrite
-      if (form.mode === "A") {
-        const prepared = await preparePipelineAItems([{ link, target: "", mode: "A" }], projectRoot, {
-          useAi: automation !== "off"
-        })
-        if (!prepared.ok) {
-          setFailure(prepared.reason)
-          return
-        }
-        target = prepared.items[0].target
-        ui = prepared.items[0].ui
-        stopAfter = ""
-        overwrite = true
-      }
-      else {
-        const decision = await decideStartIdentity({
-          link,
-          projectRoot,
-          target: form.target,
-          ui: form.ui,
-          automation,
-          loadCandidates: async () =>
-            (
-              await candidatesForLink({
-                link,
-                projectRoot,
-                pageName: identity.name,
-                ui: form.ui,
-                useAi: false
-              })
-            ).items,
-          autoPick: () => identity.pick(),
-          autoApply: (item) => identity.apply(item)
-        })
-        if (!decision.ok) {
-          if (decision.reason) setFailure(decision.reason)
-          return
-        }
-        target = decision.target
-        ui = decision.ui
-      }
-
-      // 失败时动作返回 null，原话已经由 use-task-actions 写进 failure：这一次点击到这儿就收尾。
-      const added = await actions.start({
-        projectRoot,
-        ui,
-        autoMerge: true,
-        stopAfter,
-        overwrite,
-        deferStart: true,
-        items: [{ link, target, mode: form.mode as "A" | "B" | "AB" }]
+      const body = await prepareStartRequest(projectRoot, link)
+      if (!body) return
+      const result = await createTasksWithPageImages({
+        mode: form.mode,
+        images: stagedImage ? { [link]: stagedImage } : {},
+        add: () => api.boardAdd(body)
       })
-      if (!added) return
-      // 后端建不出来就不会回成功（lib/board.js 的 add 在没解析出链接时直接抛），所以这里一定有这一条。
-      const created = added.created[0]
-      /*
-       * 先选好的位图跟着任务暂存（暂存件的键是任务 id）：那时画板尺寸还不知道，核不了尺寸 ——
-       * 任务跑到「取数 + 固化快照」之后由看板那侧核对尺寸再落地。
-       * 图被后端挡回来（不是 PNG/JPEG、太大）时撤掉刚建的任务并把原话放回表单；A 不启动没有 PNG 的任务。
-       */
-      if (stagedImage) {
-        // 门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts（与看板那条同源）。
-        const staged = await stagePickedImages(form.mode, [{ taskId: created, file: stagedImage }])
-        if (!staged.ok) {
-          try {
-            setBoard(await discardCreatedTasks(added.board, [created]))
-          }
-          catch (error) {
-            setFailure(describeFailure(error))
-            return
-          }
-          setFailure(staged.failure)
-          return
-        }
+      if (result.board) setBoard(result.board)
+      if (!result.ok) {
+        setFailure(result.failure)
+        return
       }
-      try {
-        setBoard(await startStagedTasks(added.board, [created], api.boardStart))
-      }
-      catch (error) {
-        setFailure(describeFailure(error))
-        await reload()
+      const created = result.created[0]
+      if (!created) {
+        setFailure("后端创建任务后没有返回任务 id")
         return
       }
       setCurrentId(created)
       setImages({})
       window.location.hash = "pipeline?task=" + created
       toast.success("已加入看板并开始")
+    }
+    catch (error) {
+      setFailure(describeFailure(error))
     }
     finally {
       startInFlight.current = false

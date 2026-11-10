@@ -8,17 +8,26 @@ import { fileToBase64 } from "@/lib/upload-files"
  * 新建时先选好的设计稿位图 → 暂存件：一条任务一份，键就是任务 id（后端只有 lib/design-image.js 的
  * stagedPathOf 定这个键），所以选图这一步不必等页面 Target 有值，暂存也只能在任务建出来之后做。
  *
- * 两个新建入口（流水线页的表单、看板的创建任务弹窗）共用这一份编排 —— 过门禁、逐张送、失败怎么说
- * 都在这里，页面那侧只给「哪几行配了哪张图」。带 A 段的任务以页面 PNG 为启动前置输入：暂存失败时由调用方
- * 撤掉刚建的任务，保留表单里的选图，供用户修好后重试。
+ * 两个新建入口（流水线页的表单、看板的创建任务弹窗）共用这一份编排 —— 建任务、暂存、失败回滚、
+ * 显式启动与失败后的看板重读都在这里，页面那侧只给「哪几行配了哪张图」。
  */
 
-export type StagedPick = { taskId: string; file: File }
-export type StageResult = { ok: boolean; failure: string }
+type StagedPick = { taskId: string; file: File }
+type CreatedTasks = { board: Board; created: string[] }
+type CreateTasksResult =
+  | { ok: true; board: Board; created: string[] }
+  | { ok: false; failure: string; board: Board | null }
+
+type TaskCreationApi = {
+  stageDesignImage: (body: { taskId: string; data: string }) => Promise<{ ok: true }>
+  boardStart: (taskId?: string) => Promise<{ board: Board }>
+  boardRemove: (taskId: string) => Promise<{ board: Board }>
+  board: () => Promise<{ board: Board }>
+}
 
 /*
  * 暂存没成时接在后端原话后面的那半句：只有这一处说（两个新建入口都显示同一句）。
- * 它说的是这件事的后果 —— 刚建的任务已撤销；用户补一张图后再提交。
+ * 它只在回滚确实成功后使用：刚建的任务已撤销；用户补一张图后再提交。
  */
 export const STAGE_FAILED_NOTE = "（先选的那张图没暂存上，刚建的任务已撤销；修好后重新提交）"
 
@@ -34,7 +43,7 @@ function routePicks(mode: string, picks: StagedPick[]): StagedPick[] {
  * 有图的任务就该带上那张图：配图看**任务自己带的链接**（看板快照里的 request.link 就是建它的那一行），
  * 不看建任务的次序 —— 同一个链接出现几次就是同一页，那几份图本来就是同一张。没选图的跳过。
  */
-export function picksForCreated(
+function picksForCreated(
   board: Board,
   created: string[],
   images: Record<string, File>
@@ -48,43 +57,89 @@ export function picksForCreated(
   })
 }
 
-/* 创建方暂存完页面 PNG（如有）后，逐条显式启动刚建的任务。 */
-export async function startStagedTasks(
-  board: Board,
-  taskIds: string[],
-  start: (taskId: string) => Promise<{ board: Board }>
-): Promise<Board> {
-  let current = board
-  for (const taskId of taskIds) current = (await start(taskId)).board
-  return current
-}
-
 /*
  * 逐张送：先把每一张都送完，保留第一条后端原话，让用户一次看到所有需要修的问题。
- * 任一张失败时调用方按批次原子回滚，不留下半批已启动的 A 段任务。
+ * 任一张失败时由下面的统一编排按批次回滚，不留下半批已启动的 A 段任务。
  */
-async function sendAll(picks: StagedPick[]): Promise<string> {
+async function sendAll(apiClient: TaskCreationApi, picks: StagedPick[]): Promise<string> {
   let firstFailure = ""
   for (const pick of picks) {
     try {
-      await api.stageDesignImage({ taskId: pick.taskId, data: await fileToBase64(pick.file) })
+      await apiClient.stageDesignImage({ taskId: pick.taskId, data: await fileToBase64(pick.file) })
     } catch (error) {
-      // 后端给的原话（原因 + 怎么修）在最前面，后面补一句这件事的后果。
-      if (!firstFailure) firstFailure = describeFailure(error) + STAGE_FAILED_NOTE
+      if (!firstFailure) firstFailure = describeFailure(error)
     }
   }
   return firstFailure
 }
 
-/** 唯一出口：过路线门禁 → 逐张送 → 返回同一句失败原话，由两个入口按各自的失败面显示。 */
-export async function stagePickedImages(mode: string, picks: StagedPick[]): Promise<StageResult> {
-  const failure = await sendAll(routePicks(mode, picks))
-  return { ok: !failure, failure }
+async function discardCreatedTasks(
+  apiClient: TaskCreationApi,
+  board: Board,
+  taskIds: string[]
+): Promise<{ board: Board; failure: unknown | null }> {
+  let current = board
+  let failure: unknown | null = null
+  for (const taskId of taskIds) {
+    try {
+      current = (await apiClient.boardRemove(taskId)).board
+    } catch (error) {
+      if (failure == null) failure = error
+    }
+  }
+  return { board: current, failure }
 }
 
-/** 暂存失败时撤销这一批刚建的任务：队列里不留没有页面 PNG 的 A 任务。 */
-export async function discardCreatedTasks(board: Board, taskIds: string[]): Promise<Board> {
-  let current = board
-  for (const taskId of taskIds) current = (await api.boardRemove(taskId)).board
-  return current
+async function reloadBoard(apiClient: TaskCreationApi): Promise<Board | null> {
+  try {
+    return (await apiClient.board()).board
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 唯一出口：建任务 → 暂存页面 PNG（只对含 A 的路线）→ 失败整批回滚 → 逐条显式启动。
+ * 启动中途失败也把所有刚建任务都尝试一遍，再回读服务端看板，避免半批任务停在延后启动态。
+ */
+export async function createTasksWithPageImages(input: {
+  mode: string
+  images: Record<string, File>
+  add: () => Promise<CreatedTasks>
+  api?: TaskCreationApi
+}): Promise<CreateTasksResult> {
+  const apiClient = input.api ?? api
+  const created = await input.add()
+  const picks = routePicks(input.mode, picksForCreated(created.board, created.created, input.images))
+  const stageFailure = await sendAll(apiClient, picks)
+  if (stageFailure) {
+    const rollback = await discardCreatedTasks(apiClient, created.board, created.created)
+    const refreshed = await reloadBoard(apiClient)
+    const consequence = rollback.failure == null
+      ? STAGE_FAILED_NOTE
+      : "（撤销刚建任务失败：" + describeFailure(rollback.failure) + (refreshed ? "；看板已重新读取" : "") + "）"
+    return {
+      ok: false,
+      failure: stageFailure + consequence,
+      board: refreshed ?? (rollback.failure == null ? rollback.board : null)
+    }
+  }
+
+  let current = created.board
+  let firstStartFailure = ""
+  for (const taskId of created.created) {
+    try {
+      current = (await apiClient.boardStart(taskId)).board
+    } catch (error) {
+      if (!firstStartFailure) firstStartFailure = describeFailure(error)
+    }
+  }
+  if (firstStartFailure) {
+    return {
+      ok: false,
+      failure: firstStartFailure,
+      board: await reloadBoard(apiClient)
+    }
+  }
+  return { ok: true, board: current, created: created.created }
 }

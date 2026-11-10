@@ -5,10 +5,10 @@ import { useValueRunner } from "@/app/use-action-runner"
 import { ApiFailure, api, type Board, type BoardTask, type Job, type PipelineStep, type PluginSummary } from "@/lib/api"
 
 /*
- * 一条任务上能做的动作：开始（建任务并启动）/ 停 / 从断点继续 / 合并 / 冲突裁决 / 重读契约。
+ * 一条任务上能做的动作：停 / 从断点继续 / 合并 / 冲突裁决 / 重读契约。
  *
  * 每个动作都只做三件事：调后端、把后端回的最新看板（与运行 / 契约）换到界面上、把失败原话交出去。
- * 六条动作全走共用骨架（ui/src/app/use-action-runner.ts 那一份）—— 失败只有一个出口（页面的 failure），
+ * 五条动作全走共用骨架（ui/src/app/use-action-runner.ts 那一份）—— 失败只有一个出口（页面的 failure），
  * 不再一半走横幅、一半只在 toast 里闪一下；「这一行已经不在看板上」也挂在骨架的失败反应里，不另写一遍 try/catch。
  */
 
@@ -35,11 +35,6 @@ export function useTaskActions(input: {
 
   return {
     busy,
-
-    /** 开始 = 新建看板任务 + 启动它；身份补全在调用方先做完（它要知道回填了什么）。 */
-    start: async (body: Parameters<typeof api.boardAdd>[0]) => {
-      return await run("start", () => api.boardAdd(body), (added) => input.onBoard(added.board))
-    },
 
     stop: async (task: BoardTask) => {
       await run("stop", () => api.boardStop(task.id), (payload) => input.onBoard(payload.board))

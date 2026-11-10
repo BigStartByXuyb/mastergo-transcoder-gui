@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { useIdentity } from "@/app/use-identity"
 import type { PipelineStep, PluginSummary } from "@/lib/api"
-import { DESIGN_IMAGE_LABEL, READ_IMAGE_HINT, modeTakesRoute, type TaskForm } from "@/lib/task-form"
+import { DESIGN_IMAGE_LABEL, READ_IMAGE_HINT, modeTakesRoute, startActionLabel, type TaskForm } from "@/lib/task-form"
 
 /*
  * 新建任务卡片：填链接 / 工程目录 / Target / 区域 / 路线，走 A 路线时还能先把设计稿位图选上，
@@ -187,7 +187,7 @@ export function NewTaskCard(props: Props) {
             )}
             <Button disabled={busy !== ""} onClick={onStart}>
               {busy === "start" ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-              {pipelineA ? "开始自动转码" : "加入看板并开始"}
+              {startActionLabel(form.mode)}
             </Button>
           </div>
         </div>

@@ -516,12 +516,35 @@ async function casePipelineARequiresImageBeforeReady() {
   assert.strictEqual(after.failure.kind, "semantic");
   assert.match(after.failure.message, /流水线 A 需要页面 PNG/);
   assert.strictEqual(after.error, "", "页面 PNG 是可补齐的语义停点，不是运行错误");
-
   designImage.stage({ home: fx.home, taskId: id, data: png(1280, 1023).toString("base64") });
   await sleep(TICK + 300);
   const mismatched = fx.board.snapshot().tasks.find((item) => item.id === id);
   assert.strictEqual(mismatched.state, "waiting", "尺寸不符同样不得进入待合并");
   assert.match(mismatched.failure.message, /与画板尺寸不一致：图 1280×1023，画板 1280×1024/);
+
+  const stored = JSON.parse(fs.readFileSync(path.join(fx.home, "board.json"), "utf8"));
+  assert.strictEqual(stored[0].state, "waiting", "等图状态先落盘，不能只改内存");
+  assert.match(stored[0].failure.message, /流水线 A 需要页面 PNG|页面 PNG 与画板尺寸不一致/);
+
+  // 模拟进程重启：磁盘上原本还在运行的旧状态会被 load 改成 stopped，
+  // 登记表即使显示全部完成，也必须重新经过页面 PNG 门禁。
+  stored[0].state = "running";
+  stored[0].jobId = "";
+  write(path.join(fx.home, "board.json"), JSON.stringify(stored, null, 2) + "\n");
+  const restarted = createBoard({
+    runs: makeRuns().api,
+    pending: null,
+    artifacts: {
+      stepsOf: () => [
+        { id: 6, name: "discover", status: "ok", seconds: 1, note: "" },
+        { id: 7, name: "ledger", status: "ok", seconds: 1, note: "" }
+      ]
+    },
+    home: fx.home
+  });
+  const afterRestart = restarted.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(afterRestart.state, "waiting", "重启对表不得绕过页面 PNG 门禁");
+  assert.match(afterRestart.failure.message, /页面 PNG/);
 
   fs.rmSync(fx.home, { recursive: true, force: true });
   fs.rmSync(project, { recursive: true, force: true });

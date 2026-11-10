@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { BoardTaskForm } from "@/lib/board-form"
 import { parseBoardRows } from "@/lib/board-items"
-import { modeTakesRoute } from "@/lib/task-form"
+import { modeTakesRoute, startActionLabel } from "@/lib/task-form"
 
 /*
  * 创建任务：工程、模式、链接这些只在要加任务时才需要，收进弹窗，
@@ -161,7 +161,7 @@ export function BoardNewTaskDialog(props: {
           </Button>
           <Button disabled={props.busy} onClick={props.onSubmit}>
             {props.busy ? <Loader2 className="animate-spin" /> : null}
-            {usesA ? "创建并开始" : "加入看板"}
+            {startActionLabel(form.mode)}
           </Button>
         </DialogFooter>
       </DialogContent>
