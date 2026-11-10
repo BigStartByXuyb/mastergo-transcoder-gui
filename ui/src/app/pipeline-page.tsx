@@ -5,8 +5,9 @@
  *   详情：`#pipeline?task=<id>`（看板点「详情」、或刚加入看板）→ 左边步骤条 + 右边当前那一步的界面。
  *
  * 本文件只做编排与接线：看板快照在 use-board-tasks，待确认清单由面板自己取（app/pending-panel.tsx），
- * 动作在 use-task-actions，开始前的身份决定在 ui/src/lib/task-start.ts，步骤条的数据映射在
- * ui/src/lib/step-rows.ts，身份补全在 use-identity，运行日志在 use-run-log。每个面板自己知道自己要什么。
+ * 详情动作在 use-task-actions，任务创建与页面 PNG 编排在 stage-design-images，开始前的身份决定在
+ * ui/src/lib/task-start.ts，步骤条的数据映射在 ui/src/lib/step-rows.ts，身份补全在 use-identity，
+ * 运行日志在 use-run-log。每个面板自己知道自己要什么。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react"
