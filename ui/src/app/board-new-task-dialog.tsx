@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { BoardTaskForm } from "@/lib/board-form"
 import { parseBoardRows } from "@/lib/board-items"
-import { modeTakesRoute, startActionLabel } from "@/lib/task-form"
+import { startActionLabel } from "@/lib/task-form"
 
 /*
  * 创建任务：工程、模式、链接这些只在要加任务时才需要，收进弹窗，
@@ -33,6 +33,7 @@ export function BoardNewTaskDialog(props: {
   form: BoardTaskForm
   /** 按链接记的位图：一行一份（同一链接就是同一页）。 */
   images: Record<string, File>
+  takesPageImage: boolean
   busy: boolean
   automation: string
   identity: ReturnType<typeof useIdentityFill>
@@ -47,7 +48,6 @@ export function BoardNewTaskDialog(props: {
   const identity = props.identity
   const rows = parseBoardRows(form.links, form.mode)
   const pipelineA = form.mode === "A"
-  const usesA = modeTakesRoute(form.mode, "A")
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
@@ -93,7 +93,7 @@ export function BoardNewTaskDialog(props: {
               onChange={(mode) => props.onChange({ ...form, mode: mode as BoardTaskForm["mode"] })}
             />
             {/* 一行一个页面：走 A 路线时每行各配一张页面 PNG（一个任务一份）。 */}
-            {usesA && (
+            {props.takesPageImage && (
               <BoardImageRows rows={rows} images={props.images} onPickImage={props.onPickImage} />
             )}
           </FieldGroup>
@@ -161,7 +161,7 @@ export function BoardNewTaskDialog(props: {
           </Button>
           <Button disabled={props.busy} onClick={props.onSubmit}>
             {props.busy ? <Loader2 className="animate-spin" /> : null}
-            {startActionLabel(form.mode)}
+            {startActionLabel(props.takesPageImage)}
           </Button>
         </DialogFooter>
       </DialogContent>

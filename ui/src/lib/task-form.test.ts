@@ -4,7 +4,7 @@ import {
   AUTOMATION_LABEL,
   MODE_HINT,
   adoptsIdentityWithoutConfirm,
-  modeTakesRoute,
+  modePolicyOf,
   readTaskForm,
   startActionLabel,
   writeTaskForm
@@ -67,18 +67,20 @@ describe("task-form", () => {
     expect(adoptsIdentityWithoutConfirm("off")).toBe(false)
   })
 
-  it("哪一版走哪条路线：单条按名字对上，AB 两条都算", () => {
-    expect(modeTakesRoute("A", "A")).toBe(true)
-    expect(modeTakesRoute("A", "B")).toBe(false)
-    expect(modeTakesRoute("B", "B")).toBe(true)
-    expect(modeTakesRoute("AB", "A")).toBe(true)
-    expect(modeTakesRoute("AB", "B")).toBe(true)
-    expect(modeTakesRoute("", "A")).toBe(false)
+  it("路线能力只从后端表里查，不在前端解释 mode 字符串", () => {
+    const policies = [
+      { mode: "A", routes: ["A"] as const, takesPageImage: true },
+      { mode: "B", routes: ["B"] as const, takesPageImage: false },
+      { mode: "AB", routes: ["A", "B"] as const, takesPageImage: true }
+    ].map((item) => ({ ...item, routes: [...item.routes] }))
+    expect(modePolicyOf(policies, " ab ")).toEqual(policies[2])
+    expect(modePolicyOf(policies, "B")).toEqual(policies[1])
+    expect(modePolicyOf(policies, "C")).toBeNull()
+    expect(modePolicyOf(undefined, "A")).toBeNull()
   })
 
   it("创建按钮对 A、AB 用同一句启动文案", () => {
-    expect(startActionLabel("A")).toBe("创建并开始")
-    expect(startActionLabel("AB")).toBe("创建并开始")
-    expect(startActionLabel("B")).toBe("加入看板并开始")
+    expect(startActionLabel(true)).toBe("创建并开始")
+    expect(startActionLabel(false)).toBe("加入看板并开始")
   })
 })

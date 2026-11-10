@@ -1,7 +1,6 @@
 import { pickedForLink } from "@/lib/board-items"
 import { api, type Board } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
-import { modeTakesRoute } from "@/lib/task-form"
 import { fileToBase64 } from "@/lib/upload-files"
 
 /*
@@ -30,13 +29,13 @@ type TaskCreationApi = {
  * 它只在回滚确实成功后使用：刚建的任务已撤销；用户补一张图后再提交。
  */
 export const STAGE_FAILED_NOTE = "（先选的那张图没暂存上，刚建的任务已撤销；修好后重新提交）"
+const PAGE_IMAGE_REQUIRED = "流水线 A 需要为每个页面选择页面 PNG"
 
 /*
- * 只有跑 A 路线才读设计稿位图（这条判据在 ui/src/lib/task-form.ts 的 modeTakesRoute）：
- * 选图框露不露读它，送不送也读它 —— 两个新建入口都从这里过，不为「送了也没用」的图留下暂存件。
+ * 只有后端路线能力标记需要页面 PNG 时才送图；选图框露不露与这里读同一份 takesPageImage。
  */
-function routePicks(mode: string, picks: StagedPick[]): StagedPick[] {
-  return modeTakesRoute(mode, "A") ? picks : []
+function routePicks(takesPageImage: boolean, picks: StagedPick[]): StagedPick[] {
+  return takesPageImage ? picks : []
 }
 
 /*
@@ -103,14 +102,18 @@ async function reloadBoard(apiClient: TaskCreationApi): Promise<Board | null> {
  * 启动中途失败也把所有刚建任务都尝试一遍，再回读服务端看板，避免半批任务停在延后启动态。
  */
 export async function createTasksWithPageImages(input: {
-  mode: string
+  takesPageImage: boolean
+  links: string[]
   images: Record<string, File>
   add: () => Promise<CreatedTasks>
   api?: TaskCreationApi
 }): Promise<CreateTasksResult> {
   const apiClient = input.api ?? api
+  if (input.takesPageImage && input.links.some((link) => !pickedForLink(input.images, link))) {
+    return { ok: false, failure: PAGE_IMAGE_REQUIRED, board: null }
+  }
   const created = await input.add()
-  const picks = routePicks(input.mode, picksForCreated(created.board, created.created, input.images))
+  const picks = routePicks(input.takesPageImage, picksForCreated(created.board, created.created, input.images))
   const stageFailure = await sendAll(apiClient, picks)
   if (stageFailure) {
     const rollback = await discardCreatedTasks(apiClient, created.board, created.created)

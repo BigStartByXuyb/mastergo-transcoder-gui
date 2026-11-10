@@ -456,6 +456,13 @@ export type BoardTaskState =
   | "failed"
   | "stopped"
 
+/** 后端从 routesOfMode 展开的路线能力：表单只读这一份，不自己解释 mode 字符串。 */
+export type BoardModePolicy = {
+  mode: string
+  routes: ("A" | "B")[]
+  takesPageImage: boolean
+}
+
 export type BoardTaskRun = {
   label: string
   state: string
@@ -571,6 +578,7 @@ export type Board = {
   limits: { logical: number; limit: number }
   /** 正在占并发额度的任务数。 */
   running: number
+  modes?: BoardModePolicy[]
   tasks: BoardTask[]
 }
 

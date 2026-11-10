@@ -81,6 +81,23 @@ function caseImageFile() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+/* 轮询只比较输入文件身份：快照/位图路径、大小或修改时间一变，签名就要变。 */
+function caseInputSignature() {
+  const root = sandbox();
+  const before = designImage.inputSignature({ projectRoot: root, target: TARGET });
+  assert.match(before, /dsl\.snapshot\.json:\d+:\d+\|none$/, "没有页面 PNG 时也带上快照身份");
+
+  const saved = upload(root, png(1280, 1024));
+  const withImage = designImage.inputSignature({ projectRoot: root, target: TARGET });
+  assert.notStrictEqual(withImage, before, "落地页面 PNG 后签名变化");
+
+  const future = new Date(Date.now() + 2000);
+  fs.utimesSync(saved.image.path, future, future);
+  const touched = designImage.inputSignature({ projectRoot: root, target: TARGET });
+  assert.notStrictEqual(touched, withImage, "同一张图的新修改时间也要重新核对");
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 /* 发给模型看的那张图（data URL）：没有图给空串，有图按文件头认格式，图坏了就抛（不静默退成「没有图」）。 */
 function caseDataUrl() {
   const root = sandbox();
@@ -271,6 +288,7 @@ try {
   const cases = [
     ["存一张 PNG 并读回状态", caseSaveAndRead],
     ["界面显示的那张图：有图给路径 / 没图明确拒绝", caseImageFile],
+    ["轮询签名只读输入文件身份", caseInputSignature],
     ["发给模型看的那张图：data URL", caseDataUrl],
     ["JPEG 也认（尺寸与后缀都按内容）", caseJpeg],
     ["换格式只留一张", caseReplace],

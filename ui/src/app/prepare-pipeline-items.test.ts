@@ -37,7 +37,8 @@ describe("preparePipelineAItems", () => {
     const result = await preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { useAi: true })
     expect(result).toEqual({
       ok: true,
-      items: [{ link: LINK, target: "F3StopAdjust", ui: "F3", mode: "A" }]
+      items: [{ link: LINK, target: "F3StopAdjust", ui: "F3", mode: "A" }],
+      defaults: { ui: "", autoMerge: true, overwrite: true, stopAfter: "" }
     })
     expect(bodies.filter((body) => "useAi" in body)).toEqual([
       expect.objectContaining({ useAi: false, autoAdopt: true })
@@ -69,7 +70,8 @@ describe("preparePipelineAItems", () => {
 
     await expect(preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { useAi: true })).resolves.toEqual({
       ok: true,
-      items: [{ link: LINK, target: "F3StopAdjust", ui: "F3", mode: "A" }]
+      items: [{ link: LINK, target: "F3StopAdjust", ui: "F3", mode: "A" }],
+      defaults: { ui: "", autoMerge: true, overwrite: true, stopAfter: "" }
     })
   })
 

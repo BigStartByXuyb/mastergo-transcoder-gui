@@ -11,7 +11,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { createRunManager, routesOfMode, modeTakesRoute, MODE_LABEL } = require("../lib/run.js");
+const { createRunManager, routesOfMode, modeTakesRoute, modePolicies, MODE_LABEL } = require("../lib/run.js");
 const { UserError } = require("../lib/errors.js");
 // token 的环境变量名只有一处（lib/mcp-token.js）：用例照它设与读。
 const { TOKEN_ENV_KEY } = require("../lib/mcp-token.js");
@@ -85,6 +85,11 @@ function caseRoutesOfMode() {
   assert.strictEqual(modeTakesRoute("AB", "A"), true);
   assert.strictEqual(modeTakesRoute("B", "A"), false);
   assert.throws(() => modeTakesRoute("A", "C"), /路线只能是 A \/ B/);
+  assert.deepStrictEqual(modePolicies(), [
+    { mode: "A", routes: ["A"], takesPageImage: true },
+    { mode: "B", routes: ["B"], takesPageImage: false },
+    { mode: "AB", routes: ["A", "B"], takesPageImage: true }
+  ], "界面能力表由同一个 routesOfMode 展开");
 }
 
 function manager(options = {}) {

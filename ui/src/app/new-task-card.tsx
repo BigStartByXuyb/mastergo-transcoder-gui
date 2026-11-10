@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { useIdentity } from "@/app/use-identity"
 import type { PipelineStep, PluginSummary } from "@/lib/api"
-import { DESIGN_IMAGE_LABEL, READ_IMAGE_HINT, modeTakesRoute, startActionLabel, type TaskForm } from "@/lib/task-form"
+import { DESIGN_IMAGE_LABEL, READ_IMAGE_HINT, startActionLabel, type TaskForm } from "@/lib/task-form"
 
 /*
  * 新建任务卡片：填链接 / 工程目录 / Target / 区域 / 路线，走 A 路线时还能先把设计稿位图选上，
@@ -30,6 +30,7 @@ type Props = {
   identity: ReturnType<typeof useIdentity>
   /** 新建时先选好的设计稿位图（还没暂存到磁盘，只是这一份文件）：走 A 路线时才有意义。 */
   image: File | null
+  takesPageImage: boolean
   onPickImage: (file: File | null) => void
   busy: string
   failure: string
@@ -42,7 +43,6 @@ type Props = {
 export function NewTaskCard(props: Props) {
   const { form, onForm, plugin, contract, identity, busy, failure, canStop, onStart, onStop, onReloadContract } = props
   const pipelineA = form.mode === "A"
-  const usesA = modeTakesRoute(form.mode, "A")
 
   return (
     <Card>
@@ -89,7 +89,7 @@ export function NewTaskCard(props: Props) {
                 />
               </div>
               <ModeField label="路线" value={form.mode} onChange={(mode) => onForm({ mode })} />
-              {usesA && (
+              {props.takesPageImage && (
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="run-image">{DESIGN_IMAGE_LABEL}</Label>
                   <DesignImagePicker id="run-image" file={props.image} onPick={props.onPickImage} />
@@ -187,7 +187,7 @@ export function NewTaskCard(props: Props) {
             )}
             <Button disabled={busy !== ""} onClick={onStart}>
               {busy === "start" ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-              {startActionLabel(form.mode)}
+              {startActionLabel(props.takesPageImage)}
             </Button>
           </div>
         </div>

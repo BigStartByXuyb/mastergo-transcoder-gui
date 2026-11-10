@@ -1,4 +1,5 @@
 import { readStored, writeStored } from "@/lib/storage"
+import type { BoardModePolicy } from "@/lib/api"
 
 /*
  * 新建任务表单：值跨刷新记住；两个展示用文案表在这里统一一份，界面各处引用同一处。
@@ -32,17 +33,15 @@ export const MODE_HINT: Record<string, string> = {
   AB: "AB —— 两条都跑，两次独立运行（先 A 后 B）"
 }
 
-/*
- * 这一版走不走某条路线：与后端 lib/run.js 的 routesOfMode 同一口径（AB 两条都跑，回给界面的就是
- * 展开后的 routes）。表单里只有 mode 这一个值，所以按它判，不用子串匹配 —— 新增路线值不会被误命中。
- */
-export function modeTakesRoute(mode: string, route: "A" | "B"): boolean {
-  return mode === "AB" || mode === route
+/* 路线能力由后端 modePolicies 给；界面只按 mode 查表，不自己从字符串推断。 */
+export function modePolicyOf(policies: BoardModePolicy[] | undefined, mode: string): BoardModePolicy | null {
+  const wanted = String(mode || "").trim().toUpperCase()
+  return (policies || []).find((item) => item.mode === wanted) || null
 }
 
-/* 两个新建入口的提交按钮用同一句话：含 A 的路线会先暂存页面 PNG，再显式启动。 */
-export function startActionLabel(mode: string): string {
-  return modeTakesRoute(mode, "A") ? "创建并开始" : "加入看板并开始"
+/* 两个新建入口的提交按钮用同一句话：需要页面 PNG 的路线会先暂存，再显式启动。 */
+export function startActionLabel(takesPageImage: boolean): string {
+  return takesPageImage ? "创建并开始" : "加入看板并开始"
 }
 
 /*

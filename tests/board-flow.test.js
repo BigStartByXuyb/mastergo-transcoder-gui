@@ -516,6 +516,14 @@ async function casePipelineARequiresImageBeforeReady() {
   assert.strictEqual(after.failure.kind, "semantic");
   assert.match(after.failure.message, /流水线 A 需要页面 PNG/);
   assert.strictEqual(after.error, "", "页面 PNG 是可补齐的语义停点，不是运行错误");
+  const waitingAt = after.updatedAt;
+  const store = path.join(fx.home, "board.json");
+  const storeMtime = fs.statSync(store).mtimeMs;
+  await sleep(TICK * 2 + 300);
+  const stable = fx.board.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(stable.updatedAt, waitingAt, "同一个等图停点不刷新更新时间");
+  assert.strictEqual(fs.statSync(store).mtimeMs, storeMtime, "同一个等图停点不重写 board.json");
+
   designImage.stage({ home: fx.home, taskId: id, data: png(1280, 1023).toString("base64") });
   await sleep(TICK + 300);
   const mismatched = fx.board.snapshot().tasks.find((item) => item.id === id);

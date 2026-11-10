@@ -33,7 +33,7 @@ import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
 import { createTasksWithPageImages } from "@/app/stage-design-images"
 import { FINISHED_STATES } from "@/lib/task-state"
-import { modeTakesRoute } from "@/lib/task-form"
+import { modePolicyOf } from "@/lib/task-form"
 import { useSettings } from "@/lib/use-settings"
 
 // 一页十条：一屏放得下，多出来的翻页。
@@ -54,6 +54,8 @@ export function BoardPage() {
   const { onlyEffective, setOnlyEffective } = useOnlyEffective()
   const [identityFailure, setIdentityFailure] = useState("")
   const { settings } = useSettings()
+  const currentMode = modePolicyOf(board?.modes, form.mode)
+  const takesPageImage = currentMode?.takesPageImage === true
 
   // 补完 Target 就写回链接行：任务创建与运行读的都是这一份文本。
   const identity = useIdentityFill({
@@ -117,12 +119,9 @@ export function BoardPage() {
       toast.error("一行一个 MasterGo 链接，至少一行")
       return
     }
-    if (modeTakesRoute(form.mode, "A")) {
-      const missing = items.find((item) => !images[item.link])
-      if (missing) {
-        toast.error("还有链接没有配页面 PNG，请为每一行选一张图")
-        return
-      }
+    if (!currentMode) {
+      toast.error("路线能力还没读到，请稍后重试")
+      return
     }
 
     if (addInFlight.current) return
@@ -132,30 +131,27 @@ export function BoardPage() {
         "add",
         async () => {
           let outgoing = items
-          let ui = form.ui.trim()
-          let autoMerge = form.autoMerge
-          let overwrite = form.overwrite
-          let stopAfter = form.stopAfter.trim()
+          let defaults = {
+            ui: form.ui.trim(),
+            autoMerge: form.autoMerge,
+            overwrite: form.overwrite,
+            stopAfter: form.stopAfter.trim()
+          }
           if (form.mode === "A") {
             const prepared = await preparePipelineAItems(items, projectRoot, {
               useAi: (settings?.automation ?? "assist") !== "off"
             })
             if (!prepared.ok) throw new Error(prepared.reason)
             outgoing = prepared.items
-            ui = ""
-            autoMerge = true
-            overwrite = true
-            stopAfter = ""
+            defaults = prepared.defaults
           }
           const created = await createTasksWithPageImages({
-            mode: form.mode,
+            takesPageImage: takesPageImage,
+            links: outgoing.map((item) => item.link),
             images,
             add: () => api.boardAdd({
               projectRoot,
-              ui,
-              autoMerge,
-              overwrite,
-              stopAfter,
+              ...defaults,
               deferStart: true,
               items: outgoing
             })
@@ -276,6 +272,7 @@ export function BoardPage() {
         open={adding}
         form={form}
         images={images}
+        takesPageImage={takesPageImage}
         busy={busy === "add"}
         automation={settings?.automation ?? "assist"}
         identity={identity}

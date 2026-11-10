@@ -36,7 +36,7 @@ import { keepPickedImages, pickedForLink, withPickedImage } from "@/lib/board-it
 import { describeFailure } from "@/lib/describe-failure"
 import { candidatesForLink } from "@/lib/identity-flow"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
-import { AUTOMATION_LABEL, modeTakesRoute, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
+import { AUTOMATION_LABEL, modePolicyOf, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
 import { decideStartIdentity } from "@/lib/task-start"
 import { canStop, hasProducts } from "@/lib/task-state"
 
@@ -70,8 +70,10 @@ export function PipelinePage({
    * 不带（侧边栏「+ 新建任务」）就是新建表单。换屏走侧边栏/看板，页内不放互相跳的按钮。
    * 给哪一屏由「有没有这条路由 + 快照里有没有这个任务」唯一决定（不另存一份状态）。
    */
-  const { setBoard, reload, taskOf } = useBoardTasks()
+  const { board, setBoard, reload, taskOf } = useBoardTasks()
   const task = taskOf(currentId)
+  const currentMode = modePolicyOf(board?.modes, form.mode)
+  const takesPageImage = currentMode?.takesPageImage === true
   /* 给哪一屏：见上面「两屏」那段 —— 没有路由里的任务 id，或快照里已经没有这个任务，就给表单。 */
   const showForm = !taskId || !task
   const showProducts = task !== null && hasProducts(task.state)
@@ -141,10 +143,6 @@ export function PipelinePage({
   }, [stopStep, task?.jobId])
 
   async function prepareStartRequest(projectRoot: string, link: string): Promise<BoardAddBody | null> {
-    let target = form.target
-    let ui = form.ui
-    let stopAfter = form.stopAfter
-    let overwrite = form.overwrite
     if (form.mode === "A") {
       const prepared = await preparePipelineAItems([{ link, target: "", mode: "A" }], projectRoot, {
         useAi: automation !== "off"
@@ -153,46 +151,45 @@ export function PipelinePage({
         setFailure(prepared.reason)
         return null
       }
-      target = prepared.items[0].target
-      ui = prepared.items[0].ui
-      stopAfter = ""
-      overwrite = true
-    }
-    else {
-      const decision = await decideStartIdentity({
-        link,
+      return {
         projectRoot,
-        target: form.target,
-        ui: form.ui,
-        automation,
-        loadCandidates: async () =>
-          (
-            await candidatesForLink({
-              link,
-              projectRoot,
-              pageName: identity.name,
-              ui: form.ui,
-              useAi: false
-            })
-          ).items,
-        autoPick: () => identity.pick(),
-        autoApply: (item) => identity.apply(item)
-      })
-      if (!decision.ok) {
-        if (decision.reason) setFailure(decision.reason)
-        return null
+        ...prepared.defaults,
+        deferStart: true,
+        items: prepared.items
       }
-      target = decision.target
-      ui = decision.ui
+    }
+
+    const decision = await decideStartIdentity({
+      link,
+      projectRoot,
+      target: form.target,
+      ui: form.ui,
+      automation,
+      loadCandidates: async () =>
+        (
+          await candidatesForLink({
+            link,
+            projectRoot,
+            pageName: identity.name,
+            ui: form.ui,
+            useAi: false
+          })
+        ).items,
+      autoPick: () => identity.pick(),
+      autoApply: (item) => identity.apply(item)
+    })
+    if (!decision.ok) {
+      if (decision.reason) setFailure(decision.reason)
+      return null
     }
     return {
       projectRoot,
-      ui,
+      ui: decision.ui,
       autoMerge: true,
-      stopAfter,
-      overwrite,
+      stopAfter: form.stopAfter,
+      overwrite: form.overwrite,
       deferStart: true,
-      items: [{ link, target, mode: form.mode as "A" | "B" | "AB" }]
+      items: [{ link, target: decision.target, mode: form.mode as "A" | "B" | "AB" }]
     }
   }
 
@@ -204,8 +201,8 @@ export function PipelinePage({
       setFailure("请先填工程目录和 MasterGo 链接")
       return
     }
-    if (modeTakesRoute(form.mode, "A") && !stagedImage) {
-      setFailure("请选择这一页按原始尺寸导出的 PNG")
+    if (!currentMode) {
+      setFailure("路线能力还没读到，请稍后重试")
       return
     }
     if (startInFlight.current) return
@@ -215,7 +212,8 @@ export function PipelinePage({
       const body = await prepareStartRequest(projectRoot, link)
       if (!body) return
       const result = await createTasksWithPageImages({
-        mode: form.mode,
+        takesPageImage: takesPageImage,
+        links: body.items.map((item) => item.link),
         images: stagedImage ? { [link]: stagedImage } : {},
         add: () => api.boardAdd(body)
       })
@@ -257,6 +255,7 @@ export function PipelinePage({
           contract={contract}
           identity={identity}
           image={stagedImage}
+          takesPageImage={takesPageImage}
           onPickImage={(file) => setImages((current) => withPickedImage(current, form.link, file))}
           busy={actions.busy || (starting ? "start" : "")}
           failure={failure}
@@ -332,10 +331,10 @@ export function PipelinePage({
                 failure={task.failure?.stepName === step ? task.failure : null}
               >
                 {/*
-                  走 A 路线（mw-wpf）的任务才读图：AB 的 A 段同样读，所以判据是「路线里有 A」。
+                  走 A 路线（mw-wpf）的任务才读图：AB 的 A 段同样读，所以判据是任务快照里的 routes。
                   图属于布局那一步的输入；分组表由服务端自动补齐，界面不再显示布局编辑器。
                 */}
-                {step === task.layoutStep && task.workDir && task.request.target && modeTakesRoute(task.request.mode, "A") && (
+                {step === task.layoutStep && task.workDir && task.request.target && task.routes.includes("A") && (
                   <DesignImageCard task={task} />
                 )}
 

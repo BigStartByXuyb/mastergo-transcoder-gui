@@ -1,4 +1,4 @@
-import { api } from "@/lib/api"
+import { api, type BoardAddBody } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import type { BoardItem } from "@/lib/board-items"
 import { applyIdentity, candidatesForLink } from "@/lib/identity-flow"
@@ -10,9 +10,10 @@ import { pickIdentityCandidate } from "@/lib/identity-pick"
  */
 
 export type PreparedPipelineItem = BoardItem & { ui: string }
+export type PipelineARequestDefaults = Pick<BoardAddBody, "ui" | "autoMerge" | "overwrite" | "stopAfter">
 
 export type PreparedPipelineItems =
-  | { ok: true; items: PreparedPipelineItem[] }
+  | { ok: true; items: PreparedPipelineItem[]; defaults: PipelineARequestDefaults }
   | { ok: false; reason: string }
 
 async function prepareOne(item: BoardItem, projectRoot: string, useAi: boolean): Promise<PreparedPipelineItem | string> {
@@ -48,5 +49,9 @@ export async function preparePipelineAItems(
     if (typeof result === "string") return { ok: false, reason: result }
     prepared.push(result)
   }
-  return { ok: true, items: prepared }
+  return {
+    ok: true,
+    items: prepared,
+    defaults: { ui: "", autoMerge: true, overwrite: true, stopAfter: "" }
+  }
 }
