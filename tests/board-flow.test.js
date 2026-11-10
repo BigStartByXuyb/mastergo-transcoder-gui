@@ -497,11 +497,24 @@ async function caseStagedImageNotice() {
  */
 async function casePipelineARequiresImageBeforeReady() {
   const project = makeProject();
+  const steps = [
+    contractStep({
+      Id: 6,
+      Name: "discover",
+      Title: "候选发现",
+      Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"]
+    }),
+    STEPS[1]
+  ];
   write(
     path.join(project, "Generated", "runs", "T1", "dsl.snapshot.json"),
     JSON.stringify({ dsl: { nodes: [{ type: "FRAME", id: "1:1", layoutStyle: { width: 1280, height: 1024 } }] } })
   );
-  const fx = makeBoard({ project: project });
+  const fx = makeBoard({
+    project: project,
+    steps,
+    autoFill: { ok: false, empty: true, reason: "这次停点没有要补的输入" }
+  });
   const added = fx.board.add({
     projectRoot: project,
     autoMerge: false,
@@ -518,6 +531,7 @@ async function casePipelineARequiresImageBeforeReady() {
   assert.strictEqual(after.failure.kind, "semantic");
   assert.match(after.failure.message, /含 A 的路线需要页面 PNG/);
   assert.strictEqual(after.error, "", "页面 PNG 是可补齐的语义停点，不是运行错误");
+  assert.strictEqual(fx.autoFillCalls.length, 0, "页面 PNG 等图停点不走语义自动补输入");
   const waitingAt = after.updatedAt;
   const store = path.join(fx.home, "board.json");
   const storeMtime = fs.statSync(store).mtimeMs;
@@ -535,6 +549,7 @@ async function casePipelineARequiresImageBeforeReady() {
   const stored = JSON.parse(fs.readFileSync(path.join(fx.home, "board.json"), "utf8"));
   assert.strictEqual(stored[0].state, "waiting", "等图状态先落盘，不能只改内存");
   assert.match(stored[0].failure.message, /含 A 的路线需要页面 PNG|页面 PNG 与画板尺寸不一致/);
+  delete stored[0].imageStop;
 
   // 模拟进程重启：磁盘上原本还在运行的旧状态会被 load 改成 stopped，
   // 登记表即使显示全部完成，也必须重新经过页面 PNG 门禁。
@@ -543,7 +558,7 @@ async function casePipelineARequiresImageBeforeReady() {
   stored[0].error = "";
   write(path.join(fx.home, "board.json"), JSON.stringify(stored, null, 2) + "\n");
   const restarted = createBoard({
-    runs: makeRuns().api,
+    runs: makeRuns(steps).api,
     pending: null,
     artifacts: {
       stepsOf: () => [
@@ -556,6 +571,7 @@ async function casePipelineARequiresImageBeforeReady() {
   const afterRestart = restarted.snapshot().tasks.find((item) => item.id === id);
   assert.strictEqual(afterRestart.state, "waiting", "重启对表不得绕过页面 PNG 门禁");
   assert.match(afterRestart.failure.message, /页面 PNG/);
+  assert.strictEqual(afterRestart.failure.stepName, "discover");
   assert.strictEqual(afterRestart.error, "", "进入等图停点要清掉旧错误，任务行只显示当前结论");
 
   designImage.save({ projectRoot: afterRestart.workDir, target: "T1", data: png(1280, 1024).toString("base64") });
