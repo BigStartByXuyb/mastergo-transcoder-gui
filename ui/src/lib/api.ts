@@ -524,6 +524,8 @@ export type BoardTask = {
    */
   routes: ("A" | "B")[]
   autoMerge: boolean
+  /** 创建方暂存页面 PNG 时先延后显式启动；「启动全部」不会越过这一层。 */
+  deferStart: boolean
   progress: BoardProgress | null
   /** 这一页的流程：步骤来自插件自己的运行登记表，续跑会接着写同一份。 */
   steps: BoardTaskStep[]

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import type { IdentityCandidate } from "@/lib/api"
 import { drive } from "@/lib/settings-fixtures"
-import { conflictReason, decideStartIdentity } from "@/lib/task-start"
+import { canStartAll, conflictReason, decideStartIdentity } from "@/lib/task-start"
 
 /*
  * 开始前的身份决定：先与链接对账，再在缺身份时按自动化层级自动补一次。
@@ -59,5 +59,18 @@ describe("decideStartIdentity", () => {
     const decision = await decideStartIdentity(input({ automation: "auto", autoPick: async () => null }))
 
     expect(decision).toEqual({ ok: false })
+  })
+})
+
+describe("canStartAll", () => {
+  it("只有延后启动的排队任务时，启动全部不可用", () => {
+    expect(canStartAll([{ state: "queued", deferStart: true }])).toBe(false)
+  })
+
+  it("存在未被延后的排队任务时才允许启动全部", () => {
+    expect(canStartAll([
+      { state: "queued", deferStart: true },
+      { state: "queued", deferStart: false }
+    ])).toBe(true)
   })
 })

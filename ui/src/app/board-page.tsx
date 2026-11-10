@@ -23,7 +23,7 @@ import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentityFill } from "@/app/use-identity-fill"
 import { useOnlyEffective } from "@/app/use-only-effective"
 import { requestDefaultsOf } from "@/app/prepare-pipeline-items"
-import { startPipelineA } from "@/app/start-pipeline-a"
+import { createTasksForMode, taskEntryFailure } from "@/app/task-creation-entry"
 import { useRemembered } from "@/app/use-remembered"
 import { api, type Board } from "@/lib/api"
 import { fillTargets, keepPickedImages, parseBoardItems, withPickedImage } from "@/lib/board-items"
@@ -32,7 +32,7 @@ import { coverageOf, visibleByCoverage, type Coverage } from "@/lib/board-effect
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
-import { createTasksWithPageImages } from "@/app/stage-design-images"
+import { canStartAll } from "@/lib/task-start"
 import { FINISHED_STATES } from "@/lib/task-state"
 import { modePolicyOf } from "@/lib/task-form"
 import { useSettings } from "@/lib/use-settings"
@@ -113,18 +113,18 @@ export function BoardPage() {
   async function addTasks() {
     const projectRoot = form.projectRoot.trim()
     const items = parseBoardItems(form.links, form.mode)
-    if (!form.projectRoot.trim()) {
-      toast.error("先填工程目录")
+    const failure = taskEntryFailure({
+      projectRoot,
+      links: items.map((item) => item.link),
+      board,
+      policy: currentMode
+    })
+    if (failure) {
+      toast.error(failure)
       return
     }
-    if (items.length === 0) {
-      toast.error("一行一个 MasterGo 链接，至少一行")
-      return
-    }
-    if (!currentMode) {
-      toast.error(board ? "当前记住的路线已不可用，请重新选择路线" : "路线能力还没读到，请稍后重试")
-      return
-    }
+    const policy = currentMode
+    if (!policy) return
 
     if (addInFlight.current) return
     addInFlight.current = true
@@ -132,26 +132,23 @@ export function BoardPage() {
       const added = await run(
         "add",
         async () => {
-          const created = startsWithPipelineA
-            ? await startPipelineA({
-                items,
+          const created = await createTasksForMode({
+            items,
+            projectRoot,
+            policy,
+            useAi: (settings?.automation ?? "assist") !== "off",
+            images,
+            add: api.boardAdd,
+            otherRequest: async () => ({
+              ok: true,
+              body: {
                 projectRoot,
-                useAi: (settings?.automation ?? "assist") !== "off",
-                takesPageImage,
-                images,
-                add: api.boardAdd
-              })
-            : await createTasksWithPageImages({
-                takesPageImage,
-                links: items.map((item) => item.link),
-                images,
-                add: () => api.boardAdd({
-                  projectRoot,
-                  ...requestDefaultsOf(form),
-                  deferStart: true,
-                  items
-                })
+                ...requestDefaultsOf(form),
+                deferStart: true,
+                items
+              }
             })
+          })
           if (created.board) setBoard(created.board)
           if (!created.ok) throw new Error(created.failure)
           return created
@@ -218,7 +215,7 @@ export function BoardPage() {
           />
           <Button
             variant="outline"
-            disabled={busy !== "" || !tasks.some((task) => task.state === "queued")}
+            disabled={busy !== "" || !canStartAll(tasks)}
             onClick={() => void run("start-all", () => api.boardStart(), applyBoard)}
           >
             {busy === "start-all" ? <Loader2 className="animate-spin" /> : <Play />}

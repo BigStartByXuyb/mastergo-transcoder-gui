@@ -31,6 +31,7 @@ function task(
     workDir: "",
     routes: ["B"],
     autoMerge: true,
+    deferStart: false,
     progress: null,
     steps: [],
     resumeStep: "",

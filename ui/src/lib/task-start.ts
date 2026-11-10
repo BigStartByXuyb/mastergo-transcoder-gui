@@ -1,4 +1,4 @@
-import type { IdentityCandidate } from "@/lib/api"
+import type { BoardTask, IdentityCandidate } from "@/lib/api"
 import { identityConflict } from "@/lib/identity-flow"
 import { adoptsIdentityWithoutConfirm } from "@/lib/task-form"
 
@@ -59,4 +59,9 @@ export async function decideStartIdentity(input: {
   }
 
   return { ok: true, target: target, ui: ui }
+}
+
+/** 「启动全部」只启动后端 pump() 真会启动的排队任务，延后启动项不在这里越过。 */
+export function canStartAll(tasks: Pick<BoardTask, "state" | "deferStart">[]): boolean {
+  return tasks.some((task) => task.state === "queued" && !task.deferStart)
 }

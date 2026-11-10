@@ -33,6 +33,15 @@ export const STAGE_FAILED_NOTE = "（先选的那张图没暂存上，" + ROLLBA
 export const ROLLED_BACK_NOTE = "（" + ROLLBACK_OUTCOME + "）"
 const PAGE_IMAGE_REQUIRED = "含 A 的路线需要为每个页面选择页面 PNG"
 
+/** 页面 PNG 是含 A 路线的硬前置：创建入口在身份准备前也复用这一条。 */
+export function pageImageFailure(
+  takesPageImage: boolean,
+  links: string[],
+  images: Record<string, File>
+): string {
+  return takesPageImage && links.some((link) => !pickedForLink(images, link)) ? PAGE_IMAGE_REQUIRED : ""
+}
+
 function startFailedNote(taskIds: string[]): string {
   return "（本批任务仍保留在看板：" + taskIds.join("、") +
     "；已启动成功的会继续跑，未启动的需手动启动或移除）"
@@ -136,9 +145,8 @@ export async function createTasksWithPageImages(input: {
   api?: TaskCreationApi
 }): Promise<CreateTasksResult> {
   const apiClient = input.api ?? api
-  if (input.takesPageImage && input.links.some((link) => !pickedForLink(input.images, link))) {
-    return { ok: false, failure: PAGE_IMAGE_REQUIRED, board: null }
-  }
+  const missingImage = pageImageFailure(input.takesPageImage, input.links, input.images)
+  if (missingImage) return { ok: false, failure: missingImage, board: null }
   const created = await input.add()
   const picks = routePicks(input.takesPageImage, picksForCreated(created.board, created.created, input.images))
   const stageFailure = await sendAll(apiClient, picks)

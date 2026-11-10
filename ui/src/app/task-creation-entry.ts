@@ -1,0 +1,67 @@
+import { startPipelineA } from "@/app/start-pipeline-a"
+import {
+  createTasksWithPageImages,
+  type CreateTasksResult,
+  type CreatedTasks,
+  type TaskCreationApi
+} from "@/app/stage-design-images"
+import type { Board, BoardAddBody, BoardModePolicy } from "@/lib/api"
+import type { BoardItem } from "@/lib/board-items"
+
+/*
+ * 两个新建入口共用这一层：先按同一套输入判据给失败原因，再按后端路线能力选择
+ * A 的自动身份编排或 B / AB 的请求准备。页面只保留表单状态、错误呈现与跳转。
+ */
+
+export function taskEntryFailure(input: {
+  projectRoot: string
+  links: string[]
+  board: Board | null
+  policy: BoardModePolicy | null
+}): string {
+  if (!input.projectRoot.trim()) return "先填工程目录"
+  if (input.links.length === 0) return "一行一个 MasterGo 链接，至少一行"
+  if (!input.policy) {
+    return input.board ? "当前记住的路线已不可用，请重新选择路线" : "路线能力还没读到，请稍后重试"
+  }
+  return ""
+}
+
+export type OtherRouteRequest =
+  | { ok: true; body: BoardAddBody }
+  | { ok: false; failure?: string; board?: Board | null }
+
+/** A 与非 A 只有请求来源不同；建任务、暂存、回滚和逐条启动仍走同一个创建编排。 */
+export async function createTasksForMode(input: {
+  items: BoardItem[]
+  projectRoot: string
+  policy: BoardModePolicy
+  useAi: boolean
+  images: Record<string, File>
+  add: (body: BoardAddBody) => Promise<CreatedTasks>
+  otherRequest: () => Promise<OtherRouteRequest>
+  api?: TaskCreationApi
+}): Promise<CreateTasksResult> {
+  const links = input.items.map((item) => item.link)
+  if (input.policy.startsWithPipelineA) {
+    return startPipelineA({
+      items: input.items,
+      projectRoot: input.projectRoot,
+      useAi: input.useAi,
+      takesPageImage: input.policy.takesPageImage,
+      images: input.images,
+      add: input.add,
+      api: input.api
+    })
+  }
+
+  const request = await input.otherRequest()
+  if (!request.ok) return { ok: false, failure: request.failure ?? "", board: request.board ?? null }
+  return createTasksWithPageImages({
+    takesPageImage: input.policy.takesPageImage,
+    links,
+    images: input.images,
+    add: () => input.add(request.body),
+    api: input.api
+  })
+}

@@ -22,11 +22,10 @@ import { TaskDetailCard } from "@/app/task-detail-card"
 import { TaskLogCard } from "@/app/task-log-card"
 import { StepRail } from "@/app/task-steps"
 import { ClampText } from "@/app/clamp-text"
-import { createTasksWithPageImages, type CreateTasksResult } from "@/app/stage-design-images"
+import { createTasksForMode, taskEntryFailure } from "@/app/task-creation-entry"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentity } from "@/app/use-identity"
 import { requestDefaultsOf } from "@/app/prepare-pipeline-items"
-import { startPipelineA } from "@/app/start-pipeline-a"
 import { useRemembered } from "@/app/use-remembered"
 import { useRunLog } from "@/app/use-run-log"
 import { useTaskActions } from "@/app/use-task-actions"
@@ -189,43 +188,38 @@ export function PipelinePage({
   async function start() {
     const projectRoot = form.projectRoot.trim()
     const link = form.link.trim()
-    if (!projectRoot || !link) {
-      setFailure("请先填工程目录和 MasterGo 链接")
+    const failure = taskEntryFailure({
+      projectRoot,
+      links: link ? [link] : [],
+      board,
+      policy: currentMode
+    })
+    if (failure) {
+      setFailure(failure)
       return
     }
-    if (!currentMode) {
-      setFailure(board ? "当前记住的路线已不可用，请重新选择路线" : "路线能力还没读到，请稍后重试")
-      return
-    }
+    const policy = currentMode
+    if (!policy) return
     if (startInFlight.current) return
     startInFlight.current = true
     setStarting(true)
     try {
       const images = stagedImage ? { [link]: stagedImage } : {}
-      let result: CreateTasksResult
-      if (pipelineAMode) {
-        result = await startPipelineA({
-          items: [{ link, target: "", mode: pipelineAMode }],
-          projectRoot,
-          useAi: automation !== "off",
-          takesPageImage,
-          images,
-          add: api.boardAdd
-        })
-      }
-      else {
-        const body = await prepareStartRequest(projectRoot, link)
-        if (!body) return
-        result = await createTasksWithPageImages({
-          takesPageImage,
-          links: body.items.map((item) => item.link),
-          images,
-          add: () => api.boardAdd(body)
-        })
-      }
+      const result = await createTasksForMode({
+        items: [{ link, target: "", mode: form.mode }],
+        projectRoot,
+        policy,
+        useAi: automation !== "off",
+        images,
+        add: api.boardAdd,
+        otherRequest: async () => {
+          const body = await prepareStartRequest(projectRoot, link)
+          return body ? { ok: true, body } : { ok: false, failure: "" }
+        }
+      })
       if (result.board) setBoard(result.board)
       if (!result.ok) {
-        setFailure(result.failure)
+        if (result.failure) setFailure(result.failure)
         return
       }
       const created = result.created[0]

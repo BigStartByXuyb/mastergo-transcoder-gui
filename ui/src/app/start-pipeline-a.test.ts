@@ -15,6 +15,25 @@ afterEach(() => {
 })
 
 describe("startPipelineA", () => {
+  it("缺页面 PNG 时在身份准备之前就返回", async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal("fetch", fetchMock)
+    const add = vi.fn()
+
+    const result = await startPipelineA({
+      items: [{ link: LINK, target: "", mode: "A" }],
+      projectRoot: "project",
+      useAi: true,
+      takesPageImage: true,
+      images: {},
+      add
+    })
+
+    expect(result).toEqual({ ok: false, failure: "含 A 的路线需要为每个页面选择页面 PNG", board: null })
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(add).not.toHaveBeenCalled()
+  })
+
   it("按同一顺序完成身份准备、建任务、身份写回与启动", async () => {
     const events: string[] = []
     vi.stubGlobal("fetch", (input: RequestInfo | URL) => {

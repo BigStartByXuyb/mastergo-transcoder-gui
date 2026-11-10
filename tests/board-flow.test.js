@@ -86,6 +86,7 @@ function makeBoard(options = {}) {
         return options.pending || { icons: { available: true, needsNaming: true, needsRepair: false, mustName: [1, 2] }, translations: { available: false } };
       }
     },
+    merge: options.merge,
     autoFill: options.autoFill === undefined && options.autoFillThrows === undefined
       ? null
       : {
@@ -752,7 +753,16 @@ async function caseMergingDoesNotRestartLayout() {
   const steps = [
     contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
   ];
-  const fx = makeBoard({ project: project, steps: steps });
+  let releaseMerge = null;
+  const fx = makeBoard({
+    project: project,
+    steps: steps,
+    merge: {
+      merge: () => new Promise((resolve) => {
+        releaseMerge = () => resolve({ applied: [], skipped: [], notes: [], conflicts: [] });
+      })
+    }
+  });
   const id = fx.board.add({ projectRoot: project, autoMerge: false, items: [{ link: LINK, target: "T1", mode: "A" }] }).created[0];
   fx.board.start(id);
   const task = await waitForTask(fx.board, id, hasJob, "任务启动");
@@ -762,9 +772,6 @@ async function caseMergingDoesNotRestartLayout() {
   await sleep(TICK + 300);
   assert.strictEqual(fx.board.snapshot().tasks.find((item) => item.id === id).state, "ready");
 
-  const originalReadManifest = workdir.readManifest;
-  let release;
-  workdir.readManifest = () => new Promise((resolve) => { release = resolve; });
   try {
     fx.board.mergeOne(id);
     assert.strictEqual(fx.board.snapshot().tasks.find((item) => item.id === id).state, "merging");
@@ -793,8 +800,7 @@ async function caseMergingDoesNotRestartLayout() {
       "合并期间不写工作目录");
   }
   finally {
-    release(null);
-    workdir.readManifest = originalReadManifest;
+    if (releaseMerge) releaseMerge();
   }
 
   fs.rmSync(fx.home, { recursive: true, force: true });
