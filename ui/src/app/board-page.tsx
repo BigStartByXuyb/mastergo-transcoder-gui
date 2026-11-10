@@ -167,12 +167,14 @@ export function BoardPage() {
 
   function fillIdentity() {
     const items = parseBoardItems(form.links, form.mode)
-    if (!form.projectRoot.trim()) {
-      toast.error("先填工程目录")
-      return
-    }
-    if (items.length === 0) {
-      toast.error("一行一个 MasterGo 链接，至少一行")
+    const failure = taskEntryFailure({
+      projectRoot: form.projectRoot,
+      links: items.map((item) => item.link),
+      board,
+      policy: currentMode
+    })
+    if (failure) {
+      toast.error(failure)
       return
     }
     void identity.run(items, form.projectRoot, form.ui)
