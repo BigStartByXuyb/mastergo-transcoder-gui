@@ -62,6 +62,7 @@ describe("BoardNewTaskDialog 的选图", () => {
     expect(screen.getByText("页面 PNG").closest("section")?.textContent).toContain("必填参数")
     expect(screen.queryByLabelText("Ui 前缀")).toBeNull()
     expect(screen.queryByLabelText("停在某一步")).toBeNull()
+    expect(screen.getByRole("button", { name: "创建并开始" })).toBeTruthy()
   })
 
   it("选的是哪一行的那一份：按链接交出去", () => {
@@ -88,6 +89,15 @@ describe("BoardNewTaskDialog 的选图", () => {
     expect(screen.queryByText("第 1 行")).toBeNull()
     expect(screen.getByLabelText("Ui 前缀")).toBeTruthy()
     expect(screen.getByLabelText("停在某一步")).toBeTruthy()
+    expect(screen.getByRole("button", { name: "加入看板" })).toBeTruthy()
+  })
+
+  it("AB 也要求选图并在暂存后开始，同时保留 B 的身份、停点和覆盖设置", () => {
+    const { inputs } = show({ form: form({ mode: "AB" }) })
+    expect(inputs.length).toBe(1)
+    expect(screen.getByLabelText("Ui 前缀")).toBeTruthy()
+    expect(screen.getByLabelText("停在某一步")).toBeTruthy()
+    expect(screen.getByRole("button", { name: "创建并开始" })).toBeTruthy()
   })
 
   it("行还没写时说明一行配一张", () => {

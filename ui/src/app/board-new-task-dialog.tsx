@@ -161,7 +161,7 @@ export function BoardNewTaskDialog(props: {
           </Button>
           <Button disabled={props.busy} onClick={props.onSubmit}>
             {props.busy ? <Loader2 className="animate-spin" /> : null}
-            {pipelineA ? "创建并开始" : "加入看板"}
+            {usesA ? "创建并开始" : "加入看板"}
           </Button>
         </DialogFooter>
       </DialogContent>
