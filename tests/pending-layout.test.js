@@ -160,7 +160,7 @@ function caseImageWithoutGroups() {
   const root = sandbox();
   writeControls(root);
   writeImage(root);
-  const layout = layoutOf(root, pendingFor(root));
+  const layout = layoutOf(root, pendingFor(root), "A");
   assert.strictEqual(layout.needsGroups, true, "有图没有表 = 要人确认");
   assert.strictEqual(layout.waiting, 1, "要人确认的条数是 1");
   fs.rmSync(root, { recursive: true, force: true });
@@ -171,6 +171,11 @@ function caseLayoutOnlyForA() {
   writeControls(root);
   writeImage(root);
   const pending = pendingFor(root);
+  assert.deepStrictEqual(
+    layoutOf(root, pending),
+    layoutOf(root, pending, ""),
+    "省略 mode 与显式空串同属路线未知，不能隐式按 A 计算"
+  );
   assert.deepStrictEqual(
     layoutOf(root, pending, "B"),
     { needsGroups: false, waiting: 0 },
@@ -194,7 +199,7 @@ function caseImageWithEmptyGroups() {
   writeControls(root);
   writeImage(root);
   writeGroups(root, []);
-  const layout = layoutOf(root, pendingFor(root));
+  const layout = layoutOf(root, pendingFor(root), "A");
   assert.strictEqual(layout.needsGroups, false, "空分组表也算有表：本页没有要声明的分组");
   assert.strictEqual(layout.waiting, 0);
   fs.rmSync(root, { recursive: true, force: true });
@@ -203,7 +208,7 @@ function caseImageWithEmptyGroups() {
 function caseImageBeforeControls() {
   const root = sandbox();
   writeImage(root);
-  const layout = layoutOf(root, pendingFor(root));
+  const layout = layoutOf(root, pendingFor(root), "A");
   assert.strictEqual(layout.needsGroups, false, "控件清单还没产出时不列成待办（那时分组没得填）");
   assert.strictEqual(layout.waiting, 0);
   fs.rmSync(root, { recursive: true, force: true });
@@ -217,7 +222,7 @@ function caseImageWithoutCandidates() {
     JSON.stringify({ nodes: [{ ref: "a" }, { ref: "b" }] }),
     "utf8"
   );
-  const layout = layoutOf(root, pendingFor(root));
+  const layout = layoutOf(root, pendingFor(root), "A");
   assert.strictEqual(layout.needsGroups, false, "条目清单缺失时不列成可写空表的待办");
   assert.strictEqual(layout.waiting, 0);
   fs.rmSync(root, { recursive: true, force: true });
@@ -228,7 +233,7 @@ function caseBrokenGroupsAsksAgain() {
   writeControls(root);
   writeImage(root);
   writeBrokenGroups(root);
-  const layout = layoutOf(root, pendingFor(root));
+  const layout = layoutOf(root, pendingFor(root), "A");
   assert.strictEqual(layout.needsGroups, true, "损坏的表按「没有表」处理：把这一页列出来让人确认一次");
   assert.strictEqual(layout.waiting, 1);
   fs.rmSync(root, { recursive: true, force: true });

@@ -717,6 +717,79 @@ async function caseBadImageStopsBeforeLayoutRerun() {
   fs.rmSync(project, { recursive: true, force: true });
 }
 
+async function caseLayoutWaitDoesNotRepeatAutoFill() {
+  const project = makeProject();
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-home-"));
+  const taskDir = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-work-"));
+  const steps = [
+    contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
+  ];
+  write(
+    path.join(taskDir, "Generated", "runs", "T1", "dsl.snapshot.json"),
+    JSON.stringify({ dsl: { nodes: [{ type: "FRAME", id: "1:1", layoutStyle: { width: 1280, height: 1024 } }] } })
+  );
+  designImage.save({ projectRoot: taskDir, target: "T1", data: png(1280, 1024).toString("base64") });
+  write(path.join(home, "board.json"), JSON.stringify([{
+    id: "layout-wait",
+    state: "waiting",
+    request: {
+      mode: "A",
+      link: LINK,
+      target: "T1",
+      ui: "F3",
+      projectRoot: project,
+      fileId: "204689197363903",
+      layerId: "1872:60904",
+      stopAfter: "",
+      overwrite: false,
+      allowEmptyLedger: false
+    },
+    workDir: taskDir,
+    jobId: "",
+    autoMerge: false,
+    autoFillCount: 0,
+    failure: {
+      kind: "semantic",
+      stepName: "layoutManifest",
+      title: "Layout 清单",
+      message: "需要补布局分组",
+      logPath: ""
+    },
+    error: ""
+  }], null, 2) + "\n");
+  let autoFillCalls = 0;
+  const runs = makeRuns(steps);
+  createBoard({
+    runs: runs.api,
+    pending: {
+      inspect: () => ({
+        icons: { available: false },
+        translations: { available: false },
+        layout: { needsGroups: true, waiting: 1 }
+      })
+    },
+    autoFill: {
+      fill: async () => {
+        autoFillCalls += 1;
+        return { ok: false, empty: true };
+      }
+    },
+    artifacts: {
+      stepsOf: () => [{ id: 8, name: "layoutManifest", status: "failed", seconds: 1, note: "需要补布局分组" }]
+    },
+    home
+  });
+
+  await sleep(TICK + 300);
+  assert.strictEqual(autoFillCalls, 1, "布局停点重启后只补输入一次");
+  await sleep(TICK * 2 + 300);
+  assert.strictEqual(autoFillCalls, 1, "后续轮询不得把同一布局停点反复当成读图停点");
+
+  fs.rmSync(home, { recursive: true, force: true });
+  fs.rmSync(project, { recursive: true, force: true });
+  fs.rmSync(taskDir, { recursive: true, force: true });
+}
+
 function caseUnsafeImageIdentityStopsInsteadOfThrowing() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-home-"));
   const project = makeProject();
@@ -1013,6 +1086,7 @@ async function main() {
     ["从布局续跑完成也要按当前页面 PNG 检查分组", caseLayoutRerunsAfterProgressWhenImageNeedsGroups],
     ["B 的真实失败不被布局停点改判", caseBRealFailureIsNotReclassifiedByLayout],
     ["坏图先停页面 PNG 核对点，不抢跑布局", caseBadImageStopsBeforeLayoutRerun],
+    ["布局停点不会反复触发自动补输入", caseLayoutWaitDoesNotRepeatAutoFill],
     ["页面身份不合规时停在等图点，不从轮询逸出", caseUnsafeImageIdentityStopsInsteadOfThrowing],
     ["合并期间不因换图重启布局", caseMergingDoesNotRestartLayout],
     ["任务离开看板（移除 / 清理 / 清空区域）：暂存件跟着走", caseRemovalDropsStagedImage],
