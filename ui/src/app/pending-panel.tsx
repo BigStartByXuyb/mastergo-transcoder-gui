@@ -316,7 +316,7 @@ export function PendingPanel({
           <Alert>
             <AlertTitle>这一页有 PNG，但还没有分组表</AlertTitle>
             <AlertDescription>
-              自动分组没有产出可用结果。确认本页没有需要声明的控件分组后，可以写一张空表并继续；空表是插件的合法输入。
+              这一页还没有可用的分组表。确认本页没有需要声明的控件分组后，可以写一张空表并继续；空表是插件的合法输入。
             </AlertDescription>
           </Alert>
           <div>

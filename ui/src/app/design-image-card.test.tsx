@@ -52,7 +52,6 @@ function state(over: Partial<DesignImage> = {}): DesignImage {
     canvas: { width: 1280, height: 1024 },
     image: null,
     matches: false,
-    groups: { path: INPUTS + "\\DemoPage.layout-groups.json", exists: false },
     blocked: "",
     ...over
   }
@@ -114,7 +113,7 @@ describe("DesignImageCard", () => {
   })
 
   it("有图且与画板一致", async () => {
-    stub(state({ image: IMAGE, matches: true, groups: { path: "x", exists: true } }))
+    stub(state({ image: IMAGE, matches: true }))
     render(<DesignImageCard task={task()} />)
 
     expect(await screen.findByText("有图")).toBeTruthy()
@@ -135,7 +134,7 @@ describe("DesignImageCard", () => {
     let sent: { taskId?: string; data?: string; target?: string } = {}
     stub(state(), {
       onSave: (body) => (sent = body as { taskId: string; data: string; target: string }),
-      save: state({ image: IMAGE, matches: true, groups: { path: "x", exists: true } })
+      save: state({ image: IMAGE, matches: true })
     })
     render(<DesignImageCard task={task()} />)
     await screen.findByText("没有图")
@@ -158,10 +157,10 @@ describe("DesignImageCard", () => {
     })
     render(<DesignImageCard task={task()} />)
 
-    expect((await screen.findByAltText("这一页放着的设计稿位图")).getAttribute("src")).toContain("stamp=2048-1")
+    expect((await screen.findByAltText("这一页放着的页面 PNG")).getAttribute("src")).toContain("stamp=2048-1")
     pick("DemoPage.design.png")
     await waitFor(() =>
-      expect(screen.getByAltText("这一页放着的设计稿位图").getAttribute("src")).toContain("stamp=4096-2")
+      expect(screen.getByAltText("这一页放着的页面 PNG").getAttribute("src")).toContain("stamp=4096-2")
     )
   })
 

@@ -622,19 +622,28 @@ async function caseMergingDoesNotRestartLayout() {
     fx.board.mergeOne(id);
     assert.strictEqual(fx.board.snapshot().tasks.find((item) => item.id === id).state, "merging");
     assert.strictEqual(
-      fx.board.imageWriteBlock({ id: id, projectRoot: task.workDir, target: "T1" }),
+      fx.board.imageWriteBlock({ id: id, workDir: task.workDir, target: "T1" }),
       "任务正在合并，结束后才能换图。"
     );
     assert.throws(
-      () => fx.board.requireImageWrite({ id: id, projectRoot: task.workDir, target: "T1" }),
+      () => fx.board.requireImageWrite({ id: id, workDir: task.workDir, target: "T1" }),
       (error) => error.code === "TASK_MERGING"
     );
+    assert.throws(
+      () => fx.board.requireImageStage(id),
+      (error) => error.code === "TASK_MERGING"
+    );
+    fs.rmSync(path.join(workdir.inputsDir(task.workDir), "T1.design.png"), { force: true });
+    const staged = designImage.stage({ home: fx.home, taskId: id, data: png(1280, 1024).toString("base64") });
     fs.rmSync(workdir.layoutGroupsPath(task.workDir, "T1"), { force: true });
     const before = fx.runs.started.length;
     await sleep(TICK + 300);
     const after = fx.board.snapshot().tasks.find((item) => item.id === id);
     assert.strictEqual(after.state, "merging", "合并期间状态不被布局重跑覆盖");
     assert.strictEqual(fx.runs.started.length, before, "合并期间不启动新的布局运行");
+    assert.ok(fs.existsSync(staged.path), "合并期间暂存件不落地");
+    assert.strictEqual(designImage.read({ projectRoot: task.workDir, target: "T1" }).image, null,
+      "合并期间不写工作目录");
   }
   finally {
     release(null);

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 
-// 作业A 的设计稿位图：图放哪儿、尺寸对不对、分组表在不在。
+// 作业A 的页面 PNG：图放哪儿、尺寸对不对、暂存件怎样落地。
 // 跑法：node tests/design-image.test.js
 
 const assert = require("assert");
@@ -49,7 +49,6 @@ function caseSaveAndRead() {
   const before = designImage.read({ projectRoot: root, target: TARGET });
   assert.strictEqual(before.image, null, "还没传时没有图");
   assert.deepStrictEqual(before.canvas, { width: 1280, height: 1024 }, "画板尺寸取自 DSL 根节点");
-  assert.strictEqual(before.groups.exists, false);
   assert.match(before.dir, /Generated[\\/]_inputs$/, "图该放的目录照实给出来");
   assert.strictEqual(before.blocked, "", "画板尺寸读得出来就能传");
 
@@ -158,36 +157,6 @@ function caseNoSnapshot() {
     assert.match(error.hint, /取数 \+ 固化快照/);
     return true;
   });
-  fs.rmSync(root, { recursive: true, force: true });
-}
-
-/*
- * 分组表可用照实报（文件在且解析出 groups 数组，空数组合法）：有图无表是流程漏步，判定在第 8 步。
- * 空表是「本页没有要声明的分组」，照旧算有表 —— 判据只有 lib/workdir.js 一处。
- */
-function caseGroups() {
-  const root = sandbox();
-  fs.mkdirSync(path.join(root, "Generated", "_inputs"), { recursive: true });
-  const file = path.join(root, "Generated", "_inputs", TARGET + ".layout-groups.json");
-  fs.writeFileSync(
-    file,
-    JSON.stringify({
-      schemaVersion: "mw-wpf-layout-groups/1",
-      pageTarget: TARGET,
-      groups: [{ id: "g1", kind: "column", members: ["a", "b"] }]
-    }),
-    "utf8"
-  );
-  const state = designImage.read({ projectRoot: root, target: TARGET });
-  assert.strictEqual(state.groups.exists, true);
-  assert.match(state.groups.path, /layout-groups\.json$/);
-
-  fs.writeFileSync(
-    file,
-    JSON.stringify({ schemaVersion: "mw-wpf-layout-groups/1", pageTarget: TARGET, groups: [] }),
-    "utf8"
-  );
-  assert.strictEqual(designImage.read({ projectRoot: root, target: TARGET }).groups.exists, true, "空表也算有表");
   fs.rmSync(root, { recursive: true, force: true });
 }
 
@@ -307,7 +276,6 @@ try {
     ["换格式只留一张", caseReplace],
     ["拒绝的几种", caseRejections],
     ["还没跑到第 2 步", caseNoSnapshot],
-    ["分组表在不在", caseGroups],
     ["新建时先选的图：暂存 → 有画板尺寸后核对落地", caseStageThenInstall],
     ["暂存图尺寸不对：不装、回两边的数、暂存件留着等人重导", caseStagedMismatch],
     ["工作目录里已经有人传过图：暂存件不动它、自己清掉", caseStagedKeepsExisting],

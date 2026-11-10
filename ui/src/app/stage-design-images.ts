@@ -18,9 +18,9 @@ export type StageResult = { ok: boolean; failure: string }
 
 /*
  * 暂存没成时接在后端原话后面的那半句：只有这一处说（两个新建入口都显示同一句）。
- * 它说的是这件事的后果 —— 带 A 段的任务不会启动；用户补一张图后再提交。
+ * 它说的是这件事的后果 —— 刚建的任务已撤销；用户补一张图后再提交。
  */
-export const STAGE_FAILED_NOTE = "（先选的那张图没暂存上，带 A 段的任务没有启动；修好后重新提交）"
+export const STAGE_FAILED_NOTE = "（先选的那张图没暂存上，刚建的任务已撤销；修好后重新提交）"
 
 /*
  * 只有跑 A 路线才读设计稿位图（这条判据在 ui/src/lib/task-form.ts 的 modeTakesRoute）：

@@ -162,7 +162,7 @@ export type PluginInfo = {
 
 /**
  * 作业A 的页面 PNG：这一页「读图」那条开关的输入（口径见后端 lib/design-image.js）。
- * 图必须按设计稿原始尺寸导出 —— 尺寸要等于 DSL 画板尺寸；有图就必须先有分组表，否则布局推导那一步停下。
+ * 图必须按设计稿原始尺寸导出 —— 尺寸要等于 DSL 画板尺寸；页面 PNG 落地时会清掉旧分组表。
  */
 export type DesignImage = {
   /** 图该放的那个目录（后端算好给出来；界面不自己拼这一段）。 */
@@ -173,7 +173,6 @@ export type DesignImage = {
   image: { path: string; name: string; bytes: number; width: number; height: number; stamp: string } | null
   /** 图与画板尺寸是否一致（两边都读得出来时才有意义）。 */
   matches: boolean
-  groups: { path: string; exists: boolean }
   /**
    * 现在不能传的原因（空串＝可以传）。判据在后端（save 在同一种情况下按同一句话拒收），
    * 界面照原话显示并据此禁用按钮，不自己再判一遍。

@@ -11,7 +11,7 @@ import { api, type BoardTask, type DesignImage } from "@/lib/api"
 import { fileToBase64, humanSize } from "@/lib/upload-files"
 
 /*
- * 作业A 的设计稿位图：那条「读图」开关的输入。
+ * 作业A 的页面 PNG：那条「读图」开关的输入。
  *
  * 任务走到布局步骤且路线含 A 时显示：说明图在哪、尺寸对不对，并允许换一张。
  * 目录、约定名、「尺寸不对 / 不是位图 / 画板尺寸还不知道」的原话都由后端给（判据都在它那一处），这里只渲染。
@@ -107,7 +107,7 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
               {/* 图本身，不只文件名：换图时先确认尺寸和内容。 */}
               <img
                 src={api.designImageUrl(projectRoot, target, image.stamp)}
-                alt="这一页放着的设计稿位图"
+                alt="这一页放着的页面 PNG"
                 className="max-h-64 w-auto max-w-full rounded-md border"
               />
             </div>
