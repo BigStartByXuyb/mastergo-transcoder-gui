@@ -58,6 +58,7 @@ const SUBMIT_BUSY = "submit"
 export function PendingPanel({
   projectRoot,
   target,
+  mode,
   taskId,
   runId,
   state,
@@ -66,6 +67,7 @@ export function PendingPanel({
 }: {
   projectRoot: string
   target: string
+  mode: string
   /** 看板任务 id：续跑按它落回那一行，拿 jobId 当钥匙会在运行被换掉后失效。 */
   taskId: string
   /** 来源运行 id：非看板来源（流水线直跑、任务已移除）没有 taskId，续跑只有它能用。 */
@@ -84,7 +86,7 @@ export function PendingPanel({
    * 清单、三张草稿与叫 AI 都在 use-pending-inputs 那一处（取数只在那里取一次）；
    * 面板这里只留「提交并续跑」这条动作的忙位与失败 —— 两处合起来是界面要显示的那一份。
    */
-  const inputs = usePendingInputs({ projectRoot, target, taskId, runId, state })
+  const inputs = usePendingInputs({ projectRoot, target, mode, taskId, runId, state })
   const { pending, names, texts, glossary, setName, setText, setGlossaryOf, aiReady, clearFailure, writeFailure } = inputs
   const {
     namingPayload,

@@ -35,6 +35,7 @@ function show(patch: Partial<Parameters<typeof BoardNewTaskDialog>[0]> = {}) {
       form={form()}
       images={{}}
       takesPageImage={true}
+      startsWithPipelineA={true}
       busy={false}
       automation="assist"
       identity={IDENTITY}
@@ -85,7 +86,7 @@ describe("BoardNewTaskDialog 的选图", () => {
   })
 
   it("不跑 A 路线就不给选图", () => {
-    const { inputs } = show({ form: form({ mode: "B" }), takesPageImage: false })
+    const { inputs } = show({ form: form({ mode: "B" }), takesPageImage: false, startsWithPipelineA: false })
     expect(inputs.length).toBe(0)
     expect(screen.queryByText("第 1 行")).toBeNull()
     expect(screen.getByLabelText("Ui 前缀")).toBeTruthy()
@@ -94,7 +95,7 @@ describe("BoardNewTaskDialog 的选图", () => {
   })
 
   it("AB 也要求选图并在暂存后开始，同时保留 B 的身份、停点和覆盖设置", () => {
-    const { inputs } = show({ form: form({ mode: "AB" }), takesPageImage: true })
+    const { inputs } = show({ form: form({ mode: "AB" }), takesPageImage: true, startsWithPipelineA: false })
     expect(inputs.length).toBe(1)
     expect(screen.getByLabelText("Ui 前缀")).toBeTruthy()
     expect(screen.getByLabelText("停在某一步")).toBeTruthy()

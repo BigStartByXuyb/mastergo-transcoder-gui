@@ -31,6 +31,7 @@ type Props = {
   /** 新建时先选好的设计稿位图（还没暂存到磁盘，只是这一份文件）：走 A 路线时才有意义。 */
   image: File | null
   takesPageImage: boolean
+  startsWithPipelineA: boolean
   onPickImage: (file: File | null) => void
   busy: string
   failure: string
@@ -42,7 +43,7 @@ type Props = {
 
 export function NewTaskCard(props: Props) {
   const { form, onForm, plugin, contract, identity, busy, failure, canStop, onStart, onStop, onReloadContract } = props
-  const pipelineA = form.mode === "A"
+  const pipelineA = props.startsWithPipelineA
 
   return (
     <Card>

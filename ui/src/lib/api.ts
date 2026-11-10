@@ -461,6 +461,7 @@ export type BoardModePolicy = {
   mode: string
   routes: ("A" | "B")[]
   takesPageImage: boolean
+  startsWithPipelineA: boolean
 }
 
 export type BoardTaskRun = {
@@ -606,6 +607,7 @@ export type BoardAddBody = {
 /** 一条「还缺语义输入」的页面。board = 看板任务（产物在它自己的工作目录里），pipeline = 流水线页直跑的运行。 */
 export type PendingQueueEntry = {
   source: "board" | "pipeline"
+  mode: "A" | "B" | "AB" | ""
   projectRoot: string
   target: string
   runId: string
@@ -1013,9 +1015,11 @@ export const api = {
     ),
   settingsGet: () => request<{ ok: true; settings: Settings }>("/api/settings"),
   settingsSave: (body: unknown) => post<{ ok: true; settings: Settings }>("/api/settings", body),
-  pending: (projectRoot: string, target: string) =>
+  pending: (projectRoot: string, target: string, mode: string) =>
     request<{ ok: true; pending: Pending }>(
-      "/api/pending?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
+      "/api/pending?projectRoot=" + encodeURIComponent(projectRoot) +
+        "&target=" + encodeURIComponent(target) +
+        "&mode=" + encodeURIComponent(mode)
     ),
   pendingList: () => request<{ ok: true; queue: PendingQueue }>("/api/pending/list"),
   mapping: () => request<{ ok: true; mapping: MappingView }>("/api/mapping"),

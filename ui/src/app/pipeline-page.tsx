@@ -75,6 +75,7 @@ export function PipelinePage({
   const task = taskOf(currentId)
   const currentMode = modePolicyOf(board?.modes, form.mode)
   const takesPageImage = currentMode?.takesPageImage === true
+  const startsWithPipelineA = currentMode?.startsWithPipelineA === true
   /* 给哪一屏：见上面「两屏」那段 —— 没有路由里的任务 id，或快照里已经没有这个任务，就给表单。 */
   const showForm = !taskId || !task
   const showProducts = task !== null && hasProducts(task.state)
@@ -202,7 +203,7 @@ export function PipelinePage({
     try {
       const images = stagedImage ? { [link]: stagedImage } : {}
       let result: CreateTasksResult
-      if (form.mode === "A") {
+      if (startsWithPipelineA) {
         result = await startPipelineA({
           items: [{ link, target: "", mode: "A" }],
           projectRoot,
@@ -261,6 +262,7 @@ export function PipelinePage({
           identity={identity}
           image={stagedImage}
           takesPageImage={takesPageImage}
+          startsWithPipelineA={startsWithPipelineA}
           onPickImage={(file) => setImages((current) => withPickedImage(current, form.link, file))}
           busy={actions.busy || (starting ? "start" : "")}
           failure={failure}
@@ -368,6 +370,7 @@ export function PipelinePage({
                     <PendingPanel
                       projectRoot={task.workDir}
                       target={task.request.target}
+                      mode={task.request.mode}
                       taskId={task.id}
                       runId={task.jobId}
                       state={task.state}

@@ -34,13 +34,14 @@ export const PENDING_BUSY = {
 export function usePendingInputs(input: {
   projectRoot: string
   target: string
+  mode: string
   /** 看板任务 id：续跑按它落回那一行（面板提交时用），这里只用它判断来源有没有换。 */
   taskId: string
   runId: string
   /** 来源运行/任务的状态：它一变就重读（「跑着 → 停下」后会新出现待办）。 */
   state: string
 }) {
-  const { projectRoot, target, taskId, runId, state } = input
+  const { projectRoot, target, mode, taskId, runId, state } = input
   const [pending, setPending] = useState<Pending | null>(null)
   const [names, setNames] = useState<Record<number, { name: string; comment: string }>>({})
   const [texts, setTexts] = useState<Record<string, string>>({})
@@ -73,7 +74,7 @@ export function usePendingInputs(input: {
 
   const reload = useCallback(async () => {
     if (!projectRoot.trim() || !target.trim()) return
-    await run(PENDING_BUSY.load, () => api.pending(projectRoot, target), (payload) => {
+    await run(PENDING_BUSY.load, () => api.pending(projectRoot, target, mode), (payload) => {
       if (!alive.current) return
       setPending(payload.pending)
       setNames((current) => {
@@ -99,7 +100,7 @@ export function usePendingInputs(input: {
         return next
       })
     })
-  }, [alive, projectRoot, target, run])
+  }, [alive, projectRoot, target, mode, run])
 
   useEffect(() => {
     void reload()

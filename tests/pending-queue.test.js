@@ -26,7 +26,11 @@ function makeQueue(options) {
       workRoot: path.join(HOME, "work"),
       snapshot: () => ({ tasks: options.tasks || [] })
     },
-    pending: { inspect: () => options.pending || { icons: { waiting: 0 }, translations: { waiting: 0 }, layout: { waiting: 0 } } }
+    pending: {
+      inspect: (query) => options.pendingFor
+        ? options.pendingFor(query)
+        : (options.pending || { icons: { waiting: 0 }, translations: { waiting: 0 }, layout: { waiting: 0 } })
+    }
   });
 }
 
@@ -89,13 +93,21 @@ function caseLayoutOnlyIsListed() {
 function caseLayoutOnlyForPipelineA() {
   const queue = makeQueue({
     tasks: [{ id: "task-1", state: "waiting", jobId: "job-1", workDir: WORK, request: { target: "DemoPage", mode: "B" } }],
-    pending: { icons: { waiting: 0 }, translations: { waiting: 0 }, layout: { waiting: 1 } }
+    pendingFor: (query) => ({
+      icons: { waiting: 0 },
+      translations: { waiting: 0 },
+      layout: { waiting: query.mode === "B" ? 0 : 1 }
+    })
   });
   assert.deepStrictEqual(queue.snapshot().items, [], "B 不消费布局分组，不把布局待办列进待确认");
 
   const ab = makeQueue({
     tasks: [{ id: "task-2", state: "waiting", jobId: "job-2", workDir: WORK, request: { target: "DemoPage", mode: "AB" } }],
-    pending: { icons: { waiting: 0 }, translations: { waiting: 0 }, layout: { waiting: 1 } }
+    pendingFor: (query) => ({
+      icons: { waiting: 0 },
+      translations: { waiting: 0 },
+      layout: { waiting: query.mode === "B" ? 0 : 1 }
+    })
   });
   assert.strictEqual(ab.snapshot().items[0].counts.layout, 1, "AB 的 A 段仍消费布局分组");
 }

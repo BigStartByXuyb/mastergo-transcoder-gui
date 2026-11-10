@@ -94,8 +94,8 @@ function writeBrokenGroups(root) {
   );
 }
 
-function layoutOf(root, pending) {
-  return pending.inspect({ projectRoot: root, target: TARGET }).layout;
+function layoutOf(root, pending, mode) {
+  return pending.inspect({ projectRoot: root, target: TARGET, mode: mode }).layout;
 }
 
 function pendingFor(root) {
@@ -164,6 +164,24 @@ function caseImageWithoutGroups() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+function caseLayoutOnlyForA() {
+  const root = sandbox();
+  writeControls(root);
+  writeImage(root);
+  const pending = pendingFor(root);
+  assert.deepStrictEqual(
+    layoutOf(root, pending, "B"),
+    { needsGroups: false, waiting: 0 },
+    "B 不消费布局分组"
+  );
+  assert.deepStrictEqual(
+    layoutOf(root, pending, "AB"),
+    { needsGroups: true, waiting: 1 },
+    "AB 的 A 段仍消费布局分组"
+  );
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 function caseImageWithEmptyGroups() {
   const root = sandbox();
   writeControls(root);
@@ -215,6 +233,7 @@ try {
     ["待确认各节形状不随来源是否产出而变化", caseSectionShapesStayStable],
     ["没有位图就不是待办", caseNoImageNoTodo],
     ["有图没有表 = 要人确认", caseImageWithoutGroups],
+    ["布局停点只属于含 A 的路线", caseLayoutOnlyForA],
     ["空分组表也算有表", caseImageWithEmptyGroups],
     ["只有图、还没有控件清单", caseImageBeforeControls],
     ["只有图、类型产物在但条目清单缺失", caseImageWithoutCandidates],

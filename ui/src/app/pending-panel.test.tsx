@@ -104,6 +104,7 @@ function panel(state: string, overrides: Partial<Parameters<typeof PendingPanel>
     <PendingPanel
       projectRoot={drive("D", "work", "task-1")}
       target="DemoPage"
+      mode="A"
       taskId="task-1"
       runId="job-1"
       state={state}

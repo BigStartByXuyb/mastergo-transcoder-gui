@@ -76,9 +76,9 @@ describe("task-form", () => {
 
   it("路线能力只从后端表里查，不在前端解释 mode 字符串", () => {
     const policies = [
-      { mode: "A", routes: ["A"] as const, takesPageImage: true },
-      { mode: "B", routes: ["B"] as const, takesPageImage: false },
-      { mode: "AB", routes: ["A", "B"] as const, takesPageImage: true }
+      { mode: "A", routes: ["A"] as const, takesPageImage: true, startsWithPipelineA: true },
+      { mode: "B", routes: ["B"] as const, takesPageImage: false, startsWithPipelineA: false },
+      { mode: "AB", routes: ["A", "B"] as const, takesPageImage: true, startsWithPipelineA: false }
     ].map((item) => ({ ...item, routes: [...item.routes] }))
     expect(modePolicyOf(policies, " ab ")).toEqual(policies[2])
     expect(modePolicyOf(policies, "B")).toEqual(policies[1])

@@ -82,6 +82,7 @@ function makeBoard(options = {}) {
       inspect: (args) => {
         pendingCalls.push(args);
         if (options.pendingThrows) throw new Error("读不到清单");
+        if (options.pendingFor) return options.pendingFor(args);
         return options.pending || { icons: { available: true, needsNaming: true, needsRepair: false, mustName: [1, 2] }, translations: { available: false } };
       }
     },
@@ -629,6 +630,40 @@ async function caseLayoutRerunsAfterProgressWhenImageNeedsGroups() {
   fs.rmSync(project, { recursive: true, force: true });
 }
 
+async function caseBRealFailureIsNotReclassifiedByLayout() {
+  const project = makeProject();
+  const fx = makeBoard({
+    project: project,
+    pendingFor: (query) => ({
+      icons: { available: false },
+      translations: { available: false },
+      layout: { needsGroups: query.mode !== "B", waiting: query.mode === "B" ? 0 : 1 }
+    })
+  });
+  const id = fx.board.add({
+    projectRoot: project,
+    items: [{ link: LINK, target: "T1", mode: "B" }]
+  }).created[0];
+  fx.board.start(id);
+  const task = await waitForTask(fx.board, id, hasJob, "B 任务启动");
+  fx.runs.seed(task.jobId, {
+    id: task.jobId,
+    state: "failed",
+    request: {},
+    runs: [{
+      state: "failed",
+      steps: {},
+      failure: { stepName: "not-human", message: "B 的真实失败" }
+    }]
+  }, task.workDir);
+  await sleep(TICK + 300);
+  const after = fx.board.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(after.state, "failed", "B 不消费布局分组，真实失败不能被改判成待确认");
+  assert.ok(fx.pendingCalls.some((call) => call.mode === "B"), "看板判停点必须把任务的 mode 交给同一份清单");
+  fs.rmSync(fx.home, { recursive: true, force: true });
+  fs.rmSync(project, { recursive: true, force: true });
+}
+
 async function caseBadImageStopsBeforeLayoutRerun() {
   const project = makeProject();
   write(
@@ -941,6 +976,7 @@ async function main() {
     ["先选的设计稿位图：尺寸不符写在行上、条件解除自清", caseStagedImageNotice],
     ["A 路线没有页面 PNG 时停在待确认，不自动合并", casePipelineARequiresImageBeforeReady],
     ["从布局续跑完成也要按当前页面 PNG 检查分组", caseLayoutRerunsAfterProgressWhenImageNeedsGroups],
+    ["B 的真实失败不被布局停点改判", caseBRealFailureIsNotReclassifiedByLayout],
     ["坏图先停页面 PNG 核对点，不抢跑布局", caseBadImageStopsBeforeLayoutRerun],
     ["页面身份不合规时停在等图点，不从轮询逸出", caseUnsafeImageIdentityStopsInsteadOfThrowing],
     ["合并期间不因换图重启布局", caseMergingDoesNotRestartLayout],

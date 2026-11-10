@@ -34,6 +34,7 @@ export function BoardNewTaskDialog(props: {
   /** 按链接记的位图：一行一份（同一链接就是同一页）。 */
   images: Record<string, File>
   takesPageImage: boolean
+  startsWithPipelineA: boolean
   busy: boolean
   automation: string
   identity: ReturnType<typeof useIdentityFill>
@@ -47,7 +48,7 @@ export function BoardNewTaskDialog(props: {
   const form = props.form
   const identity = props.identity
   const rows = parseBoardRows(form.links, form.mode)
-  const pipelineA = form.mode === "A"
+  const pipelineA = props.startsWithPipelineA
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>

@@ -39,6 +39,7 @@ function show(patch: Partial<Parameters<typeof NewTaskCard>[0]> = {}) {
       identity={IDENTITY}
       image={null}
       takesPageImage={true}
+      startsWithPipelineA={true}
       onPickImage={vi.fn()}
       busy=""
       failure=""
@@ -67,14 +68,14 @@ describe("NewTaskCard 的选图", () => {
   })
 
   it("B 路线保留原有 Target/区域与可选参数，但不给选图", () => {
-    expect(show({ form: form({ mode: "B" }), takesPageImage: false }).length).toBe(0)
+    expect(show({ form: form({ mode: "B" }), takesPageImage: false, startsWithPipelineA: false }).length).toBe(0)
     expect(screen.getByLabelText("页面 Target")).toBeTruthy()
     expect(screen.getByLabelText("UI 区域")).toBeTruthy()
     expect(screen.getByLabelText("停在某一步")).toBeTruthy()
   })
 
   it("AB 路线同时保留 A 的选图与 B 的身份字段", () => {
-    expect(show({ form: form({ mode: "AB" }), takesPageImage: true }).length).toBe(1)
+    expect(show({ form: form({ mode: "AB" }), takesPageImage: true, startsWithPipelineA: false }).length).toBe(1)
     expect(screen.getByLabelText("页面 Target")).toBeTruthy()
     expect(screen.getByLabelText("UI 区域")).toBeTruthy()
   })

@@ -29,7 +29,7 @@
 | 顶栏那条入口该对哪一版动作 | `lib/update.js` · `function targetVersionOf(` | `readState`（五态与它同出一处）、`hint()` 的 `target`（顶栏只渲染，不自己比一遍）；被外壳下限挡住的那一版不参与 |
 | 这一页哪一步还没跑成（＝没跑完时那个断点） | `lib/page-progress.js` · `function unfinishedStepOf(` | `lib/board.js` 的 `resumeOf`（看板快照的 `task.resumeStep`：界面那条「从断点继续」据此给不给、以及说是「继续」还是「重跑一遍」）；`lib/routes.js` 的 `resumeLive`（运行还在时那条「从断点继续」，Target 按任务认回来的那份读登记表）；`lib/confirm.js` 的写回续跑（与「刚写入的文件所喂的第一步」取更早的那个，不跳过没跑成的那一步） |
 | 某一版能不能用在这一台上（外壳下限） | `lib/update.js` · `function usableHere(` | 「这一份可以切过去」（`switchable`：选版与版本表逐行都读它，清单都按 `manifestOf` 取）；与 `apply` 前那一刻的 `versionBlocked` 同源 |
-| 流水线 A 的自动布局范围 | `lib/autofill.js` · `const autoLayoutPipelineA =` | 看板任务由服务端发起（`lib/board.js` 的 `autoFillWaiting`）；A 在 `assist` / `auto` 下按页面 PNG 补布局分组，`off` 不调用模型 |
+| 布局停点是否属于这个 mode | `lib/pending.js` · `function layoutSection(` | `inspect` 的统一结论；看板语义停点、自动补输入、待确认队列与面板都读这一份，B 路线不产生布局停点 |
 | 图标 / 译文 / 术语自动写回的范围 | `lib/autofill.js` · `const canAutoOthers = automation === "auto";` | `assist` 只出候选并等确认；`auto` 写回并续跑；`off` 不调用模型。与设置页、待确认面板同一口径 |
 | 位图落地要等的那一步怎么说 | `lib/design-image.js` · `const NO_CANVAS_REASON =` | 界面那一块照后端给的原话显示（`/api/design-image` 的 `blocked`）；A 路线等图停点（`lib/board.js`）也拼这一句；表单指引不提步骤名，只说「流水线产出画板尺寸之后」 |
 | 本地记住的值什么时候写回 | `ui/src/app/use-remembered.ts` · `export function useRemembered<` | 两张「新建任务」表单（`ui/src/app/pipeline-page.tsx`、`board-page.tsx`）、看板筛选（`board-page.tsx`）、只看生效（`ui/src/app/use-only-effective.ts`） |
@@ -38,5 +38,5 @@
 | 分组表里能写哪些 ref（这一层的条目清单在哪、为空算不算参与分组） | `lib/layout-candidates.js` · `function refsOf(`、`function noCandidatesReason(`、`const CANDIDATES_MIN_PLUGIN_VERSION =` | 喂模型（`lib/layout-groups.js` 的 `candidatesInput`）、写回校验与候选清理（同文件的 `validateGroups` / `cleanGroups`） |
 | 跨仓同一套判据：ref 必须在本层条目里 / 不参与分组的层只许空表 | `lib/layout-groups.js` · `不在本层条目里: `、`这一层的条目清单是空的（这一层不参与分组）` | 写回校验（`validateGroups`）；插件那侧是 `gen-mw-wpf-layout.js` 的 `declaredGroups` / `requireNoDeclaredGroups` —— 两边的关键句要一起改 |
 | 只有一个字符串字段的地方那句整句（原因 + 怎么做） | `lib/errors.js` · `function failureSentence(` | `lib/mcp-token.js`（缺 token 那件事的整句）、`lib/board.js`（任务行上的 `error` / `designImage` 四处 catch）、`lib/autofill.js`（这一步的输入读不出来时交回给人的那句）；界面那侧同一条规矩在 `ui/src/lib/describe-failure.ts` 的 `failureText`（两端口径一起改） |
-| 一个 mode 的路线与页面 PNG 能力 | `lib/run.js` · `function modePolicies(` | 看板快照直接携带 `modes`；前端表单、详情页与取图编排只查这张表（`ui/src/lib/task-form.ts` 的 `modePolicyOf`），不自行解释 mode 字符串 |
+| 一个 mode 的路线、页面 PNG 与 A 自动入口能力 | `lib/run.js` · `function modePolicies(` | 看板快照直接携带 `modes`；前端表单、详情页、取图与启动编排只查这张表（`ui/src/lib/task-form.ts` 的 `modePolicyOf`），不自行解释 mode 字符串 |
 

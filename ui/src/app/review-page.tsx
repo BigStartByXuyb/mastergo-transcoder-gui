@@ -74,6 +74,7 @@ export function ReviewPage() {
     if (manualRoot.trim() && manualTarget.trim()) {
       return {
         source: "pipeline" as const,
+        mode: "",
         projectRoot: manualRoot.trim(),
         target: manualTarget.trim(),
         runId: "",
@@ -217,6 +218,7 @@ export function ReviewPage() {
             <PendingPanel
               projectRoot={active.projectRoot}
               target={active.target}
+              mode={active.mode}
               taskId={active.taskId}
               runId={active.runId}
               state={active.runState}

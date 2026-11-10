@@ -57,6 +57,7 @@ export function BoardPage() {
   const { settings } = useSettings()
   const currentMode = modePolicyOf(board?.modes, form.mode)
   const takesPageImage = currentMode?.takesPageImage === true
+  const startsWithPipelineA = currentMode?.startsWithPipelineA === true
 
   // 补完 Target 就写回链接行：任务创建与运行读的都是这一份文本。
   const identity = useIdentityFill({
@@ -131,7 +132,7 @@ export function BoardPage() {
       const added = await run(
         "add",
         async () => {
-          const created = form.mode === "A"
+          const created = startsWithPipelineA
             ? await startPipelineA({
                 items,
                 projectRoot,
@@ -268,6 +269,7 @@ export function BoardPage() {
         form={form}
         images={images}
         takesPageImage={takesPageImage}
+        startsWithPipelineA={startsWithPipelineA}
         busy={busy === "add"}
         automation={settings?.automation ?? "assist"}
         identity={identity}

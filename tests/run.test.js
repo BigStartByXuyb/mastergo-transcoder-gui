@@ -86,9 +86,9 @@ function caseRoutesOfMode() {
   assert.strictEqual(modeTakesRoute("B", "A"), false);
   assert.throws(() => modeTakesRoute("A", "C"), /路线只能是 A \/ B/);
   assert.deepStrictEqual(modePolicies(), [
-    { mode: "A", routes: ["A"], takesPageImage: true },
-    { mode: "B", routes: ["B"], takesPageImage: false },
-    { mode: "AB", routes: ["A", "B"], takesPageImage: true }
+    { mode: "A", routes: ["A"], takesPageImage: true, startsWithPipelineA: true },
+    { mode: "B", routes: ["B"], takesPageImage: false, startsWithPipelineA: false },
+    { mode: "AB", routes: ["A", "B"], takesPageImage: true, startsWithPipelineA: false }
   ], "界面能力表由同一个 routesOfMode 展开");
 }
 
