@@ -60,7 +60,7 @@ export function PipelinePage({
   /** 详情区现在看哪一步（空串 = 任务总览）。 */
   const [step, setStep] = useState("")
   /*
-   * 新建时先选好的设计稿位图：按链接记，与看板同一套（ui/src/lib/board-items.ts）——
+   * 新建时先选好的页面 PNG：按链接记，与看板同一套（ui/src/lib/board-items.ts）——
    * 还没填链接时选的那一份先记在「待认领」那一格，链接一填就归这一页；换成另一页就不算数。
    */
   const [images, setImages] = useState<Record<string, File>>({})
@@ -250,6 +250,7 @@ export function PipelinePage({
       {showForm && (
         <NewTaskCard
           form={form}
+          modes={board?.modes?.map((item) => item.mode) ?? []}
           onForm={patchForm}
           plugin={plugin}
           contract={contract}

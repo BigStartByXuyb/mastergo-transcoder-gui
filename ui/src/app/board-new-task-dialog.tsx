@@ -31,6 +31,7 @@ import { startActionLabel } from "@/lib/task-form"
 export function BoardNewTaskDialog(props: {
   open: boolean
   form: BoardTaskForm
+  modes: readonly string[]
   /** 按链接记的位图：一行一份（同一链接就是同一页）。 */
   images: Record<string, File>
   takesPageImage: boolean
@@ -91,6 +92,7 @@ export function BoardNewTaskDialog(props: {
             <ModeField
               label="默认模式"
               value={form.mode}
+              modes={props.modes}
               onChange={(mode) => props.onChange({ ...form, mode: mode as BoardTaskForm["mode"] })}
             />
             {/* 一行一个页面：走 A 路线时每行各配一张页面 PNG（一个任务一份）。 */}

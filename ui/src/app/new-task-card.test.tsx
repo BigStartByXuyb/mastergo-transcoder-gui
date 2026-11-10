@@ -6,7 +6,7 @@ import type { useIdentity } from "@/app/use-identity"
 import type { TaskForm } from "@/lib/task-form"
 
 /*
- * 新建任务卡片：走 A 路线时设计稿位图就在「可选」那一组里。
+ * 新建任务卡片：走 A 路线时页面 PNG 就在「可选」那一组里。
  * 页面 Target 空着也照给选图 —— 暂存件的键是任务 id，与页面名什么时候认回来无关。
  */
 
@@ -33,6 +33,7 @@ function show(patch: Partial<Parameters<typeof NewTaskCard>[0]> = {}) {
   const { container } = render(
     <NewTaskCard
       form={form()}
+      modes={["A", "B", "AB"]}
       onForm={() => undefined}
       plugin={null}
       contract={[]}

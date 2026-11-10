@@ -33,6 +33,7 @@ function show(patch: Partial<Parameters<typeof BoardNewTaskDialog>[0]> = {}) {
     <BoardNewTaskDialog
       open={true}
       form={form()}
+      modes={["A", "B", "AB"]}
       images={{}}
       takesPageImage={true}
       startsWithPipelineA={true}

@@ -57,6 +57,11 @@ export function fillTargets(text: string, targets: Map<string, string>): string 
 /* 还没填链接时选的那一份记在这一格（键是空串）：链接一填上就归那一页。 */
 const UNCLAIMED = ""
 
+/* 页面 PNG 的键只认去掉首尾空白的链接；选图、取图、换链接时保留图片共用这一条。 */
+function imageKey(link: string): string {
+  return link.trim()
+}
+
 /*
  * 选好的位图按链接记：链接行没了，那一份图跟着走 —— 暂存件是任务的一部分，不留没人认领的文件。
  * 「哪几行有链接」与解析同一处（lineParts），所以行怎么改都不会算岔。
@@ -66,7 +71,7 @@ export function keepPickedImages<T>(images: Record<string, T>, text: string): Re
   const live = new Set<string>([UNCLAIMED])
   for (const raw of text.split(/\r?\n/)) {
     const link = lineParts(raw).link
-    if (link) live.add(link)
+    if (link) live.add(imageKey(link))
   }
   return Object.fromEntries(Object.entries(images).filter(([link]) => live.has(link)))
 }
@@ -78,10 +83,11 @@ export function keepPickedImages<T>(images: Record<string, T>, text: string): Re
  */
 export function withPickedImage<T>(images: Record<string, T>, link: string, file: T | null): Record<string, T> {
   const next = { ...images }
+  const key = imageKey(link)
   delete next[UNCLAIMED]
-  delete next[link]
+  delete next[key]
   // 链接还空着时 link 就是 UNCLAIMED 那一格：这一份先记在待认领处，链接一填就归那一页。
-  if (file) next[link] = file
+  if (file) next[key] = file
   return next
 }
 
@@ -90,5 +96,5 @@ export function withPickedImage<T>(images: Record<string, T>, link: string, file
  * 看板每一行都有链接，所以那边总是直接命中自己那一格。
  */
 export function pickedForLink<T>(images: Record<string, T>, link: string): T | null {
-  return images[link] ?? images[UNCLAIMED] ?? null
+  return images[imageKey(link)] ?? images[UNCLAIMED] ?? null
 }

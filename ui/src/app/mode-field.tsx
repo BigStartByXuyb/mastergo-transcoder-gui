@@ -1,6 +1,6 @@
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { MODE_HINT } from "@/lib/task-form"
+import { MODE_HINT, TASK_MODE_OPTIONS } from "@/lib/task-form"
 
 /*
  * 路线这一项：下拉 + 说明。三条路线与它们的说法只有 lib/task-form.ts 的 MODE_HINT 那一处
@@ -10,14 +10,15 @@ import { MODE_HINT } from "@/lib/task-form"
  * 弹层每次重新定位，看起来像「选一下就跳位置」。
  */
 
-const MODES = Object.keys(MODE_HINT)
-
 export function ModeField(props: {
   /** 这一项在各自表单里叫什么：新建卡片叫「路线」，看板弹窗叫「默认模式」。 */
   label: string
   value: string
+  /** 后端能力表读到时以它为准；还没读到时才用本地展示表的顺序。 */
+  modes?: readonly string[]
   onChange: (mode: string) => void
 }) {
+  const modes = props.modes && props.modes.length > 0 ? props.modes : TASK_MODE_OPTIONS
   return (
     <div className="flex flex-col gap-2">
       <Label>{props.label}</Label>
@@ -26,14 +27,14 @@ export function ModeField(props: {
           <SelectValue>{props.value}</SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {MODES.map((mode) => (
+          {modes.map((mode) => (
             <SelectItem key={mode} value={mode}>
-              {MODE_HINT[mode]}
+              {MODE_HINT[mode] ?? mode}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
-      <p className="text-muted-foreground text-xs">{MODE_HINT[props.value] ?? ""}</p>
+      <p className="text-muted-foreground text-xs">{MODE_HINT[props.value] ?? props.value}</p>
     </div>
   )
 }

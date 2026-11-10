@@ -17,18 +17,19 @@ import type { PipelineStep, PluginSummary } from "@/lib/api"
 import { DESIGN_IMAGE_LABEL, READ_IMAGE_HINT, startActionLabel, type TaskForm } from "@/lib/task-form"
 
 /*
- * 新建任务卡片：填链接 / 工程目录 / Target / 区域 / 路线，走 A 路线时还能先把设计稿位图选上，
+ * 新建任务卡片：填链接 / 工程目录 / Target / 区域 / 路线，走 A 路线时还能先把页面 PNG 选上，
  * 然后「加入看板并开始」。只负责渲染与把用户输入交出去，取值链、候选与登记表写入都在 useIdentity；
- * 位图只是先拿着（跟着建出来的任务暂存，尺寸核对与落地在流水线跑到那一步之后，见 lib/design-image.js）。
+ * 页面 PNG 只是先拿着（跟着建出来的任务暂存，尺寸核对与落地在流水线跑到那一步之后，见 lib/design-image.js）。
  */
 
 type Props = {
   form: TaskForm
+  modes: readonly string[]
   onForm: (patch: Partial<TaskForm>) => void
   plugin: PluginSummary | null
   contract: PipelineStep[]
   identity: ReturnType<typeof useIdentity>
-  /** 新建时先选好的设计稿位图（还没暂存到磁盘，只是这一份文件）：走 A 路线时才有意义。 */
+  /** 新建时先选好的页面 PNG（还没暂存到磁盘，只是这一份文件）：走 A 路线时才有意义。 */
   image: File | null
   takesPageImage: boolean
   startsWithPipelineA: boolean
@@ -89,7 +90,12 @@ export function NewTaskCard(props: Props) {
                   onChange={(event) => onForm({ projectRoot: event.target.value })}
                 />
               </div>
-              <ModeField label="路线" value={form.mode} onChange={(mode) => onForm({ mode: mode as TaskForm["mode"] })} />
+              <ModeField
+                label="路线"
+                value={form.mode}
+                modes={props.modes}
+                onChange={(mode) => onForm({ mode: mode as TaskForm["mode"] })}
+              />
               {props.takesPageImage && (
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="run-image">{DESIGN_IMAGE_LABEL}</Label>

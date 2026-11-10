@@ -84,6 +84,13 @@ describe("withPickedImage", () => {
     expect(withPickedImage({ [LINK]: "a.png" }, LINK, "b.png")).toEqual({ [LINK]: "b.png" })
   })
 
+  it("链接首尾空白不改变图片键：写入、读取、换链接保留三处都归一", () => {
+    const picked = withPickedImage({}, `  ${LINK}  `, "a.png")
+    expect(picked).toEqual({ [LINK]: "a.png" })
+    expect(pickedForLink(picked, ` ${LINK} `)).toBe("a.png")
+    expect(keepPickedImages(picked, `  ${LINK}  `)).toEqual({ [LINK]: "a.png" })
+  })
+
   it("还没填链接时选的那一份记在待认领那一格，链接一填就归这一页", () => {
     const picked = withPickedImage({}, "", "a.png")
     expect(picked).toEqual({ "": "a.png" })

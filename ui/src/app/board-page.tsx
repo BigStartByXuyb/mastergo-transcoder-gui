@@ -264,6 +264,7 @@ export function BoardPage() {
       <BoardNewTaskDialog
         open={adding}
         form={form}
+        modes={board?.modes?.map((item) => item.mode) ?? []}
         images={images}
         takesPageImage={takesPageImage}
         startsWithPipelineA={startsWithPipelineA}

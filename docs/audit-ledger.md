@@ -326,4 +326,8 @@
 | 2026-11-10 GitHub 第 3 遍 | FIND-005 | 看板流程测试直接替换 `workdir.readManifest` 导出 | 已收 | `createBoard` 支持注入 `merge`；测试用注入的挂起实现控制合并，并在 `finally` 中先判断释放函数存在 |
 | 2026-11-10 GitHub 第 3 遍 | 非阻断 | `lib/layout-groups.js` 文件头把 AI 候选清理写成直接调用 `uniqueMembers` | 已收 | 注释改为实际消费者 `cleanGroups`；`uniqueMembers` 仍是两个清理/校验路径共用的内部实现 |
 | 2026-11-10 GitHub 第 3 遍 | 非阻断 | `commitPipelineAIdentities` 把同形状 identity 再逐字段映射一次 | 已收 | 直接把 `PreparedPipelineIdentity[]` 交给 `applyIdentities`，删除无语义的映射 |
+| 2026-11-10 GitHub 第 4 遍 | REVIEW-001 | 流水线页的页面 PNG 键会用未去空白的链接，选过图后可能被判缺图 | 已收 | `pickedForLink` / `withPickedImage` / `keepPickedImages` 统一走 `imageKey(link.trim())`；`board-items.test.ts` 补首尾空白回归 |
+| 2026-11-10 GitHub 第 4 遍 | 非阻断 | 路线能力来自后端能力表，但路线下拉仍有自己的本地列表 | 已收 | 新建卡片与看板弹窗把后端 `modes` 传给 `ModeField`；本地 `TASK_MODE_OPTIONS` 只在能力表尚未读到时兜底 |
+| 2026-11-10 GitHub 第 4 遍 | 非阻断 | 任务进入运行、失败、停止或待合并后，页面 PNG 停点缓存不主动清理 | 已收 | 离开页面 PNG 停点或任务停止时清理 `imageStopCache`；待合并、失败、停止、重新运行四条路径同步 |
+| 2026-11-10 GitHub 第 4 遍 | 非阻断 | 新建任务相关注释仍把页面 PNG 叫「设计稿位图」 | 已收 | `pipeline-page.tsx`、`new-task-card.tsx` 与对应用例统一改为「页面 PNG」 |
 
