@@ -71,6 +71,8 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
   // 「一致 / 不一致」直接读后端给的 matches（那条判据只有一处），界面不再拿 image+canvas 重算一遍。
   const matched = Boolean(state?.matches)
   const mismatch = Boolean(image && canvas && !matched)
+  const merging = task.state === "merging" || (task.state === "ready" && task.autoMerge)
+  const blocked = merging ? "任务正在合并，结束后才能换图" : (state?.blocked || "")
 
   return (
     <Card>
@@ -128,12 +130,12 @@ export function DesignImageCard({ task }: { task: BoardTask }) {
             onChange={picked.onChange}
           />
           {/* 不能传时按后端给的 reason 显示并禁用（判据在后端，这里只渲染）。 */}
-          <Button size="sm" variant="outline" disabled={busy !== "" || Boolean(state?.blocked)} onClick={() => picked.input.current?.click()}>
+          <Button size="sm" variant="outline" disabled={busy !== "" || Boolean(blocked)} onClick={() => picked.input.current?.click()}>
             {busy !== "" ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
             {image ? "换一张" : "选择 PNG…"}
           </Button>
           <span className="text-muted-foreground text-xs">
-            {state?.blocked || "按设计稿原始尺寸导出（不是截图工具随手截的那一张）"}
+            {blocked || "按设计稿原始尺寸导出（不是截图工具随手截的那一张）"}
           </span>
         </div>
       </CardContent>

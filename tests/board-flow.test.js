@@ -13,6 +13,7 @@ const path = require("path");
 const { createBoard } = require("../lib/board.js");
 const designImage = require("../lib/design-image.js");
 const { UserError } = require("../lib/errors.js");
+const workdir = require("../lib/workdir.js");
 const { png } = require("./image-fixtures.js");
 
 const LINK = "https://mastergo.com/goto/x?file=204689197363903&layer_id=1872:60904";
@@ -538,6 +539,82 @@ async function caseLayoutRerunsAfterProgressWhenImageNeedsGroups() {
   fs.rmSync(project, { recursive: true, force: true });
 }
 
+async function caseBadImageStopsBeforeLayoutRerun() {
+  const project = makeProject();
+  write(
+    path.join(project, "Generated", "runs", "T1", "dsl.snapshot.json"),
+    JSON.stringify({ dsl: { nodes: [{ type: "FRAME", id: "1:1", layoutStyle: { width: 1280, height: 1024 } }] } })
+  );
+  write(
+    path.join(project, "Generated", "_inputs", "T1.layout-group-candidates.json"),
+    JSON.stringify({ schemaVersion: "mw-wpf-layout-group-candidates/1", pageTarget: "T1", entries: [{ ref: "a" }, { ref: "b" }] })
+  );
+  const steps = [
+    contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
+  ];
+  const fx = makeBoard({ project: project, steps: steps });
+  const id = fx.board.add({ projectRoot: project, items: [{ link: LINK, target: "T1", mode: "A" }] }).created[0];
+  fx.board.start(id);
+  const task = await waitForTask(fx.board, id, hasJob, "任务启动");
+  write(path.join(workdir.inputsDir(task.workDir), "T1.design.png"), png(1280, 1023));
+  const before = fx.runs.started.length;
+  fx.runs.seed(task.jobId, { id: task.jobId, state: "done", request: { stopAfter: "" }, runs: [] }, task.workDir);
+
+  await sleep(TICK + 300);
+  const after = fx.board.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(after.state, "waiting", "坏图先停在页面 PNG 核对点");
+  assert.match(after.failure.message, /与画板尺寸不一致：图 1280×1023，画板 1280×1024/);
+  assert.strictEqual(fx.runs.started.length, before, "页面 PNG 不合格时不得先重启布局");
+
+  fs.rmSync(fx.home, { recursive: true, force: true });
+  fs.rmSync(project, { recursive: true, force: true });
+}
+
+async function caseMergingDoesNotRestartLayout() {
+  const project = makeProject();
+  write(
+    path.join(project, "Generated", "runs", "T1", "dsl.snapshot.json"),
+    JSON.stringify({ dsl: { nodes: [{ type: "FRAME", id: "1:1", layoutStyle: { width: 1280, height: 1024 } }] } })
+  );
+  write(
+    path.join(project, "Generated", "_inputs", "T1.layout-group-candidates.json"),
+    JSON.stringify({ schemaVersion: "mw-wpf-layout-group-candidates/1", pageTarget: "T1", entries: [{ ref: "a" }, { ref: "b" }] })
+  );
+  const steps = [
+    contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
+  ];
+  const fx = makeBoard({ project: project, steps: steps });
+  const id = fx.board.add({ projectRoot: project, autoMerge: false, items: [{ link: LINK, target: "T1", mode: "A" }] }).created[0];
+  fx.board.start(id);
+  const task = await waitForTask(fx.board, id, hasJob, "任务启动");
+  write(path.join(workdir.inputsDir(task.workDir), "T1.design.png"), png(1280, 1024));
+  write(workdir.layoutGroupsPath(task.workDir, "T1"), '{ "groups": [] }\n');
+  fx.runs.seed(task.jobId, { id: task.jobId, state: "done", request: { stopAfter: "" }, runs: [] }, task.workDir);
+  await sleep(TICK + 300);
+  assert.strictEqual(fx.board.snapshot().tasks.find((item) => item.id === id).state, "ready");
+
+  const originalReadManifest = workdir.readManifest;
+  let release;
+  workdir.readManifest = () => new Promise((resolve) => { release = resolve; });
+  try {
+    fx.board.mergeOne(id);
+    assert.strictEqual(fx.board.snapshot().tasks.find((item) => item.id === id).state, "merging");
+    fs.rmSync(workdir.layoutGroupsPath(task.workDir, "T1"), { force: true });
+    const before = fx.runs.started.length;
+    await sleep(TICK + 300);
+    const after = fx.board.snapshot().tasks.find((item) => item.id === id);
+    assert.strictEqual(after.state, "merging", "合并期间状态不被布局重跑覆盖");
+    assert.strictEqual(fx.runs.started.length, before, "合并期间不启动新的布局运行");
+  }
+  finally {
+    release(null);
+    workdir.readManifest = originalReadManifest;
+  }
+
+  fs.rmSync(fx.home, { recursive: true, force: true });
+  fs.rmSync(project, { recursive: true, force: true });
+}
+
 /*
  * 「哪一步吃布局输入」按契约的 Inputs 判，不看步骤名：契约里叫 layout 的那一步若不吃分组表，
  * 界面就不会把位图恢复入口挂到别的步骤上（另有一个 decoy 故意叫这个名字）。
@@ -712,6 +789,8 @@ async function main() {
     ["先选的设计稿位图：尺寸不符写在行上、条件解除自清", caseStagedImageNotice],
     ["A 路线没有页面 PNG 时停在待确认，不自动合并", casePipelineARequiresImageBeforeReady],
     ["从布局续跑完成也要按当前页面 PNG 检查分组", caseLayoutRerunsAfterProgressWhenImageNeedsGroups],
+    ["坏图先停页面 PNG 核对点，不抢跑布局", caseBadImageStopsBeforeLayoutRerun],
+    ["合并期间不因换图重启布局", caseMergingDoesNotRestartLayout],
     ["任务离开看板（移除 / 清理 / 清空区域）：暂存件跟着走", caseRemovalDropsStagedImage],
     ["「哪一步吃布局输入」按契约的 Inputs 判，不认步骤名", caseLayoutStepComesFromContract],
     ["「能不能续、续哪一步」的两支边界（没跑过 / 跑到一半）", caseResumeStepBoundary],

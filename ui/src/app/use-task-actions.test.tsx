@@ -54,8 +54,8 @@ afterEach(() => {
 })
 
 describe("useTaskActions", () => {
-  it("开始：建任务 + 启动，两次都把最新看板换上去，并回建出来的任务 id", async () => {
-    const fx = harness((url) => (url.includes("/api/board/add") ? ok({ ok: true, board: { tasks: [] }, created: ["t9"] }) : ok({ ok: true, board: { tasks: [{ id: "t9" }] } })))
+  it("开始：建任务后把最新看板换上去，并回建出来的任务 id", async () => {
+    const fx = harness(() => ok({ ok: true, board: { tasks: [] }, created: ["t9"] }))
 
     let created = ""
     await act(async () => {
@@ -69,12 +69,9 @@ describe("useTaskActions", () => {
       })
       created = added?.created[0] ?? ""
     })
-    await act(async () => {
-      await fx.result.current.startJob(created)
-    })
 
     expect(created).toBe("t9")
-    expect(fx.boards.length).toBe(2)
+    expect(fx.boards.length).toBe(1)
   })
 
   it("续跑：换掉界面上的运行与日志起点，并把后端给的说法提示出来", async () => {

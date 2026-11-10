@@ -125,23 +125,13 @@ describe("picksForCreated", () => {
 describe("startStagedTasks", () => {
   const empty = { workRoot: "", limits: { logical: 1, limit: 1 }, running: 0, tasks: [] } as Board
 
-  it("AB 暂存完成后逐条启动，不会停在排队中", async () => {
+  it("暂存完成后逐条启动，不会停在排队中", async () => {
     const started: string[] = []
-    const result = await startStagedTasks("AB", empty, ["task-1", "task-2"], async (taskId) => {
+    const result = await startStagedTasks(empty, ["task-1", "task-2"], async (taskId) => {
       started.push(taskId)
       return { board: { ...empty, running: started.length } }
     })
     expect(started).toEqual(["task-1", "task-2"])
     expect(result.running).toBe(2)
-  })
-
-  it("B 不经过页面 PNG 暂存后启动这条支路", async () => {
-    let called = false
-    const result = await startStagedTasks("B", empty, ["task-1"], async () => {
-      called = true
-      return { board: empty }
-    })
-    expect(called).toBe(false)
-    expect(result).toBe(empty)
   })
 })

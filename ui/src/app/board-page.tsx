@@ -136,6 +136,7 @@ export function BoardPage() {
           let autoMerge = form.autoMerge
           let overwrite = form.overwrite
           let stopAfter = form.stopAfter.trim()
+          const startsAfterStaging = modeTakesRoute(form.mode, "A")
           if (form.mode === "A") {
             const prepared = await preparePipelineAItems(items, projectRoot, {
               useAi: (settings?.automation ?? "assist") !== "off"
@@ -153,7 +154,7 @@ export function BoardPage() {
             autoMerge,
             overwrite,
             stopAfter,
-            deferStart: modeTakesRoute(form.mode, "A"),
+            deferStart: startsAfterStaging,
             items: outgoing
           })
           // 建完任务才暂存（暂存件按任务 id 落键）：门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts。
@@ -162,7 +163,9 @@ export function BoardPage() {
             setBoard(await discardCreatedTasks(created.board, created.created))
             throw new Error(staged.failure)
           }
-          const board = await startStagedTasks(form.mode, created.board, created.created, api.boardStart)
+          const board = startsAfterStaging
+            ? await startStagedTasks(created.board, created.created, api.boardStart)
+            : created.board
           return { ...created, board }
         },
         applyBoard

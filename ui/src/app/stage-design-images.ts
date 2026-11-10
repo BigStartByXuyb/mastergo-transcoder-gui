@@ -48,17 +48,12 @@ export function picksForCreated(
   })
 }
 
-/*
- * 带 A 段的任务要等页面 PNG 暂存成功后再逐条显式启动。
- * A 与 AB 都读同一个路线判据；不跑 A 的 B 任务已经由看板正常调度，这里不重复启动。
- */
+/* 创建方暂存完页面 PNG（如有）后，逐条显式启动刚建的任务。 */
 export async function startStagedTasks(
-  mode: string,
   board: Board,
   taskIds: string[],
   start: (taskId: string) => Promise<{ board: Board }>
 ): Promise<Board> {
-  if (!modeTakesRoute(mode, "A")) return board
   let current = board
   for (const taskId of taskIds) current = (await start(taskId)).board
   return current

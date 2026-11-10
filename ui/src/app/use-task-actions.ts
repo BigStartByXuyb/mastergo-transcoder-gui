@@ -41,10 +41,6 @@ export function useTaskActions(input: {
       return await run("start", () => api.boardAdd(body), (added) => input.onBoard(added.board))
     },
 
-    startJob: async (taskId: string) => {
-      await run("start", () => api.boardStart(taskId), (payload) => input.onBoard(payload.board))
-    },
-
     stop: async (task: BoardTask) => {
       await run("stop", () => api.boardStop(task.id), (payload) => input.onBoard(payload.board))
     },

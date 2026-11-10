@@ -14,7 +14,7 @@ import { drive } from "@/lib/settings-fixtures"
 const WORK_DIR = drive("D", "work", "task-1")
 const INPUTS = drive("D", "work", "task-1", "Generated", "_inputs")
 
-function task(): BoardTask {
+function task(patch: Partial<BoardTask> = {}): BoardTask {
   return {
     id: "task-1",
     createdAt: "",
@@ -41,7 +41,8 @@ function task(): BoardTask {
     failure: null,
     merge: null,
     resolutions: {},
-    error: ""
+    error: "",
+    ...patch
   } as unknown as BoardTask
 }
 
@@ -101,6 +102,14 @@ describe("DesignImageCard", () => {
     render(<DesignImageCard task={task()} />)
 
     expect(await screen.findByText(/先让流水线跑到第 2 步/)).toBeTruthy()
+    expect(screen.getByRole("button", { name: /选择 PNG/ }).hasAttribute("disabled")).toBe(true)
+  })
+
+  it("合并期间冻结换图，避免合并与布局重跑同时读写工作目录", async () => {
+    stub(state())
+    render(<DesignImageCard task={task({ state: "merging" })} />)
+
+    expect(await screen.findByText("任务正在合并，结束后才能换图")).toBeTruthy()
     expect(screen.getByRole("button", { name: /选择 PNG/ }).hasAttribute("disabled")).toBe(true)
   })
 

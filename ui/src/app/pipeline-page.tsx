@@ -34,7 +34,7 @@ import { keepPickedImages, pickedForLink, withPickedImage } from "@/lib/board-it
 import { describeFailure } from "@/lib/describe-failure"
 import { candidatesForLink } from "@/lib/identity-flow"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
-import { discardCreatedTasks, stagePickedImages } from "@/app/stage-design-images"
+import { discardCreatedTasks, stagePickedImages, startStagedTasks } from "@/app/stage-design-images"
 import { AUTOMATION_LABEL, modeTakesRoute, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
 import { decideStartIdentity } from "@/lib/task-start"
 import { canStop, hasProducts } from "@/lib/task-state"
@@ -233,7 +233,14 @@ export function PipelinePage({
           return
         }
       }
-      await actions.startJob(created)
+      try {
+        setBoard(await startStagedTasks(added.board, [created], api.boardStart))
+      }
+      catch (error) {
+        setFailure(describeFailure(error))
+        await reload()
+        return
+      }
       setCurrentId(created)
       setImages({})
       window.location.hash = "pipeline?task=" + created
