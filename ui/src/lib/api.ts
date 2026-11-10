@@ -461,7 +461,7 @@ export type BoardModePolicy = {
   mode: "A" | "B" | "AB"
   routes: ("A" | "B")[]
   takesPageImage: boolean
-  startsWithPipelineA: boolean
+  runsPipelineAOnly: boolean
 }
 
 export type BoardTaskRun = {
@@ -964,7 +964,7 @@ export const api = {
   pluginSources: () => request<PluginSources>("/api/plugin/sources"),
   /** 手动切换插件来源：override 是来源 id，空串 = 回到自动查找顺序。 */
   pluginOverride: (override: string) => post<PluginSources>("/api/plugin/override", { override }),
-  /** 作业A 的读图输入：这一页放着哪张图、尺寸对不对、分组表在不在。 */
+  /** 作业A 的读图输入：这一页放着哪张图、尺寸对不对、现在能不能传。 */
   designImage: (projectRoot: string, target: string, taskId: string) =>
     request<{ ok: true; image: DesignImage }>(
       "/api/design-image?projectRoot=" +

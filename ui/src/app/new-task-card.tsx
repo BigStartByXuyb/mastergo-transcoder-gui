@@ -32,7 +32,7 @@ type Props = {
   /** 新建时先选好的页面 PNG（还没暂存到磁盘，只是这一份文件）：走 A 路线时才有意义。 */
   image: File | null
   takesPageImage: boolean
-  startsWithPipelineA: boolean
+  runsPipelineAOnly: boolean
   onPickImage: (file: File | null) => void
   busy: string
   failure: string
@@ -44,14 +44,14 @@ type Props = {
 
 export function NewTaskCard(props: Props) {
   const { form, onForm, plugin, contract, identity, busy, failure, canStop, onStart, onStop, onReloadContract } = props
-  const pipelineA = props.startsWithPipelineA
+  const pipelineAOnly = props.runsPipelineAOnly
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>新建转码任务</CardTitle>
         <CardDescription>
-          {pipelineA
+          {pipelineAOnly
             ? "流水线 A：上传 MasterGo 页面链接和页面 PNG。页面身份、布局分组、图标命名与译文会自动补齐。"
             : "一次任务只走一条路线；选 AB 会跑两次（先 A 后 B），两条进度独立，互不覆盖。任务会进看板，跑完自动合并回工程。"}
         </CardDescription>
@@ -67,7 +67,7 @@ export function NewTaskCard(props: Props) {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {/* 路线不需要的组整组不渲染；标题与提示语在 field-group.tsx 一处。 */}
-        <div className={pipelineA ? "grid items-start gap-4" : "grid items-start gap-4 sm:grid-cols-2"}>
+        <div className={pipelineAOnly ? "grid items-start gap-4" : "grid items-start gap-4 sm:grid-cols-2"}>
           <div className="flex flex-col gap-4">
             <FieldGroup {...FIELD_GROUPS.required}>
               <div className="flex flex-col gap-2">
@@ -105,7 +105,7 @@ export function NewTaskCard(props: Props) {
               )}
             </FieldGroup>
 
-            {!pipelineA && (
+            {!pipelineAOnly && (
               <FieldGroup {...FIELD_GROUPS.optional}>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="run-stop">停在某一步</Label>
@@ -128,7 +128,7 @@ export function NewTaskCard(props: Props) {
             )}
           </div>
 
-          {!pipelineA && (
+          {!pipelineAOnly && (
             <div className="flex flex-col gap-4">
               <FieldGroup {...FIELD_GROUPS.autofill}>
                 <div className="flex flex-col gap-2">

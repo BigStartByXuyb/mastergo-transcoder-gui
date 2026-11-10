@@ -35,7 +35,7 @@ export function BoardNewTaskDialog(props: {
   /** 按链接记的位图：一行一份（同一链接就是同一页）。 */
   images: Record<string, File>
   takesPageImage: boolean
-  startsWithPipelineA: boolean
+  runsPipelineAOnly: boolean
   busy: boolean
   automation: string
   identity: ReturnType<typeof useIdentityFill>
@@ -49,7 +49,7 @@ export function BoardNewTaskDialog(props: {
   const form = props.form
   const identity = props.identity
   const rows = parseBoardRows(form.links, form.mode)
-  const pipelineA = props.startsWithPipelineA
+  const pipelineAOnly = props.runsPipelineAOnly
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
@@ -57,14 +57,14 @@ export function BoardNewTaskDialog(props: {
         <DialogHeader>
           <DialogTitle>创建任务</DialogTitle>
           <DialogDescription>
-            {pipelineA
+            {pipelineAOnly
               ? "流水线 A：一行一个 MasterGo 页面链接，并为每行选择按画板原始尺寸导出的 PNG。"
               : "一行一个链接；要指定页面名就写 链接 | Target。没写的可以点下面的「按链接补 Target / 区域」。"}
           </DialogDescription>
         </DialogHeader>
 
         {/* 三组的标题与提示语与新建任务那张表单同源（ui/src/app/field-group.tsx 的 FIELD_GROUPS）。 */}
-        <div className={pipelineA ? "grid items-start gap-4" : "grid items-start gap-4 sm:grid-cols-2"}>
+        <div className={pipelineAOnly ? "grid items-start gap-4" : "grid items-start gap-4 sm:grid-cols-2"}>
           <FieldGroup {...FIELD_GROUPS.required}>
             <div className="flex flex-col gap-2">
               <Label htmlFor="board-project">工程目录</Label>
@@ -82,7 +82,7 @@ export function BoardNewTaskDialog(props: {
                 id="board-links"
                 rows={5}
                 spellCheck={false}
-                placeholder={pipelineA
+                placeholder={pipelineAOnly
                   ? "https://mastergo.com/goto/xxxx?file=…&layer_id=…\nhttps://mastergo.com/goto/yyyy?file=…&layer_id=…"
                   : "https://mastergo.com/goto/xxxx?file=…&layer_id=…\nhttps://mastergo.com/goto/yyyy?file=…&layer_id=… | F3Align"}
                 value={form.links}
@@ -101,7 +101,7 @@ export function BoardNewTaskDialog(props: {
             )}
           </FieldGroup>
 
-          {!pipelineA && (
+          {!pipelineAOnly && (
             <FieldGroup {...FIELD_GROUPS.autofill}>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="board-ui">Ui 前缀</Label>
@@ -125,7 +125,7 @@ export function BoardNewTaskDialog(props: {
           )}
         </div>
 
-        {!pipelineA && (
+        {!pipelineAOnly && (
           <FieldGroup {...FIELD_GROUPS.optional}>
             <>
               <div className="flex flex-col gap-2">

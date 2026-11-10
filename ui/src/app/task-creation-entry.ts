@@ -43,7 +43,7 @@ export async function createTasksForMode(input: {
   api?: TaskCreationApi
 }): Promise<CreateTasksResult> {
   const links = input.items.map((item) => item.link)
-  if (input.policy.startsWithPipelineA) {
+  if (input.policy.runsPipelineAOnly) {
     return startPipelineA({
       items: input.items,
       projectRoot: input.projectRoot,

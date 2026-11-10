@@ -25,7 +25,7 @@ import { useOnlyEffective } from "@/app/use-only-effective"
 import { requestDefaultsOf } from "@/app/prepare-pipeline-items"
 import { createTasksForMode, taskEntryFailure } from "@/app/task-creation-entry"
 import { useRemembered } from "@/app/use-remembered"
-import { api, type Board } from "@/lib/api"
+import { api, type Board, type BoardModePolicy } from "@/lib/api"
 import { fillTargets, keepPickedImages, parseBoardItems, withPickedImage } from "@/lib/board-items"
 import { filterTasks, hasFilters, readBoardFilters, writeBoardFilters } from "@/lib/board-filters"
 import { coverageOf, visibleByCoverage, type Coverage } from "@/lib/board-effective"
@@ -57,7 +57,7 @@ export function BoardPage() {
   const { settings } = useSettings()
   const currentMode = modePolicyOf(board?.modes, form.mode)
   const takesPageImage = currentMode?.takesPageImage === true
-  const startsWithPipelineA = currentMode?.startsWithPipelineA === true
+  const runsPipelineAOnly = currentMode?.runsPipelineAOnly === true
 
   // 补完 Target 就写回链接行：任务创建与运行读的都是这一份文本。
   const identity = useIdentityFill({
@@ -123,8 +123,8 @@ export function BoardPage() {
       toast.error(failure)
       return
     }
-    const policy = currentMode
-    if (!policy) return
+    // taskEntryFailure 已在同样条件上返回；这里只把通过校验的事实收窄给 TypeScript。
+    const policy = currentMode as BoardModePolicy
 
     if (addInFlight.current) return
     addInFlight.current = true
@@ -267,7 +267,7 @@ export function BoardPage() {
         modes={board?.modes?.map((item) => item.mode) ?? []}
         images={images}
         takesPageImage={takesPageImage}
-        startsWithPipelineA={startsWithPipelineA}
+        runsPipelineAOnly={runsPipelineAOnly}
         busy={busy === "add"}
         automation={settings?.automation ?? "assist"}
         identity={identity}

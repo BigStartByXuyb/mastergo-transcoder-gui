@@ -31,7 +31,7 @@ import { useRunLog } from "@/app/use-run-log"
 import { useTaskActions } from "@/app/use-task-actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { api, type BoardAddBody, type PipelineStep, type PluginSummary } from "@/lib/api"
+import { api, type BoardAddBody, type BoardModePolicy, type PipelineStep, type PluginSummary } from "@/lib/api"
 import { keepPickedImages, pickedForLink, withPickedImage } from "@/lib/board-items"
 import { describeFailure } from "@/lib/describe-failure"
 import { candidatesForLink } from "@/lib/identity-flow"
@@ -74,7 +74,7 @@ export function PipelinePage({
   const task = taskOf(currentId)
   const currentMode = modePolicyOf(board?.modes, form.mode)
   const takesPageImage = currentMode?.takesPageImage === true
-  const pipelineAMode = currentMode?.startsWithPipelineA ? currentMode.mode : null
+  const pipelineAMode = currentMode?.runsPipelineAOnly ? currentMode.mode : null
   /* 给哪一屏：见上面「两屏」那段 —— 没有路由里的任务 id，或快照里已经没有这个任务，就给表单。 */
   const showForm = !taskId || !task
   const showProducts = task !== null && hasProducts(task.state)
@@ -198,8 +198,8 @@ export function PipelinePage({
       setFailure(failure)
       return
     }
-    const policy = currentMode
-    if (!policy) return
+    // taskEntryFailure 已在同样条件上返回；这里只把通过校验的事实收窄给 TypeScript。
+    const policy = currentMode as BoardModePolicy
     if (startInFlight.current) return
     startInFlight.current = true
     setStarting(true)
@@ -257,7 +257,7 @@ export function PipelinePage({
           identity={identity}
           image={stagedImage}
           takesPageImage={takesPageImage}
-          startsWithPipelineA={pipelineAMode !== null}
+          runsPipelineAOnly={pipelineAMode !== null}
           onPickImage={(file) => setImages((current) => withPickedImage(current, form.link, file))}
           busy={actions.busy || (starting ? "start" : "")}
           failure={failure}

@@ -8,7 +8,7 @@ const policy: BoardModePolicy = {
   mode: "B",
   routes: ["B"],
   takesPageImage: false,
-  startsWithPipelineA: false
+  runsPipelineAOnly: false
 }
 
 describe("taskEntryFailure", () => {

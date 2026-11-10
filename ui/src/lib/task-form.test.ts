@@ -77,9 +77,9 @@ describe("task-form", () => {
 
   it("路线能力只从后端表里查，不在前端解释 mode 字符串", () => {
     const policies: BoardModePolicy[] = [
-      { mode: "A", routes: ["A"], takesPageImage: true, startsWithPipelineA: true },
-      { mode: "B", routes: ["B"], takesPageImage: false, startsWithPipelineA: false },
-      { mode: "AB", routes: ["A", "B"], takesPageImage: true, startsWithPipelineA: false }
+      { mode: "A", routes: ["A"], takesPageImage: true, runsPipelineAOnly: true },
+      { mode: "B", routes: ["B"], takesPageImage: false, runsPipelineAOnly: false },
+      { mode: "AB", routes: ["A", "B"], takesPageImage: true, runsPipelineAOnly: false }
     ]
     expect(modePolicyOf(policies, " ab ")).toEqual(policies[2])
     expect(modePolicyOf(policies, "B")).toEqual(policies[1])
