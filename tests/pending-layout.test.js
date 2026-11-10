@@ -95,7 +95,9 @@ function writeBrokenGroups(root) {
 }
 
 function layoutOf(root, pending, mode) {
-  return pending.inspect({ projectRoot: root, target: TARGET, mode: mode }).layout;
+  const query = { projectRoot: root, target: TARGET };
+  if (mode !== undefined) query.mode = mode;
+  return pending.inspect(query).layout;
 }
 
 function pendingFor(root) {
@@ -178,6 +180,11 @@ function caseLayoutOnlyForA() {
     layoutOf(root, pending, "AB"),
     { needsGroups: true, waiting: 1 },
     "AB 的 A 段仍消费布局分组"
+  );
+  assert.deepStrictEqual(
+    layoutOf(root, pending, ""),
+    { needsGroups: false, waiting: 0 },
+    "手填条目没有路线信息，不能假定它消费布局分组"
   );
   fs.rmSync(root, { recursive: true, force: true });
 }

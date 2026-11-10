@@ -53,7 +53,7 @@ export function occupiesSlot(state: string): boolean {
 
 /*
  * 在跑：占着这一位、又不是停在语义停点上（「等待」那一档正是等人补输入的时候）。
- * 「写回并续跑」（待确认页与布局确认面板的「确认并继续」）只在不在跑的时候给 ——
+ * 待确认页的「确认并继续」只在不在跑的时候给 ——
  * 跑着的时候再来一次会起第二次运行。
  */
 export function isInFlight(state: string): boolean {
@@ -61,8 +61,7 @@ export function isInFlight(state: string): boolean {
 }
 
 /*
- * 「运行中不给续跑」这句说法的唯一一处：布局确认与待确认面板的「写入并续跑」都挂它。
- * 判据是上面的 isInFlight；说法只写一处，两个入口不会一个拦一个不拦、也不会各说各的。
+ * 「运行中不给续跑」这句说法的唯一一处：待确认面板的「写入并续跑」挂它。
  */
 export function inFlightNote(action: string): string {
   return "流水线正在跑：等它停下来再点「" + action + "」。"

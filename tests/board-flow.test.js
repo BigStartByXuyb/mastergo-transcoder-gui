@@ -771,6 +771,14 @@ async function caseMergingDoesNotRestartLayout() {
   fx.runs.seed(task.jobId, { id: task.jobId, state: "done", request: { stopAfter: "" }, runs: [] }, task.workDir);
   await sleep(TICK + 300);
   assert.strictEqual(fx.board.snapshot().tasks.find((item) => item.id === id).state, "ready");
+  assert.match(
+    fx.board.imageWriteBlock({ id: id, workDir: task.workDir, target: "T1" }),
+    /任务已经产出/
+  );
+  assert.throws(
+    () => fx.board.requireImageWrite({ id: id, workDir: task.workDir, target: "T1" }),
+    (error) => error.code === "TASK_IMAGE_FINAL"
+  );
 
   try {
     fx.board.mergeOne(id);

@@ -7,8 +7,8 @@ import { drive } from "@/lib/settings-fixtures"
 
 /*
  * 待确认面板：清单渲染与「确认并继续」的门禁。
- * 跑着的时候不给续跑这一条与布局确认面板同一处判据（ui/src/lib/task-state.ts 的 isInFlight），
- * 这里只验这个入口真的按它拦住了、并把原因说出来。
+ * 跑着的时候不给续跑这一条由 ui/src/lib/task-state.ts 的 isInFlight 统一判定；
+ * 这里验这个入口真的按它拦住了、并把原因说出来。
  */
 
 function pending(): Pending {

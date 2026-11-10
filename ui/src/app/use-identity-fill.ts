@@ -4,7 +4,12 @@ import { toast } from "sonner"
 import { api, type IdentityCandidate } from "@/lib/api"
 import type { BoardItem } from "@/lib/board-items"
 import { describeFailure } from "@/lib/describe-failure"
-import { applyIdentity, candidatesForLink } from "@/lib/identity-flow"
+import {
+  applyIdentities,
+  applyIdentity,
+  candidatesForLink,
+  type ApplyIdentityInput
+} from "@/lib/identity-flow"
 import { pickIdentityCandidate } from "@/lib/identity-pick"
 import { adoptsIdentityWithoutConfirm } from "@/lib/task-form"
 
@@ -35,6 +40,7 @@ export function useIdentityFill(options: {
     setRoot(projectRoot.trim())
     options.onFailure("")
     const next: FillRow[] = []
+    const autoWrite: { row: number; input: ApplyIdentityInput; basis: string }[] = []
     const filled = new Map<string, string>()
     try {
       for (const item of items) {
@@ -61,19 +67,37 @@ export function useIdentityFill(options: {
           )
           continue
         }
-        await applyIdentity({ link: item.link, projectRoot, pageName: named.pageName, item: decision.pick })
-        filled.set(item.link, decision.pick.target)
+        const input = { link: item.link, projectRoot, pageName: named.pageName, item: decision.pick }
+        autoWrite.push({ row: next.length, input, basis: decision.pick.basis })
         next.push({
-          kind: "filled",
+          kind: "pick",
           link: item.link,
-          target: decision.pick.target,
-          ui: decision.pick.ui,
-          basis: decision.pick.basis
+          pageName: named.pageName,
+          items: got.items,
+          reason: decision.reason
         })
       }
       setRows(next)
-      if (filled.size > 0) options.onFilled(filled)
+      if (autoWrite.length > 0) {
+        await applyIdentities(autoWrite.map((entry) => entry.input))
+        const committed = [...next]
+        for (const entry of autoWrite) {
+          const item = entry.input.item
+          committed[entry.row] = {
+            kind: "filled",
+            link: entry.input.link,
+            target: item.target,
+            ui: item.ui,
+            basis: entry.basis
+          }
+          filled.set(entry.input.link, item.target)
+        }
+        setRows(committed)
+        options.onFilled(filled)
+      }
     } catch (error) {
+      // 候选行先上屏：批次写回失败时，人能看到哪些行还需要手动处理；登记表由后端整批回滚。
+      setRows(next)
       options.onFailure(describeFailure(error))
     } finally {
       setBusy("")
