@@ -275,6 +275,7 @@ function caseWriteBatchIsAtomic() {
     JSON.parse(fs.readFileSync(registryPath, "utf8")).pages.map((page) => page.target),
     ["F1Keep", "F3ManualAlign", "F2Teach"]
   );
+  assert.deepStrictEqual(fs.readdirSync(path.dirname(registryPath)).sort(), ["page-registry.json"], "原子写回不留临时件");
   fs.rmSync(root, { recursive: true, force: true });
 }
 

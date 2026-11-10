@@ -1,6 +1,7 @@
 import { startPipelineA } from "@/app/start-pipeline-a"
 import {
   createTasksWithPageImages,
+  pageImageFailure,
   type CreateTasksResult,
   type CreatedTasks,
   type TaskCreationApi
@@ -43,6 +44,8 @@ export async function createTasksForMode(input: {
   api?: TaskCreationApi
 }): Promise<CreateTasksResult> {
   const links = input.items.map((item) => item.link)
+  const missingImage = pageImageFailure(input.policy.takesPageImage, links, input.images)
+  if (missingImage) return { ok: false, failure: missingImage, board: null }
   if (input.policy.runsPipelineAOnly) {
     return startPipelineA({
       items: input.items,

@@ -149,8 +149,10 @@ export function BoardPage() {
               }
             })
           })
-          if (created.board) setBoard(created.board)
-          if (!created.ok) throw new Error(created.failure)
+          if (!created.ok) {
+            if (created.board) setBoard(created.board)
+            throw new Error(created.failure)
+          }
           return created
         },
         applyBoard

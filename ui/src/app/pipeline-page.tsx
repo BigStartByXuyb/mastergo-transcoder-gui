@@ -204,13 +204,13 @@ export function PipelinePage({
     startInFlight.current = true
     setStarting(true)
     try {
-      const images = stagedImage ? { [link]: stagedImage } : {}
+      const stagedImages = stagedImage ? { [link]: stagedImage } : {}
       const result = await createTasksForMode({
         items: [{ link, target: "", mode: form.mode }],
         projectRoot,
         policy,
         useAi: automation !== "off",
-        images,
+        images: stagedImages,
         add: api.boardAdd,
         otherRequest: async () => {
           const body = await prepareStartRequest(projectRoot, link)
