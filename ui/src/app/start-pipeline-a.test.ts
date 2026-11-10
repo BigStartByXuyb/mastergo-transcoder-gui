@@ -5,6 +5,7 @@ import type { Board } from "@/lib/api"
 
 const LINK = "https://mastergo.com/goto/x?file=1&layer_id=2:3"
 const empty: Board = { workRoot: "", limits: { logical: 1, limit: 1 }, running: 0, tasks: [] }
+const file = { name: "picked.png", size: 1, arrayBuffer: async () => new Uint8Array([1]).buffer } as File
 
 function json(body: unknown) {
   return new Response(JSON.stringify(body), { status: 200 })
@@ -15,25 +16,6 @@ afterEach(() => {
 })
 
 describe("startPipelineA", () => {
-  it("缺页面 PNG 时在身份准备之前就返回", async () => {
-    const fetchMock = vi.fn()
-    vi.stubGlobal("fetch", fetchMock)
-    const add = vi.fn()
-
-    const result = await startPipelineA({
-      items: [{ link: LINK, target: "", mode: "A" }],
-      projectRoot: "project",
-      useAi: true,
-      takesPageImage: true,
-      images: {},
-      add
-    })
-
-    expect(result).toEqual({ ok: false, failure: "含 A 的路线需要为每个页面选择页面 PNG", board: null })
-    expect(fetchMock).not.toHaveBeenCalled()
-    expect(add).not.toHaveBeenCalled()
-  })
-
   it("按同一顺序完成身份准备、建任务、身份写回与启动", async () => {
     const events: string[] = []
     vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
@@ -57,7 +39,10 @@ describe("startPipelineA", () => {
     })
 
     const api = {
-      stageDesignImage: vi.fn(),
+      stageDesignImage: vi.fn(async () => {
+        events.push("stage")
+        return { ok: true as const }
+      }),
       boardRemove: vi.fn(),
       board: vi.fn(),
       boardStart: vi.fn(async () => {
@@ -69,8 +54,7 @@ describe("startPipelineA", () => {
       items: [{ link: LINK, target: "", mode: "A" }],
       projectRoot: "project",
       useAi: true,
-      takesPageImage: false,
-      images: {},
+      images: { [LINK]: file },
       add: async (body) => {
         events.push("add")
         expect(body).toMatchObject({
@@ -85,7 +69,7 @@ describe("startPipelineA", () => {
       api
     })
 
-    expect(events).toEqual(["add", "apply", "start"])
+    expect(events).toEqual(["add", "stage", "apply", "start"])
     expect(result).toMatchObject({ ok: true, created: ["task-1"] })
   })
 })

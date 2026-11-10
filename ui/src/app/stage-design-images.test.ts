@@ -97,21 +97,6 @@ describe("createTasksWithPageImages", () => {
     expect(result).toMatchObject({ ok: false, failure: "这张图不是位图" + STAGE_FAILED_NOTE })
   })
 
-  it("需要页面 PNG 的路线少图时在创建前由共用编排拒绝", async () => {
-    const api = fakeApi()
-    const result = await createTasksWithPageImages({
-      takesPageImage: true,
-      links: ["https://a", "https://b"],
-      images: { "https://a": file("a") },
-      add: vi.fn(),
-      api
-    })
-
-    expect(api.stageDesignImage).not.toHaveBeenCalled()
-    expect(api.boardStart).not.toHaveBeenCalled()
-    expect(result).toEqual({ ok: false, failure: "含 A 的路线需要为每个页面选择页面 PNG", board: null })
-  })
-
   it("回滚失败也继续撤销其余任务，并回读服务端看板", async () => {
     const refreshed = board(0)
     const api = fakeApi({

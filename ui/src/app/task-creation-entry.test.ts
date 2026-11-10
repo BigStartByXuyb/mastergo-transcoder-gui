@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 
 import { createTasksForMode, taskEntryFailure } from "@/app/task-creation-entry"
-import type { Board, BoardModePolicy } from "@/lib/api"
+import type { Board, BoardAddBody, BoardModePolicy } from "@/lib/api"
 
 const empty: Board = { workRoot: "", limits: { logical: 1, limit: 1 }, running: 0, tasks: [] }
 const policy: BoardModePolicy = {
@@ -25,8 +25,55 @@ describe("taskEntryFailure", () => {
 })
 
 describe("createTasksForMode", () => {
-  it("AB 缺页面 PNG 时先拒绝，不准备请求，也不写身份登记", async () => {
+  it("A 缺页面 PNG 时在身份准备前拒绝，不建任务也不启动", async () => {
     const otherRequest = vi.fn()
+    const add = vi.fn()
+    const api = {
+      stageDesignImage: vi.fn(),
+      boardRemove: vi.fn(),
+      board: vi.fn(),
+      boardStart: vi.fn()
+    }
+    const result = await createTasksForMode({
+      items: [{ link: "https://mastergo.com/goto/a?file=1&layer_id=2:3", target: "", mode: "A" }],
+      projectRoot: "project",
+      policy: {
+        mode: "A",
+        routes: ["A"],
+        takesPageImage: true,
+        runsPipelineAOnly: true
+      },
+      useAi: true,
+      images: {},
+      add,
+      otherRequest,
+      api
+    })
+
+    expect(result).toEqual({
+      ok: false,
+      failure: "含 A 的路线需要为每个页面选择页面 PNG",
+      board: null
+    })
+    expect(otherRequest).not.toHaveBeenCalled()
+    expect(add).not.toHaveBeenCalled()
+    expect(api.stageDesignImage).not.toHaveBeenCalled()
+    expect(api.boardStart).not.toHaveBeenCalled()
+  })
+
+  it("AB 缺页面 PNG 时先拒绝，不准备请求，也不建任务", async () => {
+    const body: BoardAddBody = {
+      projectRoot: "project",
+      ui: "",
+      autoMerge: true,
+      overwrite: true,
+      stopAfter: "",
+      items: []
+    }
+    const otherRequest = vi.fn(async () => ({
+      ok: true as const,
+      body
+    }))
     const add = vi.fn()
     const result = await createTasksForMode({
       items: [{ link: "https://mastergo.com/goto/a?file=1&layer_id=2:3", target: "", mode: "AB" }],

@@ -33,7 +33,7 @@ export const STAGE_FAILED_NOTE = "（先选的那张图没暂存上，" + ROLLBA
 export const ROLLED_BACK_NOTE = "（" + ROLLBACK_OUTCOME + "）"
 const PAGE_IMAGE_REQUIRED = "含 A 的路线需要为每个页面选择页面 PNG"
 
-/** 页面 PNG 是含 A 路线的硬前置：创建入口在身份准备前也复用这一条。 */
+/** 页面 PNG 是含 A 路线的硬前置：创建入口在建任务与身份准备前统一执行这一条。 */
 export function pageImageFailure(
   takesPageImage: boolean,
   links: string[],
@@ -132,7 +132,7 @@ async function rollbackCreation(
 }
 
 /**
- * 唯一出口：缺图预检 → 建任务 → 暂存页面 PNG（只对含 A 的路线）→ 创建事务收尾 → 失败整批回滚 → 逐条显式启动。
+ * 唯一出口：建任务 → 暂存页面 PNG（只对含 A 的路线）→ 创建事务收尾 → 失败整批回滚 → 逐条显式启动。
  * 启动中途失败也把所有刚建任务都尝试一遍，再回读服务端看板，避免半批任务停在延后启动态。
  */
 export async function createTasksWithPageImages(input: {
@@ -145,8 +145,6 @@ export async function createTasksWithPageImages(input: {
   api?: TaskCreationApi
 }): Promise<CreateTasksResult> {
   const apiClient = input.api ?? api
-  const missingImage = pageImageFailure(input.takesPageImage, input.links, input.images)
-  if (missingImage) return { ok: false, failure: missingImage, board: null }
   const created = await input.add()
   const picks = routePicks(input.takesPageImage, picksForCreated(created.board, created.created, input.images))
   const stageFailure = await sendAll(apiClient, picks)

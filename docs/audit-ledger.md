@@ -322,7 +322,7 @@
 | 2026-11-10 GitHub 第 3 遍 | FIND-001 | 只有延后启动的排队任务时，「启动全部」仍可点击但没有效果 | 已收 | 看板快照交出 `deferStart`，`canStartAll` 只统计 `queued && !deferStart`；`task-start.test.ts` 补两条门禁用例 |
 | 2026-11-10 GitHub 第 3 遍 | FIND-002 | 看板页与流水线页各自维护创建编排与失败出口 | 已收 | 两个页面共用 `createTasksForMode`，页面只保留表单状态、错误呈现、导航与提示 |
 | 2026-11-10 GitHub 第 3 遍 | FIND-003 | 两个创建入口重复维护工程、链接与路线校验 | 已收 | 统一走 `taskEntryFailure`；提示文案只有这一份，页面只决定 toast 或内联显示 |
-| 2026-11-10 GitHub 第 3 遍 | FIND-004 | 页面 PNG 的硬前置校验排在身份准备之后 | 已收 | `startPipelineA` 在取设计页名、候选和模型调用之前调用 `pageImageFailure`；回归断言缺图时不发请求、不建任务 |
+| 2026-11-10 GitHub 第 3 遍 | FIND-004 | 页面 PNG 的硬前置校验排在身份准备之后 | 已收 | 第 7 遍再收口到 `createTasksForMode`：A 在身份准备前、AB 在请求准备前按同一条 `pageImageFailure` 拒绝；回归断言缺图时不发请求、不建任务 |
 | 2026-11-10 GitHub 第 3 遍 | FIND-005 | 看板流程测试直接替换 `workdir.readManifest` 导出 | 已收 | `createBoard` 支持注入 `merge`；测试用注入的挂起实现控制合并，并在 `finally` 中先判断释放函数存在 |
 | 2026-11-10 GitHub 第 3 遍 | 非阻断 | `lib/layout-groups.js` 文件头把 AI 候选清理写成直接调用 `uniqueMembers` | 已收 | 注释改为实际消费者 `cleanGroups`；`uniqueMembers` 仍是两个清理/校验路径共用的内部实现 |
 | 2026-11-10 GitHub 第 3 遍 | 非阻断 | `commitPipelineAIdentities` 把同形状 identity 再逐字段映射一次 | 已收 | 直接把 `PreparedPipelineIdentity[]` 交给 `applyIdentities`，删除无语义的映射 |
@@ -334,4 +334,5 @@
 | 2026-11-10 GitHub 第 5 遍 | 非阻断 | 两个新建入口的路线标题不一致，源码注释仍混用「设计稿位图」 | 已收 | 路线标题统一为「路线」；`lib/`、`ui/src/` 与对应用例中的旧称统一改为「页面 PNG」 |
 | 2026-11-10 GitHub 第 6 遍 | REVIEW-001 | `startsWithPipelineA` 实际表示「只跑 A」，名字会让后续维护者误把 AB 也纳入自动身份分支 | 已收 | 字段与全部消费者同批改名为 `runsPipelineAOnly`；A / B / AB 能力表与前端用例同步 |
 | 2026-11-10 GitHub 第 6 遍 | 非阻断 | 页面 PNG 读接口注释仍提到已删除的分组表；两个入口在共同校验后保留 TypeScript 收窄死分支 | 已收 | 注释改为「图在不在、尺寸对不对、现在能不能传」；共同校验后使用显式 `BoardModePolicy` 收窄 |
+| 2026-11-10 GitHub 第 7 遍 | REVIEW-001 | 页面 PNG 的「必需且已选」预检在创建入口、A 编排与创建编排重复三次 | 已收 | `createTasksForMode` 只调用一次 `pageImageFailure`；`startPipelineA` 与 `createTasksWithPageImages` 不再重判，A 仍在身份准备前、AB 仍在请求准备前拒绝；对应用例同步 |
 

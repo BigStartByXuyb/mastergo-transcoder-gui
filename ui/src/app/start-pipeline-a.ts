@@ -6,7 +6,6 @@ import {
 } from "@/app/prepare-pipeline-items"
 import {
   createTasksWithPageImages,
-  pageImageFailure,
   type CreateTasksResult,
   type CreatedTasks,
   type TaskCreationApi
@@ -17,13 +16,10 @@ export async function startPipelineA(input: {
   items: BoardItem[]
   projectRoot: string
   useAi: boolean
-  takesPageImage: boolean
   images: Record<string, File>
   add: (body: BoardAddBody) => Promise<CreatedTasks>
   api?: TaskCreationApi
 }): Promise<CreateTasksResult> {
-  const missingImage = pageImageFailure(input.takesPageImage, input.items.map((item) => item.link), input.images)
-  if (missingImage) return { ok: false, failure: missingImage, board: null }
   const prepared = await preparePipelineAItems(input.items, input.projectRoot, { useAi: input.useAi })
   if (!prepared.ok) return { ok: false, failure: prepared.reason, board: null }
 
@@ -34,7 +30,7 @@ export async function startPipelineA(input: {
     items: prepared.items
   }
   return await createTasksWithPageImages({
-    takesPageImage: input.takesPageImage,
+    takesPageImage: true,
     links: prepared.items.map((item) => item.link),
     images: input.images,
     beforeStart: () => commitPipelineAIdentities(prepared.identities),

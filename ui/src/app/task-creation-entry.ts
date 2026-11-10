@@ -51,7 +51,6 @@ export async function createTasksForMode(input: {
       items: input.items,
       projectRoot: input.projectRoot,
       useAi: input.useAi,
-      takesPageImage: input.policy.takesPageImage,
       images: input.images,
       add: input.add,
       api: input.api
