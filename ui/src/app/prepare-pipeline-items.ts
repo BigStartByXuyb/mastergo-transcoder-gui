@@ -1,4 +1,4 @@
-import { api, type BoardAddBody } from "@/lib/api"
+import { api, type BoardAddBody, type IdentityCandidate } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import type { BoardItem } from "@/lib/board-items"
 import { applyIdentity, candidatesForLink } from "@/lib/identity-flow"
@@ -11,16 +11,50 @@ import { pickIdentityCandidate } from "@/lib/identity-pick"
 
 export type PreparedPipelineItem = BoardItem & { ui: string }
 export type PipelineARequestDefaults = Pick<BoardAddBody, "ui" | "autoMerge" | "overwrite" | "stopAfter">
+export type RequestDefaultsInput = {
+  ui: string
+  autoMerge: boolean
+  overwrite: boolean
+  stopAfter: string
+}
+export type PreparedPipelineIdentity = {
+  link: string
+  projectRoot: string
+  pageName: string
+  item: IdentityCandidate
+}
 
 export type PreparedPipelineItems =
-  | { ok: true; items: PreparedPipelineItem[]; defaults: PipelineARequestDefaults }
+  | {
+      ok: true
+      items: PreparedPipelineItem[]
+      defaults: PipelineARequestDefaults
+      identities: PreparedPipelineIdentity[]
+    }
   | { ok: false; reason: string }
 
-async function prepareOne(item: BoardItem, projectRoot: string, useAi: boolean): Promise<PreparedPipelineItem | string> {
+export function requestDefaultsOf(input: RequestDefaultsInput): PipelineARequestDefaults {
+  return {
+    ui: input.ui.trim(),
+    autoMerge: input.autoMerge,
+    overwrite: input.overwrite,
+    stopAfter: input.stopAfter.trim()
+  }
+}
+
+const PIPELINE_A_REQUEST_DEFAULTS = requestDefaultsOf({
+  ui: "",
+  autoMerge: true,
+  overwrite: true,
+  stopAfter: ""
+})
+
+async function prepareOne(
+  item: BoardItem,
+  projectRoot: string,
+  useAi: boolean
+): Promise<{ item: PreparedPipelineItem; identity: PreparedPipelineIdentity } | string> {
   try {
-    if (item.target.trim()) {
-      return "流水线 A 只收 MasterGo 链接；`链接 | Target` 只用于 B / AB。请删掉 A 行的 Target 后重试。"
-    }
     const named = await api.designPageName(item.link)
     const base = { link: item.link, projectRoot, pageName: named.pageName, ui: "" }
     let got = await candidatesForLink({ ...base, useAi: false, autoAdopt: true })
@@ -30,28 +64,45 @@ async function prepareOne(item: BoardItem, projectRoot: string, useAi: boolean):
       decision = pickIdentityCandidate(got.items, got.blocked, { autoOnly: true })
     }
     if (!decision.pick) return decision.reason
-    await applyIdentity({ ...base, item: decision.pick })
-    return { ...item, target: decision.pick.target, ui: decision.pick.ui }
+    return {
+      item: { ...item, target: decision.pick.target, ui: decision.pick.ui },
+      identity: { link: item.link, projectRoot, pageName: named.pageName, item: decision.pick }
+    }
   } catch (error) {
     return describeFailure(error)
   }
 }
 
-/** 逐项准备，避免多页同时改写同一个项目登记表。 */
+/** 逐项只读准备；身份写回在任务创建事务内由 commitPipelineAIdentities 一次完成。 */
 export async function preparePipelineAItems(
   items: BoardItem[],
   projectRoot: string,
   options: { useAi: boolean }
 ): Promise<PreparedPipelineItems> {
   const prepared: PreparedPipelineItem[] = []
+  const identities: PreparedPipelineIdentity[] = []
   for (const item of items) {
     const result = await prepareOne(item, projectRoot, options.useAi)
     if (typeof result === "string") return { ok: false, reason: result }
-    prepared.push(result)
+    prepared.push(result.item)
+    identities.push(result.identity)
   }
   return {
     ok: true,
     items: prepared,
-    defaults: { ui: "", autoMerge: true, overwrite: true, stopAfter: "" }
+    defaults: PIPELINE_A_REQUEST_DEFAULTS,
+    identities
+  }
+}
+
+/** 任务已经创建、页面 PNG 已经暂存后写回身份；任一条失败由创建编排整批撤销任务。 */
+export async function commitPipelineAIdentities(identities: PreparedPipelineIdentity[]): Promise<void> {
+  for (const identity of identities) {
+    await applyIdentity({
+      link: identity.link,
+      projectRoot: identity.projectRoot,
+      pageName: identity.pageName,
+      item: identity.item
+    })
   }
 }

@@ -28,7 +28,9 @@ type TaskCreationApi = {
  * 暂存没成时接在后端原话后面的那半句：只有这一处说（两个新建入口都显示同一句）。
  * 它只在回滚确实成功后使用：刚建的任务已撤销；用户补一张图后再提交。
  */
-export const STAGE_FAILED_NOTE = "（先选的那张图没暂存上，刚建的任务已撤销；修好后重新提交）"
+const ROLLBACK_OUTCOME = "刚建的任务已撤销；修好后重新提交"
+export const STAGE_FAILED_NOTE = "（先选的那张图没暂存上，" + ROLLBACK_OUTCOME + "）"
+export const ROLLED_BACK_NOTE = "（" + ROLLBACK_OUTCOME + "）"
 const PAGE_IMAGE_REQUIRED = "流水线 A 需要为每个页面选择页面 PNG"
 
 /*
@@ -97,8 +99,26 @@ async function reloadBoard(apiClient: TaskCreationApi): Promise<Board | null> {
   }
 }
 
+async function rollbackCreation(
+  apiClient: TaskCreationApi,
+  created: CreatedTasks,
+  failure: string,
+  note: string
+): Promise<CreateTasksResult> {
+  const rollback = await discardCreatedTasks(apiClient, created.board, created.created)
+  const refreshed = await reloadBoard(apiClient)
+  const consequence = rollback.failure == null
+    ? note
+    : "（撤销刚建任务失败：" + describeFailure(rollback.failure) + (refreshed ? "；看板已重新读取" : "") + "）"
+  return {
+    ok: false,
+    failure: failure + consequence,
+    board: refreshed ?? (rollback.failure == null ? rollback.board : null)
+  }
+}
+
 /**
- * 唯一出口：建任务 → 暂存页面 PNG（只对含 A 的路线）→ 失败整批回滚 → 逐条显式启动。
+ * 唯一出口：缺图预检 → 建任务 → 暂存页面 PNG（只对含 A 的路线）→ 创建事务收尾 → 失败整批回滚 → 逐条显式启动。
  * 启动中途失败也把所有刚建任务都尝试一遍，再回读服务端看板，避免半批任务停在延后启动态。
  */
 export async function createTasksWithPageImages(input: {
@@ -106,6 +126,8 @@ export async function createTasksWithPageImages(input: {
   links: string[]
   images: Record<string, File>
   add: () => Promise<CreatedTasks>
+  /** 任务与页面 PNG 都已落地后、启动前的必要写回；失败会连同刚建任务一起撤销。 */
+  beforeStart?: () => Promise<void>
   api?: TaskCreationApi
 }): Promise<CreateTasksResult> {
   const apiClient = input.api ?? api
@@ -116,15 +138,14 @@ export async function createTasksWithPageImages(input: {
   const picks = routePicks(input.takesPageImage, picksForCreated(created.board, created.created, input.images))
   const stageFailure = await sendAll(apiClient, picks)
   if (stageFailure) {
-    const rollback = await discardCreatedTasks(apiClient, created.board, created.created)
-    const refreshed = await reloadBoard(apiClient)
-    const consequence = rollback.failure == null
-      ? STAGE_FAILED_NOTE
-      : "（撤销刚建任务失败：" + describeFailure(rollback.failure) + (refreshed ? "；看板已重新读取" : "") + "）"
-    return {
-      ok: false,
-      failure: stageFailure + consequence,
-      board: refreshed ?? (rollback.failure == null ? rollback.board : null)
+    return rollbackCreation(apiClient, created, stageFailure, STAGE_FAILED_NOTE)
+  }
+  if (input.beforeStart) {
+    try {
+      await input.beforeStart()
+    }
+    catch (error) {
+      return rollbackCreation(apiClient, created, describeFailure(error), ROLLED_BACK_NOTE)
     }
   }
 

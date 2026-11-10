@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import {
   createTasksWithPageImages,
+  ROLLED_BACK_NOTE,
   STAGE_FAILED_NOTE
 } from "@/app/stage-design-images"
 import type { Board } from "@/lib/api"
@@ -142,6 +143,32 @@ describe("createTasksWithPageImages", () => {
     expect(api.board).toHaveBeenCalled()
     expect(result).toMatchObject({ ok: false, board: refreshed })
     expect(result.ok ? "" : result.failure).toContain("撤销刚建任务失败：删除失败")
+  })
+
+  it("身份写回失败时撤销已建任务与暂存件，不启动", async () => {
+    const api = fakeApi()
+    const result = await createTasksWithPageImages({
+      takesPageImage: true,
+      links: ["https://a", "https://b"],
+      images: { "https://a": file("a"), "https://b": file("b") },
+      beforeStart: async () => { throw new Error("登记表写入失败") },
+      add: async () => ({
+        created: ["task-1", "task-2"],
+        board: {
+          ...empty,
+          tasks: [
+            { id: "task-1", request: { link: "https://a" } },
+            { id: "task-2", request: { link: "https://b" } }
+          ] as Board["tasks"]
+        }
+      }),
+      api
+    })
+
+    expect(api.stageDesignImage).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(api.boardRemove).mock.calls.map(([taskId]) => taskId)).toEqual(["task-1", "task-2"])
+    expect(api.boardStart).not.toHaveBeenCalled()
+    expect(result).toMatchObject({ ok: false, failure: "登记表写入失败" + ROLLED_BACK_NOTE })
   })
 
   it("启动中途失败也尝试其余任务，再回读真实看板", async () => {

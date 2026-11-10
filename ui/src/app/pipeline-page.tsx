@@ -25,7 +25,11 @@ import { ClampText } from "@/app/clamp-text"
 import { createTasksWithPageImages } from "@/app/stage-design-images"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentity } from "@/app/use-identity"
-import { preparePipelineAItems } from "@/app/prepare-pipeline-items"
+import {
+  commitPipelineAIdentities,
+  preparePipelineAItems,
+  requestDefaultsOf
+} from "@/app/prepare-pipeline-items"
 import { useRemembered } from "@/app/use-remembered"
 import { useRunLog } from "@/app/use-run-log"
 import { useTaskActions } from "@/app/use-task-actions"
@@ -142,7 +146,10 @@ export function PipelinePage({
     if (stopStep) setStep(stopStep)
   }, [stopStep, task?.jobId])
 
-  async function prepareStartRequest(projectRoot: string, link: string): Promise<BoardAddBody | null> {
+  async function prepareStartRequest(
+    projectRoot: string,
+    link: string
+  ): Promise<{ body: BoardAddBody; beforeStart?: () => Promise<void> } | null> {
     if (form.mode === "A") {
       const prepared = await preparePipelineAItems([{ link, target: "", mode: "A" }], projectRoot, {
         useAi: automation !== "off"
@@ -152,10 +159,13 @@ export function PipelinePage({
         return null
       }
       return {
-        projectRoot,
-        ...prepared.defaults,
-        deferStart: true,
-        items: prepared.items
+        body: {
+          projectRoot,
+          ...prepared.defaults,
+          deferStart: true,
+          items: prepared.items
+        },
+        beforeStart: () => commitPipelineAIdentities(prepared.identities)
       }
     }
 
@@ -182,14 +192,19 @@ export function PipelinePage({
       if (decision.reason) setFailure(decision.reason)
       return null
     }
-    return {
-      projectRoot,
+    const defaults = requestDefaultsOf({
       ui: decision.ui,
       autoMerge: true,
-      stopAfter: form.stopAfter,
       overwrite: form.overwrite,
-      deferStart: true,
-      items: [{ link, target: decision.target, mode: form.mode as "A" | "B" | "AB" }]
+      stopAfter: form.stopAfter
+    })
+    return {
+      body: {
+        projectRoot,
+        ...defaults,
+        deferStart: true,
+        items: [{ link, target: decision.target, mode: form.mode as "A" | "B" | "AB" }]
+      }
     }
   }
 
@@ -209,13 +224,14 @@ export function PipelinePage({
     startInFlight.current = true
     setStarting(true)
     try {
-      const body = await prepareStartRequest(projectRoot, link)
-      if (!body) return
+      const prepared = await prepareStartRequest(projectRoot, link)
+      if (!prepared) return
       const result = await createTasksWithPageImages({
         takesPageImage: takesPageImage,
-        links: body.items.map((item) => item.link),
+        links: prepared.body.items.map((item) => item.link),
         images: stagedImage ? { [link]: stagedImage } : {},
-        add: () => api.boardAdd(body)
+        beforeStart: prepared.beforeStart,
+        add: () => api.boardAdd(prepared.body)
       })
       if (result.board) setBoard(result.board)
       if (!result.ok) {

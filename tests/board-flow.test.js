@@ -588,6 +588,24 @@ async function caseLayoutRerunsAfterProgressWhenImageNeedsGroups() {
   await sleep(TICK + 300);
   assert.ok(fx.runs.started.some((request) => request.progress === "layoutManifest"),
     "即使本次运行本身就是从布局续起，只要当前页面 PNG 缺分组表也要重推");
+
+  const stored = JSON.parse(fs.readFileSync(path.join(fx.home, "board.json"), "utf8"));
+  stored[0].state = "running";
+  stored[0].jobId = "";
+  write(path.join(fx.home, "board.json"), JSON.stringify(stored, null, 2) + "\n");
+  const restartedRuns = makeRuns(steps);
+  const restarted = createBoard({
+    runs: restartedRuns.api,
+    pending: null,
+    layout: { register: () => ({ ok: true }) },
+    artifacts: { stepsOf: () => [{ id: 8, name: "layoutManifest", status: "ok", seconds: 1, note: "" }] },
+    home: fx.home
+  });
+  const restartedTask = restarted.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(restartedTask.state, "running", "重启对表后缺分组表也要重新进入运行");
+  assert.ok(restartedRuns.started.some((request) => request.progress === "layoutManifest"),
+    "运行已丢失时也要按当前页面 PNG 重推布局，不能直接待合并");
+
   fs.rmSync(fx.home, { recursive: true, force: true });
   fs.rmSync(project, { recursive: true, force: true });
 }

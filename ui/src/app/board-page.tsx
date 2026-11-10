@@ -22,7 +22,11 @@ import { useValueRunner } from "@/app/use-action-runner"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentityFill } from "@/app/use-identity-fill"
 import { useOnlyEffective } from "@/app/use-only-effective"
-import { preparePipelineAItems } from "@/app/prepare-pipeline-items"
+import {
+  commitPipelineAIdentities,
+  preparePipelineAItems,
+  requestDefaultsOf
+} from "@/app/prepare-pipeline-items"
 import { useRemembered } from "@/app/use-remembered"
 import { api, type Board } from "@/lib/api"
 import { fillTargets, keepPickedImages, parseBoardItems, withPickedImage } from "@/lib/board-items"
@@ -131,12 +135,8 @@ export function BoardPage() {
         "add",
         async () => {
           let outgoing = items
-          let defaults = {
-            ui: form.ui.trim(),
-            autoMerge: form.autoMerge,
-            overwrite: form.overwrite,
-            stopAfter: form.stopAfter.trim()
-          }
+          let beforeStart: (() => Promise<void>) | undefined
+          let defaults = requestDefaultsOf(form)
           if (form.mode === "A") {
             const prepared = await preparePipelineAItems(items, projectRoot, {
               useAi: (settings?.automation ?? "assist") !== "off"
@@ -144,11 +144,13 @@ export function BoardPage() {
             if (!prepared.ok) throw new Error(prepared.reason)
             outgoing = prepared.items
             defaults = prepared.defaults
+            beforeStart = () => commitPipelineAIdentities(prepared.identities)
           }
           const created = await createTasksWithPageImages({
             takesPageImage: takesPageImage,
             links: outgoing.map((item) => item.link),
             images,
+            beforeStart,
             add: () => api.boardAdd({
               projectRoot,
               ...defaults,
