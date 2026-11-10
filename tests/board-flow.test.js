@@ -504,7 +504,7 @@ async function casePipelineARequiresImageBeforeReady() {
   const fx = makeBoard({ project: project });
   const added = fx.board.add({
     projectRoot: project,
-    autoMerge: true,
+    autoMerge: false,
     items: [{ link: LINK, target: "T1", mode: "A" }]
   });
   const id = added.created[0];
@@ -538,9 +538,9 @@ async function casePipelineARequiresImageBeforeReady() {
 
   // 模拟进程重启：磁盘上原本还在运行的旧状态会被 load 改成 stopped，
   // 登记表即使显示全部完成，也必须重新经过页面 PNG 门禁。
-  stored[0].state = "running";
+  stored[0].state = "waiting";
   stored[0].jobId = "";
-  stored[0].error = "自动补输入已到上限";
+  stored[0].error = "";
   write(path.join(fx.home, "board.json"), JSON.stringify(stored, null, 2) + "\n");
   const restarted = createBoard({
     runs: makeRuns().api,
@@ -557,6 +557,11 @@ async function casePipelineARequiresImageBeforeReady() {
   assert.strictEqual(afterRestart.state, "waiting", "重启对表不得绕过页面 PNG 门禁");
   assert.match(afterRestart.failure.message, /页面 PNG/);
   assert.strictEqual(afterRestart.error, "", "进入等图停点要清掉旧错误，任务行只显示当前结论");
+
+  designImage.save({ projectRoot: afterRestart.workDir, target: "T1", data: png(1280, 1024).toString("base64") });
+  await sleep(TICK + 300);
+  const settled = restarted.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(settled.state, "ready", "重启后的等图任务补上合格图要重新结算");
 
   fs.rmSync(fx.home, { recursive: true, force: true });
   fs.rmSync(project, { recursive: true, force: true });

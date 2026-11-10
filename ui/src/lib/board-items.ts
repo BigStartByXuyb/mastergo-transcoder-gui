@@ -62,18 +62,34 @@ function imageKey(link: string): string {
   return link.trim()
 }
 
+function completePageLink(link: string): boolean {
+  const text = imageKey(link)
+  return /[?&]file=[^&#]+/.test(text) && /[?&]layer_id=[^&#]+/.test(text)
+}
+
 /*
  * 选好的位图按链接记：链接行没了，那一份图跟着走 —— 暂存件是任务的一部分，不留没人认领的文件。
  * 「哪几行有链接」与解析同一处（lineParts），所以行怎么改都不会算岔。
- * 空链接那一格是「选的时候还没填链接」（见 pickedForLink）：它还没认领到哪一页，不算行没了。
+ * 空链接那一格是「选的时候还没填链接」：一旦输入正好指向一个完整页面，它就归那一页；
+ * 链接之后换成另一页时，已认领的那一份随旧链接一起清掉。
  */
 export function keepPickedImages<T>(images: Record<string, T>, text: string): Record<string, T> {
   const live = new Set<string>([UNCLAIMED])
+  const complete = new Set<string>()
   for (const raw of text.split(/\r?\n/)) {
     const link = lineParts(raw).link
-    if (link) live.add(imageKey(link))
+    if (link) {
+      live.add(imageKey(link))
+      if (completePageLink(link)) complete.add(imageKey(link))
+    }
   }
-  return Object.fromEntries(Object.entries(images).filter(([link]) => live.has(link)))
+  const next = Object.fromEntries(Object.entries(images).filter(([link]) => live.has(link)))
+  const claimedLink = complete.size === 1 ? complete.values().next().value : ""
+  if (next[UNCLAIMED] && claimedLink) {
+    next[claimedLink] = next[UNCLAIMED]
+    delete next[UNCLAIMED]
+  }
+  return next
 }
 
 /*
@@ -92,9 +108,10 @@ export function withPickedImage<T>(images: Record<string, T>, link: string, file
 }
 
 /*
- * 这一页现在的图：按链接取；还没填链接时给「待认领」那一格 —— 链接一填上就归这一页。
- * 看板每一行都有链接，所以那边总是直接命中自己那一格。
+ * 这一页现在的图：只按这个链接取。还没填链接时才读「待认领」那一格；
+ * 链接完整后由 keepPickedImages 把它认领到该链接，不能让空串那一格漏给任意一页。
  */
 export function pickedForLink<T>(images: Record<string, T>, link: string): T | null {
-  return images[imageKey(link)] ?? images[UNCLAIMED] ?? null
+  const key = imageKey(link)
+  return key ? images[key] ?? null : images[UNCLAIMED] ?? null
 }

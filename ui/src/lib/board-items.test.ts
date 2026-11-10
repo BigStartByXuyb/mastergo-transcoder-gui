@@ -56,8 +56,20 @@ describe("keepPickedImages", () => {
     expect(keepPickedImages(picked, LINK)).toEqual({ [LINK]: "a.png" })
   })
 
-  it("还没填链接时选的那一份不算行没了", () => {
-    expect(keepPickedImages({ "": "a.png" }, LINK)).toEqual({ "": "a.png" })
+  it("填完整链接时把待认领那一份归到这一页", () => {
+    expect(keepPickedImages({ "": "a.png" }, LINK)).toEqual({ [LINK]: "a.png" })
+  })
+
+  it("链接完整时认领待选图；换到另一页后不沿用", () => {
+    const claimed = keepPickedImages({ "": "a.png" }, LINK)
+    expect(claimed).toEqual({ [LINK]: "a.png" })
+    expect(pickedForLink(claimed, LINK)).toBe("a.png")
+    expect(keepPickedImages(claimed, other)).toEqual({})
+    expect(pickedForLink(keepPickedImages(claimed, other), other)).toBeNull()
+  })
+
+  it("链接还没填完整时不提前认领，继续留在待认领那一格", () => {
+    expect(keepPickedImages({ "": "a.png" }, "https://mastergo.com/goto/x?file=1")).toEqual({ "": "a.png" })
   })
 })
 
@@ -91,11 +103,11 @@ describe("withPickedImage", () => {
     expect(keepPickedImages(picked, `  ${LINK}  `)).toEqual({ [LINK]: "a.png" })
   })
 
-  it("还没填链接时选的那一份记在待认领那一格，链接一填就归这一页", () => {
+  it("还没填链接时选的那一份记在待认领那一格，链接完整后由换链接动作认领", () => {
     const picked = withPickedImage({}, "", "a.png")
     expect(picked).toEqual({ "": "a.png" })
-    expect(pickedForLink(picked, LINK)).toBe("a.png")
-    expect(keepPickedImages(picked, LINK)).toEqual({ "": "a.png" })
+    expect(pickedForLink(picked, LINK)).toBeNull()
+    expect(keepPickedImages(picked, LINK)).toEqual({ [LINK]: "a.png" })
   })
 
   it("再选一张或移除都把待认领那一格清掉（移除之后不会又从那儿冒出来）", () => {
@@ -117,8 +129,8 @@ describe("pickedForLink", () => {
     expect(pickedForLink({ [LINK]: "a.png" }, other)).toBeNull()
   })
 
-  it("还没填链接时给「待认领」那一格：链接一填就归这一页", () => {
-    expect(pickedForLink({ "": "a.png" }, LINK)).toBe("a.png")
+  it("非空但还没认领时不给空串那一格", () => {
+    expect(pickedForLink({ "": "a.png" }, LINK)).toBeNull()
   })
 
   it("这一页自己那一格优先于待认领的那一份", () => {

@@ -335,4 +335,6 @@
 | 2026-11-10 GitHub 第 6 遍 | REVIEW-001 | `startsWithPipelineA` 实际表示「只跑 A」，名字会让后续维护者误把 AB 也纳入自动身份分支 | 已收 | 字段与全部消费者同批改名为 `runsPipelineAOnly`；A / B / AB 能力表与前端用例同步 |
 | 2026-11-10 GitHub 第 6 遍 | 非阻断 | 页面 PNG 读接口注释仍提到已删除的分组表；两个入口在共同校验后保留 TypeScript 收窄死分支 | 已收 | 注释改为「图在不在、尺寸对不对、现在能不能传」；共同校验后使用显式 `BoardModePolicy` 收窄 |
 | 2026-11-10 GitHub 第 7 遍 | REVIEW-001 | 页面 PNG 的「必需且已选」预检在创建入口、A 编排与创建编排重复三次 | 已收 | `createTasksForMode` 只调用一次 `pageImageFailure`；`startPipelineA` 与 `createTasksWithPageImages` 不再重判，A 仍在身份准备前、AB 仍在请求准备前拒绝；对应用例同步 |
+| 2026-11-10 GitHub 第 8 遍 | BLOCK-001 | 重启后停在页面 PNG 停点的 `waiting` 任务补上合格图后不会重新结算 | 已收 | 任务显式记录 `imageStop`；tick/snapshot 按图片输入签名重跑 `reconcileTask`，合格后走 `settleDone`，缺分组表则重推布局；旧记录按失败步骤与布局输入步骤兼容认领 |
+| 2026-11-10 GitHub 第 8 遍 | REVIEW-002 | 空链接时选的页面 PNG 在链接换成另一页后仍被当作新页的图 | 已收 | `keepPickedImages` 只在链接完整解析出 `file` / `layer_id` 时认领待选图；`pickedForLink` 对非空链接不再回落到空串键；补空链接→A→B 回归 |
 
