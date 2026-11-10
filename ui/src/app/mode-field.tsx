@@ -11,7 +11,7 @@ import { MODE_HINT, TASK_MODE_OPTIONS } from "@/lib/task-form"
  */
 
 export function ModeField(props: {
-  /** 这一项在各自表单里叫什么：新建卡片叫「路线」，看板弹窗叫「默认模式」。 */
+  /** 这一项在新建卡片与看板弹窗里的标题。 */
   label: string
   value: string
   /** 后端能力表读到时以它为准；还没读到时才用本地展示表的顺序。 */

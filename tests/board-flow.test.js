@@ -306,7 +306,7 @@ async function caseAutoFillBlockedByInput() {
   const project = makeProject();
   const runs = makeRuns();
   const id = "task-blocked-input";
-  const reason = "这一页那张设计稿位图读不出格式：重新导出成 PNG / JPEG 再传一张。";
+  const reason = "这一页那张页面 PNG 读不出格式：重新导出成 PNG / JPEG 再传一张。";
   write(path.join(home, "board.json"), JSON.stringify([{
     id: id,
     createdAt: new Date().toISOString(),
@@ -450,7 +450,7 @@ async function caseAutoFillLimitAndRealFailure() {
 }
 
 /*
- * 新建任务时先选的设计稿位图：跑到「取数 + 固化快照」之后核对尺寸 —— 对不上就在任务行上写一句
+ * 新建任务时先选的页面 PNG：跑到「取数 + 固化快照」之后核对尺寸 —— 对不上就在任务行上写一句
  * （两个尺寸都写出来），条件解除之后自己清掉。这条提示不占 task.error，也不每个 tick 重复落盘。
  */
 async function caseStagedImageNotice() {
@@ -979,7 +979,7 @@ async function main() {
     ["补输入到上限与真失败", caseAutoFillLimitAndRealFailure],
     ["输入读不出来（位图坏了）：整句写回、不占额度", caseAutoFillBlockedByInput],
     ["补输入抛出来的错误也带修法", caseAutoFillThrownErrorKeepsHint],
-    ["先选的设计稿位图：尺寸不符写在行上、条件解除自清", caseStagedImageNotice],
+    ["先选的页面 PNG：尺寸不符写在行上、条件解除自清", caseStagedImageNotice],
     ["A 路线没有页面 PNG 时停在待确认，不自动合并", casePipelineARequiresImageBeforeReady],
     ["从布局续跑完成也要按当前页面 PNG 检查分组", caseLayoutRerunsAfterProgressWhenImageNeedsGroups],
     ["B 的真实失败不被布局停点改判", caseBRealFailureIsNotReclassifiedByLayout],

@@ -167,7 +167,7 @@ function caseWriteOnly() {
 
 /*
  * 空分组表也照写、也从 layout 续跑：那是显式声明「本页没有要声明的分组」。
- * 不写的话这一页永远解不开插件那条「有设计稿位图但没有分组表」。
+ * 不写的话这一页永远解不开插件那条「有页面 PNG 但没有分组表」。
  */
 function caseEmptyGroups() {
   const fx = makeHarness();

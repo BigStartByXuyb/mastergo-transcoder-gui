@@ -90,7 +90,7 @@ export function BoardNewTaskDialog(props: {
               />
             </div>
             <ModeField
-              label="默认模式"
+              label="路线"
               value={form.mode}
               modes={props.modes}
               onChange={(mode) => props.onChange({ ...form, mode: mode as BoardTaskForm["mode"] })}
@@ -125,8 +125,8 @@ export function BoardNewTaskDialog(props: {
           )}
         </div>
 
-        <FieldGroup {...FIELD_GROUPS.optional}>
-          {!pipelineA && (
+        {!pipelineA && (
+          <FieldGroup {...FIELD_GROUPS.optional}>
             <>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="board-stop">停在某一步</Label>
@@ -154,9 +154,8 @@ export function BoardNewTaskDialog(props: {
                 />
               </div>
             </>
-          )}
-
-        </FieldGroup>
+          </FieldGroup>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => props.onOpenChange(false)}>

@@ -4,7 +4,7 @@
 /*
  * 布局自动补全：模型给几组就写几组；一组都没给也算一种结论（空表＝本页没有要声明的分组），
  * 照写并按机械判据往下 —— 与人工确认可以写空表同一口径。
- * 这一步的输入（本层可引用条目 + 本页设计稿位图）取自 lib/layout-groups.js 的 candidatesInput（真实现、真盘）：
+ * 这一步的输入（本层可引用条目 + 本页页面 PNG）取自 lib/layout-groups.js 的 candidatesInput（真实现、真盘）：
  * 有图就把位图的 data URL 交给模型，图读不出来就照 blocked 交回给人（不写盘、不当作模型没给结果）。
  * 跑法：node tests/autofill-layout.test.js
  */
@@ -23,7 +23,7 @@ const ENTRIES = [
   { ref: "1:10", controlType: "IconButton", text: "取消" }
 ];
 
-/* 一份最小工程：条目清单（candidatesInput 从盘上读它）+ 那一页的设计稿位图（不给就是没图）。 */
+/* 一份最小工程：条目清单（candidatesInput 从盘上读它）+ 那一页的页面 PNG（不给就是没图）。 */
 function sandbox(bytes) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-autofill-layout-"));
   const candidates = path.join(root, "Generated", "_inputs", "T1.layout-group-candidates.json");

@@ -6,7 +6,7 @@ import type { useIdentity } from "@/app/use-identity"
 import type { TaskForm } from "@/lib/task-form"
 
 /*
- * 新建任务卡片：走 A 路线时页面 PNG 就在「可选」那一组里。
+ * 新建任务卡片：A 路线只渲染必填组；B / AB 才显示身份和可选参数。
  * 页面 Target 空着也照给选图 —— 暂存件的键是任务 id，与页面名什么时候认回来无关。
  */
 
@@ -65,6 +65,7 @@ describe("NewTaskCard 的选图", () => {
     expect(screen.queryByLabelText("页面 Target")).toBeNull()
     expect(screen.queryByLabelText("UI 区域")).toBeNull()
     expect(screen.queryByLabelText("停在某一步")).toBeNull()
+    expect(screen.queryByText("可选参数")).toBeNull()
     expect(screen.getByRole("button", { name: "创建并开始" })).toBeTruthy()
   })
 
@@ -73,11 +74,13 @@ describe("NewTaskCard 的选图", () => {
     expect(screen.getByLabelText("页面 Target")).toBeTruthy()
     expect(screen.getByLabelText("UI 区域")).toBeTruthy()
     expect(screen.getByLabelText("停在某一步")).toBeTruthy()
+    expect(screen.getByText("可选参数")).toBeTruthy()
   })
 
   it("AB 路线同时保留 A 的选图与 B 的身份字段", () => {
     expect(show({ form: form({ mode: "AB" }), takesPageImage: true, startsWithPipelineA: false }).length).toBe(1)
     expect(screen.getByLabelText("页面 Target")).toBeTruthy()
     expect(screen.getByLabelText("UI 区域")).toBeTruthy()
+    expect(screen.getByText("可选参数")).toBeTruthy()
   })
 })

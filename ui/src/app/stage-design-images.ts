@@ -4,7 +4,7 @@ import { describeFailure } from "@/lib/describe-failure"
 import { fileToBase64 } from "@/lib/upload-files"
 
 /*
- * 新建时先选好的设计稿位图 → 暂存件：一条任务一份，键就是任务 id（后端只有 lib/design-image.js 的
+ * 新建时先选好的页面 PNG → 暂存件：一条任务一份，键就是任务 id（后端只有 lib/design-image.js 的
  * stagedPathOf 定这个键），所以选图这一步不必等页面 Target 有值，暂存也只能在任务建出来之后做。
  *
  * 两个新建入口（流水线页的表单、看板的创建任务弹窗）共用这一份编排 —— 建任务、暂存、失败回滚、

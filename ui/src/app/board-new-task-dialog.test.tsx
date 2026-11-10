@@ -61,10 +61,11 @@ describe("BoardNewTaskDialog 的选图", () => {
     expect(inputs.length).toBe(2)
     expect(screen.getByText("第 1 行")).toBeTruthy()
     expect(screen.getByText("第 2 行")).toBeTruthy()
-    expect(screen.getByText("默认模式")).toBeTruthy()
+    expect(screen.getByText("路线")).toBeTruthy()
     expect(screen.getByText("页面 PNG").closest("section")?.textContent).toContain("必填参数")
     expect(screen.queryByLabelText("Ui 前缀")).toBeNull()
     expect(screen.queryByLabelText("停在某一步")).toBeNull()
+    expect(screen.queryByText("可选参数")).toBeNull()
     expect(screen.getByRole("button", { name: "创建并开始" })).toBeTruthy()
   })
 
@@ -92,6 +93,7 @@ describe("BoardNewTaskDialog 的选图", () => {
     expect(screen.queryByText("第 1 行")).toBeNull()
     expect(screen.getByLabelText("Ui 前缀")).toBeTruthy()
     expect(screen.getByLabelText("停在某一步")).toBeTruthy()
+    expect(screen.getByText("可选参数")).toBeTruthy()
     expect(screen.getByRole("button", { name: "加入看板并开始" })).toBeTruthy()
   })
 
@@ -100,6 +102,7 @@ describe("BoardNewTaskDialog 的选图", () => {
     expect(inputs.length).toBe(1)
     expect(screen.getByLabelText("Ui 前缀")).toBeTruthy()
     expect(screen.getByLabelText("停在某一步")).toBeTruthy()
+    expect(screen.getByText("可选参数")).toBeTruthy()
     expect(screen.getByRole("button", { name: "创建并开始" })).toBeTruthy()
   })
 

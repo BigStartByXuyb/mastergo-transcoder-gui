@@ -66,7 +66,7 @@ export function NewTaskCard(props: Props) {
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {/* 三组各成一个框：必填参数 / 可自动生成参数 / 可选参数（标题与提示语在 field-group.tsx 一处）。 */}
+        {/* 路线不需要的组整组不渲染；标题与提示语在 field-group.tsx 一处。 */}
         <div className={pipelineA ? "grid items-start gap-4" : "grid items-start gap-4 sm:grid-cols-2"}>
           <div className="flex flex-col gap-4">
             <FieldGroup {...FIELD_GROUPS.required}>
@@ -105,8 +105,8 @@ export function NewTaskCard(props: Props) {
               )}
             </FieldGroup>
 
-            <FieldGroup {...FIELD_GROUPS.optional}>
-              {!pipelineA && (
+            {!pipelineA && (
+              <FieldGroup {...FIELD_GROUPS.optional}>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="run-stop">停在某一步</Label>
                   <Input
@@ -117,17 +117,15 @@ export function NewTaskCard(props: Props) {
                     onChange={(event) => onForm({ stopAfter: event.target.value })}
                   />
                 </div>
-              )}
-              {!pipelineA && (
-                /* 与看板弹窗同一排法与同一句话（ui/src/app/switch-row.tsx）。 */
+                {/* 与看板弹窗同一排法与同一句话（ui/src/app/switch-row.tsx）。 */}
                 <SwitchRow
                   id="run-overwrite"
                   {...SWITCH_ROWS.overwrite}
                   checked={form.overwrite}
                   onChange={(checked) => onForm({ overwrite: checked })}
                 />
-              )}
-            </FieldGroup>
+              </FieldGroup>
+            )}
           </div>
 
           {!pipelineA && (
