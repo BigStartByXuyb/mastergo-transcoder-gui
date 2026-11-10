@@ -37,5 +37,5 @@
 | 分组表里能写哪些 ref（这一层的条目清单在哪、为空算不算参与分组） | `lib/layout-candidates.js` · `function refsOf(`、`function noCandidatesReason(`、`const CANDIDATES_MIN_PLUGIN_VERSION =` | 喂模型（`lib/layout-groups.js` 的 `candidatesInput`）、写回校验与候选清理（同文件的 `validateGroups` / `cleanGroups`） |
 | 跨仓同一套判据：ref 必须在本层条目里 / 不参与分组的层只许空表 | `lib/layout-groups.js` · `不在本层条目里: `、`这一层的条目清单是空的（这一层不参与分组）` | 写回校验（`validateGroups`）；插件那侧是 `gen-mw-wpf-layout.js` 的 `declaredGroups` / `requireNoDeclaredGroups` —— 两边的关键句要一起改 |
 | 只有一个字符串字段的地方那句整句（原因 + 怎么做） | `lib/errors.js` · `function failureSentence(` | `lib/mcp-token.js`（缺 token 那件事的整句）、`lib/board.js`（任务行上的 `error` / `designImage` 四处 catch）、`lib/autofill.js`（这一步的输入读不出来时交回给人的那句）；界面那侧同一条规矩在 `ui/src/lib/describe-failure.ts` 的 `failureText`（两端口径一起改） |
-| 一个 mode 走哪几条路线 | `ui/src/lib/task-form.ts` · `export function modeTakesRoute(` | 前端表单、看板与取图入口；后端镜像在 `lib/run.js` 的 `function routesOfMode(`，两边改动必须同一提交完成 |
+| 一个 mode 走哪几条路线 | `ui/src/lib/task-form.ts` · `export function modeTakesRoute(` | 前端表单、看板与取图入口、A / AB 的页面 PNG 暂存后启动；后端镜像在 `lib/run.js` 的 `function routesOfMode(`，两边改动必须同一提交完成 |
 

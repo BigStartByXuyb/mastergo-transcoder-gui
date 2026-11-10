@@ -117,14 +117,27 @@ const hasJob = (task) => Boolean(task.jobId);
 
 function caseLoadMarksDeadTasksStopped() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-resume-"));
+  const queuedId = "t3";
+  const staged = designImage.stage({ home: home, taskId: queuedId, data: png(1280, 1024).toString("base64") });
   write(path.join(home, "board.json"), JSON.stringify([
     { id: "t1", state: "running", request: { projectRoot: "D:/p", link: LINK, target: "T" }, workDir: "D:/w" },
-    { id: "t2", state: "merged", request: { projectRoot: "D:/p", link: LINK, target: "T" }, workDir: "D:/w" }
+    { id: "t2", state: "merged", request: { projectRoot: "D:/p", link: LINK, target: "T" }, workDir: "D:/w" },
+    {
+      id: queuedId,
+      state: "queued",
+      deferStart: true,
+      request: { projectRoot: "D:/p", link: LINK, target: "T" },
+      workDir: ""
+    }
   ]));
   const runs = makeRuns();
   const board = createBoard({ runs: runs.api, pending: null, artifacts: { stepsOf: () => [] }, home: home });
-  const states = board.snapshot().tasks.map((task) => task.state);
-  assert.deepStrictEqual(states, ["stopped", "merged"], "重启后不可能还在跑：running 变 stopped，其它状态保留");
+  const snapshot = board.snapshot();
+  const states = snapshot.tasks.map((task) => task.state);
+  assert.deepStrictEqual(states, ["stopped", "merged", "failed"], "重启后不可能还在跑，未完成延后启动的任务要有明确终态");
+  const deferred = snapshot.tasks.find((task) => task.id === queuedId);
+  assert.match(deferred.error, /页面 PNG 暂存与启动之间/, "延后启动窗口被打断时给出明确原因");
+  assert.ok(!fs.existsSync(staged.path), "无法恢复的延后任务同时清掉暂存件");
   fs.rmSync(home, { recursive: true, force: true });
 }
 

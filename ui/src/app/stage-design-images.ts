@@ -49,6 +49,22 @@ export function picksForCreated(
 }
 
 /*
+ * 带 A 段的任务要等页面 PNG 暂存成功后再逐条显式启动。
+ * A 与 AB 都读同一个路线判据；不跑 A 的 B 任务已经由看板正常调度，这里不重复启动。
+ */
+export async function startStagedTasks(
+  mode: string,
+  board: Board,
+  taskIds: string[],
+  start: (taskId: string) => Promise<{ board: Board }>
+): Promise<Board> {
+  if (!modeTakesRoute(mode, "A")) return board
+  let current = board
+  for (const taskId of taskIds) current = (await start(taskId)).board
+  return current
+}
+
+/*
  * 逐张送：先把每一张都送完，保留第一条后端原话，让用户一次看到所有需要修的问题。
  * 任一张失败时调用方按批次原子回滚，不留下半批已启动的 A 段任务。
  */

@@ -31,7 +31,7 @@ import { coverageOf, visibleByCoverage, type Coverage } from "@/lib/board-effect
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
-import { discardCreatedTasks, picksForCreated, stagePickedImages } from "@/app/stage-design-images"
+import { discardCreatedTasks, picksForCreated, stagePickedImages, startStagedTasks } from "@/app/stage-design-images"
 import { FINISHED_STATES } from "@/lib/task-state"
 import { modeTakesRoute } from "@/lib/task-form"
 import { useSettings } from "@/lib/use-settings"
@@ -162,9 +162,7 @@ export function BoardPage() {
             setBoard(await discardCreatedTasks(created.board, created.created))
             throw new Error(staged.failure)
           }
-          if (form.mode !== "A") return created
-          let board = created.board
-          for (const id of created.created) board = (await api.boardStart(id)).board
+          const board = await startStagedTasks(form.mode, created.board, created.created, api.boardStart)
           return { ...created, board }
         },
         applyBoard
