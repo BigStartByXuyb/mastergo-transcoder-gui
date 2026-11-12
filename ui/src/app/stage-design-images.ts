@@ -67,9 +67,8 @@ function picksForCreated(
   const linkOf = new Map(board.tasks.map((task) => [task.id, task.request.link]))
   const allowUnclaimed = created.length === 1
   return created.flatMap((taskId) => {
-    const link = linkOf.get(taskId)
     // 单任务批次允许先选图、后填链接；多任务批次必须每行各自成键，避免把一张图复制给多页。
-    const file = link ? pickedForLink(images, link, allowUnclaimed) : null
+    const file = pickedForLink(images, linkOf.get(taskId) ?? "", allowUnclaimed)
     return file ? [{ taskId, file }] : []
   })
 }
