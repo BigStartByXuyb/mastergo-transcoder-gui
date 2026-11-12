@@ -66,6 +66,7 @@ describe("NewTaskCard 的选图", () => {
     expect(screen.queryByLabelText("UI 区域")).toBeNull()
     expect(screen.queryByLabelText("停在某一步")).toBeNull()
     expect(screen.queryByText("可选参数")).toBeNull()
+    expect(screen.getByText(/A 路线固定为自动合并、同名产物覆盖、不在中途停止/)).toBeTruthy()
     expect(screen.getByRole("button", { name: "创建并开始" })).toBeTruthy()
   })
 

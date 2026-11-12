@@ -344,6 +344,7 @@
 | 2026-11-12 GitLab 第二轮 | REVIEW-002 | 前端用正则自判链接是否完整，与后端 `parseLink` 形成两套口径 | 已收 | 删除前端链接拆分：待认领图保持原键，单页面表单在显示与提交时直接读取，多页面批次要求每行各自选图 |
 | 2026-11-12 GitLab 第二轮 | REVIEW-003 | `-StopAfter` 让运行以 done 收尾、但登记表没跑满时被误判成页面 PNG 停点，且失去唯一续跑入口 | 已收 | `settleDone` 先核对登记表完整性；没跑满就落为可续跑的 `stopped`，只有跑满才进入页面 PNG 门禁、布局重推与待合并 |
 | 2026-11-12 升级边界复核 | REVIEW-004 | 旧版本已误写成页面 PNG 停点的提前结束任务，重启对表会先被旧等图标记挡住 | 已收 | `reconcileTask` 先按登记表判断进度；登记表未跑满时清掉旧等图状态并回到 `stopped`，只在登记表为空或已跑满时核对页面 PNG |
+| 2026-11-12 GitHub 最终遍 | REVIEW-005 | A-only 新建隐藏 `overwrite` / `stopAfter` 等固定值，用户可见提示与实际请求来源不一致 | 已收 | 保留 A 的全自动固定设置，两个新建入口都明确显示「自动合并、同名产物覆盖、不在中途停止」；B / AB 继续使用各自表单值 |
 | 2026-11-12 GitLab 最终遍 | REVIEW-003 | A 启动写死 `takesPageImage=true`，绕过后端路线能力表 | 已收 | `createTasksForMode` 把 `policy.takesPageImage` 继续传入 `startPipelineA`；定向用例覆盖能力为假时不暂存图片 |
 | 2026-11-12 GitLab 最终遍 | 非阻断 | 等图停点的进入与写盘在运行收尾、登记表对表各有一份 | 已收 | 两处共用 `enterPipelineAImageStop`；旧记录识别与停点文案共用 `PAGE_IMAGE_LABEL` |
 | 2026-11-12 GitLab 最终遍 | 非阻断 | 补页面身份复用创建校验，会先报路线能力未读到 | 已收 | 新增 `taskInputFailure`，补身份只校验工程目录与链接；创建入口仍在此基础上校验路线能力 |

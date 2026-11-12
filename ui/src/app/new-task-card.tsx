@@ -103,6 +103,11 @@ export function NewTaskCard(props: Props) {
                   <p className="text-muted-foreground text-xs">{READ_IMAGE_HINT}</p>
                 </div>
               )}
+              {pipelineAOnly && (
+                <p className="text-muted-foreground text-xs">
+                  A 路线固定为自动合并、同名产物覆盖、不在中途停止；页面身份与 UI 区域自动补齐。
+                </p>
+              )}
             </FieldGroup>
 
             {!pipelineAOnly && (
