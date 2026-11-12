@@ -46,6 +46,7 @@ function harness(options) {
   const committed = [];
   const inputs = [];
   const otherCalls = [];
+  const inspectCalls = [];
   const autoFill = createAutoFill({
     ai: {
       suggestLayoutGroups: async (input) => {
@@ -58,11 +59,14 @@ function harness(options) {
       }
     },
     pending: {
-      inspect: () => options.pending || ({
-        icons: {},
-        translations: {},
-        layout: { needsGroups: true, waiting: 1 }
-      })
+      inspect: (query) => {
+        inspectCalls.push(query);
+        return options.pending || ({
+          icons: {},
+          translations: {},
+          layout: { needsGroups: true, waiting: 1 }
+        });
+      }
     },
     confirm: {
       commit: (payload) => {
@@ -72,7 +76,13 @@ function harness(options) {
     },
     settings: { read: () => ({ automation: options.automation }) }
   });
-  return { autoFill: autoFill, committed: committed, inputs: inputs, otherCalls: otherCalls };
+  return {
+    autoFill: autoFill,
+    committed: committed,
+    inputs: inputs,
+    otherCalls: otherCalls,
+    inspectCalls: inspectCalls
+  };
 }
 
 async function caseGroupsWritten() {
@@ -163,6 +173,44 @@ async function caseAutomationOff() {
   fs.rmSync(projectRoot, { recursive: true, force: true });
 }
 
+async function caseLayoutStopContextControlsAutoWrite() {
+  const projectRoot = sandbox(png(1280, 1024));
+  const failedMessage = "推导失败：节点没有归宿";
+  const fx = harness({
+    automation: "assist",
+    groups: [],
+    pending: {
+      icons: {},
+      translations: {},
+      layout: { needsGroups: true, waiting: 0 }
+    }
+  });
+  const result = await fx.autoFill.fill({
+    projectRoot: projectRoot,
+    target: "T1",
+    runId: "job-1",
+    state: "failed",
+    layoutStep: "layoutManifest",
+    failedStep: "layoutManifest",
+    failedMessage: failedMessage,
+    request: { mode: "A" }
+  });
+  assert.strictEqual(result.ok, false);
+  assert.deepStrictEqual(fx.inspectCalls[0], {
+    projectRoot: projectRoot,
+    target: "T1",
+    mode: "A",
+    state: "failed",
+    layoutStep: "layoutManifest",
+    failedStep: "layoutManifest",
+    failedMessage: failedMessage,
+    imageStop: false
+  }, "自动补输入必须把同一次布局停点的事实交给待确认判据");
+  assert.deepStrictEqual(fx.inputs, [], "非分组表原因的布局失败不得调用模型写表");
+  assert.deepStrictEqual(fx.committed, [], "非分组表原因的布局失败不得覆盖现有输入");
+  fs.rmSync(projectRoot, { recursive: true, force: true });
+}
+
 /* 有图就得让模型真看到图：位图按 data URL 一起给，本层条目照旧。 */
 async function caseBitmapGoesToModel() {
   const projectRoot = sandbox(png(1280, 1024));
@@ -212,6 +260,7 @@ const CASES = [
   ["全自动层级才自动补图标等语义输入", caseAutoWritesOthers],
   ["条目清单不在：整句交回给人、不写盘", caseNoCandidatesBlocks],
   ["全局自动化关闭时布局分组也不叫模型", caseAutomationOff],
+  ["布局停点事实决定能否自动写表", caseLayoutStopContextControlsAutoWrite],
   ["有图就把位图一起给模型", caseBitmapGoesToModel],
   ["没有位图：不问模型，按哪一条没满足交回", caseNoBitmap],
   ["图坏了：整句交回给人、不写盘", caseBrokenBitmapBlocks]

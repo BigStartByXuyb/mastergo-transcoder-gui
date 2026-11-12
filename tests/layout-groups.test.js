@@ -101,8 +101,12 @@ function main() {
     const root = sandbox();
     const info = layout.inspect({ projectRoot: root, target: TARGET });
     assert.strictEqual(info.available, true);
-    assert.deepStrictEqual(Object.keys(info).sort(), ["available", "hasGroups", "hasImage", "needsGroups", "reason"]);
+    assert.deepStrictEqual(
+      Object.keys(info).sort(),
+      ["available", "failed", "failedMessage", "hasFile", "hasGroups", "hasImage", "needsGroups", "reason", "rejected", "waiting"]
+    );
     assert.strictEqual(info.needsGroups, false, "还没有页面 PNG 时不要求自动补分组");
+    assert.strictEqual(info.hasFile, false, "还没写过分组表文件");
     assert.throws(
       () => layout.candidatesInput({ projectRoot: root, target: TARGET }),
       /这一步要对着页面 PNG 判分组/,

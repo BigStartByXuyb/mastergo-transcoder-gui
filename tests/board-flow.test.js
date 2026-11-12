@@ -13,6 +13,7 @@ const path = require("path");
 const { createBoard } = require("../lib/board.js");
 const designImage = require("../lib/design-image.js");
 const { UserError } = require("../lib/errors.js");
+const { GROUP_FAILURE_CODE } = require("../lib/layout-groups.js");
 const workdir = require("../lib/workdir.js");
 const { png } = require("./image-fixtures.js");
 
@@ -701,6 +702,89 @@ async function caseBRealFailureIsNotReclassifiedByLayout() {
   fs.rmSync(project, { recursive: true, force: true });
 }
 
+async function caseLayoutStopUsesFailureEvidence() {
+  const steps = [
+    contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
+  ];
+  const failureMessage = "推导失败：节点没有归宿";
+  const failedFx = makeBoard({
+    steps: steps,
+    pendingFor: (query) => ({
+      icons: { available: false },
+      translations: { available: false },
+      layout: {
+        needsGroups: true,
+        waiting: query.failedMessage.includes("[" + GROUP_FAILURE_CODE.rejected + "]") ? 1 : 0
+      }
+    }),
+    autoFill: { ok: false, empty: true }
+  });
+  const failedId = failedFx.board.add({
+    projectRoot: failedFx.project,
+    items: [{ link: LINK, target: "T1", mode: "A" }]
+  }).created[0];
+  failedFx.board.start(failedId);
+  const failedTask = await waitForTask(failedFx.board, failedId, hasJob, "布局其他失败任务启动");
+  failedFx.runs.seed(failedTask.jobId, {
+    id: failedTask.jobId,
+    state: "failed",
+    request: {},
+    runs: [{
+      state: "failed",
+      steps: {},
+      failure: { stepName: "layoutManifest", message: failureMessage }
+    }]
+  }, failedTask.workDir);
+  await sleep(TICK + 300);
+  const failed = failedFx.board.snapshot().tasks.find((item) => item.id === failedId);
+  assert.strictEqual(failed.state, "failed", "布局步骤的其他失败不能被折成缺表停点");
+  assert.strictEqual(failed.failure.message, failureMessage);
+  assert.strictEqual(failedFx.autoFillCalls.length, 0, "没有分组表机器码时不得自动写表");
+  const failedQuery = failedFx.pendingCalls.find((call) => call.state === "failed" && call.failedStep === "layoutManifest");
+  assert.ok(failedQuery, "看板判停点必须把布局失败步骤一起交出去");
+  assert.strictEqual(failedQuery.failedMessage, failureMessage);
+  assert.strictEqual(failedQuery.layoutStep, "layoutManifest");
+
+  const rejectedMessage = "[" + GROUP_FAILURE_CODE.rejected + "] 分组表必须是数组";
+  const rejectedFx = makeBoard({
+    steps: steps,
+    pendingFor: (query) => ({
+      icons: { available: false },
+      translations: { available: false },
+      layout: {
+        needsGroups: false,
+        waiting: query.failedMessage.includes("[" + GROUP_FAILURE_CODE.rejected + "]") ? 1 : 0
+      }
+    }),
+    autoFill: { ok: false, empty: true }
+  });
+  const rejectedId = rejectedFx.board.add({
+    projectRoot: rejectedFx.project,
+    items: [{ link: LINK, target: "T1", mode: "A" }]
+  }).created[0];
+  rejectedFx.board.start(rejectedId);
+  const rejectedTask = await waitForTask(rejectedFx.board, rejectedId, hasJob, "分组表拒收任务启动");
+  rejectedFx.runs.seed(rejectedTask.jobId, {
+    id: rejectedTask.jobId,
+    state: "failed",
+    request: {},
+    runs: [{
+      state: "failed",
+      steps: {},
+      failure: { stepName: "layoutManifest", message: rejectedMessage }
+    }]
+  }, rejectedTask.workDir);
+  await sleep(TICK + 300);
+  const rejected = rejectedFx.board.snapshot().tasks.find((item) => item.id === rejectedId);
+  assert.strictEqual(rejected.state, "waiting", "分组表拒收停点仍按同一事实进入待确认");
+  assert.strictEqual(rejectedFx.autoFillCalls.length, 1, "分组表拒收时自动补输入只启动一次");
+
+  fs.rmSync(failedFx.home, { recursive: true, force: true });
+  fs.rmSync(failedFx.project, { recursive: true, force: true });
+  fs.rmSync(rejectedFx.home, { recursive: true, force: true });
+  fs.rmSync(rejectedFx.project, { recursive: true, force: true });
+}
+
 async function caseBadImageStopsBeforeLayoutRerun() {
   const project = makeProject();
   write(
@@ -1237,6 +1321,7 @@ async function main() {
     ["A 路线没有页面 PNG 时停在待确认，不自动合并", casePipelineARequiresImageBeforeReady],
     ["从布局续跑完成也要按当前页面 PNG 检查分组", caseLayoutRerunsAfterProgressWhenImageNeedsGroups],
     ["B 的真实失败不被布局停点改判", caseBRealFailureIsNotReclassifiedByLayout],
+    ["布局停点按失败步骤与机器码分类", caseLayoutStopUsesFailureEvidence],
     ["坏图先停页面 PNG 核对点，不抢跑布局", caseBadImageStopsBeforeLayoutRerun],
     ["布局停点不会反复触发自动补输入", caseLayoutWaitDoesNotRepeatAutoFill],
     ["页面身份不合规时停在等图点，不从轮询逸出", caseUnsafeImageIdentityStopsInsteadOfThrowing],

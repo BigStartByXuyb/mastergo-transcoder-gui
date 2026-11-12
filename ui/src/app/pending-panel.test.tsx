@@ -61,6 +61,7 @@ function pending(): Pending {
     },
     layout: {
       needsGroups: false,
+      hasFile: false,
       hasGroups: false,
       rejected: false,
       failed: false,
@@ -186,6 +187,7 @@ describe("PendingPanel", () => {
     layoutPending.icons.needsNaming = false
     layoutPending.layout = {
       needsGroups: true,
+      hasFile: false,
       hasGroups: false,
       rejected: false,
       failed: false,
@@ -212,6 +214,7 @@ describe("PendingPanel", () => {
     const layoutPending = pending()
     layoutPending.layout = {
       needsGroups: true,
+      hasFile: false,
       hasGroups: false,
       rejected: false,
       failed: false,
@@ -240,6 +243,7 @@ describe("PendingPanel", () => {
     rejected.icons.needsNaming = false
     rejected.layout = {
       needsGroups: false,
+      hasFile: true,
       hasGroups: true,
       rejected: true,
       failed: true,
@@ -276,6 +280,7 @@ describe("PendingPanel", () => {
     rejected.icons.needsNaming = false
     rejected.layout = {
       needsGroups: false,
+      hasFile: true,
       hasGroups: true,
       rejected: true,
       failed: true,
@@ -324,6 +329,7 @@ describe("PendingPanel", () => {
     missing.icons.needsNaming = false
     missing.layout = {
       needsGroups: true,
+      hasFile: false,
       hasGroups: false,
       rejected: false,
       failed: true,
@@ -365,6 +371,28 @@ describe("PendingPanel", () => {
     }))
   })
 
+  it("分组表文件损坏时仍给出空表重写与重新分组两个出口", async () => {
+    const broken = pending()
+    broken.icons.waiting = 0
+    broken.icons.missing = 0
+    broken.icons.needsNaming = false
+    broken.layout = {
+      needsGroups: true,
+      hasFile: true,
+      hasGroups: false,
+      rejected: false,
+      failed: false,
+      failedMessage: "",
+      waiting: 1
+    }
+    stubWith({ pending: broken })
+    render(panel("waiting"))
+
+    expect(await screen.findByText(/分组表文件存在，但内容不是可用的 groups 数组/)).toBeTruthy()
+    expect(screen.getByRole("button", { name: /按空表重写并继续/ })).toBeTruthy()
+    expect(screen.getByRole("button", { name: /重新自动分组并继续/ })).toBeTruthy()
+  })
+
   it("布局步骤因其他错误失败时只显示原话，不给覆盖分组表的动作", async () => {
     const failed = pending()
     failed.icons.waiting = 0
@@ -372,6 +400,7 @@ describe("PendingPanel", () => {
     failed.icons.needsNaming = false
     failed.layout = {
       needsGroups: false,
+      hasFile: false,
       hasGroups: false,
       rejected: false,
       failed: true,
@@ -395,6 +424,7 @@ describe("PendingPanel", () => {
     noSource.icons.needsNaming = false
     noSource.layout = {
       needsGroups: true,
+      hasFile: false,
       hasGroups: false,
       rejected: false,
       failed: false,

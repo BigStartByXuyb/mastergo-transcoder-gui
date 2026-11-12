@@ -116,6 +116,7 @@ export function PendingPanel({
   const layoutWaiting = pending?.layout.waiting ?? 0
   const layoutFailed = pending?.layout.failed === true
   const layoutFailedMessage = pending?.layout.failedMessage ?? ""
+  const layoutTableInvalid = Boolean(pending?.layout.hasFile && !pending?.layout.hasGroups)
   // 本页还缺多少条人工语义输入：三节共用一个计数判据。
   const waiting = pendingInputCount(waitingCounts(pending))
   const otherWaiting = waiting - layoutWaiting
@@ -374,6 +375,8 @@ export function PendingPanel({
             <Badge variant="destructive">
               {pending.layout.rejected
                 ? "插件拒收了分组表"
+                : layoutTableInvalid
+                  ? "分组表不可读"
                 : pending.layout.needsGroups
                   ? "自动分组未完成"
                   : "布局步骤失败"}
@@ -383,6 +386,8 @@ export function PendingPanel({
             <AlertTitle>
               {pending.layout.rejected
                 ? "已有分组表，但插件在布局步骤拒绝了它"
+                : layoutTableInvalid
+                  ? "分组表文件存在，但内容不是可用的 groups 数组"
                 : pending.layout.needsGroups
                   ? "这一页有 PNG，但还没有分组表"
                   : "布局步骤没有通过"}
@@ -392,6 +397,9 @@ export function PendingPanel({
                 ? "可以按空表重写，也可以让模型按本页 PNG 与本层条目重新分组；两种都会写入分组表" +
                   layoutWriteResult +
                   (layoutFailedMessage ? " 插件原话：" + layoutFailedMessage : "")
+                : layoutTableInvalid
+                  ? "可以按空表重写，也可以让模型按本页 PNG 与本层条目重新分组；两种都会替换这张损坏的表" +
+                    layoutWriteResult
                 : pending.layout.needsGroups
                   ? "这一页还没有可用的分组表。可以让模型按本页 PNG 与本层条目自动分组；确认本页没有需要声明的控件分组时，也可以写一张空表" +
                     layoutWriteResult
@@ -422,7 +430,7 @@ export function PendingPanel({
                 )}
               >
                 {busy === SUBMIT_BUSY ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                {pending.layout.rejected ? "重新自动分组" : "让 AI 按 PNG 分组"}
+                {pending.layout.rejected || layoutTableInvalid ? "重新自动分组" : "让 AI 按 PNG 分组"}
                 {hasSource ? "并继续" : "并写入"}
               </Button>
             </div>
