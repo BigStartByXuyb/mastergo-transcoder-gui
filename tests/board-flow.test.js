@@ -759,7 +759,7 @@ async function caseLayoutWaitDoesNotRepeatAutoFill() {
   }], null, 2) + "\n");
   let autoFillCalls = 0;
   const runs = makeRuns(steps);
-  createBoard({
+  const board = createBoard({
     runs: runs.api,
     pending: {
       inspect: () => ({
@@ -782,7 +782,10 @@ async function caseLayoutWaitDoesNotRepeatAutoFill() {
 
   await sleep(TICK + 300);
   assert.strictEqual(autoFillCalls, 1, "布局停点重启后只补输入一次");
+  board.snapshot();
+  board.snapshot();
   await sleep(TICK * 2 + 300);
+  board.snapshot();
   assert.strictEqual(autoFillCalls, 1, "后续轮询不得把同一布局停点反复当成读图停点");
 
   fs.rmSync(home, { recursive: true, force: true });

@@ -11,6 +11,28 @@ function json(body: unknown) {
   return new Response(JSON.stringify(body), { status: 200 })
 }
 
+function mockIdentity(events: string[]) {
+  vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
+    const url = String(input)
+    if (url.includes("/api/design/page-name")) {
+      return Promise.resolve(json({ ok: true, pageName: "停止调整", rootId: "1:1" }))
+    }
+    if (url.includes("/api/identity/candidates")) {
+      return Promise.resolve(json({
+        ok: true,
+        candidates: [{ target: "F3StopAdjust", ui: "F3", basis: "", needsSemanticName: false }],
+        ai: { used: false, items: [] },
+        blocked: ""
+      }))
+    }
+    if (url.includes("/api/identity/apply")) {
+      events.push("apply")
+      return Promise.resolve(json({ ok: true, replaced: false }))
+    }
+    throw new Error("unexpected " + url)
+  })
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
 })
@@ -18,25 +40,7 @@ afterEach(() => {
 describe("startPipelineA", () => {
   it("按同一顺序完成身份准备、建任务、身份写回与启动", async () => {
     const events: string[] = []
-    vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
-      const url = String(input)
-      if (url.includes("/api/design/page-name")) {
-        return Promise.resolve(json({ ok: true, pageName: "停止调整", rootId: "1:1" }))
-      }
-      if (url.includes("/api/identity/candidates")) {
-        return Promise.resolve(json({
-          ok: true,
-          candidates: [{ target: "F3StopAdjust", ui: "F3", basis: "", needsSemanticName: false }],
-          ai: { used: false, items: [] },
-          blocked: ""
-        }))
-      }
-      if (url.includes("/api/identity/apply")) {
-        events.push("apply")
-        return Promise.resolve(json({ ok: true, replaced: false }))
-      }
-      throw new Error("unexpected " + url)
-    })
+    mockIdentity(events)
 
     const api = {
       stageDesignImage: vi.fn(async () => {
@@ -54,6 +58,7 @@ describe("startPipelineA", () => {
       items: [{ link: LINK, target: "", mode: "A" }],
       projectRoot: "project",
       useAi: true,
+      takesPageImage: true,
       images: { [LINK]: file },
       add: async (body) => {
         events.push("add")
@@ -71,5 +76,31 @@ describe("startPipelineA", () => {
 
     expect(events).toEqual(["add", "stage", "apply", "start"])
     expect(result).toMatchObject({ ok: true, created: ["task-1"] })
+  })
+
+  it("是否暂存页面 PNG 只读调用方传入的路线能力", async () => {
+    mockIdentity([])
+    const api = {
+      stageDesignImage: vi.fn(),
+      boardRemove: vi.fn(),
+      board: vi.fn(),
+      boardStart: vi.fn(async () => ({ board: { ...empty, running: 1 } }))
+    }
+    const result = await startPipelineA({
+      items: [{ link: LINK, target: "", mode: "A" }],
+      projectRoot: "project",
+      useAi: false,
+      takesPageImage: false,
+      images: { [LINK]: file },
+      add: async () => ({
+        created: ["task-1"],
+        board: { ...empty, tasks: [{ id: "task-1", request: { link: LINK } }] as Board["tasks"] }
+      }),
+      api
+    })
+
+    expect(api.stageDesignImage).not.toHaveBeenCalled()
+    expect(api.boardStart).toHaveBeenCalledWith("task-1")
+    expect(result.ok).toBe(true)
   })
 })

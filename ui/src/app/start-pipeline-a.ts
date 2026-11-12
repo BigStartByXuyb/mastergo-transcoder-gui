@@ -16,6 +16,7 @@ export async function startPipelineA(input: {
   items: BoardItem[]
   projectRoot: string
   useAi: boolean
+  takesPageImage: boolean
   images: Record<string, File>
   add: (body: BoardAddBody) => Promise<CreatedTasks>
   api?: TaskCreationApi
@@ -30,8 +31,7 @@ export async function startPipelineA(input: {
     items: prepared.items
   }
   return await createTasksWithPageImages({
-    takesPageImage: true,
-    links: prepared.items.map((item) => item.link),
+    takesPageImage: input.takesPageImage,
     images: input.images,
     beforeStart: () => commitPipelineAIdentities(prepared.identities),
     add: () => input.add(body),

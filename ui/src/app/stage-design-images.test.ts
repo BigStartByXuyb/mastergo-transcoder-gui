@@ -33,7 +33,6 @@ describe("createTasksWithPageImages", () => {
     const api = fakeApi()
     const result = await createTasksWithPageImages({
       takesPageImage: true,
-      links: ["https://a", "https://b"],
       images: { "https://a": file("a"), "https://b": file("b") },
       add: async () => ({
         created: ["task-1", "task-2"],
@@ -57,7 +56,6 @@ describe("createTasksWithPageImages", () => {
     const api = fakeApi()
     const result = await createTasksWithPageImages({
       takesPageImage: false,
-      links: ["https://a"],
       images: { "https://a": file("a") },
       add: async () => ({ created: ["task-1"], board: empty }),
       api
@@ -77,7 +75,6 @@ describe("createTasksWithPageImages", () => {
     })
     const result = await createTasksWithPageImages({
       takesPageImage: true,
-      links: ["https://a", "https://b"],
       images: { "https://a": file("a"), "https://b": file("b") },
       add: async () => ({
         created: ["task-1", "task-2"],
@@ -109,7 +106,6 @@ describe("createTasksWithPageImages", () => {
     })
     const result = await createTasksWithPageImages({
       takesPageImage: true,
-      links: ["https://a", "https://b"],
       images: { "https://a": file("a"), "https://b": file("b") },
       add: async () => ({
         created: ["task-1", "task-2"],
@@ -134,7 +130,6 @@ describe("createTasksWithPageImages", () => {
     const api = fakeApi()
     const result = await createTasksWithPageImages({
       takesPageImage: true,
-      links: ["https://a", "https://b"],
       images: { "https://a": file("a"), "https://b": file("b") },
       beforeStart: async () => { throw new Error("登记表写入失败") },
       add: async () => ({
@@ -167,7 +162,6 @@ describe("createTasksWithPageImages", () => {
     })
     const result = await createTasksWithPageImages({
       takesPageImage: false,
-      links: ["https://a", "https://b"],
       images: {},
       add: async () => ({ created: ["task-1", "task-2"], board: empty }),
       api

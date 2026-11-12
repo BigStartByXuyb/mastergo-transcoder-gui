@@ -23,7 +23,7 @@ import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentityFill } from "@/app/use-identity-fill"
 import { useOnlyEffective } from "@/app/use-only-effective"
 import { requestDefaultsOf } from "@/app/prepare-pipeline-items"
-import { createTasksForMode, taskEntryFailure } from "@/app/task-creation-entry"
+import { createTasksForMode, taskEntryFailure, taskInputFailure } from "@/app/task-creation-entry"
 import { useRemembered } from "@/app/use-remembered"
 import { api, type Board, type BoardModePolicy } from "@/lib/api"
 import { fillTargets, keepPickedImages, parseBoardItems, withPickedImage } from "@/lib/board-items"
@@ -167,11 +167,9 @@ export function BoardPage() {
 
   function fillIdentity() {
     const items = parseBoardItems(form.links, form.mode)
-    const failure = taskEntryFailure({
+    const failure = taskInputFailure({
       projectRoot: form.projectRoot,
-      links: items.map((item) => item.link),
-      board,
-      policy: currentMode
+      links: items.map((item) => item.link)
     })
     if (failure) {
       toast.error(failure)

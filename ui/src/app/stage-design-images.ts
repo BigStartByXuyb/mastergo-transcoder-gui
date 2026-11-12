@@ -137,7 +137,6 @@ async function rollbackCreation(
  */
 export async function createTasksWithPageImages(input: {
   takesPageImage: boolean
-  links: string[]
   images: Record<string, File>
   add: () => Promise<CreatedTasks>
   /** 任务与页面 PNG 都已落地后、启动前的必要写回；失败会连同刚建任务一起撤销。 */

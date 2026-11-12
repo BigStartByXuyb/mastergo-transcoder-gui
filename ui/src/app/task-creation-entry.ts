@@ -20,11 +20,21 @@ export function taskEntryFailure(input: {
   board: Board | null
   policy: BoardModePolicy | null
 }): string {
-  if (!input.projectRoot.trim()) return "先填工程目录"
-  if (input.links.length === 0) return "一行一个 MasterGo 链接，至少一行"
+  const inputFailure = taskInputFailure(input)
+  if (inputFailure) return inputFailure
   if (!input.policy) {
     return input.board ? "当前记住的路线已不可用，请重新选择路线" : "路线能力还没读到，请稍后重试"
   }
+  return ""
+}
+
+/** 补身份只依赖工程与链接；路线能力还没读到不影响这一步。 */
+export function taskInputFailure(input: {
+  projectRoot: string
+  links: string[]
+}): string {
+  if (!input.projectRoot.trim()) return "先填工程目录"
+  if (input.links.length === 0) return "一行一个 MasterGo 链接，至少一行"
   return ""
 }
 
@@ -51,6 +61,7 @@ export async function createTasksForMode(input: {
       items: input.items,
       projectRoot: input.projectRoot,
       useAi: input.useAi,
+      takesPageImage: input.policy.takesPageImage,
       images: input.images,
       add: input.add,
       api: input.api
@@ -61,7 +72,6 @@ export async function createTasksForMode(input: {
   if (!request.ok) return { ok: false, failure: request.failure ?? "", board: request.board ?? null }
   return createTasksWithPageImages({
     takesPageImage: input.policy.takesPageImage,
-    links,
     images: input.images,
     add: () => input.add(request.body),
     api: input.api
