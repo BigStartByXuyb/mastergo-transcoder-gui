@@ -388,7 +388,11 @@ export type PendingTranslations = {
 export type PendingLayout = {
   /** 有页面 PNG、还没有分组表、条目清单也在手上 —— 服务端需要自动补分组。 */
   needsGroups: boolean
-  /** 自动补分组的条数：0 或 1。口径在 lib/pending.js 算一次。 */
+  /** 分组表已经存在；已有表也可能被插件在布局步骤拒收。 */
+  hasGroups: boolean
+  /** 来源运行确实停在布局步骤，且已有分组表被插件拒收。 */
+  rejected: boolean
+  /** 需要处理的布局停点条数：0 或 1。口径在 lib/pending.js 算一次。 */
   waiting: number
 }
 
@@ -624,6 +628,8 @@ export type PendingQueueEntry = {
   stateLabel: string
   /** 看板任务已经被移除，但工作目录与产物还在。 */
   orphan: boolean
+  /** 已有分组表，但来源运行确实停在布局步骤：面板必须给出重写入口。 */
+  layoutRejected: boolean
   /** 人工待办条数：图标、文案、以及自动分组失败后需要显式写空表的布局停点。 */
   counts: { icons: number; translations: number; layout: number }
   total: number
@@ -1033,11 +1039,12 @@ export const api = {
     ),
   settingsGet: () => request<{ ok: true; settings: Settings }>("/api/settings"),
   settingsSave: (body: unknown) => post<{ ok: true; settings: Settings }>("/api/settings", body),
-  pending: (projectRoot: string, target: string, mode: string) =>
+  pending: (projectRoot: string, target: string, mode: string, layoutRejected = false) =>
     request<{ ok: true; pending: Pending }>(
       "/api/pending?projectRoot=" + encodeURIComponent(projectRoot) +
         "&target=" + encodeURIComponent(target) +
-        "&mode=" + encodeURIComponent(mode)
+        "&mode=" + encodeURIComponent(mode) +
+        "&layoutRejected=" + (layoutRejected ? "1" : "0")
     ),
   pendingList: () => request<{ ok: true; queue: PendingQueue }>("/api/pending/list"),
   mapping: () => request<{ ok: true; mapping: MappingView }>("/api/mapping"),
@@ -1084,6 +1091,22 @@ export const api = {
       /** 续跑从哪一步开始（补进去的输入由这一步消费）。 */
       resumedFrom?: string
     }>("/api/confirm", body),
+  /** 已有分组表被插件拒绝后，按同一份布局输入重新叫模型分组并走 confirm 写回。 */
+  layoutGroupsSuggest: (body: {
+    projectRoot: string
+    target: string
+    taskId?: string
+    runId?: string
+    resume: boolean
+  }) =>
+    post<{
+      ok: true
+      groups: PendingLayoutGroup[]
+      written: { path: string; count: number }[]
+      job: Job | null
+      note?: string
+      resumedFrom?: string
+    }>("/api/layout-groups/suggest", body),
   board: () => request<{ ok: true; board: Board }>("/api/board"),
   projectPages: (projectRoot: string) =>
     request<{ ok: true; pages: ProjectPages }>(

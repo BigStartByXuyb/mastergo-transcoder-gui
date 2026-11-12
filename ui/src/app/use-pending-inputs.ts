@@ -40,8 +40,10 @@ export function usePendingInputs(input: {
   runId: string
   /** 来源运行/任务的状态：它一变就重读（「跑着 → 停下」后会新出现待办）。 */
   state: string
+  /** 来源确实停在布局步骤且已有分组表被拒收；其余完成页不能显示重写入口。 */
+  layoutRejected: boolean
 }) {
-  const { projectRoot, target, mode, taskId, runId, state } = input
+  const { projectRoot, target, mode, taskId, runId, state, layoutRejected } = input
   const [pending, setPending] = useState<Pending | null>(null)
   const [names, setNames] = useState<Record<number, { name: string; comment: string }>>({})
   const [texts, setTexts] = useState<Record<string, string>>({})
@@ -74,7 +76,7 @@ export function usePendingInputs(input: {
 
   const reload = useCallback(async () => {
     if (!projectRoot.trim() || !target.trim()) return
-    await run(PENDING_BUSY.load, () => api.pending(projectRoot, target, mode), (payload) => {
+    await run(PENDING_BUSY.load, () => api.pending(projectRoot, target, mode, layoutRejected), (payload) => {
       if (!alive.current) return
       setPending(payload.pending)
       setNames((current) => {
@@ -100,7 +102,7 @@ export function usePendingInputs(input: {
         return next
       })
     })
-  }, [alive, projectRoot, target, mode, run])
+  }, [alive, projectRoot, target, mode, layoutRejected, run])
 
   useEffect(() => {
     void reload()

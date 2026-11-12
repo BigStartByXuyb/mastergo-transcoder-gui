@@ -59,7 +59,7 @@ function pending(): Pending {
       needsGlossary: false,
       waiting: 0
     },
-    layout: { needsGroups: false, waiting: 0 }
+    layout: { needsGroups: false, hasGroups: false, rejected: false, waiting: 0 }
   }
 }
 
@@ -120,6 +120,7 @@ function panel(state: string, overrides: Partial<Parameters<typeof PendingPanel>
       runId="job-1"
       state={state}
       automation="off"
+      layoutRejected={false}
       {...overrides}
     />
   )
@@ -177,7 +178,7 @@ describe("PendingPanel", () => {
     layoutPending.icons.waiting = 0
     layoutPending.icons.missing = 0
     layoutPending.icons.needsNaming = false
-    layoutPending.layout = { needsGroups: true, waiting: 1 }
+    layoutPending.layout = { needsGroups: true, hasGroups: false, rejected: false, waiting: 1 }
     let confirmed: Record<string, unknown> | null = null
     stubWith({
       pending: layoutPending,
@@ -187,7 +188,7 @@ describe("PendingPanel", () => {
     })
     render(panel("waiting"))
 
-    const empty = await screen.findByRole("button", { name: /写空表并继续/ })
+    const empty = await screen.findByRole("button", { name: /按空表重写并继续/ })
     empty.click()
     await vi.waitFor(() => expect(confirmed).not.toBeNull())
     expect(confirmed).toEqual(expect.objectContaining({ groups: [] }))
@@ -195,7 +196,7 @@ describe("PendingPanel", () => {
 
   it("主提交不替用户写空布局表", async () => {
     const layoutPending = pending()
-    layoutPending.layout = { needsGroups: true, waiting: 1 }
+    layoutPending.layout = { needsGroups: true, hasGroups: false, rejected: false, waiting: 1 }
     let confirmed: Record<string, unknown> | null = null
     stubWith({
       pending: layoutPending,
@@ -209,5 +210,75 @@ describe("PendingPanel", () => {
     submit.click()
     await vi.waitFor(() => expect(confirmed).not.toBeNull())
     expect(confirmed).not.toHaveProperty("groups")
+  })
+
+  it("已有分组表被布局步骤拒收时可以按空表重写", async () => {
+    const rejected = pending()
+    rejected.icons.waiting = 0
+    rejected.icons.missing = 0
+    rejected.icons.needsNaming = false
+    rejected.layout = { needsGroups: false, hasGroups: true, rejected: true, waiting: 1 }
+    let confirmed: Record<string, unknown> | null = null
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes("/api/settings")) {
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true,
+          settings: { automation: "off", ai: { hasKey: false, baseUrl: "", model: "" } }
+        }), { status: 200 }))
+      }
+      if (url.includes("/api/confirm")) {
+        confirmed = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, written: [], job: null }), { status: 200 }))
+      }
+      return Promise.resolve(new Response(JSON.stringify({ ok: true, pending: rejected }), { status: 200 }))
+    })
+    render(panel("waiting", { layoutRejected: true }))
+
+    expect(await screen.findByText(/插件在布局步骤拒绝了它/)).toBeTruthy()
+    screen.getByRole("button", { name: /按空表重写并继续/ }).click()
+    await vi.waitFor(() => expect(confirmed).not.toBeNull())
+    expect(confirmed).toEqual(expect.objectContaining({ groups: [] }))
+  })
+
+  it("已有分组表被布局步骤拒收时可以重新自动分组", async () => {
+    const rejected = pending()
+    rejected.icons.waiting = 0
+    rejected.icons.missing = 0
+    rejected.icons.needsNaming = false
+    rejected.layout = { needsGroups: false, hasGroups: true, rejected: true, waiting: 1 }
+    let regrouped: Record<string, unknown> | null = null
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes("/api/settings")) {
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true,
+          settings: { automation: "off", ai: { hasKey: false, baseUrl: "", model: "" } }
+        }), { status: 200 }))
+      }
+      if (url.includes("/api/layout-groups/suggest")) {
+        regrouped = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true,
+          groups: [],
+          written: [{ path: "layout-groups.json", count: 0 }],
+          job: null
+        }), { status: 200 }))
+      }
+      return Promise.resolve(new Response(JSON.stringify({ ok: true, pending: rejected }), { status: 200 }))
+    })
+    render(panel("waiting", { layoutRejected: true }))
+
+    const regroup = await screen.findByRole("button", { name: /重新自动分组并继续/ })
+    await vi.waitFor(() => expect(regroup.hasAttribute("disabled")).toBe(false))
+    regroup.click()
+    await vi.waitFor(() => expect(regrouped).not.toBeNull())
+    expect(regrouped).toEqual(expect.objectContaining({
+      projectRoot: drive("D", "work", "task-1"),
+      target: "DemoPage",
+      taskId: "task-1",
+      runId: "job-1",
+      resume: true
+    }))
   })
 })

@@ -26,7 +26,7 @@ function pending(patch: { icons?: number; translations?: number; layout?: number
     summary: null,
     icons: { available: true, waiting: patch.icons ?? 0 },
     translations: { available: true, waiting: patch.translations ?? 0 },
-    layout: { needsGroups: false, controls: [], waiting: patch.layout ?? 0 }
+    layout: { needsGroups: false, hasGroups: false, rejected: false, waiting: patch.layout ?? 0 }
   } as unknown as Pending
 }
 

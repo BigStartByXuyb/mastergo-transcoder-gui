@@ -29,7 +29,11 @@ function makeQueue(options) {
     pending: {
       inspect: (query) => options.pendingFor
         ? options.pendingFor(query)
-        : (options.pending || { icons: { waiting: 0 }, translations: { waiting: 0 }, layout: { waiting: 0 } })
+        : (options.pending || {
+            icons: { waiting: 0 },
+            translations: { waiting: 0 },
+            layout: { needsGroups: false, hasGroups: false, rejected: false, waiting: 0 }
+          })
     }
   });
 }
@@ -112,6 +116,78 @@ function caseLayoutOnlyForPipelineA() {
   assert.strictEqual(ab.snapshot().items[0].counts.layout, 1, "AB 的 A 段仍消费布局分组");
 }
 
+function caseRejectedExistingGroupsIsListed() {
+  const stopped = {
+    id: "task-1",
+    state: "waiting",
+    jobId: "job-1",
+    workDir: WORK,
+    layoutStep: "layoutManifest",
+    failure: { stepName: "layoutManifest" },
+    request: { target: "DemoPage", mode: "A" }
+  };
+  const queue = makeQueue({
+    tasks: [stopped],
+    pendingFor: (query) => ({
+      icons: { waiting: 0 },
+      translations: { waiting: 0 },
+      layout: {
+        needsGroups: false,
+        hasGroups: true,
+        rejected: query.layoutRejected === true,
+        waiting: query.layoutRejected === true ? 1 : 0
+      }
+    })
+  });
+  const items = queue.snapshot().items;
+  assert.strictEqual(items.length, 1, "已有分组表但停在布局步骤时仍必须进待确认列表");
+  assert.strictEqual(items[0].layoutRejected, true);
+  assert.strictEqual(items[0].counts.layout, 1);
+
+  const completed = makeQueue({
+    tasks: [{
+      id: "task-2",
+      state: "ready",
+      jobId: "job-2",
+      workDir: WORK,
+      layoutStep: "layoutManifest",
+      failure: null,
+      request: { target: "DemoPage", mode: "A" }
+    }],
+    pendingFor: () => ({
+      icons: { waiting: 0 },
+      translations: { waiting: 0 },
+      layout: { needsGroups: false, hasGroups: true, rejected: false, waiting: 0 }
+    })
+  });
+  assert.deepStrictEqual(completed.snapshot().items, [], "已有分组表的完成页不能误列成待办");
+}
+
+function caseRejectedPipelineRunIsListed() {
+  const queue = makeQueue({
+    runs: [{
+      id: "job-3",
+      projectRoot: PROJECT,
+      target: "DemoPage",
+      mode: "A",
+      state: "failed",
+      layoutStep: "layoutManifest",
+      failedStep: "layoutManifest"
+    }],
+    pendingFor: (query) => ({
+      icons: { waiting: 0 },
+      translations: { waiting: 0 },
+      layout: {
+        needsGroups: false,
+        hasGroups: true,
+        rejected: query.layoutRejected === true,
+        waiting: query.layoutRejected === true ? 1 : 0
+      }
+    })
+  });
+  assert.strictEqual(queue.snapshot().items[0].layoutRejected, true, "流水线直跑同样要带上布局停点事实");
+}
+
 /*
  * 同一个页面被两条线各跑过一次（看板任务的工作目录 + 流水线直跑的运行）：按「工程目录 + 页面」去重，
  * 看板那条先算，后来的同名条目丢掉 —— 不然人会在列表里看到同一页两次。
@@ -140,6 +216,8 @@ try {
     ["一条都不需要填的不进列表", caseEmptyIsSkipped],
     ["只剩布局分组时仍可人工写空表", caseLayoutOnlyIsListed],
     ["布局待办只列给含 A 的路线", caseLayoutOnlyForPipelineA],
+    ["已有分组表被拒收时看板任务仍进列表", caseRejectedExistingGroupsIsListed],
+    ["已有分组表被拒收时流水线直跑也进列表", caseRejectedPipelineRunIsListed],
     ["同一页只列一条", caseDedupeByProjectAndTarget]
   ];
   for (const [name, run] of cases) {

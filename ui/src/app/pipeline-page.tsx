@@ -370,6 +370,7 @@ export function PipelinePage({
                       runId={task.jobId}
                       state={task.state}
                       automation={automation}
+                      layoutRejected={Boolean(task.layoutStep && task.failure?.stepName === task.layoutStep)}
                       onResumed={() => void reload()}
                     />
                   </div>

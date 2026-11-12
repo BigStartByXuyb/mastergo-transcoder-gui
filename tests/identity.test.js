@@ -211,6 +211,9 @@ function caseAutoAdopt() {
     autoAdopt: true
   });
   assert.match(changed.blocked, /改了名/, "改名不能被自动采用吞掉");
+  assert.match(changed.blocked, /B \/ AB|docs\/page-registry\.json/, "A 的提示必须给 A-only 表单上可执行的下一步");
+  assert.doesNotMatch(changed.blocked, /点下面的候选|填上 UI 区域/, "A-only 表单没有候选或 UI 控件，提示不能指向隐藏入口");
+  assert.match(changed.candidates.find((item) => item.rename).basis, /B \/ AB|docs\/page-registry\.json/);
   fs.rmSync(unique, { recursive: true, force: true });
   fs.rmSync(multiple, { recursive: true, force: true });
   fs.rmSync(empty, { recursive: true, force: true });

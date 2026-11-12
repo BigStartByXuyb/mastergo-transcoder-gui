@@ -94,8 +94,8 @@ function writeBrokenGroups(root) {
   );
 }
 
-function layoutOf(root, pending, mode) {
-  const query = { projectRoot: root, target: TARGET };
+function layoutOf(root, pending, mode, layoutRejected) {
+  const query = { projectRoot: root, target: TARGET, layoutRejected: layoutRejected === true };
   if (mode !== undefined) query.mode = mode;
   return pending.inspect(query).layout;
 }
@@ -115,6 +115,8 @@ function caseNothingYet() {
   /* 形状照实钉住：布局待补只报 needsGroups / waiting，不再转发已无消费方的 suggest 状态。 */
   assert.deepStrictEqual(pending.layout, {
     needsGroups: false,
+    hasGroups: false,
+    rejected: false,
     waiting: 0
   });
   fs.rmSync(root, { recursive: true, force: true });
@@ -178,17 +180,17 @@ function caseLayoutOnlyForA() {
   );
   assert.deepStrictEqual(
     layoutOf(root, pending, "B"),
-    { needsGroups: false, waiting: 0 },
+    { needsGroups: false, hasGroups: false, rejected: false, waiting: 0 },
     "B 不消费布局分组"
   );
   assert.deepStrictEqual(
     layoutOf(root, pending, "AB"),
-    { needsGroups: true, waiting: 1 },
+    { needsGroups: true, hasGroups: false, rejected: false, waiting: 1 },
     "AB 的 A 段仍消费布局分组"
   );
   assert.deepStrictEqual(
     layoutOf(root, pending, ""),
-    { needsGroups: false, waiting: 0 },
+    { needsGroups: false, hasGroups: false, rejected: false, waiting: 0 },
     "手填条目没有路线信息，不能假定它消费布局分组"
   );
   fs.rmSync(root, { recursive: true, force: true });
@@ -201,7 +203,30 @@ function caseImageWithEmptyGroups() {
   writeGroups(root, []);
   const layout = layoutOf(root, pendingFor(root), "A");
   assert.strictEqual(layout.needsGroups, false, "空分组表也算有表：本页没有要声明的分组");
+  assert.strictEqual(layout.hasGroups, true);
+  assert.strictEqual(layout.rejected, false, "没有布局步骤停点时，已有表仍算完成");
   assert.strictEqual(layout.waiting, 0);
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
+function caseRejectedExistingGroupsNeedsRecovery() {
+  const root = sandbox();
+  writeControls(root);
+  writeImage(root);
+  writeGroups(root, [{ id: "g1", kind: "row", members: ["a", "b"] }]);
+  const pending = pendingFor(root);
+  assert.deepStrictEqual(layoutOf(root, pending, "A"), {
+    needsGroups: false,
+    hasGroups: true,
+    rejected: false,
+    waiting: 0
+  }, "只看磁盘时已有表算完成，不能把完成页误列成待办");
+  assert.deepStrictEqual(layoutOf(root, pending, "A", true), {
+    needsGroups: false,
+    hasGroups: true,
+    rejected: true,
+    waiting: 1
+  }, "来源运行确实停在布局步骤时，已有表也要给出重写入口");
   fs.rmSync(root, { recursive: true, force: true });
 }
 
@@ -247,6 +272,7 @@ try {
     ["有图没有表 = 要人确认", caseImageWithoutGroups],
     ["布局停点只属于含 A 的路线", caseLayoutOnlyForA],
     ["空分组表也算有表", caseImageWithEmptyGroups],
+    ["已有分组表被布局步骤拒收时列成恢复停点", caseRejectedExistingGroupsNeedsRecovery],
     ["只有图、还没有控件清单", caseImageBeforeControls],
     ["只有图、类型产物在但条目清单缺失", caseImageWithoutCandidates],
     ["分组表损坏 = 按没有表处理，让人重写一次", caseBrokenGroupsAsksAgain]
