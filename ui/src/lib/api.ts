@@ -561,6 +561,8 @@ export type BoardTask = {
   error: string
   /** 新建时先选的页面 PNG 没能落地时的那句话（不是任务的失败原因）；空串表示没有要说的。 */
   designImage: string
+  /** 当前停在补页面 PNG：与布局步骤被分组表拒绝是两种停点。 */
+  imageStop: boolean
 }
 
 export type BoardAiFill = {
@@ -628,8 +630,6 @@ export type PendingQueueEntry = {
   stateLabel: string
   /** 看板任务已经被移除，但工作目录与产物还在。 */
   orphan: boolean
-  /** 已有分组表，但来源运行确实停在布局步骤：面板必须给出重写入口。 */
-  layoutRejected: boolean
   /** 人工待办条数：图标、文案、以及自动分组失败后需要显式写空表的布局停点。 */
   counts: { icons: number; translations: number; layout: number }
   total: number

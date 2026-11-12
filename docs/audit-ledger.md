@@ -354,4 +354,6 @@
 | 2026-11-12 GitHub 合并前复核 | REVIEW-002 | 已有分组表被插件拒绝时，磁盘上「有表」让客户端误判完成，待确认列表和面板都没有重写入口 | 已收 | 布局读数增加 `hasGroups` / `rejected`；服务端按来源任务或运行的 `layoutStep`、失败步骤和状态判定是否真的停在吃分组表那一步，前端不接受该判据的布尔参数。看板与直跑运行都进待确认队列，面板提供空表重写与 `/api/layout-groups/suggest` 重新自动分组；后者复用 `candidatesInput + ai.suggestLayoutGroups + confirm`，不恢复布局编辑、树或画布 |
 | 2026-11-12 GitHub 语义审计 | REVIEW-001 | `reconcileTask` 末尾仍保留永不命中的 `ready -> queueMerge` 条件，让合并排队的真实入口看起来有三处 | 已收 | 删除该不可达分支与未使用的前态变量；按登记表对表的失败/待确认路径只更新停点，“依次从 `settleDone` 与 `syncTask` 进入待合并”保持原行为 |
 | 2026-11-12 GitHub 语义审计 | 非阻断 | 看板页对 `task-form` 分两条导入；流水线页头注释仍把创建编排直接指向 `stage-design-images`；创建后取图保留空链接防御分支 | 已收 | 导入合并为一处，头注释改指 `task-creation-entry`，创建结果沿用同一份看板任务的非空链接并删除不可达空链接分支 |
+| 2026-11-12 GitHub 语义复审 | BLOCK-001 | `/api/pending` 从 `board.byId()` 的轻量引用读取不存在的 `layoutStep` / `failure`，看板主路径的布局恢复面板永不出现 | 已收 | 待确认接口改从 `board.snapshot()` 的完整任务画像取 `state` / `layoutStep` / `failure` / `imageStop`；队列与面板继续读同一套 `pending.inspect` 结论，并补看板快照字段回归 |
+| 2026-11-12 GitHub 语义复审 | REVIEW-001 | 等页面 PNG 的停点同样把失败步骤写成布局步骤，已有分组表时会被误判为「分组表被拒」 | 已收 | 看板公开快照与待确认队列增加独立的 `imageStop` 事实，`isLayoutStepStop` 明确排除等图停点；补 `waiting + layoutStep + hasGroups + imageStop` 不产生重写入口的边界用例 |
 

@@ -42,7 +42,8 @@ function task(
     merge: at ? { at, applied: [], skipped: [], notes: [], conflicts: [] } : null,
     resolutions: {},
     error: "",
-    designImage: ""
+    designImage: "",
+    imageStop: false
   }
 }
 

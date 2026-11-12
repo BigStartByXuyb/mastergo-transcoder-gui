@@ -83,7 +83,6 @@ export function ReviewPage() {
         // 手填的条目没有来源运行，因而没有状态可显示。
         stateLabel: "",
         orphan: false,
-        layoutRejected: false,
         counts: { icons: 0, translations: 0, layout: 0 },
         total: 0,
         manual: true

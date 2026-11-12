@@ -94,13 +94,14 @@ function writeBrokenGroups(root) {
   );
 }
 
-function layoutOf(root, pending, mode, stoppedAtLayout) {
+function layoutOf(root, pending, mode, stoppedAtLayout, imageStop) {
   const query = {
     projectRoot: root,
     target: TARGET,
     state: stoppedAtLayout ? "waiting" : "",
     layoutStep: stoppedAtLayout ? "layoutManifest" : "",
-    failedStep: stoppedAtLayout ? "layoutManifest" : ""
+    failedStep: stoppedAtLayout ? "layoutManifest" : "",
+    imageStop: imageStop === true
   };
   if (mode !== undefined) query.mode = mode;
   return pending.inspect(query).layout;
@@ -233,6 +234,12 @@ function caseRejectedExistingGroupsNeedsRecovery() {
     rejected: true,
     waiting: 1
   }, "来源运行确实停在布局步骤时，已有表也要给出重写入口");
+  assert.deepStrictEqual(layoutOf(root, pending, "A", true, true), {
+    needsGroups: false,
+    hasGroups: true,
+    rejected: false,
+    waiting: 0
+  }, "等页面 PNG 的停点不是分组表被拒");
   fs.rmSync(root, { recursive: true, force: true });
 }
 

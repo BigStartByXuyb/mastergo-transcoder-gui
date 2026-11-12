@@ -45,6 +45,7 @@ function task(patch: Partial<BoardTask> = {}): BoardTask {
     resolutions: {},
     error: "",
     designImage: "",
+    imageStop: false,
     ...patch
   }
 }

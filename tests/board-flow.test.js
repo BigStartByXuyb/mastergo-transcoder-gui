@@ -541,6 +541,8 @@ async function casePipelineARequiresImageBeforeReady() {
   assert.strictEqual(after.state, "waiting", "没有页面 PNG 的 A 任务不得进入待合并");
   assert.strictEqual(after.failure.kind, "semantic");
   assert.match(after.failure.message, /含 A 的路线需要页面 PNG/);
+  assert.strictEqual(after.imageStop, true, "看板快照要单独交出等图事实");
+  assert.strictEqual(after.failure.stepName, after.layoutStep, "等图停点挂在布局输入步骤上，显示时不能被当成分组表被拒");
   assert.strictEqual(after.error, "", "页面 PNG 是可补齐的语义停点，不是运行错误");
   assert.strictEqual(after.resumable, false, "页面 PNG 停点只能补图，不能重跑已完成的流水线");
   assert.strictEqual(fx.autoFillCalls.length, 0, "页面 PNG 等图停点不走语义自动补输入");

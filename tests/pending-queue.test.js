@@ -124,6 +124,7 @@ function caseRejectedExistingGroupsIsListed() {
     workDir: WORK,
     layoutStep: "layoutManifest",
     failure: { stepName: "layoutManifest" },
+    imageStop: false,
     request: { target: "DemoPage", mode: "A" }
   };
   const queue = makeQueue({
@@ -141,7 +142,6 @@ function caseRejectedExistingGroupsIsListed() {
   });
   const items = queue.snapshot().items;
   assert.strictEqual(items.length, 1, "已有分组表但停在布局步骤时仍必须进待确认列表");
-  assert.strictEqual(items[0].layoutRejected, true);
   assert.strictEqual(items[0].counts.layout, 1);
 
   const completed = makeQueue({
@@ -152,6 +152,7 @@ function caseRejectedExistingGroupsIsListed() {
       workDir: WORK,
       layoutStep: "layoutManifest",
       failure: null,
+      imageStop: false,
       request: { target: "DemoPage", mode: "A" }
     }],
     pendingFor: () => ({
@@ -185,7 +186,7 @@ function caseRejectedPipelineRunIsListed() {
       }
     })
   });
-  assert.strictEqual(queue.snapshot().items[0].layoutRejected, true, "流水线直跑同样要带上布局停点事实");
+  assert.strictEqual(queue.snapshot().items[0].counts.layout, 1, "流水线直跑同样要带上布局停点事实");
 }
 
 /*
