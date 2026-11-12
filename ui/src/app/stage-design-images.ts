@@ -39,7 +39,8 @@ export function pageImageFailure(
   links: string[],
   images: Record<string, File>
 ): string {
-  return takesPageImage && links.some((link) => !pickedForLink(images, link)) ? PAGE_IMAGE_REQUIRED : ""
+  const allowUnclaimed = links.length === 1
+  return takesPageImage && links.some((link) => !pickedForLink(images, link, allowUnclaimed)) ? PAGE_IMAGE_REQUIRED : ""
 }
 
 function startFailedNote(taskIds: string[]): string {
@@ -64,10 +65,11 @@ function picksForCreated(
   images: Record<string, File>
 ): StagedPick[] {
   const linkOf = new Map(board.tasks.map((task) => [task.id, task.request.link]))
+  const allowUnclaimed = created.length === 1
   return created.flatMap((taskId) => {
     const link = linkOf.get(taskId)
-    // 取法与单页表单同一处（含「还没填链接」那一格）：这里只看这一条任务自己带的链接。
-    const file = link ? pickedForLink(images, link) : null
+    // 单任务批次允许先选图、后填链接；多任务批次必须每行各自成键，避免把一张图复制给多页。
+    const file = link ? pickedForLink(images, link, allowUnclaimed) : null
     return file ? [{ taskId, file }] : []
   })
 }

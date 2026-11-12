@@ -32,6 +32,14 @@ const STEPS = [
   }
 ];
 
+function completedSteps(steps = STEPS) {
+  return steps.map((step) => ({ id: step.Id, name: step.Name, status: "ok", seconds: 1, note: "" }));
+}
+
+function completeArtifacts(steps = STEPS) {
+  return { stepsOf: () => completedSteps(steps) };
+}
+
 function write(file, text) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, text, "utf8");
@@ -247,7 +255,7 @@ async function caseStartAllKeepsDeferredTasks() {
 }
 
 async function caseTickSyncsReadyAndMerges() {
-  const fx = makeBoard();
+  const fx = makeBoard({ artifacts: completeArtifacts() });
   const added = fx.board.add({ projectRoot: fx.project, items: [{ link: LINK, target: "T1", mode: "B" }] });
   const id = added.created[0];
   fx.board.start(id);
@@ -515,6 +523,7 @@ async function casePipelineARequiresImageBeforeReady() {
   const fx = makeBoard({
     project: project,
     steps,
+    artifacts: completeArtifacts(steps),
     autoFill: { ok: false, empty: true, reason: "这次停点没有要补的输入" }
   });
   const added = fx.board.add({
@@ -600,7 +609,7 @@ async function caseLayoutRerunsAfterProgressWhenImageNeedsGroups() {
   const steps = [
     contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
   ];
-  const fx = makeBoard({ project: project, steps: steps });
+  const fx = makeBoard({ project: project, steps: steps, artifacts: completeArtifacts(steps) });
   const id = fx.board.add({
     projectRoot: project,
     autoMerge: false,
@@ -703,7 +712,7 @@ async function caseBadImageStopsBeforeLayoutRerun() {
   const steps = [
     contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
   ];
-  const fx = makeBoard({ project: project, steps: steps });
+  const fx = makeBoard({ project: project, steps: steps, artifacts: completeArtifacts(steps) });
   const id = fx.board.add({ projectRoot: project, items: [{ link: LINK, target: "T1", mode: "A" }] }).created[0];
   fx.board.start(id);
   const task = await waitForTask(fx.board, id, hasJob, "任务启动");
@@ -858,6 +867,7 @@ async function caseMergingDoesNotRestartLayout() {
   const fx = makeBoard({
     project: project,
     steps: steps,
+    artifacts: completeArtifacts(steps),
     merge: {
       merge: () => new Promise((resolve) => {
         releaseMerge = () => resolve({ applied: [], skipped: [], notes: [], conflicts: [] });
@@ -1024,6 +1034,88 @@ async function caseResumeStepBoundary() {
   fs.rmSync(half.home, { recursive: true, force: true });
 }
 
+/*
+ * 运行以 done 退出不等于流水线跑完：-StopAfter 后面的步骤是 skipped。
+ * 这种任务必须停在可续跑的 stopped，而不是被页面 PNG 门禁改写成 waiting。
+ */
+async function caseDoneBeforeCompleteStaysResumable() {
+  const artifacts = {
+    stepsOf: () => [
+      { id: 6, name: "discover", status: "ok", seconds: 1, note: "" },
+      { id: 7, name: "ledger", status: "skipped", seconds: 0, note: "" }
+    ]
+  };
+  const fx = makeBoard({ artifacts: artifacts });
+  const added = fx.board.add({
+    projectRoot: fx.project,
+    stopAfter: "discover",
+    items: [{ link: LINK, target: "T1", mode: "AB" }]
+  });
+  const id = added.created[0];
+  fx.board.start(id);
+  const task = await waitForTask(fx.board, id, hasJob, "启动完成");
+  fx.runs.seed(task.jobId, { id: task.jobId, state: "done", request: { stopAfter: "discover" }, runs: [] }, task.workDir);
+
+  await sleep(TICK + 300);
+  const after = fx.board.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(after.state, "stopped", "提前停止的运行不能按已完成收尾");
+  assert.strictEqual(after.failure, null, "提前停止不是错误，也不该伪造页面 PNG 停点");
+  assert.strictEqual(after.resumable, true, "登记表没跑满时必须保留续跑入口");
+  assert.strictEqual(after.resumeStep, "图标台账", "续跑从登记表里的下一步开始");
+  fs.rmSync(fx.home, { recursive: true, force: true });
+}
+
+/* 登记表已经跑满但磁盘状态还是 waiting / stopped：快照对表要直接收尾，不能再给必然 ALL_DONE 的入口。 */
+async function caseCompletedRegistrySettlesStaleStops() {
+  const complete = [
+    { id: 6, name: "discover", status: "ok", seconds: 1, note: "" },
+    { id: 7, name: "ledger", status: "ok", seconds: 1, note: "" }
+  ];
+
+  const stoppedFx = makeBoard({ artifacts: { stepsOf: () => complete } });
+  const stoppedId = stoppedFx.board.add({
+    projectRoot: stoppedFx.project,
+    autoMerge: false,
+    items: [{ link: LINK, target: "T1", mode: "B" }]
+  }).created[0];
+  stoppedFx.board.start(stoppedId);
+  await waitForTask(stoppedFx.board, stoppedId, hasJob, "启动完成");
+  stoppedFx.board.stop(stoppedId);
+  const settledStopped = stoppedFx.board.snapshot().tasks.find((task) => task.id === stoppedId);
+  assert.strictEqual(settledStopped.state, "ready", "登记表跑满后 stopped 要对表收尾");
+  assert.strictEqual(settledStopped.resumable, false, "已经跑完的任务不给续跑");
+  fs.rmSync(stoppedFx.home, { recursive: true, force: true });
+
+  const waitingHome = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-waiting-complete-"));
+  const waitingWork = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-waiting-work-"));
+  write(path.join(waitingHome, "board.json"), JSON.stringify([{
+    id: "waiting-complete",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    state: "waiting",
+    request: { mode: "B", link: LINK, target: "T1", ui: "F3", projectRoot: waitingWork, stopAfter: "", overwrite: false },
+    workDir: waitingWork,
+    baseDir: "",
+    jobId: "",
+    autoMerge: false,
+    autoFillCount: 0,
+    failure: { kind: "semantic", stepName: "ledger", title: "图标台账", message: "旧停点", logPath: "" },
+    merge: null,
+    error: ""
+  }]));
+  const waitingBoard = createBoard({
+    runs: makeRuns().api,
+    pending: null,
+    artifacts: { stepsOf: () => complete },
+    home: waitingHome
+  });
+  const settledWaiting = waitingBoard.snapshot().tasks.find((task) => task.id === "waiting-complete");
+  assert.strictEqual(settledWaiting.state, "ready", "登记表跑满后 waiting 要对表收尾");
+  assert.strictEqual(settledWaiting.resumable, false, "等待态过期后也不能给续跑");
+  fs.rmSync(waitingHome, { recursive: true, force: true });
+  fs.rmSync(waitingWork, { recursive: true, force: true });
+}
+
 async function caseStopRemoveClearAndMerge() {
   const fx = makeBoard();
   const added = fx.board.add({ projectRoot: fx.project, items: [{ link: LINK, target: "T1", mode: "B" }, { link: LINK + "&b=1", target: "T2", mode: "B" }] });
@@ -1108,6 +1200,8 @@ async function main() {
     ["任务离开看板（移除 / 清理 / 清空区域）：暂存件跟着走", caseRemovalDropsStagedImage],
     ["「哪一步吃布局输入」按契约的 Inputs 判，不认步骤名", caseLayoutStepComesFromContract],
     ["「能不能续、续哪一步」的两支边界（没跑过 / 跑到一半）", caseResumeStepBoundary],
+    ["运行提前 done 但登记表没跑满：停在可续跑的 stopped", caseDoneBeforeCompleteStaysResumable],
+    ["登记表已跑满：过期的 waiting / stopped 直接收尾", caseCompletedRegistrySettlesStaleStops],
     ["停止 / 移除 / 清理 / 合并前置校验", caseStopRemoveClearAndMerge],
     ["进度、步骤视图与 Target 认领", caseProgressStepsAndTargetAdoption]
   ];

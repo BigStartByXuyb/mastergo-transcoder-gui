@@ -12,6 +12,8 @@ import { DESIGN_IMAGE_LABEL, READ_IMAGE_HINT } from "@/lib/task-form"
 export function BoardImageRows(props: {
   rows: BoardRow[]
   images: Record<string, File>
+  /** 当前表单确实只有一个页面时，先选好的待认领图仍显示在这一行。 */
+  allowUnclaimed: boolean
   onPickImage: (link: string, file: File | null) => void
 }) {
   return (
@@ -36,7 +38,7 @@ export function BoardImageRows(props: {
             {row.target && <Badge variant="secondary">{row.target}</Badge>}
             <DesignImagePicker
               id={"board-image-" + row.line}
-              file={pickedForLink(props.images, row.link)}
+              file={pickedForLink(props.images, row.link, props.allowUnclaimed)}
               emptyHint=""
               onPick={(file) => props.onPickImage(row.link, file)}
             />

@@ -340,6 +340,9 @@
 | 2026-11-12 GitLab 最终遍 | REVIEW-001 | 快照轮询会把普通语义停点重新排队自动补输入 | 已收 | `reconcileTask` 对非等图 `waiting` 直接返回；看板流程用例在两次 tick 之间连续调用 `snapshot()`，锁定自动补输入只发生一次 |
 | 2026-11-12 GitLab 最终遍 | REVIEW-002 | `createTasksWithPageImages` 的 `links` 入参已无人读取 | 已收 | 入参、两个生产调用点与前端用例全部删除该参数；缺图门禁仍只由 `pageImageFailure` 一处负责 |
 | 2026-11-12 GitHub 最终遍 | REVIEW-001 | 页面 PNG 停点仍显示「重跑一遍」，但流水线各步已经完成，该入口必然报 `ALL_DONE` | 已收 | 续跑资格由后端 `resumeAllowedOf` 一次算出并随快照给 `task.resumable`；前端按钮与失败说明只读它，页面 PNG 停点只保留补图操作 |
+| 2026-11-12 GitLab 第二轮 | REVIEW-001 | `waiting` / `stopped` 在登记表已跑满时仍可能给续跑，点击必然报 `ALL_DONE` | 已收 | `resumeAllowedOf` 先排除 `plan.finished`；快照对表让过期的 `waiting` / `stopped` 走同一个 `settleDone` 收尾，并补完整登记表用例 |
+| 2026-11-12 GitLab 第二轮 | REVIEW-002 | 前端用正则自判链接是否完整，与后端 `parseLink` 形成两套口径 | 已收 | 删除前端链接拆分：待认领图保持原键，单页面表单在显示与提交时直接读取，多页面批次要求每行各自选图 |
+| 2026-11-12 GitLab 第二轮 | REVIEW-003 | `-StopAfter` 让运行以 done 收尾、但登记表没跑满时被误判成页面 PNG 停点，且失去唯一续跑入口 | 已收 | `settleDone` 先核对登记表完整性；没跑满就落为可续跑的 `stopped`，只有跑满才进入页面 PNG 门禁、布局重推与待合并 |
 | 2026-11-12 GitLab 最终遍 | REVIEW-003 | A 启动写死 `takesPageImage=true`，绕过后端路线能力表 | 已收 | `createTasksForMode` 把 `policy.takesPageImage` 继续传入 `startPipelineA`；定向用例覆盖能力为假时不暂存图片 |
 | 2026-11-12 GitLab 最终遍 | 非阻断 | 等图停点的进入与写盘在运行收尾、登记表对表各有一份 | 已收 | 两处共用 `enterPipelineAImageStop`；旧记录识别与停点文案共用 `PAGE_IMAGE_LABEL` |
 | 2026-11-12 GitLab 最终遍 | 非阻断 | 补页面身份复用创建校验，会先报路线能力未读到 | 已收 | 新增 `taskInputFailure`，补身份只校验工程目录与链接；创建入口仍在此基础上校验路线能力 |

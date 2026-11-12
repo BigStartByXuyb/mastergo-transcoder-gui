@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { BoardNewTaskDialog } from "@/app/board-new-task-dialog"
 import type { BoardTaskForm } from "@/lib/board-form"
@@ -12,6 +12,11 @@ import type { useIdentityFill } from "@/app/use-identity-fill"
 
 const LINK = "https://mastergo.com/goto/x?file=1&layer_id=2:3"
 const OTHER = "https://mastergo.com/goto/y?file=1&layer_id=4:5"
+
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 /* 弹窗里的补全面板由 useIdentityFill 驱动：这一组用例与它无关，给一份不动的壳。 */
 const IDENTITY = {
@@ -80,6 +85,13 @@ describe("BoardNewTaskDialog 的选图", () => {
     const { inputs } = show({ form: form({ links: LINK }) })
     expect(inputs.length).toBe(1)
     expect(screen.getByText("第 1 行")).toBeTruthy()
+  })
+
+  it("只有一行时，先选图后填链接仍显示这份待认领图", () => {
+    vi.stubGlobal("URL", { createObjectURL: () => "blob:preview", revokeObjectURL: () => undefined })
+    const file = new File(["x"], "Picked.design.png", { type: "image/png" })
+    show({ form: form({ links: LINK }), images: { "": file } })
+    expect(screen.getByText("Picked.design.png")).toBeTruthy()
   })
 
   it("行号与上面那个框里的行对得上（空行也占一行）", () => {

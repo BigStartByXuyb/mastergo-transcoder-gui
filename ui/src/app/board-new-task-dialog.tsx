@@ -97,7 +97,12 @@ export function BoardNewTaskDialog(props: {
             />
             {/* 一行一个页面：走 A 路线时每行各配一张页面 PNG（一个任务一份）。 */}
             {props.takesPageImage && (
-              <BoardImageRows rows={rows} images={props.images} onPickImage={props.onPickImage} />
+              <BoardImageRows
+                rows={rows}
+                images={props.images}
+                allowUnclaimed={rows.length === 1}
+                onPickImage={props.onPickImage}
+              />
             )}
           </FieldGroup>
 

@@ -39,4 +39,5 @@
 | 跨仓同一套判据：ref 必须在本层条目里 / 不参与分组的层只许空表 | `lib/layout-groups.js` · `不在本层条目里: `、`这一层的条目清单是空的（这一层不参与分组）` | 写回校验（`validateGroups`）；插件那侧是 `gen-mw-wpf-layout.js` 的 `declaredGroups` / `requireNoDeclaredGroups` —— 两边的关键句要一起改 |
 | 只有一个字符串字段的地方那句整句（原因 + 怎么做） | `lib/errors.js` · `function failureSentence(` | `lib/mcp-token.js`（缺 token 那件事的整句）、`lib/board.js`（任务行上的 `error` / `designImage` 四处 catch）、`lib/autofill.js`（这一步的输入读不出来时交回给人的那句）；界面那侧同一条规矩在 `ui/src/lib/describe-failure.ts` 的 `failureText`（两端口径一起改） |
 | 一个 mode 的路线、页面 PNG 与 A 自动入口能力 | `lib/run.js` · `function modePolicies(` | 看板快照直接携带 `modes`；前端表单、详情页、取图与启动编排只查这张表（`ui/src/lib/task-form.ts` 的 `modePolicyOf`），不自行解释 mode 字符串 |
+| 先选图、后填链接时哪张图归哪一页 | `ui/src/lib/board-items.ts` · `function pickedForLink<T>(` | 单页面表单用 `allowUnclaimed=true` 读取待认领图；多页面批次必须按各自链接成键。链接是否可建任务仍只由后端 `lib/resolve-target.js` 的 `parseLink` 判 |
 

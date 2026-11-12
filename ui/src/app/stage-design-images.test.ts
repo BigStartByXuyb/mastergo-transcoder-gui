@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import {
   createTasksWithPageImages,
+  pageImageFailure,
   ROLLED_BACK_NOTE,
   STAGE_FAILED_NOTE
 } from "@/app/stage-design-images"
@@ -29,6 +30,28 @@ function fakeApi(overrides: Partial<TaskCreationApi> = {}): TaskCreationApi {
 }
 
 describe("createTasksWithPageImages", () => {
+  it("单页允许先选图、后填链接；多页不把待认领图复制给任意一行", () => {
+    const picked = { "": file("a") }
+    expect(pageImageFailure(true, ["https://a"], picked)).toBe("")
+    expect(pageImageFailure(true, ["https://a", "https://b"], picked)).toContain("需要为每个页面选择")
+  })
+
+  it("单任务批次提交时使用待认领图", async () => {
+    const api = fakeApi()
+    const result = await createTasksWithPageImages({
+      takesPageImage: true,
+      images: { "": file("a") },
+      add: async () => ({
+        created: ["task-1"],
+        board: { ...empty, tasks: [{ id: "task-1", request: { link: "https://a" } }] as Board["tasks"] }
+      }),
+      api
+    })
+
+    expect(api.stageDesignImage).toHaveBeenCalledWith(expect.objectContaining({ taskId: "task-1" }))
+    expect(result.ok).toBe(true)
+  })
+
   it("含 A 的路线先逐张暂存，再逐条显式启动", async () => {
     const api = fakeApi()
     const result = await createTasksWithPageImages({
