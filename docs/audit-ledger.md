@@ -351,5 +351,5 @@
 | 2026-11-12 GitLab 最终遍 | 非阻断 | 等图停点的进入与写盘在运行收尾、登记表对表各有一份 | 已收 | 两处共用 `enterPipelineAImageStop`；旧记录识别与停点文案共用 `PAGE_IMAGE_LABEL` |
 | 2026-11-12 GitLab 最终遍 | 非阻断 | 补页面身份复用创建校验，会先报路线能力未读到 | 已收 | 新增 `taskInputFailure`，补身份只校验工程目录与链接；创建入口仍在此基础上校验路线能力 |
 | 2026-11-12 GitHub 合并前复核 | REVIEW-001 | A-only 表单遇到设计页改名时，文案仍要求点候选或填 UI 区域，而这两个控件在 A-only 表单中已经隐藏 | 已收 | `lib/identity.js` 在 `autoAdopt` 改名分支改给可执行路径：先在 B / AB 显式确认候选，或先修改 `docs/page-registry.json` 再重跑 A；候选依据与拦截原话共用同一分支，`identity.test.js` 锁定不再指向隐藏控件 |
-| 2026-11-12 GitHub 合并前复核 | REVIEW-002 | 已有分组表被插件拒绝时，磁盘上「有表」让客户端误判完成，待确认列表和面板都没有重写入口 | 已收 | 布局读数增加 `hasGroups` / `rejected`；只有来源运行确实停在吃分组表那一步才置为恢复停点，完成页不误报。看板与直跑运行把 `layoutStep` / 失败步骤带进队列，面板提供空表重写与 `/api/layout-groups/suggest` 重新自动分组；后者复用 `candidatesInput + ai.suggestLayoutGroups + confirm`，不恢复布局编辑、树或画布 |
+| 2026-11-12 GitHub 合并前复核 | REVIEW-002 | 已有分组表被插件拒绝时，磁盘上「有表」让客户端误判完成，待确认列表和面板都没有重写入口 | 已收 | 布局读数增加 `hasGroups` / `rejected`；服务端按来源任务或运行的 `layoutStep`、失败步骤和状态判定是否真的停在吃分组表那一步，前端不接受该判据的布尔参数。看板与直跑运行都进待确认队列，面板提供空表重写与 `/api/layout-groups/suggest` 重新自动分组；后者复用 `candidatesInput + ai.suggestLayoutGroups + confirm`，不恢复布局编辑、树或画布 |
 

@@ -134,8 +134,8 @@ function caseRejectedExistingGroupsIsListed() {
       layout: {
         needsGroups: false,
         hasGroups: true,
-        rejected: query.layoutRejected === true,
-        waiting: query.layoutRejected === true ? 1 : 0
+        rejected: query.state === "waiting" && query.layoutStep === query.failedStep,
+        waiting: query.state === "waiting" && query.layoutStep === query.failedStep ? 1 : 0
       }
     })
   });
@@ -180,8 +180,8 @@ function caseRejectedPipelineRunIsListed() {
       layout: {
         needsGroups: false,
         hasGroups: true,
-        rejected: query.layoutRejected === true,
-        waiting: query.layoutRejected === true ? 1 : 0
+        rejected: query.state === "failed" && query.layoutStep === query.failedStep,
+        waiting: query.state === "failed" && query.layoutStep === query.failedStep ? 1 : 0
       }
     })
   });

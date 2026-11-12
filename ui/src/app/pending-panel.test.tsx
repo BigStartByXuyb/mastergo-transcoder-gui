@@ -120,7 +120,6 @@ function panel(state: string, overrides: Partial<Parameters<typeof PendingPanel>
       runId="job-1"
       state={state}
       automation="off"
-      layoutRejected={false}
       {...overrides}
     />
   )
@@ -233,7 +232,7 @@ describe("PendingPanel", () => {
       }
       return Promise.resolve(new Response(JSON.stringify({ ok: true, pending: rejected }), { status: 200 }))
     })
-    render(panel("waiting", { layoutRejected: true }))
+    render(panel("waiting"))
 
     expect(await screen.findByText(/插件在布局步骤拒绝了它/)).toBeTruthy()
     screen.getByRole("button", { name: /按空表重写并继续/ }).click()
@@ -267,7 +266,7 @@ describe("PendingPanel", () => {
       }
       return Promise.resolve(new Response(JSON.stringify({ ok: true, pending: rejected }), { status: 200 }))
     })
-    render(panel("waiting", { layoutRejected: true }))
+    render(panel("waiting"))
 
     const regroup = await screen.findByRole("button", { name: /重新自动分组并继续/ })
     await vi.waitFor(() => expect(regroup.hasAttribute("disabled")).toBe(false))

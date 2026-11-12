@@ -224,7 +224,6 @@ export function ReviewPage() {
               runId={active.runId}
               state={active.runState}
               automation={automation}
-              layoutRejected={active.layoutRejected}
               onResumed={() => void load()}
             />
           </CardContent>

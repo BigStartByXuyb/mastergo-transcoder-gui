@@ -1039,12 +1039,13 @@ export const api = {
     ),
   settingsGet: () => request<{ ok: true; settings: Settings }>("/api/settings"),
   settingsSave: (body: unknown) => post<{ ok: true; settings: Settings }>("/api/settings", body),
-  pending: (projectRoot: string, target: string, mode: string, layoutRejected = false) =>
+  pending: (input: { projectRoot: string; target: string; mode: string; taskId?: string; runId?: string }) =>
     request<{ ok: true; pending: Pending }>(
-      "/api/pending?projectRoot=" + encodeURIComponent(projectRoot) +
-        "&target=" + encodeURIComponent(target) +
-        "&mode=" + encodeURIComponent(mode) +
-        "&layoutRejected=" + (layoutRejected ? "1" : "0")
+      "/api/pending?projectRoot=" + encodeURIComponent(input.projectRoot) +
+        "&target=" + encodeURIComponent(input.target) +
+        "&mode=" + encodeURIComponent(input.mode) +
+        "&taskId=" + encodeURIComponent(input.taskId ?? "") +
+        "&runId=" + encodeURIComponent(input.runId ?? "")
     ),
   pendingList: () => request<{ ok: true; queue: PendingQueue }>("/api/pending/list"),
   mapping: () => request<{ ok: true; mapping: MappingView }>("/api/mapping"),

@@ -63,7 +63,6 @@ export function PendingPanel({
   runId,
   state,
   automation,
-  layoutRejected,
   onResumed
 }: {
   projectRoot: string
@@ -81,15 +80,13 @@ export function PendingPanel({
    */
   state: string
   automation: string
-  /** 来源运行确实停在布局步骤，且已有分组表被插件拒收。 */
-  layoutRejected: boolean
   onResumed?: (info: PendingFilled) => void
 }) {
   /*
    * 清单、三张草稿与叫 AI 都在 use-pending-inputs 那一处（取数只在那里取一次）；
    * 面板这里只留「提交并续跑」这条动作的忙位与失败 —— 两处合起来是界面要显示的那一份。
    */
-  const inputs = usePendingInputs({ projectRoot, target, mode, taskId, runId, state, layoutRejected })
+  const inputs = usePendingInputs({ projectRoot, target, mode, taskId, runId, state })
   const { pending, names, texts, glossary, setName, setText, setGlossaryOf, aiReady, clearFailure, writeFailure } = inputs
   const {
     namingPayload,

@@ -94,8 +94,14 @@ function writeBrokenGroups(root) {
   );
 }
 
-function layoutOf(root, pending, mode, layoutRejected) {
-  const query = { projectRoot: root, target: TARGET, layoutRejected: layoutRejected === true };
+function layoutOf(root, pending, mode, stoppedAtLayout) {
+  const query = {
+    projectRoot: root,
+    target: TARGET,
+    state: stoppedAtLayout ? "waiting" : "",
+    layoutStep: stoppedAtLayout ? "layoutManifest" : "",
+    failedStep: stoppedAtLayout ? "layoutManifest" : ""
+  };
   if (mode !== undefined) query.mode = mode;
   return pending.inspect(query).layout;
 }
