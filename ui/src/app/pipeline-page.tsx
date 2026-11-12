@@ -25,7 +25,7 @@ import { ClampText } from "@/app/clamp-text"
 import { createTasksForMode, taskEntryFailure } from "@/app/task-creation-entry"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentity } from "@/app/use-identity"
-import { requestDefaultsOf } from "@/lib/task-form"
+import { requestDefaultsOf, startActionLabel } from "@/lib/task-form"
 import { useRemembered } from "@/app/use-remembered"
 import { useRunLog } from "@/app/use-run-log"
 import { useTaskActions } from "@/app/use-task-actions"
@@ -66,7 +66,7 @@ export function PipelinePage({
   const [images, setImages] = useState<Record<string, File>>({})
   const stagedImage = pickedForLink(images, form.link, true)
   /*
-   * 两屏：带 `task=<id>`（从看板点「详情」、或刚「加入看板并开始」）就是看那个任务；
+   * 两屏：带 `task=<id>`（从看板点「详情」、或刚点开始按钮）就是看那个任务；
    * 不带（侧边栏「+ 新建任务」）就是新建表单。换屏走侧边栏/看板，页内不放互相跳的按钮。
    * 给哪一屏由「有没有这条路由 + 快照里有没有这个任务」唯一决定（不另存一份状态）。
    */
@@ -74,6 +74,7 @@ export function PipelinePage({
   const task = taskOf(currentId)
   const currentMode = modePolicyOf(board?.modes, form.mode)
   const takesPageImage = currentMode?.takesPageImage === true
+  const startLabel = startActionLabel(takesPageImage)
   const pipelineAMode = currentMode?.runsPipelineAOnly ? currentMode.mode : null
   /* 给哪一屏：见上面「两屏」那段 —— 没有路由里的任务 id，或快照里已经没有这个任务，就给表单。 */
   const showForm = !taskId || !task
@@ -233,7 +234,7 @@ export function PipelinePage({
       setCurrentId(created)
       setImages({})
       window.location.hash = "pipeline?task=" + created
-      toast.success("已加入看板并开始")
+      toast.success("已" + startLabel)
     }
     catch (error) {
       setFailure(describeFailure(error))
@@ -273,7 +274,7 @@ export function PipelinePage({
 
       {showForm && task && (
         <p className="text-muted-foreground text-sm">
-          上面填好点「加入看板并开始」，或在看板点某个任务的「详情」——那是另一屏，按步骤看。
+          上面填好点「{startLabel}」，或在看板点某个任务的「详情」——那是另一屏，按步骤看。
         </p>
       )}
 

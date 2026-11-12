@@ -31,7 +31,7 @@
 | 某一版能不能用在这一台上（外壳下限） | `lib/update.js` · `function usableHere(` | 「这一份可以切过去」（`switchable`：选版与版本表逐行都读它，清单都按 `manifestOf` 取）；与 `apply` 前那一刻的 `versionBlocked` 同源 |
 | 布局停点是否属于这个 mode，等图停点是否排除，缺表与已有表被拒收分别怎么读数 | `lib/pending.js` · `function layoutSection(` | `inspect` 的统一结论；看板语义停点、自动补输入、待确认队列与面板都读这一份，B 路线不产生布局停点，页面 PNG 等图停点只产生补图待办 |
 | 布局步骤的失败是否真的属于分组表输入问题（文件在不在、表能不能读、缺表恢复 / 已有表被拒） | `lib/layout-groups.js` · `const hasFile = fs.existsSync(workdir.layoutGroupsPath(`、`const failureCode = groupFailureCodeOf(` | `lib/pending.js` 的 `layoutSection`、`lib/board.js` 的语义停点、`lib/autofill.js` 的自动补输入共用同一份 `inspect` 结论；只有失败步骤就是布局步骤且机器码明确时，才产生补表待办或覆盖现有表的快捷动作 |
-| 布局模型恢复接口的服务端准入门槛 | `lib/layout-groups.js` · `function requireRecovery(` | `lib/routes.js` 的 `POST /api/layout-groups/suggest`；有来源运行时必须处于等待/失败态，且只有 `needsGroups` 或 `rejected` 成立时才允许读取模型输入并覆盖分组表 |
+| 布局分组写入口的服务端准入门槛 | `lib/layout-groups.js` · `function requireRecovery(` | `lib/routes.js` 的 `POST /api/layout-groups/suggest` 与带 `groups` 的 `POST /api/confirm` 共用 `requireLayoutRecoveryOf`；只有来源停在缺表或已有表被拒时才允许覆盖分组表 |
 | 看板任务 / 直跑运行 / 手填条目到待确认查询的唯一映射 | `lib/pending.js` · `function queryOfTask(`、`function queryOfRun(`、`function queryOfManual(` | `/api/pending`、`lib/pending-queue.js`、`lib/board.js` 与 `lib/autofill.js`；停点字段只在这里整理 |
 | A / B / AB 页面身份的手写 Target 对账 | `ui/src/lib/identity-flow.ts` · `function identityConflict(` | 只拿后端标为已登记的候选对账；机械候选与模型候选不能替另一页放行，三个入口不再各筛一份 |
 | Target 是否同时具备区域前缀与语义名 | `lib/identity.js` · `function targetPartsOf(` | `/api/identity/prefix` 直接返回 `previewUi` / `semanticName` / `complete`；流水线 A 与 B / AB 的手写 Target 都读这份结论，再交给 `ui/src/lib/identity-pick.ts` 的同一采用判据；登记候选与写回接口也用这份结论 |
@@ -46,6 +46,8 @@
 | 布局待办、自动续跑与空表写回的前置判据 | `lib/layout-groups.js` · `const recoverable = query?.imageStop !== true &&`、`const needsGroups = recoverable &&` | `inspect` 的统一结论（`lib/pending.js`、看板状态判定与 `lib/autofill.js`）；只有来源为手填无状态 / 等待 / 失败态，且页面 PNG、条目清单与分组表输入证据满足时才成立 |
 | 布局自动分组动作能不能执行 | `lib/layout-groups.js` · `function suggestBlocker(`、`function regroupOf(` | `inspect` 直接返回 `regroup.allowed / code / reason / hint`；待确认面板按钮与自动层级读同一份结论，输入不足时只走空表恢复 |
 | 待确认写入与布局恢复共用哪一条来源运行解析 | `lib/confirm.js` · `function commitFromSource(` | 普通 `/api/confirm` 与布局恢复接口都从这里把看板任务的 jobId / 工作目录交给 `confirm.commit`，新运行统一挂回原任务 |
+| 待确认面板的提交载荷与忙碌/失败收尾 | `ui/src/app/pending-panel.tsx` · `const submitInputs = useCallback(` | 「确认并继续」「只写入」「按空表重写」「重新自动分组」共用同一份字段组装与状态收尾，只在最后按提交类型选择接口 |
+| 新建任务按钮名 | `ui/src/lib/task-form.ts` · `export function startActionLabel(` | `new-task-card.tsx` 的按钮、流水线页提示与成功提示都读这一份名称；路线需要页面 PNG 时是「创建并开始」，否则是「加入看板并开始」 |
 | 显式 `runId` 的待确认来源 | `lib/run.js` · `function summary(id)` | `lib/routes.js` 的 `pendingSourceOf` 按运行 id 直查单次摘要；不看按工程 + Target 去重后的 `runs.list()`，来源不存在时直接报错，不退化成手填查询 |
 | 分组表里能写哪些 ref（这一层的条目清单在哪、为空算不算参与分组） | `lib/layout-candidates.js` · `function refsOf(`、`function noCandidatesReason(`、`const CANDIDATES_MIN_PLUGIN_VERSION =` | 喂模型（`lib/layout-groups.js` 的 `candidatesInput`）、写回校验与候选清理（同文件的 `validateGroups` / `cleanGroups`） |
 | 跨仓同一套判据：ref 必须在本层条目里 / 不参与分组的层只许空表 | `lib/layout-groups.js` · `不在本层条目里: `、`这一层的条目清单是空的（这一层不参与分组）` | 写回校验（`validateGroups`）；插件那侧是 `gen-mw-wpf-layout.js` 的 `declaredGroups` / `requireNoDeclaredGroups` —— 两边的关键句要一起改 |

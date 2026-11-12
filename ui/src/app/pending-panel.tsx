@@ -161,8 +161,9 @@ export function PendingPanel({
   )
 
   // 显式接收入参：自动路径拿的是「刚取回的候选」，等 setState 生效再读会拿到空值。
-  const submitWith = useCallback(
+  const submitInputs = useCallback(
     async (
+      kind: "confirm" | "suggest",
       resume: boolean,
       naming: { index: number; name: string; comment: string; fromDsl?: boolean }[],
       translations: Record<string, string>,
@@ -173,7 +174,7 @@ export function PendingPanel({
       clearFailure()
       setSubmitBusy(SUBMIT_BUSY)
       try {
-        const payload = await api.confirm({
+        const body = {
           projectRoot: pending.projectRoot,
           target: pending.target,
           taskId,
@@ -186,58 +187,10 @@ export function PendingPanel({
           // 命名表写歪了（旧下标 / 重名）就顺手修好：这次提交不只是补名字。
           pruneNaming: Boolean(pending.icons.available && pending.icons.needsRepair),
           resume
-        })
-        await finishSubmission(payload, resume)
-      } catch (error) {
-        writeFailure(describeFailure(error))
-      } finally {
-        setSubmitBusy("")
-      }
-    },
-    [pending, taskId, runId, allowEmptyLedger, noIconSlots, finishSubmission, clearFailure, writeFailure]
-  )
-
-  const submit = useCallback(
-    (resume: boolean) =>
-      submitWith(
-        resume,
-        namingPayload(),
-        translationsPayload(),
-        glossaryPayload()
-      ),
-    [submitWith, namingPayload, translationsPayload, glossaryPayload]
-  )
-
-  const submitLayoutEmpty = useCallback(
-    (resume: boolean) =>
-      submitWith(resume, namingPayload(), translationsPayload(), glossaryPayload(), true),
-    [submitWith, namingPayload, translationsPayload, glossaryPayload]
-  )
-
-  const submitLayoutRegroup = useCallback(
-    async (
-      resume: boolean,
-      naming: { index: number; name: string; comment: string; fromDsl?: boolean }[],
-      translations: Record<string, string>,
-      glossaryMap: Record<string, string>
-    ) => {
-      if (!pending) return
-      clearFailure()
-      setSubmitBusy(SUBMIT_BUSY)
-      try {
-        const payload = await api.layoutGroupsSuggest({
-          projectRoot: pending.projectRoot,
-          target: pending.target,
-          mode,
-          taskId,
-          runId,
-          naming: pending.icons.available && pending.icons.needsNaming ? naming : undefined,
-          translations: pending.translations.available ? translations : undefined,
-          glossary: pending.translations.available ? glossaryMap : undefined,
-          allowEmptyLedger: noIconSlots && allowEmptyLedger,
-          pruneNaming: Boolean(pending.icons.available && pending.icons.needsRepair),
-          resume
-        })
+        }
+        const payload = kind === "suggest"
+          ? await api.layoutGroupsSuggest({ ...body, mode })
+          : await api.confirm(body)
         await finishSubmission(payload, resume)
       } catch (error) {
         writeFailure(describeFailure(error))
@@ -246,6 +199,34 @@ export function PendingPanel({
       }
     },
     [pending, taskId, runId, mode, allowEmptyLedger, noIconSlots, finishSubmission, clearFailure, writeFailure]
+  )
+
+  const submit = useCallback(
+    (resume: boolean) =>
+      submitInputs(
+        "confirm",
+        resume,
+        namingPayload(),
+        translationsPayload(),
+        glossaryPayload()
+      ),
+    [submitInputs, namingPayload, translationsPayload, glossaryPayload]
+  )
+
+  const submitLayoutEmpty = useCallback(
+    (resume: boolean) =>
+      submitInputs("confirm", resume, namingPayload(), translationsPayload(), glossaryPayload(), true),
+    [submitInputs, namingPayload, translationsPayload, glossaryPayload]
+  )
+
+  const submitLayoutRegroup = useCallback(
+    (
+      resume: boolean,
+      naming: { index: number; name: string; comment: string; fromDsl?: boolean }[],
+      translations: Record<string, string>,
+      glossaryMap: Record<string, string>
+    ) => submitInputs("suggest", resume, naming, translations, glossaryMap),
+    [submitInputs]
   )
 
   /*
@@ -297,9 +278,9 @@ export function PendingPanel({
       if (automation === "auto" && !taskId) {
         if (layoutWaiting > 0) {
           if (layoutRegroupAllowed) await submitLayoutRegroup(hasSource, naming, translations, glossaryMap)
-          else await submitWith(hasSource, naming, translations, glossaryMap, true)
+          else await submitInputs("confirm", hasSource, naming, translations, glossaryMap, true)
         }
-        else await submitWith(hasSource, naming, translations, glossaryMap)
+        else await submitInputs("confirm", hasSource, naming, translations, glossaryMap)
       }
     })()
   }, [
@@ -327,7 +308,7 @@ export function PendingPanel({
     fillIconNames,
     fillTranslations,
     fillGlossary,
-    submitWith,
+    submitInputs,
     submitLayoutRegroup
   ])
 
