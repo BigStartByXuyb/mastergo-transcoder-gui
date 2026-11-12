@@ -79,12 +79,13 @@ export async function applyIdentities(inputs: ApplyIdentityInput[]): Promise<{ r
  *
  * 不是同一页时给回链接指向的那一条候选（登记表里那一页），调用方据此拦下提交 —— 放过去的话，
  * 插件在还没进流水线时就会按身份混搭守卫拒掉（Target 取自一页、layerId 取自另一页）。
- * 判据只用后端给的候选：前端不自己拆链接，也不自己推页面身份。
- * 没填 Target、或后端一条候选都给不出时给 null（那种情况无从对账，交给插件判）。
+ * 判据只认后端标了已登记的候选：机械候选与模型候选都没有登记表身份，不能用来放行另一页的 Target。
+ * 没填 Target、或后端没有已登记候选时给 null（那种情况无从对账，交给插件判）。
  */
 export function identityConflict(input: { target: string; candidates: IdentityCandidate[] }): IdentityCandidate | null {
   const typed = input.target.trim()
-  if (!typed || input.candidates.length === 0) return null
-  if (input.candidates.some((item) => item.target === typed)) return null
-  return input.candidates[0]
+  const registered = input.candidates.filter((item) => item.registered === true)
+  if (!typed || registered.length === 0) return null
+  if (registered.some((item) => item.target === typed)) return null
+  return registered[0]
 }

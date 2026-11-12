@@ -10,7 +10,7 @@ import { canStartAll, conflictReason, decideStartIdentity } from "@/lib/task-sta
  */
 
 function candidate(target: string, ui = "F4"): IdentityCandidate {
-  return { target, ui, semanticName: target.replace(/^F\d+/, ""), basis: "登记表", needsSemanticName: false }
+  return { target, ui, semanticName: target.replace(/^F\d+/, ""), basis: "登记表", needsSemanticName: false, registered: true }
 }
 
 function input(over: Partial<Parameters<typeof decideStartIdentity>[0]> = {}) {

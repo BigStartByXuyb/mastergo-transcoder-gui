@@ -50,8 +50,7 @@ async function prepareOne(
     let got = await candidatesForLink({ ...base, useAi: false, autoAdopt: true })
     const explicitTarget = item.target.trim()
     if (explicitTarget) {
-      const registered = got.items.filter((candidate) => candidate.registered === true)
-      const conflict = identityConflict({ target: explicitTarget, candidates: registered })
+      const conflict = identityConflict({ target: explicitTarget, candidates: got.items })
       if (conflict) {
         return "这个链接在登记表里是 " + conflict.target +
           (conflict.ui ? "（区域 " + conflict.ui + "）" : "") +

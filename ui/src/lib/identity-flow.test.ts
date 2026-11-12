@@ -148,7 +148,8 @@ describe("identityConflict", () => {
     ui: "F4",
     semanticName: "FocusMaintain",
     basis: "登记表",
-    needsSemanticName: false
+    needsSemanticName: false,
+    registered: true
   }
 
   it("填的 Target 就是链接指向的那一页：不拦", () => {
@@ -163,5 +164,10 @@ describe("identityConflict", () => {
   it("没填 Target、或后端给不出候选：无从对账，不拦", () => {
     expect(identityConflict({ target: "", candidates: [registered] })).toBeNull()
     expect(identityConflict({ target: "Any", candidates: [] })).toBeNull()
+  })
+
+  it("未登记的机械或模型候选不能替另一页放行", () => {
+    const mechanical = { ...registered, target: "F3HandWritten", ui: "F3", basis: "机械转换", registered: false }
+    expect(identityConflict({ target: "F3HandWritten", candidates: [registered, mechanical] })).toBe(registered)
   })
 })
