@@ -24,6 +24,11 @@ function input(over: Partial<Parameters<typeof decideStartIdentity>[0]> = {}) {
     loadCandidates: async () => [candidate("F4FocusMaintain")],
     autoPick: async () => null,
     autoApply: async () => undefined,
+    loadTargetParts: async (target: string) => {
+      const previewUi = target.match(/^F\d+/)?.[0] ?? ""
+      const semanticName = previewUi ? target.slice(previewUi.length) : ""
+      return { previewUi, semanticName, complete: Boolean(previewUi && semanticName) }
+    },
     ...over
   }
 }
@@ -59,6 +64,43 @@ describe("decideStartIdentity", () => {
     const decision = await decideStartIdentity(input({ automation: "auto", autoPick: async () => null }))
 
     expect(decision).toEqual({ ok: false })
+  })
+
+  it("B / AB 显式 Target 命中只有区域前缀的候选时不许开始", async () => {
+    const partial = {
+      ...candidate("F4"),
+      semanticName: "",
+      needsSemanticName: true,
+      registered: false
+    }
+    const decision = await decideStartIdentity(input({
+      target: "F4",
+      loadCandidates: async () => [partial]
+    }))
+
+    expect(decision).toEqual({
+      ok: false,
+      reason: expect.stringContaining("语义名要由人给")
+    })
+  })
+
+  it("B / AB 自填 Target 也读后端的完整性结论", async () => {
+    const loadTargetParts = vi.fn(async () => ({
+      previewUi: "F4",
+      semanticName: "",
+      complete: false
+    }))
+    const decision = await decideStartIdentity(input({
+      target: "F4",
+      loadCandidates: async () => [],
+      loadTargetParts
+    }))
+
+    expect(loadTargetParts).toHaveBeenCalledWith("F4")
+    expect(decision).toEqual({
+      ok: false,
+      reason: expect.stringContaining("语义名要由人给")
+    })
   })
 })
 

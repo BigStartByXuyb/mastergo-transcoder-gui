@@ -66,7 +66,12 @@ async function explicitTargetSelection(
     }
   }
   const existing = candidates.find((candidate) => candidate.target === target)
-  if (existing) return { kind: "picked", candidate: existing }
+  if (existing) {
+    const decision = pickIdentityCandidate([existing], "")
+    return decision.pick
+      ? { kind: "picked", candidate: decision.pick }
+      : { kind: "rejected", reason: decision.reason }
+  }
   const prefix = await api.identityPrefix(target)
   if (!prefix.previewUi) {
     return {
@@ -74,16 +79,17 @@ async function explicitTargetSelection(
       reason: "看板行里的 Target「" + target + "」推不出区域前缀：请写成「区域 + 语义名」后重试。"
     }
   }
-  return {
-    kind: "picked",
-    candidate: {
-      target,
-      ui: prefix.previewUi,
-      semanticName: target.slice(prefix.previewUi.length),
-      basis: "看板行手写的 Target",
-      needsSemanticName: false
-    }
+  const candidate: IdentityCandidate = {
+    target,
+    ui: prefix.previewUi,
+    semanticName: prefix.semanticName,
+    basis: "看板行手写的 Target",
+    needsSemanticName: !prefix.complete
   }
+  const decision = pickIdentityCandidate([candidate], "")
+  return decision.pick
+    ? { kind: "picked", candidate: decision.pick }
+    : { kind: "rejected", reason: decision.reason }
 }
 
 async function automaticSelection(

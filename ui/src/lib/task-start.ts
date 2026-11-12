@@ -1,5 +1,6 @@
 import type { BoardTask, IdentityCandidate } from "@/lib/api"
 import { identityConflict } from "@/lib/identity-flow"
+import { pickIdentityCandidate } from "@/lib/identity-pick"
 import { adoptsIdentityWithoutConfirm } from "@/lib/task-form"
 
 /*
@@ -40,13 +41,33 @@ export async function decideStartIdentity(input: {
   /** 缺身份时的自动补全（与表单按钮同一条实现）。 */
   autoPick: () => Promise<IdentityCandidate | null>
   autoApply: (item: IdentityCandidate) => Promise<void>
+  /** Target 的区域/语义名拆分由后端给出；手动 Target 与本链路共用同一完整性判据。 */
+  loadTargetParts: (target: string) => Promise<{
+    previewUi: string
+    semanticName: string
+    complete: boolean
+  }>
 }): Promise<StartDecision> {
   let target = input.target.trim()
   let ui = input.ui.trim()
 
   if (target && input.link.trim() && input.projectRoot.trim()) {
-    const conflict = identityConflict({ target: target, candidates: await input.loadCandidates() })
+    const candidates = await input.loadCandidates()
+    const conflict = identityConflict({ target: target, candidates: candidates })
     if (conflict) return { ok: false, reason: conflictReason(conflict, target) }
+    const exact = candidates.find((item) => item.target === target)
+    const parts = exact
+      ? null
+      : await input.loadTargetParts(target)
+    const candidate = exact || {
+      target: target,
+      ui: parts?.previewUi ?? "",
+      semanticName: parts?.semanticName ?? "",
+      basis: "手工填写的 Target",
+      needsSemanticName: parts?.complete !== true
+    }
+    const decision = pickIdentityCandidate([candidate], "")
+    if (!decision.pick) return { ok: false, reason: decision.reason }
   }
 
   if (!target && !ui && adoptsIdentityWithoutConfirm(input.automation)) {

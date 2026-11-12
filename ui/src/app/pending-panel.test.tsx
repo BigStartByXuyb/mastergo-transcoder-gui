@@ -67,7 +67,8 @@ function pending(): Pending {
       rejected: false,
       failed: false,
       failedMessage: "",
-      waiting: 0
+      waiting: 0,
+      regroup: { allowed: false, code: "", reason: "", hint: "" }
     }
   }
 }
@@ -194,7 +195,8 @@ describe("PendingPanel", () => {
       rejected: false,
       failed: false,
       failedMessage: "",
-      waiting: 1
+      waiting: 1,
+      regroup: { allowed: true, code: "", reason: "", hint: "" }
     }
     let confirmed: Record<string, unknown> | null = null
     stubWith({
@@ -222,7 +224,8 @@ describe("PendingPanel", () => {
       rejected: false,
       failed: false,
       failedMessage: "",
-      waiting: 1
+      waiting: 1,
+      regroup: { allowed: true, code: "", reason: "", hint: "" }
     }
     let confirmed: Record<string, unknown> | null = null
     stubWith({
@@ -252,7 +255,8 @@ describe("PendingPanel", () => {
       rejected: true,
       failed: true,
       failedMessage: "分组表第 1 项（g1）的 members 至少 2 个 ref",
-      waiting: 1
+      waiting: 1,
+      regroup: { allowed: false, code: "NO_IMAGE", reason: "这一页还没有传图", hint: "先补图" }
     }
     let confirmed: Record<string, unknown> | null = null
     vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
@@ -290,7 +294,8 @@ describe("PendingPanel", () => {
       rejected: true,
       failed: true,
       failedMessage: "分组表第 1 项（g1）的 members 至少 2 个 ref",
-      waiting: 1
+      waiting: 1,
+      regroup: { allowed: true, code: "", reason: "", hint: "" }
     }
     let regrouped: Record<string, unknown> | null = null
     vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
@@ -341,7 +346,8 @@ describe("PendingPanel", () => {
       rejected: false,
       failed: true,
       failedMessage: "[LAYOUT_GROUPS_MISSING] 有页面 PNG 但没有分组表",
-      waiting: 1
+      waiting: 1,
+      regroup: { allowed: true, code: "", reason: "", hint: "" }
     }
     let regrouped: Record<string, unknown> | null = null
     vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
@@ -391,7 +397,8 @@ describe("PendingPanel", () => {
       rejected: false,
       failed: false,
       failedMessage: "",
-      waiting: 1
+      waiting: 1,
+      regroup: { allowed: true, code: "", reason: "", hint: "" }
     }
     stubWith({ pending: broken })
     render(panel("waiting"))
@@ -414,7 +421,8 @@ describe("PendingPanel", () => {
       rejected: false,
       failed: true,
       failedMessage: "推导失败：节点没有归宿",
-      waiting: 0
+      waiting: 0,
+      regroup: { allowed: false, code: "", reason: "", hint: "" }
     }
     stubWith({ pending: failed })
     render(panel("waiting"))
@@ -439,7 +447,8 @@ describe("PendingPanel", () => {
       rejected: false,
       failed: false,
       failedMessage: "",
-      waiting: 1
+      waiting: 1,
+      regroup: { allowed: true, code: "", reason: "", hint: "" }
     }
     stubWith({ pending: noSource })
     render(panel("waiting", { runId: "" }))
@@ -447,5 +456,37 @@ describe("PendingPanel", () => {
     expect(await screen.findByText(/来源运行已不可用，不会继续/)).toBeTruthy()
     expect(screen.getByRole("button", { name: /按空表重写$/ })).toBeTruthy()
     expect(screen.queryByText(/并从布局步骤继续/)).toBeNull()
+  })
+
+  it("自动分组输入不足时保留空表出口，并显示服务端给出的原因", async () => {
+    const blocked = pending()
+    blocked.icons.waiting = 0
+    blocked.icons.missing = 0
+    blocked.icons.needsNaming = false
+    blocked.layout = {
+      needsGroups: false,
+      recoverable: true,
+      hasFile: true,
+      hasGroups: true,
+      rejected: true,
+      failed: true,
+      failedMessage: "分组表被拒",
+      waiting: 1,
+      regroup: {
+        allowed: false,
+        code: "NO_IMAGE",
+        reason: "这一页还没有传图",
+        hint: "直接写一张空表"
+      }
+    }
+    stubWith({ pending: blocked })
+    render(panel("waiting"))
+
+    const empty = await screen.findByRole("button", { name: /按空表重写并继续/ })
+    const regroup = screen.getByRole("button", { name: /重新自动分组并继续/ })
+    expect(empty.hasAttribute("disabled")).toBe(false)
+    expect(regroup.hasAttribute("disabled")).toBe(true)
+    expect(screen.getByText(/这一页还没有传图/)).toBeTruthy()
+    expect(screen.getByText(/直接写一张空表/)).toBeTruthy()
   })
 })

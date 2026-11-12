@@ -164,7 +164,8 @@ export function PipelinePage({
           })
         ).items,
       autoPick: () => identity.pick(),
-      autoApply: (item) => identity.apply(item)
+      autoApply: (item) => identity.apply(item),
+      loadTargetParts: api.identityPrefix
     })
     if (!decision.ok) {
       return {

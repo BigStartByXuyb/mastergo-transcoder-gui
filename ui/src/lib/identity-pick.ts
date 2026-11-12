@@ -20,13 +20,17 @@ const PIPELINE_A_NEEDS_SEMANTIC_NAME =
   "流水线 A 无法从当前设计页名自动生成英文 Target：请把 MasterGo 页面名改成英文（例如 StopAdjust），" +
   "或切到 B / AB 为该页补一次页面身份后再启动 A。"
 
+function identityCandidateUsable(item: IdentityCandidate): boolean {
+  return Boolean(item.target && !item.needsSemanticName)
+}
+
 export function pickIdentityCandidate(
   list: IdentityCandidate[],
   blocked: string,
   options: { autoOnly?: boolean } = {}
 ): IdentityDecision {
   if (blocked) return { pick: null, reason: blocked }
-  const pick = list.find((item) => item.target && !item.needsSemanticName)
+  const pick = list.find(identityCandidateUsable)
   if (!pick) return { pick: null, reason: options.autoOnly ? PIPELINE_A_NEEDS_SEMANTIC_NAME : NEEDS_SEMANTIC_NAME }
   return { pick, reason: "" }
 }

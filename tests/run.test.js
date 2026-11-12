@@ -241,6 +241,11 @@ async function caseLineProtocol() {
     run.failure.message,
     "轻量运行列表也要带失败原话，待确认侧才能区分分组表校验错误与其他布局失败"
   );
+  assert.strictEqual(
+    fx.manager.summary(job.id).failedMessage,
+    run.failure.message,
+    "按显式 runId 直查的摘要与列表共用同一失败字段"
+  );
 
   const slice = fx.manager.log(job.id, 0);
   assert.match(slice.text, /路线 B（mtslg-iocontrol）/);
@@ -464,6 +469,9 @@ async function caseListCurrentAndLookup() {
   assert.strictEqual(list.find((item) => item.projectRoot === "D:/a").id, aAgain.id);
   assert.ok(fx.manager.status(a.id), "旧 job 仍然可按 id 取到状态");
   assert.strictEqual(fx.manager.status(a.id).state, "done");
+  assert.strictEqual(fx.manager.summary(a.id).id, a.id, "按 id 直查不能被列表的去重换成较新的运行");
+  assert.strictEqual(fx.manager.summary(a.id).projectRoot, "D:/a");
+  assert.strictEqual(fx.manager.summary("nope"), null);
   assert.strictEqual(fx.manager.status("nope"), null);
   assert.strictEqual(fx.manager.latestFor("D:/a").id, aAgain.id, "按工程目录反查最近一次");
   assert.strictEqual(fx.manager.latestFor("D:/missing"), null);

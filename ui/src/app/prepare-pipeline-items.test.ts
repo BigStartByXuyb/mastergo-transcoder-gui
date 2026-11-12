@@ -214,7 +214,14 @@ describe("preparePipelineAItems", () => {
           blocked: ""
         }))
       }
-      if (url.includes("/api/identity/prefix")) return Promise.resolve(json({ ok: true, previewUi: "F3" }))
+      if (url.includes("/api/identity/prefix")) {
+        return Promise.resolve(json({
+          ok: true,
+          previewUi: "F3",
+          semanticName: "HandWritten",
+          complete: true
+        }))
+      }
       if (url.includes("/api/identity/apply")) return Promise.resolve(json({ ok: true, replaced: false }))
       throw new Error("unexpected " + url)
     })
@@ -260,6 +267,67 @@ describe("preparePipelineAItems", () => {
     )).resolves.toEqual({
       ok: false,
       reason: expect.stringMatching(/F4Registered/)
+    })
+  })
+
+  it("同一条只有区域前缀的候选不能被手写 Target 绕过", async () => {
+    vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes("/api/design/page-name")) return Promise.resolve(json({ ok: true, pageName: "停止调整", rootId: "1:1" }))
+      if (url.includes("/api/identity/candidates")) {
+        return Promise.resolve(json({
+          ok: true,
+          candidates: [{ target: "F3", ui: "F3", basis: "区域", needsSemanticName: true }],
+          ai: { used: false, items: [] },
+          blocked: ""
+        }))
+      }
+      if (url.includes("/api/identity/prefix")) throw new Error("已知候选的完整性不应绕过同一采用判据")
+      throw new Error("unexpected " + url)
+    })
+
+    const result = await preparePipelineAItems(
+      [{ link: LINK, target: "F3", mode: "A" }],
+      "project",
+      { automation: "auto" }
+    )
+    expect(result).toEqual({
+      ok: false,
+      reason: expect.stringContaining("语义名要由人给")
+    })
+  })
+
+  it("手写 Target 只有区域时按后端完整性结论停在启动前", async () => {
+    vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes("/api/design/page-name")) return Promise.resolve(json({ ok: true, pageName: "停止调整", rootId: "1:1" }))
+      if (url.includes("/api/identity/candidates")) {
+        return Promise.resolve(json({
+          ok: true,
+          candidates: [],
+          ai: { used: false, items: [] },
+          blocked: ""
+        }))
+      }
+      if (url.includes("/api/identity/prefix")) {
+        return Promise.resolve(json({
+          ok: true,
+          previewUi: "F3",
+          semanticName: "",
+          complete: false
+        }))
+      }
+      throw new Error("unexpected " + url)
+    })
+
+    const result = await preparePipelineAItems(
+      [{ link: LINK, target: "F3", mode: "A" }],
+      "project",
+      { automation: "auto" }
+    )
+    expect(result).toEqual({
+      ok: false,
+      reason: expect.stringContaining("语义名要由人给")
     })
   })
 })

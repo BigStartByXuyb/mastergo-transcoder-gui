@@ -116,6 +116,7 @@ export function PendingPanel({
   const layoutWaiting = pending?.layout.waiting ?? 0
   const layoutFailed = pending?.layout.failed === true
   const layoutFailedMessage = pending?.layout.failedMessage ?? ""
+  const layoutRegroupAllowed = pending?.layout.regroup.allowed === true
   const layoutTableInvalid = Boolean(layoutWaiting > 0 && pending?.layout.hasFile && !pending?.layout.hasGroups)
   // 本页还缺多少条人工语义输入：三节共用一个计数判据。
   const waiting = pendingInputCount(waitingCounts(pending))
@@ -260,7 +261,8 @@ export function PendingPanel({
     if (aiReady !== true) return
     const key =
       projectRoot + "|" + target + "|" + iconCount + "|" + staleCount + "|" + duplicateCount +
-      "|" + langCount + "|" + glossaryCount + "|" + layoutWaiting + "|" + layoutFailedMessage
+      "|" + langCount + "|" + glossaryCount + "|" + layoutWaiting + "|" + layoutFailedMessage +
+      "|" + layoutRegroupAllowed
     if (autoKey.current === key) return
     autoKey.current = key
     void (async () => {
@@ -293,7 +295,10 @@ export function PendingPanel({
        * 而且不需要浏览器在场）；这里只对没有看板任务的条目（流水线直跑 / 孤儿）发起，免得同一个停点起两次运行。
        */
       if (automation === "auto" && !taskId) {
-        if (layoutWaiting > 0) await submitLayoutRegroup(hasSource, naming, translations, glossaryMap)
+        if (layoutWaiting > 0) {
+          if (layoutRegroupAllowed) await submitLayoutRegroup(hasSource, naming, translations, glossaryMap)
+          else await submitWith(hasSource, naming, translations, glossaryMap, true)
+        }
         else await submitWith(hasSource, naming, translations, glossaryMap)
       }
     })()
@@ -304,6 +309,7 @@ export function PendingPanel({
     waiting,
     otherWaiting,
     layoutWaiting,
+    layoutRegroupAllowed,
     layoutFailedMessage,
     iconCount,
     staleCount,
@@ -346,6 +352,11 @@ export function PendingPanel({
 
   const icons = pending.icons
   const lang = pending.translations
+  const layoutRegroup = pending.layout.regroup
+  const layoutRecoveryLead = layoutRegroup.allowed
+    ? "可以按空表重写，也可以让模型按本页 PNG 与本层条目重新分组；"
+    : "可以按空表重写；"
+  const layoutRecoveryScope = layoutRegroup.allowed ? "两种恢复都会" : "空表会"
   const layoutWriteResult = hasSource
     ? "，并从布局步骤继续。"
     : "；来源运行已不可用，不会继续。"
@@ -395,14 +406,15 @@ export function PendingPanel({
             </AlertTitle>
             <AlertDescription>
               {pending.layout.rejected
-                ? "可以按空表重写，也可以让模型按本页 PNG 与本层条目重新分组；两种都会写入分组表" +
+                ? layoutRecoveryLead + layoutRecoveryScope + "写入分组表" +
                   layoutWriteResult +
                   (layoutFailedMessage ? " 插件原话：" + layoutFailedMessage : "")
                 : layoutTableInvalid
-                  ? "可以按空表重写，也可以让模型按本页 PNG 与本层条目重新分组；两种都会替换这张损坏的表" +
+                  ? layoutRecoveryLead + layoutRecoveryScope + "替换这张损坏的表" +
                     layoutWriteResult
                 : pending.layout.needsGroups
-                  ? "这一页还没有可用的分组表。可以让模型按本页 PNG 与本层条目自动分组；确认本页没有需要声明的控件分组时，也可以写一张空表" +
+                  ? "这一页还没有可用的分组表。" + layoutRecoveryLead +
+                    "确认本页没有需要声明的控件分组时，可以写一张空表" +
                     layoutWriteResult
                   : layoutFailedMessage ||
                     "运行没有留下这一步的失败原话。到看板任务或流水线详情查看该步骤日志，修正后重跑；这里不会覆盖现有分组表。"}
@@ -422,7 +434,7 @@ export function PendingPanel({
               <Button
                 size="sm"
                 variant="outline"
-                disabled={busy !== "" || inFlight}
+                disabled={busy !== "" || inFlight || !layoutRegroup.allowed}
                 onClick={() => void submitLayoutRegroup(
                   hasSource,
                   namingPayload(),
@@ -434,6 +446,12 @@ export function PendingPanel({
                 {pending.layout.rejected || layoutTableInvalid ? "重新自动分组" : "让 AI 按 PNG 分组"}
                 {hasSource ? "并继续" : "并写入"}
               </Button>
+              {!layoutRegroup.allowed && (
+                <p className="text-muted-foreground basis-full text-xs">
+                  {layoutRegroup.reason}
+                  {layoutRegroup.hint ? " " + layoutRegroup.hint : ""}
+                </p>
+              )}
             </div>
           )}
         </div>

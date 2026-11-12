@@ -103,8 +103,14 @@ function main() {
     assert.strictEqual(info.available, true);
     assert.deepStrictEqual(
       Object.keys(info).sort(),
-      ["available", "failed", "failedMessage", "hasFile", "hasGroups", "hasImage", "needsGroups", "reason", "recoverable", "rejected", "waiting"]
+      ["available", "failed", "failedMessage", "hasFile", "hasGroups", "hasImage", "needsGroups", "reason", "recoverable", "regroup", "rejected", "waiting"]
     );
+    assert.deepStrictEqual(info.regroup, {
+      allowed: false,
+      code: "NO_IMAGE",
+      reason: "这一步要对着页面 PNG 判分组：这一页还没有传图，没有可判断的输入",
+      hint: "先在「页面 PNG」那一栏传一张本页的图；这一页没有图时分组由机械判据决定，或直接写一张空表，不必问模型。"
+    });
     assert.strictEqual(info.needsGroups, false, "还没有页面 PNG 时不要求自动补分组");
     assert.strictEqual(info.hasFile, false, "还没写过分组表文件");
     assert.throws(
@@ -115,8 +121,9 @@ function main() {
     assert.strictEqual(info.hasGroups, false, "还没写过分组表");
     /* 传上图之后：这一层的条目够分组，才谈得上问模型（两个条件缺一不可）。 */
     writeImage(root);
-    assert.strictEqual(layout.inspect({ projectRoot: root, target: TARGET }).needsGroups, true,
-      "有页面 PNG、没有分组表且条目可读时才需要自动补分组");
+    const ready = layout.inspect({ projectRoot: root, target: TARGET });
+    assert.strictEqual(ready.needsGroups, true, "有页面 PNG、没有分组表且条目可读时才需要自动补分组");
+    assert.strictEqual(ready.regroup.allowed, true, "同一份检查同时放行自动分组");
     const input = layout.candidatesInput({ projectRoot: root, target: TARGET });
     assert.match(input.image, /^data:image\/png;base64,/, "有图 + 条目够 = 可以问模型");
     assert.strictEqual(input.entries.length, 3);

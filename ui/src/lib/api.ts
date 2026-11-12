@@ -402,6 +402,13 @@ export type PendingLayout = {
   failedMessage: string
   /** 需要处理的布局停点条数：0 或 1。口径在 lib/pending.js 算一次。 */
   waiting: number
+  /** 自动分组是否能执行：判据与后端恢复入口同一次检查给出的结论。 */
+  regroup: {
+    allowed: boolean
+    code: string
+    reason: string
+    hint: string
+  }
 }
 
 export type PendingLayoutGroup = {
@@ -723,6 +730,12 @@ export type IdentityCandidates = {
   ai: { used: boolean; items: IdentityCandidate[] }
   /** 不能自动采用时的整句原因（含人要做什么）；空串＝可以自动采用第一条。 */
   blocked: string
+}
+
+export type IdentityTargetParts = {
+  previewUi: string
+  semanticName: string
+  complete: boolean
 }
 
 export type IdentityApplyBody = {
@@ -1127,9 +1140,9 @@ export const api = {
     request<{ ok: true; pages: ProjectPages }>(
       "/api/project/pages?projectRoot=" + encodeURIComponent(projectRoot)
     ),
-  /** Target → 区域前缀的预览：规则在后端，界面上只显示结论。 */
+  /** Target → 区域前缀与语义名：完整性判据在后端，界面只读结论。 */
   identityPrefix: (target: string) =>
-    request<{ ok: true; previewUi: string }>("/api/identity/prefix?target=" + encodeURIComponent(target)),
+    request<{ ok: true } & IdentityTargetParts>("/api/identity/prefix?target=" + encodeURIComponent(target)),
   /** 从链接取设计页名（中文原名，如「停止调整」）：Target 由它翻译 + 区域前缀得到。 */
   designPageName: (link: string) =>
     post<{ ok: true; pageName: string; rootId: string }>("/api/design/page-name", { link }),

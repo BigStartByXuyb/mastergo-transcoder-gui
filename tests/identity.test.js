@@ -9,7 +9,13 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { candidatesFor, writeRegistryEntry, writeRegistryEntries, pascalFromPageName } = require("../lib/identity.js");
+const {
+  candidatesFor,
+  writeRegistryEntry,
+  writeRegistryEntries,
+  targetPartsOf,
+  pascalFromPageName
+} = require("../lib/identity.js");
 const { readRegistryDocument } = require("../lib/project-pages.js");
 
 function write(file, text) {
@@ -36,6 +42,21 @@ function casePrefixAndPascal() {
     const written = writeRegistryEntry({ projectRoot: root, target: candidate.target, ui: candidate.ui, fileId: "1", layerId: "9:9" });
     assert.ok(written.entry.target.startsWith(candidate.ui), "候选必须满足「Target 前缀 = 区域」");
   }
+  assert.deepStrictEqual(targetPartsOf("F3ManualAlign"), {
+    previewUi: "F3",
+    semanticName: "ManualAlign",
+    complete: true
+  });
+  assert.deepStrictEqual(targetPartsOf("F3"), {
+    previewUi: "F3",
+    semanticName: "",
+    complete: false
+  }, "只有区域前缀的 Target 不完整");
+  assert.deepStrictEqual(targetPartsOf("saddas"), {
+    previewUi: "",
+    semanticName: "",
+    complete: false
+  }, "推不出区域前缀的 Target 不完整");
   fs.rmSync(root, { recursive: true, force: true });
 }
 
@@ -59,6 +80,20 @@ function caseCandidates() {
   assert.deepStrictEqual(noRegistry.candidates, [], "项目里没有既有区域约定时，不凭空编一个区域");
   assert.match(noRegistry.blocked, /还没有任何区域约定/, "空工程要说清这是「工程项目第一页要人给一次」");
   assert.match(noRegistry.blocked, /docs\/page-registry\.json/, "要告诉人给过之后写在哪、以后自动");
+
+  const partialRegistered = project({
+    pages: [{ target: "F2", ui: "F2", designSource: { fileId: "1", layerId: "2:9" } }]
+  });
+  const partial = candidatesFor({
+    projectRoot: partialRegistered,
+    pageName: "Manual Align",
+    fileId: "1",
+    layerId: "2:9",
+    autoAdopt: true
+  });
+  assert.strictEqual(partial.candidates[0].registered, true);
+  assert.strictEqual(partial.candidates[0].needsSemanticName, true, "登记表里的半截 Target 也不能自动沿用");
+  fs.rmSync(partialRegistered, { recursive: true, force: true });
 
   // 同一设计文件优先：F1 只在这个文件里出现，F2 是全项目更多 → 这个文件仍然先给 F1
   const scoped = project({
@@ -303,9 +338,14 @@ function caseWriteRejections() {
   assert.throws(() => writeRegistryEntry({ projectRoot: root, target: "", ui: "F3" }), /缺少 Target/);
   assert.throws(() => writeRegistryEntry({ projectRoot: "", target: "F3X", ui: "F3" }), /缺少工程目录/);
   assert.throws(
-    () => writeRegistryEntry({ projectRoot: root, target: "test_mastergp", ui: "F3" }),
+    () => writeRegistryEntry({ projectRoot: root, target: "F4Wrong", ui: "F3" }),
     /Target 与区域不匹配/,
     "写出来的登记表不能自相矛盾：Target 前缀推不出 F3 就拒绝"
+  );
+  assert.throws(
+    () => writeRegistryEntry({ projectRoot: root, target: "F3", ui: "F3" }),
+    /只有区域前缀，没有语义名/,
+    "直接调用写回接口也不能把半截 Target 写成项目事实"
   );
 
   const broken = project();
