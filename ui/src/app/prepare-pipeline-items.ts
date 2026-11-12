@@ -1,7 +1,7 @@
 import { api, type IdentityCandidate } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import type { BoardItem } from "@/lib/board-items"
-import { candidatesForLink, identityConflict } from "@/lib/identity-flow"
+import { candidatesForLink, resolveExplicitTarget } from "@/lib/identity-flow"
 import { pickIdentityCandidate } from "@/lib/identity-pick"
 import {
   adoptsIdentityWithoutConfirm,
@@ -54,42 +54,16 @@ async function explicitTargetSelection(
   target: string,
   candidates: IdentityCandidate[]
 ): Promise<IdentitySelection> {
-  if (!target) return { kind: "none" }
-  const conflict = identityConflict({ target, candidates })
-  if (conflict) {
-    return {
-      kind: "rejected",
-      reason: "这个链接在登记表里是 " + conflict.target +
-        (conflict.ui ? "（区域 " + conflict.ui + "）" : "") +
-        "，你写的 Target 是 " + target +
-        "。请改成链接指向的那一页，或确认链接是否贴错了。"
-    }
-  }
-  const existing = candidates.find((candidate) => candidate.target === target)
-  if (existing) {
-    const decision = pickIdentityCandidate([existing], "")
-    return decision.pick
-      ? { kind: "picked", candidate: decision.pick }
-      : { kind: "rejected", reason: decision.reason }
-  }
-  const prefix = await api.identityPrefix(target)
-  if (!prefix.previewUi) {
-    return {
-      kind: "rejected",
-      reason: "看板行里的 Target「" + target + "」推不出区域前缀：请写成「区域 + 语义名」后重试。"
-    }
-  }
-  const candidate: IdentityCandidate = {
-    target,
-    ui: prefix.previewUi,
-    semanticName: prefix.semanticName,
-    basis: "看板行手写的 Target",
-    needsSemanticName: !prefix.complete
-  }
-  const decision = pickIdentityCandidate([candidate], "")
-  return decision.pick
-    ? { kind: "picked", candidate: decision.pick }
-    : { kind: "rejected", reason: decision.reason }
+  const resolved = await resolveExplicitTarget({
+    target: target,
+    candidates: candidates,
+    loadTargetParts: api.identityPrefix,
+    basis: "看板行手写的 Target"
+  })
+  if (resolved.kind === "none") return { kind: "none" }
+  return resolved.kind === "picked"
+    ? resolved
+    : { kind: "rejected", reason: resolved.reason }
 }
 
 async function automaticSelection(

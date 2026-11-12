@@ -750,6 +750,18 @@ export type IdentityApplyBody = {
 
 export type IdentityApplyEntry = Omit<IdentityApplyBody, "projectRoot">
 
+/** 身份写回后登记表里归一化后的条目。 */
+type IdentityRegistryEntry = {
+  target: string
+  ui: string
+  derivation: string
+  designSource: {
+    fileId: string
+    layerId: string
+    designPageName?: string
+  }
+}
+
 export class ApiFailure extends Error {
   code: string
   hint: string
@@ -1156,9 +1168,9 @@ export const api = {
   }) =>
     post<{ ok: true } & IdentityCandidates>("/api/identity/candidates", body),
   identityApply: (body: IdentityApplyBody) =>
-    post<{ ok: true; registryPath: string; replaced: boolean }>("/api/identity/apply", body),
+    post<{ ok: true; registryPath: string; entry: IdentityRegistryEntry; replaced: boolean }>("/api/identity/apply", body),
   identityApplyBatch: (projectRoot: string, entries: IdentityApplyEntry[]) =>
-    post<{ ok: true; registryPath: string; replaced: boolean[] }>("/api/identity/apply-batch", {
+    post<{ ok: true; registryPath: string; entries: IdentityRegistryEntry[]; replaced: boolean[] }>("/api/identity/apply-batch", {
       projectRoot,
       entries
     }),

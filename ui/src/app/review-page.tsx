@@ -31,6 +31,20 @@ function keyOf(entry: { source: string; projectRoot: string; target: string }) {
 /** 一屏里的当前条目：待确认队列里的那条，或人手动填的工程目录 + Target（后者没有待办条数）。 */
 type ActiveEntry = PendingQueueEntry & { manual?: boolean }
 
+/** 面板连同三张草稿按来源重建；同一页换了任务或运行也不能沿用上一来源的输入。 */
+export function pendingPanelKey(
+  entry: Pick<PendingQueueEntry, "source" | "projectRoot" | "target" | "mode" | "taskId" | "runId">
+) {
+  return JSON.stringify([
+    entry.source,
+    entry.projectRoot,
+    entry.target,
+    entry.mode,
+    entry.taskId,
+    entry.runId
+  ])
+}
+
 export function ReviewPage() {
   const [queue, setQueue] = useState<PendingQueueEntry[]>([])
   const [problem, setProblem] = useState("")
@@ -218,6 +232,7 @@ export function ReviewPage() {
           </CardHeader>
           <CardContent>
             <PendingPanel
+              key={pendingPanelKey(active)}
               projectRoot={active.projectRoot}
               target={active.target}
               mode={active.mode}

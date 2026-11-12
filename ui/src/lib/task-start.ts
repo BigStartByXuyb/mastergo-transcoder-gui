@@ -1,6 +1,5 @@
 import type { BoardTask, IdentityCandidate } from "@/lib/api"
-import { identityConflict } from "@/lib/identity-flow"
-import { pickIdentityCandidate } from "@/lib/identity-pick"
+import { resolveExplicitTarget } from "@/lib/identity-flow"
 import { adoptsIdentityWithoutConfirm } from "@/lib/task-form"
 
 /*
@@ -18,17 +17,6 @@ export type StartDecision =
   | { ok: true; target: string; ui: string }
   /** 不能开始：reason 有值就照它显示；没值表示原因已经由被注入的那条路写下了（例如身份补全自己报的）。 */
   | { ok: false; reason?: string }
-
-export function conflictReason(conflict: IdentityCandidate, typed: string): string {
-  return (
-    "这个链接指向的页面在登记表里是 " +
-    conflict.target +
-    (conflict.ui ? "（区域 " + conflict.ui + "）" : "") +
-    "，你填的 Target 是 " +
-    typed +
-    " —— 两者不是同一页，插件会拒绝。点「自动补 Target / 区域」会用登记表里的那一个；或确认链接是不是贴错了。"
-  );
-}
 
 export async function decideStartIdentity(input: {
   link: string
@@ -53,21 +41,13 @@ export async function decideStartIdentity(input: {
 
   if (target && input.link.trim() && input.projectRoot.trim()) {
     const candidates = await input.loadCandidates()
-    const conflict = identityConflict({ target: target, candidates: candidates })
-    if (conflict) return { ok: false, reason: conflictReason(conflict, target) }
-    const exact = candidates.find((item) => item.target === target)
-    const parts = exact
-      ? null
-      : await input.loadTargetParts(target)
-    const candidate = exact || {
+    const resolved = await resolveExplicitTarget({
       target: target,
-      ui: parts?.previewUi ?? "",
-      semanticName: parts?.semanticName ?? "",
-      basis: "手工填写的 Target",
-      needsSemanticName: parts?.complete !== true
-    }
-    const decision = pickIdentityCandidate([candidate], "")
-    if (!decision.pick) return { ok: false, reason: decision.reason }
+      candidates: candidates,
+      loadTargetParts: input.loadTargetParts,
+      basis: "手工填写的 Target"
+    })
+    if (resolved.kind === "rejected") return { ok: false, reason: resolved.reason }
   }
 
   if (!target && !ui && adoptsIdentityWithoutConfirm(input.automation)) {

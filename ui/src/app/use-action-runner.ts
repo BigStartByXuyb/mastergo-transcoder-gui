@@ -29,7 +29,17 @@ export type ActionRunner<T> = <R extends { status: T | null }>(
   done?: string | ((payload: R) => void)
 ) => Promise<R | null>
 
-export type ValueRunner = <R>(key: string, run: () => Promise<R>, done?: (payload: R) => void) => Promise<R | null>
+export type ValueRunnerOptions = {
+  /** 同一动作连续发起多次时，只让最后一次的返回和失败落到界面。 */
+  isCurrent?: () => boolean
+}
+
+export type ValueRunner = <R>(
+  key: string,
+  run: () => Promise<R>,
+  done?: (payload: R) => void,
+  options?: ValueRunnerOptions
+) => Promise<R | null>
 
 /** 结果原样交给调用方的那一条：骨架与 useActionRunner 同一份实现（前者是后者的壳）。 */
 export function useValueRunner(settings: RunnerSettings): ValueRunner {
@@ -39,20 +49,24 @@ export function useValueRunner(settings: RunnerSettings): ValueRunner {
   return useCallback(async function <R>(
     key: string,
     run: () => Promise<R>,
-    done?: (payload: R) => void
+    done?: (payload: R) => void,
+    options?: ValueRunnerOptions
   ): Promise<R | null> {
+    const isCurrent = options?.isCurrent ?? (() => true)
     latest.current.setWorking(key)
     latest.current.setFailure("")
     try {
       const payload = await run()
+      if (!isCurrent()) return null
       if (done) done(payload)
       return payload
     } catch (error) {
+      if (!isCurrent()) return null
       latest.current.onFailure?.(error)
       latest.current.setFailure(describeFailure(error))
       return null
     } finally {
-      latest.current.setWorking("")
+      if (isCurrent()) latest.current.setWorking("")
     }
   }, [])
 }

@@ -380,4 +380,8 @@
 | 2026-11-12 GitLab MR !5 审计正文 | REVIEW-003 | `/api/pending` 与待确认队列各自拼装一遍看板任务到 `pending.inspect` 的字段 | 已收 | `queryOfTask` / `queryOfRun` / `queryOfManual` 成为唯一映射；看板、路由、队列与自动补输入共用，补 `pending-query.test.js` 锁定任务、运行与手填三种来源 |
 | 2026-11-12 GitHub 43187257378 | REVIEW-001 | `stopped` 来源仍算出布局待办，但恢复接口拒绝，面板给出必然失败的按钮；无 taskId 的自动路径还会主动发起该请求 | 已收 | `layout-groups.inspect` 同时给出 `recoverable`；手填无状态、等待和失败才为真，运行中、显式停止及等图停点为假。`needsGroups`、`rejected`、`waiting` 与服务端 `requireRecovery` 共用该结论，补 stopped 回归 |
 | 2026-11-12 GitHub 43187257378 | REVIEW-002 | 分组表文件损坏但布局因其他原因失败时，损坏表说明顶掉失败原话，按钮却因 `waiting=0` 不渲染 | 已收 | 面板的损坏表分支改为同时要求 `layoutWaiting > 0`；无恢复资格时继续显示 `failedMessage`，不会承诺提交 |
+| 2026-11-12 GitHub 43199059070 | REVIEW-001 | 待确认面板切换来源时沿用上一页草稿，连续取数乱序时还可能把旧清单配到新来源 | 已收 | `pendingPanelKey` 将来源、工程、页面、路线、任务与运行纳入重建键；`use-pending-inputs` 增加请求序号，`use-value-runner` 只应用当前请求的返回与失败 |
+| 2026-11-12 GitHub 43199059070 | REVIEW-002 | A 与 B / AB 各写一份显式 Target 对账、fallback 候选和不同冲突说明 | 已收 | `resolveExplicitTarget` 组合唯一冲突判据、后端区域拆分与完整性采用；两个开始入口只传 Target、候选、拆分函数与来源标签 |
+| 2026-11-12 GitHub 43199059070 | 非阻断 | `needsGroups` 重复判断 `imageStop`，而 `recoverable` 已包含该条件 | 已收 | 删除重复比较；布局停点继续只读 `recoverable` 与其余输入事实 |
+| 2026-11-12 GitHub 43199059070 | 非阻断 | 身份写回客户端返回类型漏掉后端实际返回的 `entry` / `entries` | 已收 | `api.ts` 增加 `IdentityRegistryEntry` 并补齐两个接口的返回类型 |
 

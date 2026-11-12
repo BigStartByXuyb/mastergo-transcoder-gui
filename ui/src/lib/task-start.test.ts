@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest"
 
 import type { IdentityCandidate } from "@/lib/api"
+import { explicitTargetConflictReason } from "@/lib/identity-flow"
 import { drive } from "@/lib/settings-fixtures"
-import { canStartAll, conflictReason, decideStartIdentity } from "@/lib/task-start"
+import { canStartAll, decideStartIdentity } from "@/lib/task-start"
 
 /*
  * 开始前的身份决定：先与链接对账，再在缺身份时按自动化层级自动补一次。
@@ -38,7 +39,7 @@ describe("decideStartIdentity", () => {
     const decision = await decideStartIdentity(input({ target: "saddas" }))
 
     expect(decision.ok).toBe(false)
-    if (!decision.ok) expect(decision.reason).toBe(conflictReason(candidate("F4FocusMaintain"), "saddas"))
+    if (!decision.ok) expect(decision.reason).toBe(explicitTargetConflictReason(candidate("F4FocusMaintain"), "saddas"))
     if (!decision.ok) expect(decision.reason).toContain("F4FocusMaintain")
   })
 

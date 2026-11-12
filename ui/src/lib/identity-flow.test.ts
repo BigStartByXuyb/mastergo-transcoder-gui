@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { applyIdentities, applyIdentity, candidatesForLink, identityConflict } from "@/lib/identity-flow"
+import {
+  applyIdentities,
+  applyIdentity,
+  candidatesForLink,
+  explicitTargetConflictReason,
+  identityConflict,
+  resolveExplicitTarget
+} from "@/lib/identity-flow"
 
 /*
  * 走真的 api 层（只把 fetch 换掉）：要验的就是「拼了哪些字段出去、模型那几条排哪」，
@@ -169,5 +176,70 @@ describe("identityConflict", () => {
   it("未登记的机械或模型候选不能替另一页放行", () => {
     const mechanical = { ...registered, target: "F3HandWritten", ui: "F3", basis: "机械转换", registered: false }
     expect(identityConflict({ target: "F3HandWritten", candidates: [registered, mechanical] })).toBe(registered)
+  })
+})
+
+describe("resolveExplicitTarget", () => {
+  const registered = {
+    target: "F4FocusMaintain",
+    ui: "F4",
+    semanticName: "FocusMaintain",
+    basis: "登记表",
+    needsSemanticName: false,
+    registered: true
+  }
+
+  it("冲突原话由这一处给，两个开始入口共用", () => {
+    expect(explicitTargetConflictReason(registered, "saddas")).toContain("两者不是同一页")
+    expect(explicitTargetConflictReason(registered, "saddas")).toContain("F4FocusMaintain")
+  })
+
+  it("命中登记页时直接采用，不再读取后端拆分", async () => {
+    const loadTargetParts = vi.fn()
+    await expect(resolveExplicitTarget({
+      target: "F4FocusMaintain",
+      candidates: [registered],
+      loadTargetParts,
+      basis: "手工填写的 Target"
+    })).resolves.toEqual({ kind: "picked", candidate: registered })
+    expect(loadTargetParts).not.toHaveBeenCalled()
+  })
+
+  it("没有登记候选时，按后端拆分与同一完整性判据决定", async () => {
+    await expect(resolveExplicitTarget({
+      target: "F3HandWritten",
+      candidates: [],
+      loadTargetParts: async () => ({ previewUi: "F3", semanticName: "HandWritten", complete: true }),
+      basis: "看板行手写的 Target"
+    })).resolves.toEqual({
+      kind: "picked",
+      candidate: {
+        target: "F3HandWritten",
+        ui: "F3",
+        semanticName: "HandWritten",
+        basis: "看板行手写的 Target",
+        needsSemanticName: false
+      }
+    })
+  })
+
+  it("空 Target 保持 none，冲突时不读取拆分", async () => {
+    const loadTargetParts = vi.fn()
+    await expect(resolveExplicitTarget({
+      target: " ",
+      candidates: [],
+      loadTargetParts,
+      basis: ""
+    })).resolves.toEqual({ kind: "none" })
+    await expect(resolveExplicitTarget({
+      target: "saddas",
+      candidates: [registered],
+      loadTargetParts,
+      basis: ""
+    })).resolves.toEqual({
+      kind: "rejected",
+      reason: explicitTargetConflictReason(registered, "saddas")
+    })
+    expect(loadTargetParts).not.toHaveBeenCalled()
   })
 })

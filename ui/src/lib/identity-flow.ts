@@ -1,4 +1,5 @@
-import { api, type IdentityApplyEntry, type IdentityCandidate } from "@/lib/api"
+import { api, type IdentityApplyEntry, type IdentityCandidate, type IdentityTargetParts } from "@/lib/api"
+import { pickIdentityCandidate } from "@/lib/identity-pick"
 
 /*
  * 页面身份的取数与写入：一处拼输入字段，两条入口共用 ——
@@ -88,4 +89,52 @@ export function identityConflict(input: { target: string; candidates: IdentityCa
   if (!typed || registered.length === 0) return null
   if (registered.some((item) => item.target === typed)) return null
   return registered[0]
+}
+
+/** 显式 Target 与链接、后端区域拆分、完整性判定的统一结论。 */
+export type ExplicitTargetResolution =
+  | { kind: "none" }
+  | { kind: "picked"; candidate: IdentityCandidate }
+  | { kind: "rejected"; reason: string }
+
+/** 人填 Target 与链接指向的登记页冲突时，两个开始入口显示同一句话。 */
+export function explicitTargetConflictReason(conflict: IdentityCandidate, typed: string): string {
+  return (
+    "这个链接指向的页面在登记表里是 " +
+    conflict.target +
+    (conflict.ui ? "（区域 " + conflict.ui + "）" : "") +
+    "，你填的 Target 是 " +
+    typed +
+    " —— 两者不是同一页，插件会拒绝。请改成链接指向的 Target，或确认链接是否贴错了。"
+  )
+}
+
+/**
+ * A 与 B / AB 的显式 Target 只走这一处：先与链接候选对账，命中登记页就直接采用；
+ * 没有命中才读取后端拆分结果并按同一份完整性判据决定能否采用。
+ */
+export async function resolveExplicitTarget(input: {
+  target: string
+  candidates: IdentityCandidate[]
+  loadTargetParts: (target: string) => Promise<IdentityTargetParts>
+  basis: string
+}): Promise<ExplicitTargetResolution> {
+  const target = input.target.trim()
+  if (!target) return { kind: "none" }
+  const conflict = identityConflict({ target: target, candidates: input.candidates })
+  if (conflict) return { kind: "rejected", reason: explicitTargetConflictReason(conflict, target) }
+
+  const existing = input.candidates.find((candidate) => candidate.target === target)
+  const parts = existing ? null : await input.loadTargetParts(target)
+  const candidate: IdentityCandidate = existing || {
+    target: target,
+    ui: parts?.previewUi ?? "",
+    semanticName: parts?.semanticName ?? "",
+    basis: input.basis,
+    needsSemanticName: parts?.complete !== true
+  }
+  const decision = pickIdentityCandidate([candidate], "")
+  return decision.pick
+    ? { kind: "picked", candidate: decision.pick }
+    : { kind: "rejected", reason: decision.reason }
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import { useValueRunner } from "@/app/use-action-runner"
 import { useAlive } from "@/app/use-alive"
@@ -51,6 +51,7 @@ export function usePendingInputs(input: {
   const [failure, setFailure] = useState("")
   const [aiReady, setAiReady] = useState<boolean | null>(null)
   const alive = useAlive()
+  const reloadSeq = useRef(0)
   /*
    * 两个配置，同一份骨架（ui/src/app/use-action-runner.ts）：
    *   run   —— 取数：失败就照原话写进 failure；
@@ -73,9 +74,13 @@ export function usePendingInputs(input: {
   }, [])
 
   const reload = useCallback(async () => {
-    if (!projectRoot.trim() || !target.trim()) return
+    const seq = ++reloadSeq.current
+    if (!projectRoot.trim() || !target.trim()) {
+      setPending(null)
+      setBusy("")
+      return
+    }
     await run(PENDING_BUSY.load, () => api.pending({ projectRoot, target, mode, taskId, runId }), (payload) => {
-      if (!alive.current) return
       setPending(payload.pending)
       setNames((current) => {
         const next = { ...current }
@@ -99,6 +104,8 @@ export function usePendingInputs(input: {
         }
         return next
       })
+    }, {
+      isCurrent: () => alive.current && seq === reloadSeq.current
     })
   }, [alive, projectRoot, target, mode, taskId, runId, run])
 
