@@ -276,6 +276,24 @@ function main() {
     assert.deepStrictEqual(file.groups, []);
   }
 
+  /* 服务端恢复边界：只有缺表或已有表被拒能进入会覆盖文件的模型路径。 */
+  {
+    assert.doesNotThrow(() => layout.requireRecovery({ needsGroups: true, rejected: false }, { state: "waiting" }));
+    assert.doesNotThrow(() => layout.requireRecovery({ needsGroups: false, rejected: true }, { state: "failed" }));
+    assert.throws(
+      () => layout.requireRecovery({ needsGroups: false, rejected: false }, { state: "waiting" }),
+      (error) => error.code === "NOT_LAYOUT_RECOVERY"
+    );
+    assert.throws(
+      () => layout.requireRecovery({ needsGroups: true, rejected: false }, { state: "running" }),
+      (error) => error.code === "NOT_LAYOUT_RECOVERY"
+    );
+    assert.doesNotThrow(
+      () => layout.requireRecovery({ needsGroups: true, rejected: false }, { state: "" }),
+      "没有来源运行的手填页面不伪造停点态，磁盘上的缺表事实仍可显式恢复"
+    );
+  }
+
   for (const root of sandboxes) fs.rmSync(root, { recursive: true, force: true });
   console.log("PASS layout-groups.test.js");
 }

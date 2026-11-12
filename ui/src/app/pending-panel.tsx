@@ -227,6 +227,7 @@ export function PendingPanel({
         const payload = await api.layoutGroupsSuggest({
           projectRoot: pending.projectRoot,
           target: pending.target,
+          mode,
           taskId,
           runId,
           naming: pending.icons.available && pending.icons.needsNaming ? naming : undefined,
@@ -243,7 +244,7 @@ export function PendingPanel({
         setSubmitBusy("")
       }
     },
-    [pending, taskId, runId, allowEmptyLedger, noIconSlots, finishSubmission, clearFailure, writeFailure]
+    [pending, taskId, runId, mode, allowEmptyLedger, noIconSlots, finishSubmission, clearFailure, writeFailure]
   )
 
   /*

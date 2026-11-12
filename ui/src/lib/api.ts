@@ -1102,6 +1102,7 @@ export const api = {
   layoutGroupsSuggest: (body: {
     projectRoot: string
     target: string
+    mode?: string
     taskId?: string
     runId?: string
     naming?: { index: number; name: string; comment: string; fromDsl?: boolean }[]

@@ -376,4 +376,6 @@
 | 2026-11-12 GitHub 43177015762 | REVIEW-005 | 独立待确认页手填条目固定空路线，布局停点被误报没有待办 | 已收 | 手填区增加显式 A / B / AB 路线；选中后把真实 mode 传给待确认面板并保留布局节 |
 | 2026-11-12 GitHub 43181365297 | BLOCK-001 | 看板同步与自动补输入没有把失败步骤、失败原话交给布局分类，非分组表原因的布局失败仍可能被当成缺表并自动写表 | 已收 | `layout-groups.inspect` 统一合成文件、可读性、停点与机器码事实；`board`、`autofill`、`pending`、面板读取同一份结论。读清单成功时不再退回步骤契约把布局输入一律当语义停点；补回归锁住其他布局失败保持 `failed`、不调用模型 |
 | 2026-11-12 GitHub 43181365297 | REVIEW-001 | 分组表文件存在但内容损坏时 `hasGroups=false`，拒收机器码因此无法命中，面板两个恢复入口都不出现 | 已收 | 增加独立的 `hasFile` 事实；拒收按文件存在与 `LAYOUT_GROUPS_REJECTED` 判定，损坏表仍进入待确认并可写空表或重新分组；补后端、面板与待确认队列回归 |
+| 2026-11-12 GitLab MR !5 审计正文 | REVIEW-002 | 布局模型恢复接口把「已有表被拒 / 缺表」的前置条件只放在界面，直接调用接口可绕过停点覆盖分组表 | 已收 | `/api/layout-groups/suggest` 先按 taskId / runId 解析来源并调用同一份 `pending.inspect`；`layoutGroups.requireRecovery` 要求有来源时处于等待/失败态，并只放行 `needsGroups` 或 `rejected`，其余返回 `NOT_LAYOUT_RECOVERY` |
+| 2026-11-12 GitLab MR !5 审计正文 | REVIEW-003 | `/api/pending` 与待确认队列各自拼装一遍看板任务到 `pending.inspect` 的字段 | 已收 | `queryOfTask` / `queryOfRun` / `queryOfManual` 成为唯一映射；看板、路由、队列与自动补输入共用，补 `pending-query.test.js` 锁定任务、运行与手填三种来源 |
 

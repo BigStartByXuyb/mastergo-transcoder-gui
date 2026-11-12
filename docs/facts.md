@@ -31,6 +31,8 @@
 | 某一版能不能用在这一台上（外壳下限） | `lib/update.js` · `function usableHere(` | 「这一份可以切过去」（`switchable`：选版与版本表逐行都读它，清单都按 `manifestOf` 取）；与 `apply` 前那一刻的 `versionBlocked` 同源 |
 | 布局停点是否属于这个 mode，等图停点是否排除，缺表与已有表被拒收分别怎么读数 | `lib/pending.js` · `function layoutSection(` | `inspect` 的统一结论；看板语义停点、自动补输入、待确认队列与面板都读这一份，B 路线不产生布局停点，页面 PNG 等图停点只产生补图待办 |
 | 布局步骤的失败是否真的属于分组表输入问题（文件在不在、表能不能读、缺表恢复 / 已有表被拒） | `lib/layout-groups.js` · `const hasFile = fs.existsSync(workdir.layoutGroupsPath(`、`const failureCode = groupFailureCodeOf(` | `lib/pending.js` 的 `layoutSection`、`lib/board.js` 的语义停点、`lib/autofill.js` 的自动补输入共用同一份 `inspect` 结论；只有失败步骤就是布局步骤且机器码明确时，才产生补表待办或覆盖现有表的快捷动作 |
+| 布局模型恢复接口的服务端准入门槛 | `lib/layout-groups.js` · `function requireRecovery(` | `lib/routes.js` 的 `POST /api/layout-groups/suggest`；有来源运行时必须处于等待/失败态，且只有 `needsGroups` 或 `rejected` 成立时才允许读取模型输入并覆盖分组表 |
+| 看板任务 / 直跑运行 / 手填条目到待确认查询的唯一映射 | `lib/pending.js` · `function queryOfTask(`、`function queryOfRun(`、`function queryOfManual(` | `/api/pending`、`lib/pending-queue.js`、`lib/board.js` 与 `lib/autofill.js`；停点字段只在这里整理 |
 | A / B / AB 页面身份的手写 Target 对账 | `ui/src/lib/identity-flow.ts` · `function identityConflict(` | 只拿后端标为已登记的候选对账；机械候选与模型候选不能替另一页放行，三个入口不再各筛一份 |
 | A 路线页面身份的优先级与模型边界（手写 Target / 机械区域身份 / 模型语义名） | `ui/src/app/prepare-pipeline-items.ts` · `function prepareOne(` | 看板行手写 Target 优先并走统一身份对账；没有手写时采用项目唯一区域的机械身份；模型补语义名只读 `ui/src/lib/task-form.ts` 的 `adoptsIdentityWithoutConfirm`（仅自动层级） |
 | 布局分组停点的机器分类 | `lib/layout-groups.js` · `const GROUP_FAILURE_CODE` | 只认插件失败摘要首行里的 `LAYOUT_GROUPS_MISSING` / `LAYOUT_GROUPS_REJECTED`；中文失败原话只展示，不参与恢复入口判据 |
