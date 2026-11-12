@@ -175,9 +175,22 @@ function caseImageWithoutGroups() {
   const root = sandbox();
   writeControls(root);
   writeImage(root);
-  const layout = layoutOf(root, pendingFor(root), "A");
+  const pending = pendingFor(root);
+  const layout = layoutOf(root, pending, "A");
   assert.strictEqual(layout.needsGroups, true, "有图没有表 = 要人确认");
   assert.strictEqual(layout.waiting, 1, "要人确认的条数是 1");
+  assert.deepStrictEqual(
+    layoutOf(root, pending, "A", true, true),
+    {
+      needsGroups: false,
+      hasGroups: false,
+      rejected: false,
+      failed: false,
+      failedMessage: "",
+      waiting: 0
+    },
+    "等页面 PNG 的停点只处理图，不再同时要求写分组表"
+  );
   fs.rmSync(root, { recursive: true, force: true });
 }
 

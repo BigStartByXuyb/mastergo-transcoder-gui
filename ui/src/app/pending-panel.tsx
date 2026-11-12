@@ -245,7 +245,7 @@ export function PendingPanel({
     // 跑着的时候连自动那条路也不续跑：那会与人工点「确认并继续」一样起第二次运行。
     if (inFlight) return
     if (waiting === 0) return
-    // 面板没有单独调用布局模型的入口：布局是唯一待办时等人显式写空表。
+    // 缺分组表时只等人工显式写空表；只有已有表被拒时，面板才另给“重新自动分组”按钮。
     if (otherWaiting === 0 && layoutWaiting > 0) return
     if (aiReady !== true) return
     const key =

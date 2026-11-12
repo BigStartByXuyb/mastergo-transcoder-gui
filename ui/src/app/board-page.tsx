@@ -195,7 +195,7 @@ export function BoardPage() {
     <div className="flex h-full min-h-0 flex-col gap-4">
       {problem && (
         <Alert variant="destructive">
-          <AlertTitle>看板没读到最新状态</AlertTitle>
+          <AlertTitle>操作失败</AlertTitle>
           <AlertDescription>
             <ClampText text={problem} />
           </AlertDescription>

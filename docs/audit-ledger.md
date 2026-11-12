@@ -359,4 +359,8 @@
 | 2026-11-12 GitHub 最新 artifact | REVIEW-001 | 布局步骤只要停在同一位置并有表就被当成「分组表被拒」，其他布局错误也会给覆盖现有表的动作 | 已收 | `isRejectedExistingGroups` 同时要求停点、表存在与失败原话中的分组表校验证据；其他布局错误把原话带到待确认面板，不显示写表或重新分组按钮 |
 | 2026-11-12 GitHub 最新 artifact | REVIEW-002 | `syncTask` 保留了不可达的 `ready -> queueMerge` 条件，自动合并有两个入口 | 已收 | 删除 `syncTask` 收尾的不可达条件；自动合并只由 `settleDone` 进入 |
 | 2026-11-12 GitHub 最新 artifact | REVIEW-003 | 非 A 请求准备的失败原因可为空，看板与流水线页会把空错误静默吞掉 | 已收 | `OtherRouteRequest` 改为必填失败原因，`createTasksForMode` 统一补非空文案；请求准备不再写入随后会被覆盖的本地失败状态 |
+| 2026-11-12 GitHub artifact 正文复核 | REVIEW-001 | 最终 JSON 汇总为 PASS，但原始语义报告仍有 REVIEW：等页面 PNG 的停点在图存在但不符合时同时生成布局待办，空表续跑会回到同一停点 | 已收 | `layoutSection` 先判该停点是否适用布局，等图停点统一排除 `needsGroups`、已有表拒收与布局失败；`pending-layout.test.js` 锁定有图、无表、`imageStop=true` 时布局 `waiting=0` |
+| 2026-11-12 GitHub artifact 正文复核 | 非阻断 | A-only 改名恢复文案在候选依据与 blocked 说明中各写一份，标点与动作措辞可能漂移 | 已收 | `lib/identity.js` 共用 `autoRenamedRecovery`，两处只引用同一句 |
+| 2026-11-12 GitHub artifact 正文复核 | 非阻断 | 看板状态读取失败和普通操作失败共用同一错误面板，但标题只限定为「看板没读到最新状态」 | 已收 | `board-page.tsx` 的错误标题改为「操作失败」，不再把参数校验或动作错误说成状态读取问题 |
+| 2026-11-12 GitHub artifact 正文复核 | 非阻断 | 待确认面板注释仍写「没有单独调用布局模型的入口」，与已有「重新自动分组」按钮不符 | 已收 | 注释改为缺表等待人工写空表、已有表被拒时才显示重新分组，和实际渲染条件一致 |
 
