@@ -59,7 +59,14 @@ function pending(): Pending {
       needsGlossary: false,
       waiting: 0
     },
-    layout: { needsGroups: false, hasGroups: false, rejected: false, waiting: 0 }
+    layout: {
+      needsGroups: false,
+      hasGroups: false,
+      rejected: false,
+      failed: false,
+      failedMessage: "",
+      waiting: 0
+    }
   }
 }
 
@@ -177,7 +184,14 @@ describe("PendingPanel", () => {
     layoutPending.icons.waiting = 0
     layoutPending.icons.missing = 0
     layoutPending.icons.needsNaming = false
-    layoutPending.layout = { needsGroups: true, hasGroups: false, rejected: false, waiting: 1 }
+    layoutPending.layout = {
+      needsGroups: true,
+      hasGroups: false,
+      rejected: false,
+      failed: false,
+      failedMessage: "",
+      waiting: 1
+    }
     let confirmed: Record<string, unknown> | null = null
     stubWith({
       pending: layoutPending,
@@ -195,7 +209,14 @@ describe("PendingPanel", () => {
 
   it("主提交不替用户写空布局表", async () => {
     const layoutPending = pending()
-    layoutPending.layout = { needsGroups: true, hasGroups: false, rejected: false, waiting: 1 }
+    layoutPending.layout = {
+      needsGroups: true,
+      hasGroups: false,
+      rejected: false,
+      failed: false,
+      failedMessage: "",
+      waiting: 1
+    }
     let confirmed: Record<string, unknown> | null = null
     stubWith({
       pending: layoutPending,
@@ -216,7 +237,14 @@ describe("PendingPanel", () => {
     rejected.icons.waiting = 0
     rejected.icons.missing = 0
     rejected.icons.needsNaming = false
-    rejected.layout = { needsGroups: false, hasGroups: true, rejected: true, waiting: 1 }
+    rejected.layout = {
+      needsGroups: false,
+      hasGroups: true,
+      rejected: true,
+      failed: true,
+      failedMessage: "分组表第 1 项（g1）的 members 至少 2 个 ref",
+      waiting: 1
+    }
     let confirmed: Record<string, unknown> | null = null
     vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
@@ -245,7 +273,14 @@ describe("PendingPanel", () => {
     rejected.icons.waiting = 0
     rejected.icons.missing = 0
     rejected.icons.needsNaming = false
-    rejected.layout = { needsGroups: false, hasGroups: true, rejected: true, waiting: 1 }
+    rejected.layout = {
+      needsGroups: false,
+      hasGroups: true,
+      rejected: true,
+      failed: true,
+      failedMessage: "分组表第 1 项（g1）的 members 至少 2 个 ref",
+      waiting: 1
+    }
     let regrouped: Record<string, unknown> | null = null
     vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
@@ -279,5 +314,28 @@ describe("PendingPanel", () => {
       runId: "job-1",
       resume: true
     }))
+  })
+
+  it("布局步骤因其他错误失败时只显示原话，不给覆盖分组表的动作", async () => {
+    const failed = pending()
+    failed.icons.waiting = 0
+    failed.icons.missing = 0
+    failed.icons.needsNaming = false
+    failed.layout = {
+      needsGroups: false,
+      hasGroups: true,
+      rejected: false,
+      failed: true,
+      failedMessage: "推导失败：节点没有归宿",
+      waiting: 0
+    }
+    stubWith({ pending: failed })
+    render(panel("waiting"))
+
+    expect(await screen.findByText("布局步骤没有通过")).toBeTruthy()
+    expect(screen.getByText("推导失败：节点没有归宿")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /按空表重写/ })).toBeNull()
+    expect(screen.queryByRole("button", { name: /重新自动分组/ })).toBeNull()
+    expect(screen.queryByText("这个页面当前没有要填的东西。")).toBeNull()
   })
 })

@@ -6,7 +6,7 @@ import {
   type CreatedTasks,
   type TaskCreationApi
 } from "@/app/stage-design-images"
-import type { Board, BoardAddBody, BoardModePolicy } from "@/lib/api"
+import type { BoardAddBody, BoardModePolicy } from "@/lib/api"
 import type { BoardItem } from "@/lib/board-items"
 
 /*
@@ -42,7 +42,14 @@ export function taskInputFailure(input: {
 
 export type OtherRouteRequest =
   | { ok: true; body: BoardAddBody }
-  | { ok: false; failure?: string; board?: Board | null }
+  | { ok: false; failure: string }
+
+const TASK_CREATION_FAILED = "任务创建未完成，请检查失败提示后重试"
+
+function withFailure(result: CreateTasksResult): CreateTasksResult {
+  if (result.ok || String(result.failure || "").trim()) return result
+  return { ...result, failure: TASK_CREATION_FAILED }
+}
 
 /** A 与非 A 只有请求来源不同；建任务、暂存、回滚和逐条启动仍走同一个创建编排。 */
 export async function createTasksForMode(input: {
@@ -59,7 +66,7 @@ export async function createTasksForMode(input: {
   const missingImage = pageImageFailure(input.policy.takesPageImage, links, input.images)
   if (missingImage) return { ok: false, failure: missingImage, board: null }
   if (input.policy.runsPipelineAOnly) {
-    return startPipelineA({
+    return withFailure(await startPipelineA({
       items: input.items,
       projectRoot: input.projectRoot,
       useAi: input.useAi,
@@ -67,15 +74,21 @@ export async function createTasksForMode(input: {
       images: input.images,
       add: input.add,
       api: input.api
-    })
+    }))
   }
 
   const request = await input.otherRequest()
-  if (!request.ok) return { ok: false, failure: request.failure ?? "", board: request.board ?? null }
-  return createTasksWithPageImages({
+  if (!request.ok) {
+    return {
+      ok: false,
+      failure: request.failure.trim() || TASK_CREATION_FAILED,
+      board: null
+    }
+  }
+  return withFailure(await createTasksWithPageImages({
     takesPageImage: input.policy.takesPageImage,
     images: input.images,
     add: () => input.add(request.body),
     api: input.api
-  })
+  }))
 }

@@ -123,7 +123,10 @@ function caseRejectedExistingGroupsIsListed() {
     jobId: "job-1",
     workDir: WORK,
     layoutStep: "layoutManifest",
-    failure: { stepName: "layoutManifest" },
+    failure: {
+      stepName: "layoutManifest",
+      message: "分组表第 1 项（g1）的 members 至少 2 个 ref"
+    },
     imageStop: false,
     request: { target: "DemoPage", mode: "A" }
   };
@@ -135,8 +138,14 @@ function caseRejectedExistingGroupsIsListed() {
       layout: {
         needsGroups: false,
         hasGroups: true,
-        rejected: query.state === "waiting" && query.layoutStep === query.failedStep,
-        waiting: query.state === "waiting" && query.layoutStep === query.failedStep ? 1 : 0
+        rejected: query.state === "waiting" &&
+          query.layoutStep === query.failedStep &&
+          query.failedMessage.includes("分组表"),
+        failed: query.state === "waiting" && query.layoutStep === query.failedStep,
+        failedMessage: query.failedMessage,
+        waiting: query.state === "waiting" &&
+          query.layoutStep === query.failedStep &&
+          query.failedMessage.includes("分组表") ? 1 : 0
       }
     })
   });
@@ -173,7 +182,8 @@ function caseRejectedPipelineRunIsListed() {
       mode: "A",
       state: "failed",
       layoutStep: "layoutManifest",
-      failedStep: "layoutManifest"
+      failedStep: "layoutManifest",
+      failedMessage: "分组表第 1 项（g1）的 members 至少 2 个 ref"
     }],
     pendingFor: (query) => ({
       icons: { waiting: 0 },
@@ -181,8 +191,14 @@ function caseRejectedPipelineRunIsListed() {
       layout: {
         needsGroups: false,
         hasGroups: true,
-        rejected: query.state === "failed" && query.layoutStep === query.failedStep,
-        waiting: query.state === "failed" && query.layoutStep === query.failedStep ? 1 : 0
+        rejected: query.state === "failed" &&
+          query.layoutStep === query.failedStep &&
+          query.failedMessage.includes("分组表"),
+        failed: query.state === "failed" && query.layoutStep === query.failedStep,
+        failedMessage: query.failedMessage,
+        waiting: query.state === "failed" &&
+          query.layoutStep === query.failedStep &&
+          query.failedMessage.includes("分组表") ? 1 : 0
       }
     })
   });

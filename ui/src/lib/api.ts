@@ -392,6 +392,10 @@ export type PendingLayout = {
   hasGroups: boolean
   /** 来源运行确实停在布局步骤，且已有分组表被插件拒收。 */
   rejected: boolean
+  /** 来源运行停在布局步骤（不等同于分组表被拒）。 */
+  failed: boolean
+  /** 布局步骤的失败原话；非失败停点为空串。 */
+  failedMessage: string
   /** 需要处理的布局停点条数：0 或 1。口径在 lib/pending.js 算一次。 */
   waiting: number
 }

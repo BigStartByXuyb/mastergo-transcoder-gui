@@ -146,7 +146,7 @@ export function PipelinePage({
   async function prepareStartRequest(
     projectRoot: string,
     link: string
-  ): Promise<BoardAddBody | null> {
+  ): Promise<{ ok: true; body: BoardAddBody } | { ok: false; failure: string }> {
     const decision = await decideStartIdentity({
       link,
       projectRoot,
@@ -167,8 +167,10 @@ export function PipelinePage({
       autoApply: (item) => identity.apply(item)
     })
     if (!decision.ok) {
-      if (decision.reason) setFailure(decision.reason)
-      return null
+      return {
+        ok: false,
+        failure: decision.reason || "页面身份还没准备好，请补全后重试"
+      }
     }
     const defaults = requestDefaultsOf({
       ui: decision.ui,
@@ -177,10 +179,13 @@ export function PipelinePage({
       stopAfter: form.stopAfter
     })
     return {
-      projectRoot,
-      ...defaults,
-      deferStart: true,
-      items: [{ link, target: decision.target, mode: form.mode as "A" | "B" | "AB" }]
+      ok: true,
+      body: {
+        projectRoot,
+        ...defaults,
+        deferStart: true,
+        items: [{ link, target: decision.target, mode: form.mode as "A" | "B" | "AB" }]
+      }
     }
   }
 
@@ -212,14 +217,11 @@ export function PipelinePage({
         useAi: automation !== "off",
         images: stagedImages,
         add: api.boardAdd,
-        otherRequest: async () => {
-          const body = await prepareStartRequest(projectRoot, link)
-          return body ? { ok: true, body } : { ok: false, failure: "" }
-        }
+        otherRequest: () => prepareStartRequest(projectRoot, link)
       })
       if (result.board) setBoard(result.board)
       if (!result.ok) {
-        if (result.failure) setFailure(result.failure)
+        setFailure(result.failure)
         return
       }
       const created = result.created[0]

@@ -236,6 +236,11 @@ async function caseLineProtocol() {
   assert.match(run.failure.message, /覆盖校验未通过/);
   assert.match(run.failure.resume, /-Progress capture/);
   assert.strictEqual(status.state, "failed");
+  assert.strictEqual(
+    fx.manager.list().find((item) => item.id === job.id).failedMessage,
+    run.failure.message,
+    "轻量运行列表也要带失败原话，待确认侧才能区分分组表校验错误与其他布局失败"
+  );
 
   const slice = fx.manager.log(job.id, 0);
   assert.match(slice.text, /路线 B（mtslg-iocontrol）/);

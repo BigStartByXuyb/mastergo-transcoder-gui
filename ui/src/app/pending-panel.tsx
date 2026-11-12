@@ -114,6 +114,8 @@ export function PendingPanel({
   const langCount = pending?.translations.available ? pending.translations.pendingTranslations.length : 0
   const glossaryCount = pending?.translations.available ? pending.translations.glossaryRequired.length : 0
   const layoutWaiting = pending?.layout.waiting ?? 0
+  const layoutFailed = pending?.layout.failed === true
+  const layoutFailedMessage = pending?.layout.failedMessage ?? ""
   // 本页还缺多少条人工语义输入：三节共用一个计数判据。
   const waiting = pendingInputCount(waitingCounts(pending))
   const otherWaiting = waiting - layoutWaiting
@@ -348,46 +350,60 @@ export function PendingPanel({
         </Alert>
       )}
 
-      {layoutWaiting > 0 && (
+      {(layoutWaiting > 0 || layoutFailed) && (
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium">布局分组</span>
             <Badge variant="destructive">
-              {pending.layout.rejected ? "插件拒收了分组表" : "自动分组未完成"}
+              {pending.layout.rejected
+                ? "插件拒收了分组表"
+                : pending.layout.needsGroups
+                  ? "自动分组未完成"
+                  : "布局步骤失败"}
             </Badge>
           </div>
           <Alert>
             <AlertTitle>
-              {pending.layout.rejected ? "已有分组表，但插件在布局步骤拒绝了它" : "这一页有 PNG，但还没有分组表"}
+              {pending.layout.rejected
+                ? "已有分组表，但插件在布局步骤拒绝了它"
+                : pending.layout.needsGroups
+                  ? "这一页有 PNG，但还没有分组表"
+                  : "布局步骤没有通过"}
             </AlertTitle>
             <AlertDescription>
               {pending.layout.rejected
-                ? "可以按空表重写，也可以让模型按本页 PNG 与本层条目重新分组；两种都会写入分组表并从布局步骤继续。"
-                : "这一页还没有可用的分组表。确认本页没有需要声明的控件分组后，可以写一张空表并继续；空表是插件的合法输入。"}
+                ? "可以按空表重写，也可以让模型按本页 PNG 与本层条目重新分组；两种都会写入分组表并从布局步骤继续。" +
+                  (layoutFailedMessage ? " 插件原话：" + layoutFailedMessage : "")
+                : pending.layout.needsGroups
+                  ? "这一页还没有可用的分组表。确认本页没有需要声明的控件分组后，可以写一张空表并继续；空表是插件的合法输入。"
+                  : layoutFailedMessage ||
+                    "运行没有留下这一步的失败原话。先查看该步骤日志，修正后重跑；这里不会覆盖现有分组表。"}
             </AlertDescription>
           </Alert>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={busy !== "" || inFlight}
-              onClick={() => void submitLayoutEmpty(hasSource)}
-            >
-              <Send className="size-4" />
-              {hasSource ? "按空表重写并继续" : "按空表重写"}
-            </Button>
-            {pending.layout.rejected && (
+          {layoutWaiting > 0 && (
+            <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
                 variant="outline"
                 disabled={busy !== "" || inFlight}
-                onClick={() => void submitLayoutRegroup(hasSource)}
+                onClick={() => void submitLayoutEmpty(hasSource)}
               >
-                {busy === SUBMIT_BUSY ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                {hasSource ? "重新自动分组并继续" : "重新自动分组并写入"}
+                <Send className="size-4" />
+                {hasSource ? "按空表重写并继续" : "按空表重写"}
               </Button>
-            )}
-          </div>
+              {pending.layout.rejected && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy !== "" || inFlight}
+                  onClick={() => void submitLayoutRegroup(hasSource)}
+                >
+                  {busy === SUBMIT_BUSY ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                  {hasSource ? "重新自动分组并继续" : "重新自动分组并写入"}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -592,7 +608,7 @@ export function PendingPanel({
           只写入，不继续
         </Button>
         {inFlight && canSubmit && <span className="text-muted-foreground text-xs">{inFlightNote("确认并继续")}</span>}
-        {!canSubmit && pending && layoutWaiting === 0 && (
+        {!canSubmit && pending && layoutWaiting === 0 && !layoutFailed && (
           <span className="text-muted-foreground text-xs">这个页面当前没有要填的东西。</span>
         )}
         {!hasSource && canSubmit && (

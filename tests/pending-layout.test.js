@@ -94,13 +94,17 @@ function writeBrokenGroups(root) {
   );
 }
 
-function layoutOf(root, pending, mode, stoppedAtLayout, imageStop) {
+function layoutOf(root, pending, mode, stoppedAtLayout, imageStop, failedMessage) {
+  const message = failedMessage === undefined
+    ? "分组表第 1 项（g1）的 members 至少 2 个 ref"
+    : failedMessage;
   const query = {
     projectRoot: root,
     target: TARGET,
     state: stoppedAtLayout ? "waiting" : "",
     layoutStep: stoppedAtLayout ? "layoutManifest" : "",
     failedStep: stoppedAtLayout ? "layoutManifest" : "",
+    failedMessage: stoppedAtLayout ? message : "",
     imageStop: imageStop === true
   };
   if (mode !== undefined) query.mode = mode;
@@ -124,6 +128,8 @@ function caseNothingYet() {
     needsGroups: false,
     hasGroups: false,
     rejected: false,
+    failed: false,
+    failedMessage: "",
     waiting: 0
   });
   fs.rmSync(root, { recursive: true, force: true });
@@ -187,17 +193,38 @@ function caseLayoutOnlyForA() {
   );
   assert.deepStrictEqual(
     layoutOf(root, pending, "B"),
-    { needsGroups: false, hasGroups: false, rejected: false, waiting: 0 },
+    {
+      needsGroups: false,
+      hasGroups: false,
+      rejected: false,
+      failed: false,
+      failedMessage: "",
+      waiting: 0
+    },
     "B 不消费布局分组"
   );
   assert.deepStrictEqual(
     layoutOf(root, pending, "AB"),
-    { needsGroups: true, hasGroups: false, rejected: false, waiting: 1 },
+    {
+      needsGroups: true,
+      hasGroups: false,
+      rejected: false,
+      failed: false,
+      failedMessage: "",
+      waiting: 1
+    },
     "AB 的 A 段仍消费布局分组"
   );
   assert.deepStrictEqual(
     layoutOf(root, pending, ""),
-    { needsGroups: false, hasGroups: false, rejected: false, waiting: 0 },
+    {
+      needsGroups: false,
+      hasGroups: false,
+      rejected: false,
+      failed: false,
+      failedMessage: "",
+      waiting: 0
+    },
     "手填条目没有路线信息，不能假定它消费布局分组"
   );
   fs.rmSync(root, { recursive: true, force: true });
@@ -226,20 +253,55 @@ function caseRejectedExistingGroupsNeedsRecovery() {
     needsGroups: false,
     hasGroups: true,
     rejected: false,
+    failed: false,
+    failedMessage: "",
     waiting: 0
   }, "只看磁盘时已有表算完成，不能把完成页误列成待办");
   assert.deepStrictEqual(layoutOf(root, pending, "A", true), {
     needsGroups: false,
     hasGroups: true,
     rejected: true,
+    failed: true,
+    failedMessage: "分组表第 1 项（g1）的 members 至少 2 个 ref",
     waiting: 1
-  }, "来源运行确实停在布局步骤时，已有表也要给出重写入口");
+  }, "失败原话确为分组表校验错误时，已有表要给出重写入口");
+  assert.deepStrictEqual(
+    layoutOf(root, pending, "A", true, false, "ref 出现在多个分组里"),
+    {
+      needsGroups: false,
+      hasGroups: true,
+      rejected: true,
+      failed: true,
+      failedMessage: "ref 出现在多个分组里",
+      waiting: 1
+    },
+    "分组表错误不一定以「分组表」开头，仍要按原话证据认出来"
+  );
   assert.deepStrictEqual(layoutOf(root, pending, "A", true, true), {
     needsGroups: false,
     hasGroups: true,
     rejected: false,
+    failed: false,
+    failedMessage: "",
     waiting: 0
   }, "等页面 PNG 的停点不是分组表被拒");
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
+function caseOtherLayoutFailureNeedsLog() {
+  const root = sandbox();
+  writeControls(root);
+  writeImage(root);
+  writeGroups(root, [{ id: "g1", kind: "row", members: ["a", "b"] }]);
+  const failedMessage = "推导失败：节点没有归宿";
+  assert.deepStrictEqual(layoutOf(root, pendingFor(root), "A", true, false, failedMessage), {
+    needsGroups: false,
+    hasGroups: true,
+    rejected: false,
+    failed: true,
+    failedMessage: failedMessage,
+    waiting: 0
+  }, "布局步骤的其他失败只显示原话，不能当成表被拒");
   fs.rmSync(root, { recursive: true, force: true });
 }
 
@@ -286,6 +348,7 @@ try {
     ["布局停点只属于含 A 的路线", caseLayoutOnlyForA],
     ["空分组表也算有表", caseImageWithEmptyGroups],
     ["已有分组表被布局步骤拒收时列成恢复停点", caseRejectedExistingGroupsNeedsRecovery],
+    ["布局步骤的其他失败不冒充分组表被拒", caseOtherLayoutFailureNeedsLog],
     ["只有图、还没有控件清单", caseImageBeforeControls],
     ["只有图、类型产物在但条目清单缺失", caseImageWithoutCandidates],
     ["分组表损坏 = 按没有表处理，让人重写一次", caseBrokenGroupsAsksAgain]

@@ -105,4 +105,24 @@ describe("createTasksForMode", () => {
     expect(otherRequest).not.toHaveBeenCalled()
     expect(add).not.toHaveBeenCalled()
   })
+
+  it("非 A 请求准备失败时，空原因也收口成可显示的失败文案", async () => {
+    const add = vi.fn()
+    const result = await createTasksForMode({
+      items: [{ link: "https://mastergo.com/goto/a?file=1&layer_id=2:3", target: "", mode: "B" }],
+      projectRoot: "project",
+      policy,
+      useAi: true,
+      images: {},
+      add,
+      otherRequest: async () => ({ ok: false, failure: "" })
+    })
+
+    expect(result).toEqual({
+      ok: false,
+      failure: expect.stringMatching(/任务创建未完成/),
+      board: null
+    })
+    expect(add).not.toHaveBeenCalled()
+  })
 })

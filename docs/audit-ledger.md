@@ -356,4 +356,7 @@
 | 2026-11-12 GitHub 语义审计 | 非阻断 | 看板页对 `task-form` 分两条导入；流水线页头注释仍把创建编排直接指向 `stage-design-images`；创建后取图保留空链接防御分支 | 已收 | 导入合并为一处，头注释改指 `task-creation-entry`，创建结果沿用同一份看板任务的非空链接并删除不可达空链接分支 |
 | 2026-11-12 GitHub 语义复审 | BLOCK-001 | `/api/pending` 从 `board.byId()` 的轻量引用读取不存在的 `layoutStep` / `failure`，看板主路径的布局恢复面板永不出现 | 已收 | 待确认接口改从 `board.snapshot()` 的完整任务画像取 `state` / `layoutStep` / `failure` / `imageStop`；队列与面板继续读同一套 `pending.inspect` 结论，并补看板快照字段回归 |
 | 2026-11-12 GitHub 语义复审 | REVIEW-001 | 等页面 PNG 的停点同样把失败步骤写成布局步骤，已有分组表时会被误判为「分组表被拒」 | 已收 | 看板公开快照与待确认队列增加独立的 `imageStop` 事实，`isLayoutStepStop` 明确排除等图停点；补 `waiting + layoutStep + hasGroups + imageStop` 不产生重写入口的边界用例 |
+| 2026-11-12 GitHub 最新 artifact | REVIEW-001 | 布局步骤只要停在同一位置并有表就被当成「分组表被拒」，其他布局错误也会给覆盖现有表的动作 | 已收 | `isRejectedExistingGroups` 同时要求停点、表存在与失败原话中的分组表校验证据；其他布局错误把原话带到待确认面板，不显示写表或重新分组按钮 |
+| 2026-11-12 GitHub 最新 artifact | REVIEW-002 | `syncTask` 保留了不可达的 `ready -> queueMerge` 条件，自动合并有两个入口 | 已收 | 删除 `syncTask` 收尾的不可达条件；自动合并只由 `settleDone` 进入 |
+| 2026-11-12 GitHub 最新 artifact | REVIEW-003 | 非 A 请求准备的失败原因可为空，看板与流水线页会把空错误静默吞掉 | 已收 | `OtherRouteRequest` 改为必填失败原因，`createTasksForMode` 统一补非空文案；请求准备不再写入随后会被覆盖的本地失败状态 |
 
