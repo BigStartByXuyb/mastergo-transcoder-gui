@@ -180,6 +180,18 @@ function caseImageWithoutGroups() {
   assert.strictEqual(layout.needsGroups, true, "有图没有表 = 要人确认");
   assert.strictEqual(layout.waiting, 1, "要人确认的条数是 1");
   assert.deepStrictEqual(
+    layoutOf(root, pending, "A", true, false, "有设计稿位图但没有分组表：先看图产出分组表"),
+    {
+      needsGroups: true,
+      hasGroups: false,
+      rejected: false,
+      failed: true,
+      failedMessage: "有设计稿位图但没有分组表：先看图产出分组表",
+      waiting: 1
+    },
+    "布局步骤明确报缺分组表时仍保留补表恢复"
+  );
+  assert.deepStrictEqual(
     layoutOf(root, pending, "A", true, true),
     {
       needsGroups: false,
@@ -316,6 +328,19 @@ function caseOtherLayoutFailureNeedsLog() {
     waiting: 0
   }, "布局步骤的其他失败只显示原话，不能当成表被拒");
   fs.rmSync(root, { recursive: true, force: true });
+
+  const noGroups = sandbox();
+  writeControls(noGroups);
+  writeImage(noGroups);
+  assert.deepStrictEqual(layoutOf(noGroups, pendingFor(noGroups), "A", true, false, failedMessage), {
+    needsGroups: false,
+    hasGroups: false,
+    rejected: false,
+    failed: true,
+    failedMessage: failedMessage,
+    waiting: 0
+  }, "无分组表也不能把其他布局失败伪装成缺表待办");
+  fs.rmSync(noGroups, { recursive: true, force: true });
 }
 
 function caseImageBeforeControls() {

@@ -30,7 +30,7 @@
 | 这一页哪一步还没跑成（＝没跑完时那个断点） | `lib/page-progress.js` · `function unfinishedStepOf(` | `lib/board.js` 的 `resumeOf` 与 `resumeAllowedOf`（看板快照的 `task.resumeStep` 决定按钮说「继续」还是「重跑一遍」，`task.resumable` 决定给不给入口）；`lib/routes.js` 的 `resumeLive`（运行还在时那条「从断点继续」，Target 按任务认回来的那份读登记表）；`lib/confirm.js` 的写回续跑（与「刚写入的文件所喂的第一步」取更早的那个，不跳过没跑成的那一步） |
 | 某一版能不能用在这一台上（外壳下限） | `lib/update.js` · `function usableHere(` | 「这一份可以切过去」（`switchable`：选版与版本表逐行都读它，清单都按 `manifestOf` 取）；与 `apply` 前那一刻的 `versionBlocked` 同源 |
 | 布局停点是否属于这个 mode，等图停点是否排除，缺表与已有表被拒收分别怎么读数 | `lib/pending.js` · `function layoutSection(` | `inspect` 的统一结论；看板语义停点、自动补输入、待确认队列与面板都读这一份，B 路线不产生布局停点，页面 PNG 等图停点只产生补图待办 |
-| 已有分组表是否真的被插件拒收（停点 + 表存在 + 失败原话证据） | `lib/layout-groups.js` · `function isRejectedExistingGroups(` | `lib/pending.js` 的 `layoutSection`；布局步骤的其他失败只显示原话，不给会覆盖现有表的快捷动作 |
+| 布局步骤的失败原话是否真的属于分组表输入问题（缺表恢复 / 已有表被拒） | `lib/layout-groups.js` · `function isGroupTableFailure(`、`function isMissingGroupsStop(`、`function isRejectedExistingGroups(` | `lib/pending.js` 的 `layoutSection`；只有分组表输入证据才产生补表待办，布局步骤的其他失败只显示原话，不给会覆盖现有表的快捷动作 |
 | 任务创建失败时界面拿到的原因 | `ui/src/app/task-creation-entry.ts` · `const TASK_CREATION_FAILED =` | 两个新建入口共用；请求准备返回空原因时也落到这一句，页面不会再出现空错误 |
 | 图标 / 译文 / 术语自动写回的范围 | `lib/autofill.js` · `const canAutoOthers = automation === "auto";` | `assist` 只出候选并等确认；`auto` 写回并续跑；`off` 不调用模型。与设置页、待确认面板同一口径 |
 | 位图落地要等的那一步怎么说 | `lib/design-image.js` · `const NO_CANVAS_REASON =` | 界面那一块照后端给的原话显示（`/api/design-image` 的 `blocked`）；A 路线等图停点（`lib/board.js`）也拼这一句；表单指引不提步骤名，只说「流水线产出画板尺寸之后」 |

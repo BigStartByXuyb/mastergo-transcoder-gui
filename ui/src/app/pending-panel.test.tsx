@@ -323,7 +323,7 @@ describe("PendingPanel", () => {
     failed.icons.needsNaming = false
     failed.layout = {
       needsGroups: false,
-      hasGroups: true,
+      hasGroups: false,
       rejected: false,
       failed: true,
       failedMessage: "推导失败：节点没有归宿",
@@ -337,5 +337,26 @@ describe("PendingPanel", () => {
     expect(screen.queryByRole("button", { name: /按空表重写/ })).toBeNull()
     expect(screen.queryByRole("button", { name: /重新自动分组/ })).toBeNull()
     expect(screen.queryByText("这个页面当前没有要填的东西。")).toBeNull()
+  })
+
+  it("没有来源运行时，布局恢复说明不承诺继续", async () => {
+    const noSource = pending()
+    noSource.icons.waiting = 0
+    noSource.icons.missing = 0
+    noSource.icons.needsNaming = false
+    noSource.layout = {
+      needsGroups: true,
+      hasGroups: false,
+      rejected: false,
+      failed: false,
+      failedMessage: "",
+      waiting: 1
+    }
+    stubWith({ pending: noSource })
+    render(panel("waiting", { runId: "" }))
+
+    expect(await screen.findByText(/来源运行已不可用，不会继续/)).toBeTruthy()
+    expect(screen.getByRole("button", { name: /按空表重写$/ })).toBeTruthy()
+    expect(screen.queryByText(/并从布局步骤继续/)).toBeNull()
   })
 })

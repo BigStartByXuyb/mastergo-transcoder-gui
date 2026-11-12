@@ -330,6 +330,9 @@ export function PendingPanel({
 
   const icons = pending.icons
   const lang = pending.translations
+  const layoutWriteResult = hasSource
+    ? "，并从布局步骤继续。"
+    : "；来源运行已不可用，不会继续。"
 
   return (
     <div className="flex flex-col gap-4">
@@ -372,10 +375,12 @@ export function PendingPanel({
             </AlertTitle>
             <AlertDescription>
               {pending.layout.rejected
-                ? "可以按空表重写，也可以让模型按本页 PNG 与本层条目重新分组；两种都会写入分组表并从布局步骤继续。" +
+                ? "可以按空表重写，也可以让模型按本页 PNG 与本层条目重新分组；两种都会写入分组表" +
+                  layoutWriteResult +
                   (layoutFailedMessage ? " 插件原话：" + layoutFailedMessage : "")
                 : pending.layout.needsGroups
-                  ? "这一页还没有可用的分组表。确认本页没有需要声明的控件分组后，可以写一张空表并继续；空表是插件的合法输入。"
+                  ? "这一页还没有可用的分组表。确认本页没有需要声明的控件分组后，可以写一张空表" +
+                    layoutWriteResult + " 空表是插件的合法输入。"
                   : layoutFailedMessage ||
                     "运行没有留下这一步的失败原话。先查看该步骤日志，修正后重跑；这里不会覆盖现有分组表。"}
             </AlertDescription>
