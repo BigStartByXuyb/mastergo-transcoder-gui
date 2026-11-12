@@ -61,10 +61,9 @@ export function PipelinePage({
   const [step, setStep] = useState("")
   /*
    * 新建时先选好的页面 PNG：按链接记，与看板同一套（ui/src/lib/board-items.ts）——
-   * 还没填链接时选的那一份先记在「待认领」那一格；链接完整后归这一页，再换成另一页就不算数。
+   * 还没填链接时选的那一份先记在「待认领」那一格；流水线页只有一个页面行，读取时直接使用它。
    */
   const [images, setImages] = useState<Record<string, File>>({})
-  // 流水线页只有一个页面行：先选图、后填链接时，待认领那一份仍属于这一行。
   const stagedImage = pickedForLink(images, form.link, true)
   /*
    * 两屏：带 `task=<id>`（从看板点「详情」、或刚「加入看板并开始」）就是看那个任务；

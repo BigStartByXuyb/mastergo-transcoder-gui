@@ -54,7 +54,7 @@ export function fillTargets(text: string, targets: Map<string, string>): string 
     .join("\n")
 }
 
-/* 还没填链接时选的那一份记在这一格（键是空串）：链接一填上就归那一页。 */
+/* 还没填链接时选的那一份记在这一格（键是空串）；单页面表单读取它，多页面表单不读取。 */
 const UNCLAIMED = ""
 
 /* 页面 PNG 的键只认去掉首尾空白的链接；选图、取图、换链接时保留图片共用这一条。 */
@@ -79,15 +79,15 @@ export function keepPickedImages<T>(images: Record<string, T>, text: string): Re
 
 /*
  * 选好的位图按链接记：置入或移除一张 —— 记录长什么样、怎么清只在这一处维护。
- * 「待认领」那一格只有一份：这一份要么归当前链接，要么占用它（链接还空着时）；置入或移除都先清掉它，
- * 所以移除之后不会又从那一格里冒出来。两个入口共用：看板弹窗每行一个框，流水线页只有当前链接那一个键。
+ * 「待认领」那一格只有一份：置入或移除当前链接的图时都先清掉它，移除之后不会又从待认领处冒出来。
+ * 两个入口共用：看板弹窗每行一个框，流水线页只有当前链接那一个键。
  */
 export function withPickedImage<T>(images: Record<string, T>, link: string, file: T | null): Record<string, T> {
   const next = { ...images }
   const key = imageKey(link)
   delete next[UNCLAIMED]
   delete next[key]
-  // 链接还空着时 link 就是 UNCLAIMED 那一格：这一份先记在待认领处，链接一填就归那一页。
+  // 链接还空着时 link 就是 UNCLAIMED 那一格；之后由单页面表单读取，不改键、不拆 URL。
   if (file) next[key] = file
   return next
 }

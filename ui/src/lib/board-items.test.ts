@@ -68,7 +68,7 @@ describe("keepPickedImages", () => {
     expect(pickedForLink(keepPickedImages(unclaimed, other), other, true)).toBe("a.png")
   })
 
-  it("链接还没填完整时不提前认领，继续留在待认领那一格", () => {
+  it("只有链接、没有页面图时，不从待认领那一格冒领", () => {
     expect(keepPickedImages({ "": "a.png" }, "https://mastergo.com/goto/x?file=1")).toEqual({ "": "a.png" })
   })
 })
