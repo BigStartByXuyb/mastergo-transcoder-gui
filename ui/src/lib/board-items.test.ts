@@ -6,6 +6,7 @@ import {
   parseBoardItems,
   parseBoardRows,
   pickedForLink,
+  singlePageAllowsUnclaimedImage,
   withPickedImage
 } from "@/lib/board-items"
 
@@ -140,5 +141,13 @@ describe("pickedForLink", () => {
 
   it("这一页自己那一格优先于待认领的那一份", () => {
     expect(pickedForLink({ "": "unclaimed.png", [LINK]: "mine.png" }, LINK)).toBe("mine.png")
+  })
+})
+
+describe("singlePageAllowsUnclaimedImage", () => {
+  it("只有一页才允许把先选的图认领给这一页", () => {
+    expect(singlePageAllowsUnclaimedImage(0)).toBe(false)
+    expect(singlePageAllowsUnclaimedImage(1)).toBe(true)
+    expect(singlePageAllowsUnclaimedImage(2)).toBe(false)
   })
 })

@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import {
-  commitPipelineAIdentities,
-  preparePipelineAItems
-} from "@/app/prepare-pipeline-items"
+import { preparePipelineAItems } from "@/app/prepare-pipeline-items"
+import { applyIdentities } from "@/lib/identity-flow"
 
 const LINK = "https://mastergo.com/goto/x?file=1&layer_id=2:3"
 const OTHER_LINK = "https://mastergo.com/goto/y?file=1&layer_id=4:5"
@@ -46,7 +44,7 @@ describe("preparePipelineAItems", () => {
     })
     if (!result.ok) throw new Error(result.reason)
     expect(urls.some((url) => url.includes("/api/identity/apply"))).toBe(false)
-    await commitPipelineAIdentities(result.identities)
+    await applyIdentities(result.identities)
     expect(bodies.filter((body) => "useAi" in body)).toEqual([
       expect.objectContaining({ useAi: false, autoAdopt: true })
     ])
@@ -84,7 +82,7 @@ describe("preparePipelineAItems", () => {
       defaults: { ui: "", autoMerge: true, overwrite: true, stopAfter: "" }
     })
     if (!result.ok) throw new Error(result.reason)
-    await commitPipelineAIdentities(result.identities)
+    await applyIdentities(result.identities)
   })
 
   it("机械候选不给身份且后端未放行时整批停在启动前", async () => {

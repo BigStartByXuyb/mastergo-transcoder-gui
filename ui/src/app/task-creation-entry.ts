@@ -7,7 +7,7 @@ import {
   type TaskCreationApi
 } from "@/app/stage-design-images"
 import type { BoardAddBody, BoardModePolicy } from "@/lib/api"
-import type { BoardItem } from "@/lib/board-items"
+import { singlePageAllowsUnclaimedImage, type BoardItem } from "@/lib/board-items"
 
 /*
  * 两个新建入口共用这一层：先按同一套输入判据给失败原因，再按后端路线能力选择
@@ -63,7 +63,8 @@ export async function createTasksForMode(input: {
   api?: TaskCreationApi
 }): Promise<CreateTasksResult> {
   const links = input.items.map((item) => item.link)
-  const missingImage = pageImageFailure(input.policy.takesPageImage, links, input.images)
+  const allowUnclaimed = singlePageAllowsUnclaimedImage(input.items.length)
+  const missingImage = pageImageFailure(input.policy.takesPageImage, links, input.images, allowUnclaimed)
   if (missingImage) return { ok: false, failure: missingImage, board: null }
   if (input.policy.runsPipelineAOnly) {
     return withFailure(await startPipelineA({
@@ -72,6 +73,7 @@ export async function createTasksForMode(input: {
       automation: input.automation,
       takesPageImage: input.policy.takesPageImage,
       images: input.images,
+      allowUnclaimed,
       add: input.add,
       api: input.api
     }))
@@ -88,6 +90,7 @@ export async function createTasksForMode(input: {
   return withFailure(await createTasksWithPageImages({
     takesPageImage: input.policy.takesPageImage,
     images: input.images,
+    allowUnclaimed,
     add: () => input.add(request.body),
     api: input.api
   }))

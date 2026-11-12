@@ -5,6 +5,7 @@ import { PendingPanel } from "@/app/pending-panel"
 import { ClampText } from "@/app/clamp-text"
 import { PixelLoader } from "@/app/pixel-loader"
 import { IdentifierText } from "@/app/identifier-text"
+import { ModeField } from "@/app/mode-field"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -37,6 +38,7 @@ export function ReviewPage() {
   const [automation, setAutomation] = useState("assist")
   const [manualRoot, setManualRoot] = useState("")
   const [manualTarget, setManualTarget] = useState("")
+  const [manualMode, setManualMode] = useState<"A" | "B" | "AB">("A")
   const [loaded, setLoaded] = useState(false)
 
   const load = useCallback(async () => {
@@ -74,7 +76,7 @@ export function ReviewPage() {
     if (manualRoot.trim() && manualTarget.trim()) {
       return {
         source: "pipeline" as const,
-        mode: "",
+        mode: manualMode,
         projectRoot: manualRoot.trim(),
         target: manualTarget.trim(),
         runId: "",
@@ -89,7 +91,7 @@ export function ReviewPage() {
       }
     }
     return null
-  }, [queue, selected, manualRoot, manualTarget])
+  }, [queue, selected, manualRoot, manualTarget, manualMode])
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -233,7 +235,7 @@ export function ReviewPage() {
         <CardHeader>
           <CardTitle className="text-base">手动指定</CardTitle>
           <CardDescription>
-            列表里没有的（例如客户端重启过、或者路径不在已知运行里）可以手填。
+            列表里没有的（例如客户端重启过、或者路径不在已知运行里）可以手填；路线必须显式选择，布局分组只对含 A 的路线显示。
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -257,6 +259,16 @@ export function ReviewPage() {
               value={manualTarget}
               onChange={(event) => {
                 setManualTarget(event.target.value)
+                setSelected("")
+              }}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <ModeField
+              label="路线"
+              value={manualMode}
+              onChange={(mode) => {
+                setManualMode(mode as "A" | "B" | "AB")
                 setSelected("")
               }}
             />

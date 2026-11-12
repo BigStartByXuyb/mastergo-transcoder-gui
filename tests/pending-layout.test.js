@@ -16,6 +16,7 @@ const os = require("os");
 const path = require("path");
 
 const { createPending } = require("../lib/pending.js");
+const { GROUP_FAILURE_CODE } = require("../lib/layout-groups.js");
 
 const TARGET = "DemoPage";
 /* 译文那一节要插件自己的派生实现：这里只验布局一节，给它一份最小替身（别让别的节把用例拖住）。 */
@@ -96,7 +97,7 @@ function writeBrokenGroups(root) {
 
 function layoutOf(root, pending, mode, stoppedAtLayout, imageStop, failedMessage) {
   const message = failedMessage === undefined
-    ? "分组表第 1 项（g1）的 members 至少 2 个 ref"
+    ? "[" + GROUP_FAILURE_CODE.rejected + "] 分组表第 1 项（g1）的 members 至少 2 个 ref"
     : failedMessage;
   const query = {
     projectRoot: root,
@@ -180,16 +181,16 @@ function caseImageWithoutGroups() {
   assert.strictEqual(layout.needsGroups, true, "有图没有表 = 要人确认");
   assert.strictEqual(layout.waiting, 1, "要人确认的条数是 1");
   assert.deepStrictEqual(
-    layoutOf(root, pending, "A", true, false, "有设计稿位图但没有分组表：先看图产出分组表"),
+    layoutOf(root, pending, "A", true, false, "[" + GROUP_FAILURE_CODE.missing + "] 有页面 PNG 但没有分组表：先看图产出分组表"),
     {
       needsGroups: true,
       hasGroups: false,
       rejected: false,
       failed: true,
-      failedMessage: "有设计稿位图但没有分组表：先看图产出分组表",
+      failedMessage: "[" + GROUP_FAILURE_CODE.missing + "] 有页面 PNG 但没有分组表：先看图产出分组表",
       waiting: 1
     },
-    "布局步骤明确报缺分组表时仍保留补表恢复"
+    "布局步骤带缺表机器码时仍保留补表恢复"
   );
   assert.deepStrictEqual(
     layoutOf(root, pending, "A", true, true),
@@ -287,20 +288,20 @@ function caseRejectedExistingGroupsNeedsRecovery() {
     hasGroups: true,
     rejected: true,
     failed: true,
-    failedMessage: "分组表第 1 项（g1）的 members 至少 2 个 ref",
+    failedMessage: "[" + GROUP_FAILURE_CODE.rejected + "] 分组表第 1 项（g1）的 members 至少 2 个 ref",
     waiting: 1
   }, "失败原话确为分组表校验错误时，已有表要给出重写入口");
   assert.deepStrictEqual(
-    layoutOf(root, pending, "A", true, false, "ref 出现在多个分组里"),
+    layoutOf(root, pending, "A", true, false, "[" + GROUP_FAILURE_CODE.rejected + "] ref 出现在多个分组里"),
     {
       needsGroups: false,
       hasGroups: true,
       rejected: true,
       failed: true,
-      failedMessage: "ref 出现在多个分组里",
+      failedMessage: "[" + GROUP_FAILURE_CODE.rejected + "] ref 出现在多个分组里",
       waiting: 1
     },
-    "分组表错误不一定以「分组表」开头，仍要按原话证据认出来"
+    "分组表错误按机器码认出来，不依赖具体文案"
   );
   assert.deepStrictEqual(layoutOf(root, pending, "A", true, true), {
     needsGroups: false,
@@ -341,6 +342,43 @@ function caseOtherLayoutFailureNeedsLog() {
     waiting: 0
   }, "无分组表也不能把其他布局失败伪装成缺表待办");
   fs.rmSync(noGroups, { recursive: true, force: true });
+}
+
+function caseMessageWordsDoNotControlRecovery() {
+  const root = sandbox();
+  writeControls(root);
+  writeImage(root);
+  writeGroups(root, [{ id: "g1", kind: "row", members: ["a", "b"] }]);
+  assert.deepStrictEqual(
+    layoutOf(root, pendingFor(root), "A", true, false, "插件换了措辞：分组 layout groups 校验失败"),
+    {
+      needsGroups: false,
+      hasGroups: true,
+      rejected: false,
+      failed: true,
+      failedMessage: "插件换了措辞：分组 layout groups 校验失败",
+      waiting: 0
+    },
+    "文案里出现「分组」但没有机器码，不能给覆盖分组表的恢复动作"
+  );
+  fs.rmSync(root, { recursive: true, force: true });
+
+  const missing = sandbox();
+  writeControls(missing);
+  writeImage(missing);
+  assert.deepStrictEqual(
+    layoutOf(missing, pendingFor(missing), "A", true, false, "[" + GROUP_FAILURE_CODE.missing + "] layout groups input required"),
+    {
+      needsGroups: true,
+      hasGroups: false,
+      rejected: false,
+      failed: true,
+      failedMessage: "[" + GROUP_FAILURE_CODE.missing + "] layout groups input required",
+      waiting: 1
+    },
+    "机器码匹配时不依赖中文失败文案"
+  );
+  fs.rmSync(missing, { recursive: true, force: true });
 }
 
 function caseImageBeforeControls() {
@@ -387,6 +425,7 @@ try {
     ["空分组表也算有表", caseImageWithEmptyGroups],
     ["已有分组表被布局步骤拒收时列成恢复停点", caseRejectedExistingGroupsNeedsRecovery],
     ["布局步骤的其他失败不冒充分组表被拒", caseOtherLayoutFailureNeedsLog],
+    ["分组恢复只认稳定机器码，不认失败文案", caseMessageWordsDoNotControlRecovery],
     ["只有图、还没有控件清单", caseImageBeforeControls],
     ["只有图、类型产物在但条目清单缺失", caseImageWithoutCandidates],
     ["分组表损坏 = 按没有表处理，让人重写一次", caseBrokenGroupsAsksAgain]

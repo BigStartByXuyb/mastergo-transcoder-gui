@@ -57,6 +57,11 @@ export function fillTargets(text: string, targets: Map<string, string>): string 
 /* 还没填链接时选的那一份记在这一格（键是空串）；单页面表单读取它，多页面表单不读取。 */
 const UNCLAIMED = ""
 
+/** 「先选图、后填链接」只适用于当前表单确实只有一个页面；新建界面与提交编排同读这一条。 */
+export function singlePageAllowsUnclaimedImage(pageCount: number): boolean {
+  return pageCount === 1
+}
+
 /* 页面 PNG 的键只认去掉首尾空白的链接；选图、取图、换链接时保留图片共用这一条。 */
 function imageKey(link: string): string {
   return link.trim()

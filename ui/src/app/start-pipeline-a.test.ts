@@ -60,6 +60,7 @@ describe("startPipelineA", () => {
       automation: "auto",
       takesPageImage: true,
       images: { [LINK]: file },
+      allowUnclaimed: true,
       add: async (body) => {
         events.push("add")
         expect(body).toMatchObject({
@@ -92,6 +93,7 @@ describe("startPipelineA", () => {
       automation: "off",
       takesPageImage: false,
       images: { [LINK]: file },
+      allowUnclaimed: true,
       add: async () => ({
         created: ["task-1"],
         board: { ...empty, tasks: [{ id: "task-1", request: { link: LINK } }] as Board["tasks"] }

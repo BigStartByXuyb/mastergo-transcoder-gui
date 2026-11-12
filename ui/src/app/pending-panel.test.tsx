@@ -179,7 +179,7 @@ describe("PendingPanel", () => {
     expect(input).toBeTruthy()
   })
 
-  it("只剩布局停点时给出显式空表出口，提交载荷写 groups: []", async () => {
+  it("只剩缺表停点时同时给出空表与模型分组出口", async () => {
     const layoutPending = pending()
     layoutPending.icons.waiting = 0
     layoutPending.icons.missing = 0
@@ -202,6 +202,7 @@ describe("PendingPanel", () => {
     render(panel("waiting"))
 
     const empty = await screen.findByRole("button", { name: /按空表重写并继续/ })
+    expect(screen.getByRole("button", { name: /让 AI 按 PNG 分组并继续/ })).toBeTruthy()
     empty.click()
     await vi.waitFor(() => expect(confirmed).not.toBeNull())
     expect(confirmed).toEqual(expect.objectContaining({ groups: [] }))
@@ -304,6 +305,54 @@ describe("PendingPanel", () => {
     render(panel("waiting"))
 
     const regroup = await screen.findByRole("button", { name: /重新自动分组并继续/ })
+    await vi.waitFor(() => expect(regroup.hasAttribute("disabled")).toBe(false))
+    regroup.click()
+    await vi.waitFor(() => expect(regrouped).not.toBeNull())
+    expect(regrouped).toEqual(expect.objectContaining({
+      projectRoot: drive("D", "work", "task-1"),
+      target: "DemoPage",
+      taskId: "task-1",
+      runId: "job-1",
+      resume: true
+    }))
+  })
+
+  it("缺分组表时也能让模型按页面 PNG 重新分组并写入", async () => {
+    const missing = pending()
+    missing.icons.waiting = 0
+    missing.icons.missing = 0
+    missing.icons.needsNaming = false
+    missing.layout = {
+      needsGroups: true,
+      hasGroups: false,
+      rejected: false,
+      failed: true,
+      failedMessage: "[LAYOUT_GROUPS_MISSING] 有页面 PNG 但没有分组表",
+      waiting: 1
+    }
+    let regrouped: Record<string, unknown> | null = null
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes("/api/settings")) {
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true,
+          settings: { automation: "off", ai: { hasKey: false, baseUrl: "", model: "" } }
+        }), { status: 200 }))
+      }
+      if (url.includes("/api/layout-groups/suggest")) {
+        regrouped = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true,
+          groups: [{ id: "g1", kind: "column", members: ["a", "b"] }],
+          written: [{ path: "layout-groups.json", count: 1 }],
+          job: null
+        }), { status: 200 }))
+      }
+      return Promise.resolve(new Response(JSON.stringify({ ok: true, pending: missing }), { status: 200 }))
+    })
+    render(panel("waiting"))
+
+    const regroup = await screen.findByRole("button", { name: /让 AI 按 PNG 分组并继续/ })
     await vi.waitFor(() => expect(regroup.hasAttribute("disabled")).toBe(false))
     regroup.click()
     await vi.waitFor(() => expect(regrouped).not.toBeNull())

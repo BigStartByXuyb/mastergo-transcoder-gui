@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { BoardTaskForm } from "@/lib/board-form"
-import { parseBoardRows } from "@/lib/board-items"
+import { parseBoardRows, singlePageAllowsUnclaimedImage } from "@/lib/board-items"
 import { PIPELINE_A_FIXED_HINT, startActionLabel } from "@/lib/task-form"
 
 /*
@@ -100,7 +100,7 @@ export function BoardNewTaskDialog(props: {
               <BoardImageRows
                 rows={rows}
                 images={props.images}
-                allowUnclaimed={rows.length === 1}
+                allowUnclaimed={singlePageAllowsUnclaimedImage(rows.length)}
                 onPickImage={props.onPickImage}
               />
             )}

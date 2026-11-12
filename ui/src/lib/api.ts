@@ -1096,12 +1096,17 @@ export const api = {
       /** 续跑从哪一步开始（补进去的输入由这一步消费）。 */
       resumedFrom?: string
     }>("/api/confirm", body),
-  /** 已有分组表被插件拒绝后，按同一份布局输入重新叫模型分组并走 confirm 写回。 */
+  /** 分组表缺失或被拒后，按同一份布局输入叫模型分组，并可与这一停点的其它人工输入一起写回。 */
   layoutGroupsSuggest: (body: {
     projectRoot: string
     target: string
     taskId?: string
     runId?: string
+    naming?: { index: number; name: string; comment: string; fromDsl?: boolean }[]
+    translations?: Record<string, string>
+    glossary?: Record<string, string>
+    allowEmptyLedger?: boolean
+    pruneNaming?: boolean
     resume: boolean
   }) =>
     post<{

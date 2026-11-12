@@ -37,9 +37,9 @@ const PAGE_IMAGE_REQUIRED = "含 A 的路线需要为每个页面选择页面 PN
 export function pageImageFailure(
   takesPageImage: boolean,
   links: string[],
-  images: Record<string, File>
+  images: Record<string, File>,
+  allowUnclaimed: boolean
 ): string {
-  const allowUnclaimed = links.length === 1
   return takesPageImage && links.some((link) => !pickedForLink(images, link, allowUnclaimed)) ? PAGE_IMAGE_REQUIRED : ""
 }
 
@@ -62,10 +62,10 @@ function routePicks(takesPageImage: boolean, picks: StagedPick[]): StagedPick[] 
 function picksForCreated(
   board: Board,
   created: string[],
-  images: Record<string, File>
+  images: Record<string, File>,
+  allowUnclaimed: boolean
 ): StagedPick[] {
   const linkOf = new Map(board.tasks.map((task) => [task.id, task.request.link]))
-  const allowUnclaimed = created.length === 1
   return created.flatMap((taskId) => {
     // 单任务批次允许先选图、后填链接；多任务批次必须每行各自成键，避免把一张图复制给多页。
     const file = pickedForLink(images, linkOf.get(taskId) ?? "", allowUnclaimed)
@@ -139,6 +139,8 @@ async function rollbackCreation(
 export async function createTasksWithPageImages(input: {
   takesPageImage: boolean
   images: Record<string, File>
+  /** 本批原始输入只有一个页面；选图框、缺图门禁与暂存取图都读同一条结论。 */
+  allowUnclaimed: boolean
   add: () => Promise<CreatedTasks>
   /** 任务与页面 PNG 都已落地后、启动前的必要写回；失败会连同刚建任务一起撤销。 */
   beforeStart?: () => Promise<void>
@@ -146,7 +148,10 @@ export async function createTasksWithPageImages(input: {
 }): Promise<CreateTasksResult> {
   const apiClient = input.api ?? api
   const created = await input.add()
-  const picks = routePicks(input.takesPageImage, picksForCreated(created.board, created.created, input.images))
+  const picks = routePicks(
+    input.takesPageImage,
+    picksForCreated(created.board, created.created, input.images, input.allowUnclaimed)
+  )
   const stageFailure = await sendAll(apiClient, picks)
   if (stageFailure) {
     return rollbackCreation(apiClient, created, stageFailure, STAGE_FAILED_NOTE)
