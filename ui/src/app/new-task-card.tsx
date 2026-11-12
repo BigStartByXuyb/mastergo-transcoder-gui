@@ -14,7 +14,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { useIdentity } from "@/app/use-identity"
 import type { PipelineStep, PluginSummary } from "@/lib/api"
-import { DESIGN_IMAGE_LABEL, READ_IMAGE_HINT, startActionLabel, type TaskForm } from "@/lib/task-form"
+import {
+  DESIGN_IMAGE_LABEL,
+  PIPELINE_A_FIXED_HINT,
+  READ_IMAGE_HINT,
+  startActionLabel,
+  type TaskForm
+} from "@/lib/task-form"
 
 /*
  * 新建任务卡片：填链接 / 工程目录 / Target / 区域 / 路线，走 A 路线时还能先把页面 PNG 选上，
@@ -105,7 +111,7 @@ export function NewTaskCard(props: Props) {
               )}
               {pipelineAOnly && (
                 <p className="text-muted-foreground text-xs">
-                  A 路线固定为自动合并、同名产物覆盖、不在中途停止；页面身份与 UI 区域自动补齐。
+                  {PIPELINE_A_FIXED_HINT}
                 </p>
               )}
             </FieldGroup>

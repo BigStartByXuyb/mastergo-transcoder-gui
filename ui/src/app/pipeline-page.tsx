@@ -214,7 +214,7 @@ export function PipelinePage({
         items: [{ link, target: "", mode: form.mode }],
         projectRoot,
         policy,
-        useAi: automation !== "off",
+        automation,
         images: stagedImages,
         add: api.boardAdd,
         otherRequest: () => prepareStartRequest(projectRoot, link)

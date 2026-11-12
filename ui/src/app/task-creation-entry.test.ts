@@ -50,7 +50,7 @@ describe("createTasksForMode", () => {
         takesPageImage: true,
         runsPipelineAOnly: true
       },
-      useAi: true,
+      automation: "assist",
       images: {},
       add,
       otherRequest,
@@ -91,7 +91,7 @@ describe("createTasksForMode", () => {
         takesPageImage: true,
         runsPipelineAOnly: false
       },
-      useAi: true,
+      automation: "assist",
       images: {},
       add,
       otherRequest
@@ -112,7 +112,7 @@ describe("createTasksForMode", () => {
       items: [{ link: "https://mastergo.com/goto/a?file=1&layer_id=2:3", target: "", mode: "B" }],
       projectRoot: "project",
       policy,
-      useAi: true,
+      automation: "assist",
       images: {},
       add,
       otherRequest: async () => ({ ok: false, failure: "" })

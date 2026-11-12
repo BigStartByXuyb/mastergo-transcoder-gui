@@ -83,13 +83,20 @@ export const READ_IMAGE_HINT =
 /* 这一项的标题：新建任务表单与看板弹窗都读它（两张表单对同一项说法一致）。 */
 export const DESIGN_IMAGE_LABEL = "页面 PNG"
 
+/* A 的固定运行设置与身份边界只在两个新建入口共用这一句。 */
+export const PIPELINE_A_FIXED_HINT =
+  "A 路线固定为自动合并、同名产物覆盖、不在中途停止；页面身份按项目唯一既有区域自动补齐；模型补语义名只在「自动」层级执行。"
+
 export const AUTOMATION_LABEL: Record<string, string> = {
   off: "关（不叫模型）",
   assist: "辅助",
   auto: "自动"
 }
 
-/* 「自动」这一层级的含义：身份候选不人工确认，直接采用。按钮入口与启动前共用这条规则。 */
+/*
+ * 「自动」这一层级的含义：模型身份候选不人工确认，直接采用。B / AB 的按钮与启动前共用这条规则；
+ * A 没有身份表单，只可用它决定何时允许模型补身份语义名。A 的机械身份仍按项目唯一既有区域自动落实。
+ */
 export function adoptsIdentityWithoutConfirm(automation: string): boolean {
   return automation === "auto"
 }

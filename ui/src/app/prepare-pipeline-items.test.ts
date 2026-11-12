@@ -38,7 +38,7 @@ describe("preparePipelineAItems", () => {
       throw new Error("unexpected " + url)
     })
 
-    const result = await preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { useAi: true })
+    const result = await preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { automation: "auto" })
     expect(result).toMatchObject({
       ok: true,
       items: [{ link: LINK, target: "F3StopAdjust", ui: "F3", mode: "A" }],
@@ -77,7 +77,7 @@ describe("preparePipelineAItems", () => {
       throw new Error("unexpected " + url)
     })
 
-    const result = await preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { useAi: true })
+    const result = await preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { automation: "auto" })
     expect(result).toMatchObject({
       ok: true,
       items: [{ link: LINK, target: "F3StopAdjust", ui: "F3", mode: "A" }],
@@ -97,7 +97,7 @@ describe("preparePipelineAItems", () => {
       throw new Error("unexpected " + url)
     })
 
-    await expect(preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { useAi: true })).resolves.toEqual({
+    await expect(preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { automation: "auto" })).resolves.toEqual({
       ok: false,
       reason: "这一页还没登记区域"
     })
@@ -128,7 +128,7 @@ describe("preparePipelineAItems", () => {
     await expect(preparePipelineAItems([
       { link: LINK, target: "", mode: "A" },
       { link: OTHER_LINK, target: "", mode: "A" }
-    ], "project", { useAi: false })).resolves.toEqual({ ok: false, reason: "第二行没有区域" })
+    ], "project", { automation: "assist" })).resolves.toEqual({ ok: false, reason: "第二行没有区域" })
     expect(urls.some((url) => url.includes("/api/identity/apply"))).toBe(false)
   })
 
@@ -151,7 +151,7 @@ describe("preparePipelineAItems", () => {
       throw new Error("unexpected " + url)
     })
 
-    await expect(preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { useAi: true })).resolves.toEqual({
+    await expect(preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { automation: "auto" })).resolves.toEqual({
       ok: false,
       reason: "设计页改过名，需要人工确认"
     })
@@ -171,14 +171,42 @@ describe("preparePipelineAItems", () => {
       throw new Error("unexpected " + url)
     })
 
-    const result = await preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { useAi: false })
+    const result = await preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { automation: "off" })
     expect(result.ok).toBe(false)
     expect(bodies.some((body) => body.useAi === true)).toBe(false)
   })
 
-  it("A 行带着旧 Target 后缀时也按链接重新自动识别", async () => {
-    vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
+  it("辅助层级不会把模型候选直接写进 A 的身份登记表", async () => {
+    const bodies: Array<Record<string, unknown>> = []
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
+      const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {}
+      bodies.push(body)
+      if (url.includes("/api/design/page-name")) return Promise.resolve(json({ ok: true, pageName: "停止调整", rootId: "1:1" }))
+      if (url.includes("/api/identity/candidates")) {
+        return Promise.resolve(json({ ok: true, candidates: [], ai: { used: false, items: [] }, blocked: "" }))
+      }
+      throw new Error("unexpected " + url)
+    })
+
+    const result = await preparePipelineAItems([{ link: LINK, target: "", mode: "A" }], "project", { automation: "assist" })
+    expect(result).toEqual(expect.objectContaining({
+      ok: false,
+      reason: expect.stringMatching(/切到「自动」后重试/)
+    }))
+    expect(bodies.some((body) => body.useAi === true)).toBe(false)
+  })
+
+  it("A 行手写的 Target 优先，并按后端前缀规则补区域", async () => {
+    const urls: string[] = []
+    const bodies: Array<Record<string, unknown>> = []
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      urls.push(url)
+      const body = init?.body
+        ? JSON.parse(String(init.body)) as Record<string, unknown>
+        : {}
+      bodies.push(body)
       if (url.includes("/api/design/page-name")) return Promise.resolve(json({ ok: true, pageName: "停止调整", rootId: "1:1" }))
       if (url.includes("/api/identity/candidates")) {
         return Promise.resolve(json({
@@ -188,17 +216,52 @@ describe("preparePipelineAItems", () => {
           blocked: ""
         }))
       }
+      if (url.includes("/api/identity/prefix")) return Promise.resolve(json({ ok: true, previewUi: "F3" }))
       if (url.includes("/api/identity/apply")) return Promise.resolve(json({ ok: true, replaced: false }))
       throw new Error("unexpected " + url)
     })
     const result = await preparePipelineAItems(
-      [{ link: LINK, target: "F3OldName", mode: "A" }],
+      [{ link: LINK, target: "F3HandWritten", mode: "A" }],
       "project",
-      { useAi: true }
+      { automation: "auto" }
     )
     expect(result).toMatchObject({
       ok: true,
-      items: [{ link: LINK, target: "F3StopAdjust", ui: "F3", mode: "A" }]
+      items: [{ link: LINK, target: "F3HandWritten", ui: "F3", mode: "A" }]
+    })
+    expect(urls.some((url) => url.includes("/api/identity/prefix"))).toBe(true)
+    expect(bodies.some((body) => body.useAi === true)).toBe(false)
+  })
+
+  it("A 行手写的 Target 与链接已登记页面冲突时停在启动前", async () => {
+    vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes("/api/design/page-name")) return Promise.resolve(json({ ok: true, pageName: "停止调整", rootId: "1:1" }))
+      if (url.includes("/api/identity/candidates")) {
+        return Promise.resolve(json({
+          ok: true,
+          candidates: [{
+            target: "F4Registered",
+            ui: "F4",
+            basis: "登记表",
+            needsSemanticName: false,
+            registered: true
+          }],
+          ai: { used: false, items: [] },
+          blocked: ""
+        }))
+      }
+      if (url.includes("/api/identity/prefix")) throw new Error("冲突应在取前缀前拦下")
+      throw new Error("unexpected " + url)
+    })
+
+    await expect(preparePipelineAItems(
+      [{ link: LINK, target: "F3HandWritten", mode: "A" }],
+      "project",
+      { automation: "auto" }
+    )).resolves.toEqual({
+      ok: false,
+      reason: expect.stringMatching(/F4Registered/)
     })
   })
 })

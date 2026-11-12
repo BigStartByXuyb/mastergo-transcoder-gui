@@ -135,7 +135,7 @@ export function BoardPage() {
             items,
             projectRoot,
             policy,
-            useAi: (settings?.automation ?? "assist") !== "off",
+            automation: settings?.automation ?? "assist",
             images,
             add: api.boardAdd,
             otherRequest: async () => ({

@@ -15,13 +15,13 @@ import {
 export async function startPipelineA(input: {
   items: BoardItem[]
   projectRoot: string
-  useAi: boolean
+  automation: string
   takesPageImage: boolean
   images: Record<string, File>
   add: (body: BoardAddBody) => Promise<CreatedTasks>
   api?: TaskCreationApi
 }): Promise<CreateTasksResult> {
-  const prepared = await preparePipelineAItems(input.items, input.projectRoot, { useAi: input.useAi })
+  const prepared = await preparePipelineAItems(input.items, input.projectRoot, { automation: input.automation })
   if (!prepared.ok) return { ok: false, failure: prepared.reason, board: null }
 
   const body: BoardAddBody = {

@@ -56,7 +56,7 @@ export async function createTasksForMode(input: {
   items: BoardItem[]
   projectRoot: string
   policy: BoardModePolicy
-  useAi: boolean
+  automation: string
   images: Record<string, File>
   add: (body: BoardAddBody) => Promise<CreatedTasks>
   otherRequest: () => Promise<OtherRouteRequest>
@@ -69,7 +69,7 @@ export async function createTasksForMode(input: {
     return withFailure(await startPipelineA({
       items: input.items,
       projectRoot: input.projectRoot,
-      useAi: input.useAi,
+      automation: input.automation,
       takesPageImage: input.policy.takesPageImage,
       images: input.images,
       add: input.add,

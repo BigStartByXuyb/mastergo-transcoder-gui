@@ -57,7 +57,7 @@ describe("startPipelineA", () => {
     const result = await startPipelineA({
       items: [{ link: LINK, target: "", mode: "A" }],
       projectRoot: "project",
-      useAi: true,
+      automation: "auto",
       takesPageImage: true,
       images: { [LINK]: file },
       add: async (body) => {
@@ -89,7 +89,7 @@ describe("startPipelineA", () => {
     const result = await startPipelineA({
       items: [{ link: LINK, target: "", mode: "A" }],
       projectRoot: "project",
-      useAi: false,
+      automation: "off",
       takesPageImage: false,
       images: { [LINK]: file },
       add: async () => ({

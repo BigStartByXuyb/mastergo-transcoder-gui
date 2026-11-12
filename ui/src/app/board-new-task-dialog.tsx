@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { BoardTaskForm } from "@/lib/board-form"
 import { parseBoardRows } from "@/lib/board-items"
-import { startActionLabel } from "@/lib/task-form"
+import { PIPELINE_A_FIXED_HINT, startActionLabel } from "@/lib/task-form"
 
 /*
  * 创建任务：工程、模式、链接这些只在要加任务时才需要，收进弹窗，
@@ -106,7 +106,7 @@ export function BoardNewTaskDialog(props: {
             )}
             {pipelineAOnly && (
               <p className="text-muted-foreground text-xs">
-                A 路线固定为自动合并、同名产物覆盖、不在中途停止；页面身份与 UI 区域自动补齐。
+                {PIPELINE_A_FIXED_HINT}
               </p>
             )}
           </FieldGroup>
