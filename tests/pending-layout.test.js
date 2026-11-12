@@ -127,6 +127,7 @@ function caseNothingYet() {
   /* 形状照实钉住：布局待补只报 needsGroups / waiting，不再转发已无消费方的 suggest 状态。 */
   assert.deepStrictEqual(pending.layout, {
     needsGroups: false,
+    recoverable: false,
     hasFile: false,
     hasGroups: false,
     rejected: false,
@@ -185,6 +186,7 @@ function caseImageWithoutGroups() {
     layoutOf(root, pending, "A", true, false, "[" + GROUP_FAILURE_CODE.missing + "] 有页面 PNG 但没有分组表：先看图产出分组表"),
     {
       needsGroups: true,
+      recoverable: true,
       hasFile: false,
       hasGroups: false,
       rejected: false,
@@ -198,6 +200,7 @@ function caseImageWithoutGroups() {
     layoutOf(root, pending, "A", true, true),
     {
       needsGroups: false,
+      recoverable: false,
       hasFile: false,
       hasGroups: false,
       rejected: false,
@@ -224,6 +227,7 @@ function caseLayoutOnlyForA() {
     layoutOf(root, pending, "B"),
     {
       needsGroups: false,
+      recoverable: false,
       hasFile: false,
       hasGroups: false,
       rejected: false,
@@ -237,6 +241,7 @@ function caseLayoutOnlyForA() {
     layoutOf(root, pending, "AB"),
     {
       needsGroups: true,
+      recoverable: true,
       hasFile: false,
       hasGroups: false,
       rejected: false,
@@ -250,6 +255,7 @@ function caseLayoutOnlyForA() {
     layoutOf(root, pending, ""),
     {
       needsGroups: false,
+      recoverable: false,
       hasFile: false,
       hasGroups: false,
       rejected: false,
@@ -284,6 +290,7 @@ function caseRejectedExistingGroupsNeedsRecovery() {
   const pending = pendingFor(root);
   assert.deepStrictEqual(layoutOf(root, pending, "A"), {
     needsGroups: false,
+    recoverable: true,
     hasFile: true,
     hasGroups: true,
     rejected: false,
@@ -293,6 +300,7 @@ function caseRejectedExistingGroupsNeedsRecovery() {
   }, "只看磁盘时已有表算完成，不能把完成页误列成待办");
   assert.deepStrictEqual(layoutOf(root, pending, "A", true), {
     needsGroups: false,
+    recoverable: true,
     hasFile: true,
     hasGroups: true,
     rejected: true,
@@ -304,6 +312,7 @@ function caseRejectedExistingGroupsNeedsRecovery() {
     layoutOf(root, pending, "A", true, false, "[" + GROUP_FAILURE_CODE.rejected + "] ref 出现在多个分组里"),
     {
       needsGroups: false,
+      recoverable: true,
       hasFile: true,
       hasGroups: true,
       rejected: true,
@@ -315,6 +324,7 @@ function caseRejectedExistingGroupsNeedsRecovery() {
   );
   assert.deepStrictEqual(layoutOf(root, pending, "A", true, true), {
     needsGroups: false,
+    recoverable: false,
     hasFile: true,
     hasGroups: true,
     rejected: false,
@@ -333,6 +343,7 @@ function caseOtherLayoutFailureNeedsLog() {
   const failedMessage = "推导失败：节点没有归宿";
   assert.deepStrictEqual(layoutOf(root, pendingFor(root), "A", true, false, failedMessage), {
     needsGroups: false,
+    recoverable: true,
     hasFile: true,
     hasGroups: true,
     rejected: false,
@@ -347,6 +358,7 @@ function caseOtherLayoutFailureNeedsLog() {
   writeImage(noGroups);
   assert.deepStrictEqual(layoutOf(noGroups, pendingFor(noGroups), "A", true, false, failedMessage), {
     needsGroups: false,
+    recoverable: true,
     hasFile: false,
     hasGroups: false,
     rejected: false,
@@ -355,6 +367,22 @@ function caseOtherLayoutFailureNeedsLog() {
     waiting: 0
   }, "无分组表也不能把其他布局失败伪装成缺表待办");
   fs.rmSync(noGroups, { recursive: true, force: true });
+
+  const broken = sandbox();
+  writeControls(broken);
+  writeImage(broken);
+  writeBrokenGroups(broken);
+  assert.deepStrictEqual(layoutOf(broken, pendingFor(broken), "A", true, false, failedMessage), {
+    needsGroups: false,
+    recoverable: true,
+    hasFile: true,
+    hasGroups: false,
+    rejected: false,
+    failed: true,
+    failedMessage: failedMessage,
+    waiting: 0
+  }, "损坏的表也不能把非分组原因的布局失败伪装成可恢复停点");
+  fs.rmSync(broken, { recursive: true, force: true });
 }
 
 function caseMessageWordsDoNotControlRecovery() {
@@ -366,6 +394,7 @@ function caseMessageWordsDoNotControlRecovery() {
     layoutOf(root, pendingFor(root), "A", true, false, "插件换了措辞：分组 layout groups 校验失败"),
     {
       needsGroups: false,
+      recoverable: true,
       hasFile: true,
       hasGroups: true,
       rejected: false,
@@ -384,6 +413,7 @@ function caseMessageWordsDoNotControlRecovery() {
     layoutOf(missing, pendingFor(missing), "A", true, false, "[" + GROUP_FAILURE_CODE.missing + "] layout groups input required"),
     {
       needsGroups: true,
+      recoverable: true,
       hasFile: false,
       hasGroups: false,
       rejected: false,
@@ -449,6 +479,27 @@ function caseBrokenGroupsCanBeRejected() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+function caseStoppedSourceIsNotRecoverable() {
+  const root = sandbox();
+  writeControls(root);
+  writeImage(root);
+  const layout = pendingFor(root).inspect({
+    projectRoot: root,
+    target: TARGET,
+    mode: "A",
+    state: "stopped",
+    layoutStep: "layoutManifest",
+    failedStep: "",
+    failedMessage: "",
+    imageStop: false
+  }).layout;
+  assert.strictEqual(layout.recoverable, false);
+  assert.strictEqual(layout.needsGroups, false);
+  assert.strictEqual(layout.rejected, false);
+  assert.strictEqual(layout.waiting, 0, "显式停止的来源不提供布局恢复按钮");
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 try {
   const cases = [
     ["还没跑到取数那一步", caseNothingYet],
@@ -463,7 +514,8 @@ try {
     ["只有图、还没有控件清单", caseImageBeforeControls],
     ["只有图、类型产物在但条目清单缺失", caseImageWithoutCandidates],
     ["分组表损坏 = 按没有表处理，让人重写一次", caseBrokenGroupsAsksAgain],
-    ["损坏的分组表被插件拒收时仍命中拒收恢复", caseBrokenGroupsCanBeRejected]
+    ["损坏的分组表被插件拒收时仍命中拒收恢复", caseBrokenGroupsCanBeRejected],
+    ["显式停止的来源不提供布局恢复按钮", caseStoppedSourceIsNotRecoverable]
   ];
   for (const [name, run] of cases) {
     run();

@@ -61,6 +61,7 @@ function pending(): Pending {
     },
     layout: {
       needsGroups: false,
+      recoverable: true,
       hasFile: false,
       hasGroups: false,
       rejected: false,
@@ -187,6 +188,7 @@ describe("PendingPanel", () => {
     layoutPending.icons.needsNaming = false
     layoutPending.layout = {
       needsGroups: true,
+      recoverable: true,
       hasFile: false,
       hasGroups: false,
       rejected: false,
@@ -214,6 +216,7 @@ describe("PendingPanel", () => {
     const layoutPending = pending()
     layoutPending.layout = {
       needsGroups: true,
+      recoverable: true,
       hasFile: false,
       hasGroups: false,
       rejected: false,
@@ -243,6 +246,7 @@ describe("PendingPanel", () => {
     rejected.icons.needsNaming = false
     rejected.layout = {
       needsGroups: false,
+      recoverable: true,
       hasFile: true,
       hasGroups: true,
       rejected: true,
@@ -280,6 +284,7 @@ describe("PendingPanel", () => {
     rejected.icons.needsNaming = false
     rejected.layout = {
       needsGroups: false,
+      recoverable: true,
       hasFile: true,
       hasGroups: true,
       rejected: true,
@@ -330,6 +335,7 @@ describe("PendingPanel", () => {
     missing.icons.needsNaming = false
     missing.layout = {
       needsGroups: true,
+      recoverable: true,
       hasFile: false,
       hasGroups: false,
       rejected: false,
@@ -379,6 +385,7 @@ describe("PendingPanel", () => {
     broken.icons.needsNaming = false
     broken.layout = {
       needsGroups: true,
+      recoverable: true,
       hasFile: true,
       hasGroups: false,
       rejected: false,
@@ -401,7 +408,8 @@ describe("PendingPanel", () => {
     failed.icons.needsNaming = false
     failed.layout = {
       needsGroups: false,
-      hasFile: false,
+      recoverable: true,
+      hasFile: true,
       hasGroups: false,
       rejected: false,
       failed: true,
@@ -425,6 +433,7 @@ describe("PendingPanel", () => {
     noSource.icons.needsNaming = false
     noSource.layout = {
       needsGroups: true,
+      recoverable: true,
       hasFile: false,
       hasGroups: false,
       rejected: false,

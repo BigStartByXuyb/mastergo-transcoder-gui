@@ -378,4 +378,6 @@
 | 2026-11-12 GitHub 43181365297 | REVIEW-001 | 分组表文件存在但内容损坏时 `hasGroups=false`，拒收机器码因此无法命中，面板两个恢复入口都不出现 | 已收 | 增加独立的 `hasFile` 事实；拒收按文件存在与 `LAYOUT_GROUPS_REJECTED` 判定，损坏表仍进入待确认并可写空表或重新分组；补后端、面板与待确认队列回归 |
 | 2026-11-12 GitLab MR !5 审计正文 | REVIEW-002 | 布局模型恢复接口把「已有表被拒 / 缺表」的前置条件只放在界面，直接调用接口可绕过停点覆盖分组表 | 已收 | `/api/layout-groups/suggest` 先按 taskId / runId 解析来源并调用同一份 `pending.inspect`；`layoutGroups.requireRecovery` 要求有来源时处于等待/失败态，并只放行 `needsGroups` 或 `rejected`，其余返回 `NOT_LAYOUT_RECOVERY` |
 | 2026-11-12 GitLab MR !5 审计正文 | REVIEW-003 | `/api/pending` 与待确认队列各自拼装一遍看板任务到 `pending.inspect` 的字段 | 已收 | `queryOfTask` / `queryOfRun` / `queryOfManual` 成为唯一映射；看板、路由、队列与自动补输入共用，补 `pending-query.test.js` 锁定任务、运行与手填三种来源 |
+| 2026-11-12 GitHub 43187257378 | REVIEW-001 | `stopped` 来源仍算出布局待办，但恢复接口拒绝，面板给出必然失败的按钮；无 taskId 的自动路径还会主动发起该请求 | 已收 | `layout-groups.inspect` 同时给出 `recoverable`；手填无状态、等待和失败才为真，运行中、显式停止及等图停点为假。`needsGroups`、`rejected`、`waiting` 与服务端 `requireRecovery` 共用该结论，补 stopped 回归 |
+| 2026-11-12 GitHub 43187257378 | REVIEW-002 | 分组表文件损坏但布局因其他原因失败时，损坏表说明顶掉失败原话，按钮却因 `waiting=0` 不渲染 | 已收 | 面板的损坏表分支改为同时要求 `layoutWaiting > 0`；无恢复资格时继续显示 `failedMessage`，不会承诺提交 |
 

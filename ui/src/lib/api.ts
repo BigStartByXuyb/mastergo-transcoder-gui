@@ -388,6 +388,8 @@ export type PendingTranslations = {
 export type PendingLayout = {
   /** 有页面 PNG、还没有分组表、条目清单也在手上 —— 服务端需要自动补分组。 */
   needsGroups: boolean
+  /** 当前来源状态允许恢复布局分组（手填无状态、等待或失败）。 */
+  recoverable: boolean
   /** 分组表文件存在（插件会看到它），即使内容损坏也仍为 true。 */
   hasFile: boolean
   /** 分组表已经存在；已有表也可能被插件在布局步骤拒收。 */

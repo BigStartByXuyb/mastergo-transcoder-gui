@@ -28,6 +28,7 @@ function pending(patch: { icons?: number; translations?: number; layout?: number
     translations: { available: true, waiting: patch.translations ?? 0 },
     layout: {
       needsGroups: false,
+      recoverable: true,
       hasFile: false,
       hasGroups: false,
       rejected: false,

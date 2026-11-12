@@ -116,7 +116,7 @@ export function PendingPanel({
   const layoutWaiting = pending?.layout.waiting ?? 0
   const layoutFailed = pending?.layout.failed === true
   const layoutFailedMessage = pending?.layout.failedMessage ?? ""
-  const layoutTableInvalid = Boolean(pending?.layout.hasFile && !pending?.layout.hasGroups)
+  const layoutTableInvalid = Boolean(layoutWaiting > 0 && pending?.layout.hasFile && !pending?.layout.hasGroups)
   // 本页还缺多少条人工语义输入：三节共用一个计数判据。
   const waiting = pendingInputCount(waitingCounts(pending))
   const otherWaiting = waiting - layoutWaiting

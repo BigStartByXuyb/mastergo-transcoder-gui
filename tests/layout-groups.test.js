@@ -103,7 +103,7 @@ function main() {
     assert.strictEqual(info.available, true);
     assert.deepStrictEqual(
       Object.keys(info).sort(),
-      ["available", "failed", "failedMessage", "hasFile", "hasGroups", "hasImage", "needsGroups", "reason", "rejected", "waiting"]
+      ["available", "failed", "failedMessage", "hasFile", "hasGroups", "hasImage", "needsGroups", "reason", "recoverable", "rejected", "waiting"]
     );
     assert.strictEqual(info.needsGroups, false, "还没有页面 PNG 时不要求自动补分组");
     assert.strictEqual(info.hasFile, false, "还没写过分组表文件");
@@ -278,19 +278,15 @@ function main() {
 
   /* 服务端恢复边界：只有缺表或已有表被拒能进入会覆盖文件的模型路径。 */
   {
-    assert.doesNotThrow(() => layout.requireRecovery({ needsGroups: true, rejected: false }, { state: "waiting" }));
-    assert.doesNotThrow(() => layout.requireRecovery({ needsGroups: false, rejected: true }, { state: "failed" }));
+    assert.doesNotThrow(() => layout.requireRecovery({ recoverable: true, needsGroups: true, rejected: false }));
+    assert.doesNotThrow(() => layout.requireRecovery({ recoverable: true, needsGroups: false, rejected: true }));
     assert.throws(
-      () => layout.requireRecovery({ needsGroups: false, rejected: false }, { state: "waiting" }),
+      () => layout.requireRecovery({ recoverable: true, needsGroups: false, rejected: false }),
       (error) => error.code === "NOT_LAYOUT_RECOVERY"
     );
     assert.throws(
-      () => layout.requireRecovery({ needsGroups: true, rejected: false }, { state: "running" }),
+      () => layout.requireRecovery({ recoverable: false, needsGroups: false, rejected: false }),
       (error) => error.code === "NOT_LAYOUT_RECOVERY"
-    );
-    assert.doesNotThrow(
-      () => layout.requireRecovery({ needsGroups: true, rejected: false }, { state: "" }),
-      "没有来源运行的手填页面不伪造停点态，磁盘上的缺表事实仍可显式恢复"
     );
   }
 
