@@ -34,6 +34,7 @@ function task(
     deferStart: false,
     progress: null,
     steps: [],
+    resumable: false,
     resumeStep: "",
     layoutStep: "",
     aiFills: [],

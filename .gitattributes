@@ -2,3 +2,5 @@
 * text=auto eol=lf
 *.cmd text eol=crlf
 *.bat text eol=crlf
+# 构建产物内嵌的 CSS 模板保留空行缩进；只跳过这两类空白检查，不放宽源码。
+public/assets/*.js whitespace=-blank-at-eol,-blank-at-eof

@@ -27,7 +27,7 @@
 | 「这一份与清单对不上的是哪几个文件」 | `lib/update.js` · `function mismatchedFiles(` | 切换前的校验（同文件的 `apply`）、安装根那一份的核验（`installRootIsVersion`） |
 | 「本地这一份」（安装根那一棵树）算不算它声称的那一版 | `lib/update.js` · `function installRootIsVersion(` | `stagedReachable`（设置页与探活都读它）；结论缓存（含「核不出来」那种），作废只有两处、跟着触发点走：写指针（`writePointer`，切换与回退共用）与写下一版的清单（`writeVersionManifest`，检查与下载共用）；读盘出错不抛、按「认它」处理 |
 | 顶栏那条入口该对哪一版动作 | `lib/update.js` · `function targetVersionOf(` | `readState`（五态与它同出一处）、`hint()` 的 `target`（顶栏只渲染，不自己比一遍）；被外壳下限挡住的那一版不参与 |
-| 这一页哪一步还没跑成（＝没跑完时那个断点） | `lib/page-progress.js` · `function unfinishedStepOf(` | `lib/board.js` 的 `resumeOf`（看板快照的 `task.resumeStep`：界面那条「从断点继续」据此给不给、以及说是「继续」还是「重跑一遍」）；`lib/routes.js` 的 `resumeLive`（运行还在时那条「从断点继续」，Target 按任务认回来的那份读登记表）；`lib/confirm.js` 的写回续跑（与「刚写入的文件所喂的第一步」取更早的那个，不跳过没跑成的那一步） |
+| 这一页哪一步还没跑成（＝没跑完时那个断点） | `lib/page-progress.js` · `function unfinishedStepOf(` | `lib/board.js` 的 `resumeOf` 与 `resumeAllowedOf`（看板快照的 `task.resumeStep` 决定按钮说「继续」还是「重跑一遍」，`task.resumable` 决定给不给入口）；`lib/routes.js` 的 `resumeLive`（运行还在时那条「从断点继续」，Target 按任务认回来的那份读登记表）；`lib/confirm.js` 的写回续跑（与「刚写入的文件所喂的第一步」取更早的那个，不跳过没跑成的那一步） |
 | 某一版能不能用在这一台上（外壳下限） | `lib/update.js` · `function usableHere(` | 「这一份可以切过去」（`switchable`：选版与版本表逐行都读它，清单都按 `manifestOf` 取）；与 `apply` 前那一刻的 `versionBlocked` 同源 |
 | 布局停点是否属于这个 mode | `lib/pending.js` · `function layoutSection(` | `inspect` 的统一结论；看板语义停点、自动补输入、待确认队列与面板都读这一份，B 路线不产生布局停点 |
 | 图标 / 译文 / 术语自动写回的范围 | `lib/autofill.js` · `const canAutoOthers = automation === "auto";` | `assist` 只出候选并等确认；`auto` 写回并续跑；`off` 不调用模型。与设置页、待确认面板同一口径 |

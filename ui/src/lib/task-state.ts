@@ -25,9 +25,6 @@ const OCCUPIED_STATES = ["queued", "preparing", "running", "waiting", "merging"]
 /* 产物已写完、清单可以看的状态：合并中算（产物写完了，正在回写主工程）。 */
 const PRODUCT_STATES = ["ready", "merging", "merged", "conflict"]
 
-/* 停下来的三种：失败、等语义输入、被停掉。只有它们身上还有「断点」可续。 */
-const RESUMABLE_STATES = ["failed", "waiting", "stopped"]
-
 /*
  * 停下来等人/等合并的任务：侧边栏区域行的「待处理」与看板的状态筛选都用这一份，
  * 不许各写一套 —— 两处口径不一致时，人会照着数字去找，然后找不到。
@@ -86,24 +83,6 @@ export function isSettled(state: string): boolean {
  */
 export function canStop(state: string): boolean {
   return occupiesSlot(state) && !isMerging(state)
-}
-
-/*
- * 能不能「从断点继续」：只在这三种停法上有意义 —— 失败、等语义输入、被停掉。
- * 跑完的没有断点，排队中的还没跑过（那是「开始」）。
- * 工作目录是续跑要用的：插件登记表与产物都在那儿，没有它续起来只是空跑。
- *
- * 失败还要看「有没有断点」，那一份由后端按插件登记表算（task.resumeStep，见 lib/board.js 的 resumeOf）：
- * 空串＝一步都没跑过 —— 那种失败是输入 / 环境的问题（插件根本没开始跑），再点「继续」只会拿同一份输入
- * 把同一句错再报一遍，所以要先把输入改对。失败原话里带步骤名也说明不了什么（子进程起不来那种也会带）。
- *
- * 被停掉与等输入这两支没有这层意思：它们本来就停在某一步等人，空登记表只说明「还没跑过」，
- * 再点一次就是从起点跑一遍（那是重跑，不是死循环），所以照旧给入口。
- */
-export function canResume(task: { state: string; workDir: string; resumeStep?: string | null }): boolean {
-  if (!RESUMABLE_STATES.includes(task.state) || !task.workDir.trim()) return false
-  if (task.state !== "failed") return true
-  return Boolean(task.resumeStep)
 }
 
 /*

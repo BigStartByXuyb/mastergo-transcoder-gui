@@ -289,6 +289,7 @@ async function caseSemanticStopAndAutoFill() {
   const after = fx.board.snapshot().tasks.find((item) => item.id === id);
   assert.strictEqual(after.state, "waiting", "停点等人/AI 补输入时是待确认，不是失败");
   assert.strictEqual(after.failure.kind, "semantic");
+  assert.strictEqual(after.resumable, true, "普通语义停点有运行登记表断点，可以续跑");
   assert.ok(fx.pendingCalls.length > 0, "要按插件产物判断是不是语义停点");
   assert.ok(fx.autoFillCalls.length > 0, "自动化层级允许时要尝试自动补输入");
   assert.ok(after.aiFills.length > 0, "补进去的内容记在消费它的那一步上");
@@ -426,6 +427,7 @@ async function caseAutoFillLimitAndRealFailure() {
   const after2 = fx2.board.snapshot().tasks.find((item) => item.id === added2.created[0]);
   assert.strictEqual(after2.state, "failed");
   assert.strictEqual(after2.failure.kind, "error");
+  assert.strictEqual(after2.resumable, false, "还没跑过任何步骤的失败没有断点可续");
   fs.rmSync(fx2.home, { recursive: true, force: true });
 
   /*
@@ -531,6 +533,7 @@ async function casePipelineARequiresImageBeforeReady() {
   assert.strictEqual(after.failure.kind, "semantic");
   assert.match(after.failure.message, /含 A 的路线需要页面 PNG/);
   assert.strictEqual(after.error, "", "页面 PNG 是可补齐的语义停点，不是运行错误");
+  assert.strictEqual(after.resumable, false, "页面 PNG 停点只能补图，不能重跑已完成的流水线");
   assert.strictEqual(fx.autoFillCalls.length, 0, "页面 PNG 等图停点不走语义自动补输入");
   const waitingAt = after.updatedAt;
   const store = path.join(fx.home, "board.json");
@@ -572,6 +575,7 @@ async function casePipelineARequiresImageBeforeReady() {
   assert.strictEqual(afterRestart.state, "waiting", "重启对表不得绕过页面 PNG 门禁");
   assert.match(afterRestart.failure.message, /页面 PNG/);
   assert.strictEqual(afterRestart.failure.stepName, "discover");
+  assert.strictEqual(afterRestart.resumable, false, "重启后的页面 PNG 停点同样不给续跑入口");
   assert.strictEqual(afterRestart.error, "", "进入等图停点要清掉旧错误，任务行只显示当前结论");
 
   designImage.save({ projectRoot: afterRestart.workDir, target: "T1", data: png(1280, 1024).toString("base64") });
@@ -998,6 +1002,11 @@ async function caseResumeStepBoundary() {
     "",
     "还没跑过：没有断点"
   );
+  assert.strictEqual(
+    fresh.board.snapshot().tasks.find((task) => task.id === freshId).resumable,
+    false,
+    "还没开始的任务不给续跑"
+  );
   fs.rmSync(fresh.home, { recursive: true, force: true });
 
   const artifacts = {
@@ -1024,6 +1033,7 @@ async function caseStopRemoveClearAndMerge() {
 
   const stopped = fx.board.stop(first);
   assert.strictEqual(stopped.tasks.find((task) => task.id === first).state, "stopped");
+  assert.strictEqual(stopped.tasks.find((task) => task.id === first).resumable, false, "还没建工作目录的排队任务停止后没有可续的断点");
   const removed = await fx.board.remove(second);
   assert.strictEqual(removed.tasks.some((task) => task.id === second), false);
   await assert.rejects(() => fx.board.remove("nope"), (error) => error.code === "NO_TASK");
@@ -1033,7 +1043,10 @@ async function caseStopRemoveClearAndMerge() {
   fx.board.start(third);
   await waitForTask(fx.board, third, hasJob, "第三个任务跑起来");
   await assert.rejects(() => fx.board.remove(third), (error) => error.code === "BUSY_TASK");
-  fx.board.stop(third);
+  const halted = fx.board.stop(third);
+  const haltedTask = halted.tasks.find((task) => task.id === third);
+  assert.strictEqual(haltedTask.state, "stopped");
+  assert.strictEqual(haltedTask.resumable, true, "已建工作目录的手动停止任务可以从当前断点重跑");
   const afterStop = await fx.board.remove(third);
   assert.strictEqual(afterStop.tasks.some((task) => task.id === third), false);
 

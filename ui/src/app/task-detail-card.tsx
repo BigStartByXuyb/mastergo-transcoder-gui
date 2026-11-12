@@ -7,7 +7,6 @@ import { FailureNote } from "@/app/failure-note"
 import { MergeConflicts } from "@/app/merge-conflicts"
 import type { BoardTask, PipelineStep } from "@/lib/api"
 import { boardStateVariant } from "@/lib/board-state"
-import { canResume } from "@/lib/task-state"
 
 /*
  * 任务总览卡片：状态、工作目录、可做的动作（续跑 / 合并 / 冲突裁决）。
@@ -32,8 +31,6 @@ type Props = {
 
 export function TaskDetailCard(props: Props) {
   const { task, busy } = props
-  // 同一次渲染里算一遍就够：按钮与失败说明读的是同一个结论。
-  const resumable = canResume(task)
   return (
     <Card>
       <CardHeader>
@@ -55,7 +52,7 @@ export function TaskDetailCard(props: Props) {
             结果写在完成提示里（use-task-actions）—— 那是唯一一处说「实际从哪儿续」的地方，
             快照里那个步名只是同一判据的展示面，不拿来当承诺。
           */}
-          {resumable && (
+          {task.resumable && (
             <Button size="sm" disabled={busy === "resume"} onClick={props.onResume}>
               {busy === "resume" ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
               {task.resumeStep ? "从断点继续" : "重跑一遍"}
@@ -95,7 +92,7 @@ export function TaskDetailCard(props: Props) {
           failure={task.failure}
           contractStep={props.contractStep}
           stopStepNumber={props.stopStepNumber}
-          resumable={resumable}
+          resumable={task.resumable}
         />
       </CardContent>
     </Card>
