@@ -1116,6 +1116,48 @@ async function caseCompletedRegistrySettlesStaleStops() {
   fs.rmSync(waitingWork, { recursive: true, force: true });
 }
 
+/* 旧版本把 -StopAfter 误写成等图停点时，登记表没跑满也必须回到可续跑状态。 */
+async function caseIncompleteRegistryOverridesStaleImageStop() {
+  const incomplete = [
+    { id: 6, name: "discover", status: "ok", seconds: 1, note: "" },
+    { id: 7, name: "ledger", status: "skipped", seconds: 0, note: "" }
+  ];
+  const fx = makeBoard({ artifacts: { stepsOf: () => incomplete } });
+  const id = fx.board.add({
+    projectRoot: fx.project,
+    stopAfter: "discover",
+    items: [{ link: LINK, target: "T1", mode: "AB" }]
+  }).created[0];
+  fx.board.start(id);
+  const task = await waitForTask(fx.board, id, hasJob, "启动完成");
+  fx.board.stop(id);
+  const stored = JSON.parse(fs.readFileSync(path.join(fx.home, "board.json"), "utf8"));
+  const record = stored.find((item) => item.id === id);
+  record.state = "waiting";
+  record.imageStop = true;
+  record.failure = {
+    kind: "semantic",
+    stepName: "layoutManifest",
+    title: "Layout 清单",
+    message: "含 A 的路线还不能核对页面 PNG：旧版本误判",
+    logPath: ""
+  };
+  write(path.join(fx.home, "board.json"), JSON.stringify(stored));
+
+  const fresh = createBoard({
+    runs: fx.runs.api,
+    pending: null,
+    artifacts: { stepsOf: () => incomplete },
+    home: fx.home
+  });
+  const after = fresh.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(after.state, "stopped", "登记表未跑满时旧等图停点必须回到 stopped");
+  assert.strictEqual(after.resumable, true, "提前结束的旧记录必须重新给出续跑入口");
+  assert.strictEqual(after.failure, null, "旧等图文案不能继续遮住真实进度");
+  fs.rmSync(fx.home, { recursive: true, force: true });
+  fs.rmSync(task.workDir, { recursive: true, force: true });
+}
+
 async function caseStopRemoveClearAndMerge() {
   const fx = makeBoard();
   const added = fx.board.add({ projectRoot: fx.project, items: [{ link: LINK, target: "T1", mode: "B" }, { link: LINK + "&b=1", target: "T2", mode: "B" }] });
@@ -1202,6 +1244,7 @@ async function main() {
     ["「能不能续、续哪一步」的两支边界（没跑过 / 跑到一半）", caseResumeStepBoundary],
     ["运行提前 done 但登记表没跑满：停在可续跑的 stopped", caseDoneBeforeCompleteStaysResumable],
     ["登记表已跑满：过期的 waiting / stopped 直接收尾", caseCompletedRegistrySettlesStaleStops],
+    ["登记表未跑满：旧等图停点回到可续跑状态", caseIncompleteRegistryOverridesStaleImageStop],
     ["停止 / 移除 / 清理 / 合并前置校验", caseStopRemoveClearAndMerge],
     ["进度、步骤视图与 Target 认领", caseProgressStepsAndTargetAdoption]
   ];
