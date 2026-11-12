@@ -2,8 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import {
   commitPipelineAIdentities,
-  preparePipelineAItems,
-  requestDefaultsOf
+  preparePipelineAItems
 } from "@/app/prepare-pipeline-items"
 
 const LINK = "https://mastergo.com/goto/x?file=1&layer_id=2:3"
@@ -18,15 +17,6 @@ afterEach(() => {
 })
 
 describe("preparePipelineAItems", () => {
-  it("批次请求默认值只在一处分词与归一", () => {
-    expect(requestDefaultsOf({
-      ui: " F3 ",
-      autoMerge: false,
-      overwrite: true,
-      stopAfter: " discover "
-    })).toEqual({ ui: "F3", autoMerge: false, overwrite: true, stopAfter: "discover" })
-  })
-
   it("登记表已有这一页时仍走同一套页名、候选与写回流程", async () => {
     const urls: string[] = []
     const bodies: Array<Record<string, unknown>> = []

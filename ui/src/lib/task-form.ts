@@ -1,5 +1,5 @@
 import { readStored, writeStored } from "@/lib/storage"
-import type { BoardModePolicy } from "@/lib/api"
+import type { BoardAddBody, BoardModePolicy } from "@/lib/api"
 
 /*
  * 新建任务表单：值跨刷新记住；两个展示用文案表在这里统一一份，界面各处引用同一处。
@@ -47,6 +47,24 @@ export function normalizeStoredMode(value: unknown, fallback: TaskMode = "A"): T
 export function modePolicyOf(policies: BoardModePolicy[] | undefined, mode: string): BoardModePolicy | null {
   const wanted = String(mode || "").trim().toUpperCase()
   return (policies || []).find((item) => item.mode === wanted) || null
+}
+
+export type BoardRequestDefaults = Pick<BoardAddBody, "ui" | "autoMerge" | "overwrite" | "stopAfter">
+export type RequestDefaultsInput = {
+  ui: string
+  autoMerge: boolean
+  overwrite: boolean
+  stopAfter: string
+}
+
+/** 两个入口共用这一份请求默认值归一；A 是否采用固定值仍由 A 的准备模块决定。 */
+export function requestDefaultsOf(input: RequestDefaultsInput): BoardRequestDefaults {
+  return {
+    ui: input.ui.trim(),
+    autoMerge: input.autoMerge,
+    overwrite: input.overwrite,
+    stopAfter: input.stopAfter.trim()
+  }
 }
 
 /* 两个新建入口的提交按钮用同一句话：需要页面 PNG 的路线会先暂存，再显式启动。 */

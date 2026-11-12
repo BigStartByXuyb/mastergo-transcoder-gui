@@ -25,7 +25,7 @@ import { ClampText } from "@/app/clamp-text"
 import { createTasksForMode, taskEntryFailure } from "@/app/task-creation-entry"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentity } from "@/app/use-identity"
-import { requestDefaultsOf } from "@/app/prepare-pipeline-items"
+import { requestDefaultsOf } from "@/lib/task-form"
 import { useRemembered } from "@/app/use-remembered"
 import { useRunLog } from "@/app/use-run-log"
 import { useTaskActions } from "@/app/use-task-actions"
@@ -191,7 +191,7 @@ export function PipelinePage({
     const failure = taskEntryFailure({
       projectRoot,
       links: link ? [link] : [],
-      board,
+      modes: board?.modes,
       policy: currentMode
     })
     if (failure) {

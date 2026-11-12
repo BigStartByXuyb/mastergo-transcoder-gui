@@ -7,6 +7,7 @@ import {
   adoptsIdentityWithoutConfirm,
   modePolicyOf,
   readTaskForm,
+  requestDefaultsOf,
   startActionLabel,
   writeTaskForm
 } from "@/lib/task-form"
@@ -90,5 +91,14 @@ describe("task-form", () => {
   it("创建按钮对 A、AB 用同一句启动文案", () => {
     expect(startActionLabel(true)).toBe("创建并开始")
     expect(startActionLabel(false)).toBe("加入看板并开始")
+  })
+
+  it("请求默认值只在一处分词与归一", () => {
+    expect(requestDefaultsOf({
+      ui: " F3 ",
+      autoMerge: false,
+      overwrite: true,
+      stopAfter: " discover "
+    })).toEqual({ ui: "F3", autoMerge: false, overwrite: true, stopAfter: "discover" })
   })
 })

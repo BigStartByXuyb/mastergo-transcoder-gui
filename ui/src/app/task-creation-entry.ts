@@ -17,13 +17,15 @@ import type { BoardItem } from "@/lib/board-items"
 export function taskEntryFailure(input: {
   projectRoot: string
   links: string[]
-  board: Board | null
+  modes: BoardModePolicy[] | undefined
   policy: BoardModePolicy | null
 }): string {
   const inputFailure = taskInputFailure(input)
   if (inputFailure) return inputFailure
   if (!input.policy) {
-    return input.board ? "当前记住的路线已不可用，请重新选择路线" : "路线能力还没读到，请稍后重试"
+    return Array.isArray(input.modes)
+      ? "当前记住的路线已不可用，请重新选择路线"
+      : "路线能力还没读到，请稍后重试"
   }
   return ""
 }

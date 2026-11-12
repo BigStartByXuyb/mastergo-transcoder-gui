@@ -1,8 +1,9 @@
-import { api, type BoardAddBody, type IdentityCandidate } from "@/lib/api"
+import { api, type IdentityCandidate } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import type { BoardItem } from "@/lib/board-items"
 import { applyIdentities, candidatesForLink } from "@/lib/identity-flow"
 import { pickIdentityCandidate } from "@/lib/identity-pick"
+import { requestDefaultsOf, type BoardRequestDefaults } from "@/lib/task-form"
 
 /*
  * 流水线 A 启动前把页面身份自动落实：取数与写回走 identity-flow，采用判定走 identity-pick。
@@ -10,13 +11,6 @@ import { pickIdentityCandidate } from "@/lib/identity-pick"
  */
 
 export type PreparedPipelineItem = BoardItem & { ui: string }
-export type PipelineARequestDefaults = Pick<BoardAddBody, "ui" | "autoMerge" | "overwrite" | "stopAfter">
-export type RequestDefaultsInput = {
-  ui: string
-  autoMerge: boolean
-  overwrite: boolean
-  stopAfter: string
-}
 export type PreparedPipelineIdentity = {
   link: string
   projectRoot: string
@@ -28,19 +22,10 @@ export type PreparedPipelineItems =
   | {
       ok: true
       items: PreparedPipelineItem[]
-      defaults: PipelineARequestDefaults
+      defaults: BoardRequestDefaults
       identities: PreparedPipelineIdentity[]
     }
   | { ok: false; reason: string }
-
-export function requestDefaultsOf(input: RequestDefaultsInput): PipelineARequestDefaults {
-  return {
-    ui: input.ui.trim(),
-    autoMerge: input.autoMerge,
-    overwrite: input.overwrite,
-    stopAfter: input.stopAfter.trim()
-  }
-}
 
 const PIPELINE_A_REQUEST_DEFAULTS = requestDefaultsOf({
   ui: "",
