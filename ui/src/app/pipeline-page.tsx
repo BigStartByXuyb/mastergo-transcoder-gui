@@ -32,7 +32,7 @@ import { useTaskActions } from "@/app/use-task-actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { api, type BoardAddBody, type BoardModePolicy, type PipelineStep, type PluginSummary } from "@/lib/api"
-import { keepPickedImages, pickedForLink, withPickedImage } from "@/lib/board-items"
+import { boardItemOf, keepPickedImages, pickedForLink, withPickedImage } from "@/lib/board-items"
 import { describeFailure } from "@/lib/describe-failure"
 import { candidatesForLink } from "@/lib/identity-flow"
 import { pendingPanelKey } from "@/lib/pending-source"
@@ -218,7 +218,7 @@ export function PipelinePage({
     try {
       const stagedImages = stagedImage ? { [link]: stagedImage } : {}
       const result = await createTasksForMode({
-        items: [{ link, target: "", mode: form.mode }],
+        items: [boardItemOf(link, form.target, form.mode)],
         projectRoot,
         policy,
         automation,

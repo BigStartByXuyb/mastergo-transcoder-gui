@@ -1,13 +1,20 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { createTasksForMode, taskEntryFailure, taskInputFailure } from "@/app/task-creation-entry"
-import type { BoardAddBody, BoardModePolicy } from "@/lib/api"
+import type { Board, BoardAddBody, BoardModePolicy } from "@/lib/api"
 
 const policy: BoardModePolicy = {
   mode: "B",
   routes: ["B"],
   takesPageImage: false,
   runsPipelineAOnly: false
+}
+
+const emptyBoard: Board = {
+  workRoot: "project",
+  limits: { logical: 0, limit: 1 },
+  running: 0,
+  tasks: []
 }
 
 afterEach(() => {
@@ -168,5 +175,71 @@ describe("createTasksForMode", () => {
     if (!result.ok) expect(result.failure).toContain("F4Registered")
     expect(otherRequest).not.toHaveBeenCalled()
     expect(add).not.toHaveBeenCalled()
+  })
+
+  it("非 A 的手写 Target 对账通过后原值交给请求准备并用于创建", async () => {
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes("/api/design/page-name")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, pageName: "停止调整", rootId: "1:1" }), { status: 200 }))
+      }
+      if (url.includes("/api/identity/candidates")) {
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true,
+          candidates: [{
+            target: "F4Registered",
+            ui: "F4",
+            basis: "登记表",
+            needsSemanticName: false,
+            registered: true
+          }],
+          ai: { used: false, items: [] },
+          blocked: ""
+        }), { status: 200 }))
+      }
+      if (url.includes("/api/identity/prefix")) {
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true,
+          previewUi: "F4",
+          semanticName: "Registered",
+          complete: true
+        }), { status: 200 }))
+      }
+      throw new Error("unexpected " + url + " " + String(init?.method ?? "GET"))
+    })
+    const body: BoardAddBody = {
+      projectRoot: "project",
+      ui: "",
+      autoMerge: true,
+      overwrite: true,
+      stopAfter: "",
+      items: [{ link: "https://mastergo.com/goto/a?file=1&layer_id=2:3", target: "F4Registered", mode: "B", ui: "F4" }]
+    }
+    const otherRequest = vi.fn(async () => ({ ok: true as const, body }))
+    const add = vi.fn(async () => ({
+      board: emptyBoard,
+      created: ["task-1"]
+    }))
+    const result = await createTasksForMode({
+      items: [{ link: "https://mastergo.com/goto/a?file=1&layer_id=2:3", target: "F4Registered", mode: "B" }],
+      projectRoot: "project",
+      policy,
+      automation: "assist",
+      images: {},
+      add,
+      otherRequest,
+      api: {
+        stageDesignImage: vi.fn(),
+        boardStart: vi.fn(async () => ({ board: emptyBoard })),
+        boardRemove: vi.fn(),
+        board: vi.fn()
+      }
+    })
+
+    expect(otherRequest).toHaveBeenCalledWith([
+      expect.objectContaining({ target: "F4Registered", ui: "F4", mode: "B" })
+    ])
+    expect(add).toHaveBeenCalledWith(body)
+    expect(result.ok).toBe(true)
   })
 })

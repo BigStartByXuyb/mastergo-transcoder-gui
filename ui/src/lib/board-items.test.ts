@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  boardItemOf,
   fillTargets,
   keepPickedImages,
   parseBoardItems,
@@ -11,6 +12,16 @@ import {
 } from "@/lib/board-items"
 
 const LINK = "https://mastergo.com/goto/x?file=1&layer_id=2:3"
+
+describe("boardItemOf", () => {
+  it("单页表单与多行文本框用同一份条目归一", () => {
+    expect(boardItemOf(`  ${LINK}  `, "  F3Align  ", "B")).toEqual({
+      link: LINK,
+      target: "F3Align",
+      mode: "B"
+    })
+  })
+})
 
 describe("parseBoardItems", () => {
   it("一行一个链接，Target 省略时留空", () => {

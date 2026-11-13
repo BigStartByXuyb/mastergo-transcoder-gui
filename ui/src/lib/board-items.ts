@@ -13,6 +13,11 @@ export type BoardItem = { link: string; target: string; mode: BoardMode }
 /** 一行 + 它在文本框里的行号（从 1 起，空行也占一行）：界面上「第 N 行」要能和对上的那一行对得住。 */
 export type BoardRow = BoardItem & { line: number }
 
+/** 单页表单与多行文本框共用这一份条目归一：链接和 Target 都去掉首尾空白。 */
+export function boardItemOf(link: string, target: string, mode: BoardMode): BoardItem {
+  return { link: link.trim(), target: target.trim(), mode }
+}
+
 /* 一行 → 链接与 Target（没有链接时 link 是空串）：拆一行的规则只有这一处。 */
 function lineParts(raw: string): { link: string; target: string } {
   const [linkPart, targetPart] = raw.trim().split("|")
@@ -28,14 +33,14 @@ export function parseBoardRows(text: string, mode: BoardMode): BoardRow[] {
   text.split(/\r?\n/).forEach((raw, index) => {
     const { link, target } = lineParts(raw)
     if (!link) return
-    rows.push({ link, target, mode, line: index + 1 })
+    rows.push({ ...boardItemOf(link, target, mode), line: index + 1 })
   })
   return rows
 }
 
 /** 只要「有几行、每行是什么」的场合用这一份（行号不带出去）。 */
 export function parseBoardItems(text: string, mode: BoardMode): BoardItem[] {
-  return parseBoardRows(text, mode).map((row) => ({ link: row.link, target: row.target, mode: row.mode }))
+  return parseBoardRows(text, mode).map((row) => boardItemOf(row.link, row.target, row.mode))
 }
 
 /*
