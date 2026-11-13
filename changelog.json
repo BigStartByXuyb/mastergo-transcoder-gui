@@ -75,7 +75,11 @@
       "待确认面板按来源、工程、页面、路线、任务与运行重建；同源连续取数只接受最后一次返回，不再把上一页草稿或旧响应带到当前页",
       "A 与 B / AB 的显式 Target 对账、后端拆分与完整性采用统一收进 `resolveExplicitTarget`，冲突说明和 fallback 候选只保留一份",
       "身份写回接口的客户端类型补齐后端实际返回的 `entry` / `entries`，响应契约与实现一致",
-      "布局分组判定删除重复的等图条件；`recoverable` 已包含 `imageStop !== true` 时不再重复比较"
+      "布局分组判定删除重复的等图条件；`recoverable` 已包含 `imageStop !== true` 时不再重复比较",
+      "待确认页与流水线详情共用 `pendingPanelKey`；两个挂载点都按来源、工程、页面、路线、任务与运行重建草稿",
+      "等图停点进入结果改为具名 `{ entered, changed }`；运行收尾与登记表对表不再靠 `null / false` 约定区分",
+      "登记表对表先压成 `{ empty, complete, failed }` 事实，再由统一结算分支使用；`settleDone` 不再重复判断是否跑满",
+      "待确认取数 effect 删除已包含在 `reload` 依赖里的 `taskId` / `runId` 重复项"
     ]
   },
   {

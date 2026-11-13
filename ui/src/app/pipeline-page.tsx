@@ -35,6 +35,7 @@ import { api, type BoardAddBody, type BoardModePolicy, type PipelineStep, type P
 import { keepPickedImages, pickedForLink, withPickedImage } from "@/lib/board-items"
 import { describeFailure } from "@/lib/describe-failure"
 import { candidatesForLink } from "@/lib/identity-flow"
+import { pendingPanelKey } from "@/lib/pending-source"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
 import { AUTOMATION_LABEL, modePolicyOf, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
 import { decideStartIdentity } from "@/lib/task-start"
@@ -367,6 +368,14 @@ export function PipelinePage({
                       </Button>
                     </div>
                     <PendingPanel
+                      key={pendingPanelKey({
+                        source: "board",
+                        projectRoot: task.workDir,
+                        target: task.request.target,
+                        mode: task.request.mode,
+                        taskId: task.id,
+                        runId: task.jobId
+                      })}
                       projectRoot={task.workDir}
                       target={task.request.target}
                       mode={task.request.mode}

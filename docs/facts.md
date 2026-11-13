@@ -18,7 +18,7 @@
 | 收图的四条判据（空 / 读不出 / 太大 / 不是 PNG·JPEG） | `lib/design-image.js` · `function requireBitmap(` | 暂存（`stage`）与存图（`save`） |
 | 先选的位图落地结果 | `lib/design-image.js` · `function installStaged(` | `lib/board.js`（写到任务行的 `designImage`） |
 | 待确认清单的取数（含三张草稿与叫 AI 出候选） | `ui/src/app/use-pending-inputs.ts` · `api.pending(` | 待确认面板（取数只有这一处）；正常自动流程不显示，只在模型无法补齐时作为兜底 |
-| 待确认面板的草稿来源隔离 | `ui/src/app/review-page.tsx` · `export function pendingPanelKey(` | 面板按来源、工程、页面、路线、任务与运行重建；换来源时不沿用上一页草稿 |
+| 待确认面板的草稿来源隔离 | `ui/src/lib/pending-source.ts` · `export function pendingPanelKey(` | 待确认页与流水线详情两个挂载点共用同一来源键；按来源、工程、页面、路线、任务与运行重建，换来源时不沿用上一页草稿 |
 | 待确认面板的并发取数 | `ui/src/app/use-pending-inputs.ts` · `const reloadSeq = useRef(` | `reload` 只采用最后一次请求的返回与失败；旧响应不落到当前来源，也不提前清掉新请求的忙碌状态 |
 | 面板动作的骨架（置忙 → 清旧错 → 跑 → 收尾） | `ui/src/app/use-action-runner.ts` · `export function useValueRunner(` | `useActionRunner`（同文件）、`use-task-actions.ts`、`use-plugin-sources.ts`、`use-plugin-update.ts`、`board-page.tsx`、`design-image-card.tsx`、设置页（`update-card` / `codex-card` / `runtime-panel` / `source-dialog` / `settings-agent-panel`） |
 | 界面唯一的网络出口 | `ui/src/lib/api.ts` · `fetch(` | 所有界面件（别的文件不直接发请求） |
@@ -47,6 +47,8 @@
 | 布局分组这一步喂给模型的输入（本层可引用条目 + 本页页面 PNG 的 data URL） | `lib/layout-groups.js` · `function candidatesInput(` | 自动补输入（`lib/autofill.js`）；模型层（`lib/ai.js`）只吃这个入参，不碰磁盘 |
 | 布局待办、自动续跑与空表写回的前置判据 | `lib/layout-groups.js` · `const recoverable = query?.imageStop !== true &&`、`const needsGroups = recoverable &&` | `inspect` 的统一结论（`lib/pending.js`、看板状态判定与 `lib/autofill.js`）；只有来源为手填无状态 / 等待 / 失败态，且页面 PNG、条目清单与分组表输入证据满足时才成立 |
 | 布局自动分组动作能不能执行 | `lib/layout-groups.js` · `function suggestBlocker(`、`function regroupOf(` | `inspect` 直接返回 `regroup.allowed / code / reason / hint`；待确认面板按钮与自动层级读同一份结论，输入不足时只走空表恢复 |
+| 等图停点的进入结果 | `lib/board.js` · `const IMAGE_GATE_NOT_ENTERED =` | `enterPipelineAImageStop` 统一返回 `{ entered, changed }`；运行收尾与登记表对表只按具名结论提前返回或继续，不再用 `null / false` 区分两种“没有改动” |
+| 登记表对表的显式事实与结算分派 | `lib/board.js` · `function registryFactsOf(` | `reconcileTask` 与运行 done 分支共用 `{ empty, complete, failed }`；`settleDone` 只消费同一份事实，不重复判断是否跑满 |
 | 待确认写入与布局恢复共用哪一条来源运行解析 | `lib/confirm.js` · `function commitFromSource(` | 普通 `/api/confirm` 与布局恢复接口都从这里把看板任务的 jobId / 工作目录交给 `confirm.commit`，新运行统一挂回原任务 |
 | 待确认面板的提交载荷与忙碌/失败收尾 | `ui/src/app/pending-panel.tsx` · `const submitInputs = useCallback(` | 「确认并继续」「只写入」「按空表重写」「重新自动分组」共用同一份字段组装与状态收尾，只在最后按提交类型选择接口 |
 | 新建任务按钮名 | `ui/src/lib/task-form.ts` · `export function startActionLabel(` | `new-task-card.tsx` 的按钮、流水线页提示与成功提示都读这一份名称；路线需要页面 PNG 时是「创建并开始」，否则是「加入看板并开始」 |

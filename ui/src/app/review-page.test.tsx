@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { pendingPanelKey, ReviewPage } from "@/app/review-page"
+import { ReviewPage } from "@/app/review-page"
+import { pendingPanelKey } from "@/lib/pending-source"
 
 vi.mock("@/app/pending-panel", () => ({
   PendingPanel: (props: { mode: string }) => <div data-testid="pending-mode">{props.mode}</div>

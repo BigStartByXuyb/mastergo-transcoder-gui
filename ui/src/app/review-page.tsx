@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { api, type PendingQueueEntry } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
+import { pendingPanelKey } from "@/lib/pending-source"
 import { REVIEW_POLL_MS } from "@/lib/task-state"
 
 /*
@@ -30,20 +31,6 @@ function keyOf(entry: { source: string; projectRoot: string; target: string }) {
 
 /** 一屏里的当前条目：待确认队列里的那条，或人手动填的工程目录 + Target（后者没有待办条数）。 */
 type ActiveEntry = PendingQueueEntry & { manual?: boolean }
-
-/** 面板连同三张草稿按来源重建；同一页换了任务或运行也不能沿用上一来源的输入。 */
-export function pendingPanelKey(
-  entry: Pick<PendingQueueEntry, "source" | "projectRoot" | "target" | "mode" | "taskId" | "runId">
-) {
-  return JSON.stringify([
-    entry.source,
-    entry.projectRoot,
-    entry.target,
-    entry.mode,
-    entry.taskId,
-    entry.runId
-  ])
-}
 
 export function ReviewPage() {
   const [queue, setQueue] = useState<PendingQueueEntry[]>([])

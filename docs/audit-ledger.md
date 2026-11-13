@@ -384,4 +384,8 @@
 | 2026-11-12 GitHub 43199059070 | REVIEW-002 | A 与 B / AB 各写一份显式 Target 对账、fallback 候选和不同冲突说明 | 已收 | `resolveExplicitTarget` 组合唯一冲突判据、后端区域拆分与完整性采用；两个开始入口只传 Target、候选、拆分函数与来源标签 |
 | 2026-11-12 GitHub 43199059070 | 非阻断 | `needsGroups` 重复判断 `imageStop`，而 `recoverable` 已包含该条件 | 已收 | 删除重复比较；布局停点继续只读 `recoverable` 与其余输入事实 |
 | 2026-11-12 GitHub 43199059070 | 非阻断 | 身份写回客户端返回类型漏掉后端实际返回的 `entry` / `entries` | 已收 | `api.ts` 增加 `IdentityRegistryEntry` 并补齐两个接口的返回类型 |
+| 2026-11-13 GitHub 43219655714 | REVIEW-001 | 待确认页给面板加了草稿重建键，流水线详情的第二个挂载点没有同一条约定 | 已收 | `pendingPanelKey` 移到 `ui/src/lib/pending-source.ts`；两个挂载点共用来源、工程、页面、路线、任务与运行组成的键 |
+| 2026-11-13 GitHub 43219655714 | REVIEW-002 | 等图停点用 `null / false / true` 同时编码是否停在等图和是否写盘 | 已收 | `enterPipelineAImageStop` 返回 `{ entered, changed }`；所有调用点按具名字段分派 |
+| 2026-11-13 GitHub 43219655714 | REVIEW-003 | 登记表对表与 `settleDone` 各自判断跑满、空表、失败和等图停点 | 已收 | `registryFactsOf` 统一产出 `{ empty, complete, failed }`；运行 done 与对表共用，`settleDone` 只消费事实，`reconcileTask` 只有一处结算调用 |
+| 2026-11-13 GitHub 43219655714 | 非阻断 | 待确认取数 effect 重复列出已包含在 `reload` 依赖中的任务与运行 id | 已收 | effect 只依赖 `reload` 与状态，来源变化仍由 `reload` 自身依赖触发 |
 

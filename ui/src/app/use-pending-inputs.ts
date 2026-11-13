@@ -111,7 +111,7 @@ export function usePendingInputs(input: {
 
   useEffect(() => {
     void reload()
-  }, [reload, state, taskId, runId])
+  }, [reload, state])
 
   /*
    * 命名表草稿 → 提交形状：只有这一处（人填的那份与模型出的那份共用它）。
