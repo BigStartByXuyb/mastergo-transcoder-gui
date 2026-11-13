@@ -9,7 +9,13 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { candidatesFor, writeRegistryEntry, pascalFromPageName } = require("../lib/identity.js");
+const {
+  candidatesFor,
+  writeRegistryEntry,
+  writeRegistryEntries,
+  targetPartsOf,
+  pascalFromPageName
+} = require("../lib/identity.js");
 const { readRegistryDocument } = require("../lib/project-pages.js");
 
 function write(file, text) {
@@ -26,6 +32,8 @@ function project(registry) {
 function casePrefixAndPascal() {
   assert.strictEqual(pascalFromPageName("手动对准 （2.2.1）"), "", "中文页名转不出英文");
   assert.strictEqual(pascalFromPageName("Manual Align (2.2.1)"), "ManualAlign");
+  assert.strictEqual(pascalFromPageName("页面2"), "", "纯数字编号不能冒充语义名");
+  assert.strictEqual(pascalFromPageName("Manual Align 2"), "ManualAlign", "编号从语义名里去掉");
   assert.strictEqual(pascalFromPageName("laser-focus"), "LaserFocus");
   assert.strictEqual(pascalFromPageName(""), "");
   // 区域前缀规则由后端持有（写盘校验与界面预览同一份）：这里断言「候选的 target 一定能推出它的 ui」。
@@ -36,6 +44,31 @@ function casePrefixAndPascal() {
     const written = writeRegistryEntry({ projectRoot: root, target: candidate.target, ui: candidate.ui, fileId: "1", layerId: "9:9" });
     assert.ok(written.entry.target.startsWith(candidate.ui), "候选必须满足「Target 前缀 = 区域」");
   }
+  assert.deepStrictEqual(targetPartsOf("F3ManualAlign"), {
+    previewUi: "F3",
+    semanticName: "ManualAlign",
+    complete: true
+  });
+  assert.deepStrictEqual(targetPartsOf("F3"), {
+    previewUi: "F3",
+    semanticName: "",
+    complete: false
+  }, "只有区域前缀的 Target 不完整");
+  assert.deepStrictEqual(targetPartsOf("saddas"), {
+    previewUi: "",
+    semanticName: "",
+    complete: false
+  }, "推不出区域前缀的 Target 不完整");
+  const numericPage = candidatesFor({
+    projectRoot: root,
+    pageName: "页面2",
+    autoAdopt: true
+  });
+  assert.ok(numericPage.candidates.length > 0, "仍给出可补语义名的区域候选");
+  assert.ok(
+    numericPage.candidates.every((candidate) => candidate.needsSemanticName),
+    "数字型页名不能生成被写回校验拒绝的完整候选"
+  );
   fs.rmSync(root, { recursive: true, force: true });
 }
 
@@ -59,6 +92,20 @@ function caseCandidates() {
   assert.deepStrictEqual(noRegistry.candidates, [], "项目里没有既有区域约定时，不凭空编一个区域");
   assert.match(noRegistry.blocked, /还没有任何区域约定/, "空工程要说清这是「工程项目第一页要人给一次」");
   assert.match(noRegistry.blocked, /docs\/page-registry\.json/, "要告诉人给过之后写在哪、以后自动");
+
+  const partialRegistered = project({
+    pages: [{ target: "F2", ui: "F2", designSource: { fileId: "1", layerId: "2:9" } }]
+  });
+  const partial = candidatesFor({
+    projectRoot: partialRegistered,
+    pageName: "Manual Align",
+    fileId: "1",
+    layerId: "2:9",
+    autoAdopt: true
+  });
+  assert.strictEqual(partial.candidates[0].registered, true);
+  assert.strictEqual(partial.candidates[0].needsSemanticName, true, "登记表里的半截 Target 也不能自动沿用");
+  fs.rmSync(partialRegistered, { recursive: true, force: true });
 
   // 同一设计文件优先：F1 只在这个文件里出现，F2 是全项目更多 → 这个文件仍然先给 F1
   const scoped = project({
@@ -162,6 +209,64 @@ function caseExplicitUi() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+// 流水线 A 没有区域输入：只有项目里唯一、无需改名的既有区域才允许自动采用。
+function caseAutoAdopt() {
+  const unique = project({
+    pages: [{ target: "F4TargetTeaching", ui: "F4", designSource: { fileId: "1", layerId: "1:1" } }]
+  });
+  const adopted = candidatesFor({
+    projectRoot: unique,
+    pageName: "StopAdjust",
+    fileId: "1",
+    layerId: "1:2",
+    autoAdopt: true
+  });
+  assert.strictEqual(adopted.blocked, "", "项目只有一个既有区域时 A 自动采用");
+  assert.strictEqual(adopted.candidates[0].target, "F4StopAdjust");
+
+  const multiple = project({
+    pages: [
+      { target: "F4TargetTeaching", ui: "F4", designSource: { fileId: "1", layerId: "1:1" } },
+      { target: "F5Teach", ui: "F5", designSource: { fileId: "1", layerId: "5:1" } }
+    ]
+  });
+  const ambiguous = candidatesFor({
+    projectRoot: multiple,
+    pageName: "StopAdjust",
+    fileId: "1",
+    layerId: "1:2",
+    autoAdopt: true
+  });
+  assert.match(ambiguous.blocked, /多个区域约定/, "多个区域时不替人猜");
+
+  const empty = project();
+  const missing = candidatesFor({ projectRoot: empty, pageName: "StopAdjust", autoAdopt: true });
+  assert.match(missing.blocked, /需要项目里先有一个区域约定/, "空项目说清唯一缺口");
+
+  const renamed = project({
+    pages: [{
+      target: "F4TargetTeaching",
+      ui: "F4",
+      designSource: { fileId: "1", layerId: "1:1", designPageName: "旧页名" }
+    }]
+  });
+  const changed = candidatesFor({
+    projectRoot: renamed,
+    pageName: "StopAdjust",
+    fileId: "1",
+    layerId: "1:1",
+    autoAdopt: true
+  });
+  assert.match(changed.blocked, /改了名/, "改名不能被自动采用吞掉");
+  assert.match(changed.blocked, /B \/ AB|docs\/page-registry\.json/, "A 的提示必须给 A-only 表单上可执行的下一步");
+  assert.doesNotMatch(changed.blocked, /点下面的候选|填上 UI 区域/, "A-only 表单没有候选或 UI 控件，提示不能指向隐藏入口");
+  assert.match(changed.candidates.find((item) => item.rename).basis, /B \/ AB|docs\/page-registry\.json/);
+  fs.rmSync(unique, { recursive: true, force: true });
+  fs.rmSync(multiple, { recursive: true, force: true });
+  fs.rmSync(empty, { recursive: true, force: true });
+  fs.rmSync(renamed, { recursive: true, force: true });
+}
+
 function caseWrite() {
   const root = project();
   const first = writeRegistryEntry({
@@ -195,6 +300,35 @@ function caseWrite() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+function caseWriteBatchIsAtomic() {
+  const root = project({ pages: [{ target: "F1Keep", ui: "F1" }] });
+  const registryPath = path.join(root, "docs", "page-registry.json");
+  const before = fs.readFileSync(registryPath, "utf8");
+  assert.throws(() => writeRegistryEntries({
+    projectRoot: root,
+    entries: [
+      { target: "F3ManualAlign", ui: "F3", fileId: "1", layerId: "3:1" },
+      { target: "WrongPrefix", ui: "F3", fileId: "1", layerId: "3:2" }
+    ]
+  }), /Target 与区域不匹配/);
+  assert.strictEqual(fs.readFileSync(registryPath, "utf8"), before, "任一条不合法时整批不落盘");
+
+  const written = writeRegistryEntries({
+    projectRoot: root,
+    entries: [
+      { target: "F3ManualAlign", ui: "F3", fileId: "1", layerId: "3:1" },
+      { target: "F2Teach", ui: "F2", fileId: "1", layerId: "2:1" }
+    ]
+  });
+  assert.deepStrictEqual(written.replaced, [false, false]);
+  assert.deepStrictEqual(
+    JSON.parse(fs.readFileSync(registryPath, "utf8")).pages.map((page) => page.target),
+    ["F1Keep", "F3ManualAlign", "F2Teach"]
+  );
+  assert.deepStrictEqual(fs.readdirSync(path.dirname(registryPath)).sort(), ["page-registry.json"], "原子写回不留临时件");
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 // 原始文档读取只此一份：坏 JSON 的文案与 identity 写回用的是同一处。
 function caseRegistryDocument() {
   const root = project();
@@ -216,9 +350,14 @@ function caseWriteRejections() {
   assert.throws(() => writeRegistryEntry({ projectRoot: root, target: "", ui: "F3" }), /缺少 Target/);
   assert.throws(() => writeRegistryEntry({ projectRoot: "", target: "F3X", ui: "F3" }), /缺少工程目录/);
   assert.throws(
-    () => writeRegistryEntry({ projectRoot: root, target: "test_mastergp", ui: "F3" }),
+    () => writeRegistryEntry({ projectRoot: root, target: "F4Wrong", ui: "F3" }),
     /Target 与区域不匹配/,
     "写出来的登记表不能自相矛盾：Target 前缀推不出 F3 就拒绝"
+  );
+  assert.throws(
+    () => writeRegistryEntry({ projectRoot: root, target: "F3", ui: "F3" }),
+    /只有区域前缀，没有语义名/,
+    "直接调用写回接口也不能把半截 Target 写成项目事实"
   );
 
   const broken = project();
@@ -234,8 +373,10 @@ function main() {
     ["候选推导", caseCandidates],
     ["页帧范围：登记过才自动", caseLayerScope],
     ["人指定区域：只按那个区域算", caseExplicitUi],
+    ["A 自动采用只接受唯一既有区域", caseAutoAdopt],
     ["原始登记表读取只此一份", caseRegistryDocument],
     ["写登记表：追加与替换", caseWrite],
+    ["写登记表：批次整批落盘", caseWriteBatchIsAtomic],
     ["写登记表：拒绝不合法输入", caseWriteRejections]
   ];
   for (const [name, run] of cases) {

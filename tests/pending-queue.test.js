@@ -26,7 +26,15 @@ function makeQueue(options) {
       workRoot: path.join(HOME, "work"),
       snapshot: () => ({ tasks: options.tasks || [] })
     },
-    pending: { inspect: () => options.pending || { icons: { waiting: 0 }, translations: { waiting: 0 }, layout: { waiting: 0 } } }
+    pending: {
+      inspect: (query) => options.pendingFor
+        ? options.pendingFor(query)
+        : (options.pending || {
+            icons: { waiting: 0 },
+            translations: { waiting: 0 },
+            layout: { needsGroups: false, hasGroups: false, rejected: false, waiting: 0 }
+          })
+    }
   });
 }
 
@@ -38,8 +46,8 @@ function caseEntryShape() {
   const items = queue.snapshot().items;
 
   assert.strictEqual(items.length, 1);
-  assert.deepStrictEqual(items[0].counts, { icons: 2, translations: 1, layout: 0 }, "三节条数各取一处算出来的数");
-  assert.strictEqual(items[0].total, 3, "合计数是三者之和");
+  assert.deepStrictEqual(items[0].counts, { icons: 2, translations: 1, layout: 0 }, "人工待办条数各取一处算出来的数");
+  assert.strictEqual(items[0].total, 3, "合计数是图标、文案与布局之和");
   assert.strictEqual(items[0].source, "board");
   assert.strictEqual(items[0].taskId, "task-1");
   assert.strictEqual(items[0].runState, "waiting");
@@ -74,6 +82,129 @@ function caseEmptyIsSkipped() {
   assert.deepStrictEqual(queue.snapshot().items, [], "没有要填的就不列出来");
 }
 
+// 只剩布局分组时也要进列表：自动分组失败后必须有显式写空表的入口。
+function caseLayoutOnlyIsListed() {
+  const queue = makeQueue({
+    tasks: [{ id: "task-1", state: "waiting", jobId: "job-1", workDir: WORK, request: { target: "DemoPage" } }],
+    pending: { icons: { waiting: 0 }, translations: { waiting: 0 }, layout: { waiting: 1 } }
+  });
+  const items = queue.snapshot().items;
+  assert.strictEqual(items.length, 1);
+  assert.deepStrictEqual(items[0].counts, { icons: 0, translations: 0, layout: 1 });
+  assert.strictEqual(items[0].total, 1);
+}
+
+function caseLayoutOnlyForPipelineA() {
+  const queue = makeQueue({
+    tasks: [{ id: "task-1", state: "waiting", jobId: "job-1", workDir: WORK, request: { target: "DemoPage", mode: "B" } }],
+    pendingFor: (query) => ({
+      icons: { waiting: 0 },
+      translations: { waiting: 0 },
+      layout: { waiting: query.mode === "B" ? 0 : 1 }
+    })
+  });
+  assert.deepStrictEqual(queue.snapshot().items, [], "B 不消费布局分组，不把布局待办列进待确认");
+
+  const ab = makeQueue({
+    tasks: [{ id: "task-2", state: "waiting", jobId: "job-2", workDir: WORK, request: { target: "DemoPage", mode: "AB" } }],
+    pendingFor: (query) => ({
+      icons: { waiting: 0 },
+      translations: { waiting: 0 },
+      layout: { waiting: query.mode === "B" ? 0 : 1 }
+    })
+  });
+  assert.strictEqual(ab.snapshot().items[0].counts.layout, 1, "AB 的 A 段仍消费布局分组");
+}
+
+function caseRejectedExistingGroupsIsListed() {
+  const stopped = {
+    id: "task-1",
+    state: "waiting",
+    jobId: "job-1",
+    workDir: WORK,
+    layoutStep: "layoutManifest",
+    failure: {
+      stepName: "layoutManifest",
+      message: "分组表第 1 项（g1）的 members 至少 2 个 ref"
+    },
+    imageStop: false,
+    request: { target: "DemoPage", mode: "A" }
+  };
+  const queue = makeQueue({
+    tasks: [stopped],
+    pendingFor: (query) => ({
+      icons: { waiting: 0 },
+      translations: { waiting: 0 },
+      layout: {
+        needsGroups: false,
+        hasGroups: true,
+        rejected: query.state === "waiting" &&
+          query.layoutStep === query.failedStep &&
+          query.failedMessage.includes("分组表"),
+        failed: query.state === "waiting" && query.layoutStep === query.failedStep,
+        failedMessage: query.failedMessage,
+        waiting: query.state === "waiting" &&
+          query.layoutStep === query.failedStep &&
+          query.failedMessage.includes("分组表") ? 1 : 0
+      }
+    })
+  });
+  const items = queue.snapshot().items;
+  assert.strictEqual(items.length, 1, "已有分组表但停在布局步骤时仍必须进待确认列表");
+  assert.strictEqual(items[0].counts.layout, 1);
+
+  const completed = makeQueue({
+    tasks: [{
+      id: "task-2",
+      state: "ready",
+      jobId: "job-2",
+      workDir: WORK,
+      layoutStep: "layoutManifest",
+      failure: null,
+      imageStop: false,
+      request: { target: "DemoPage", mode: "A" }
+    }],
+    pendingFor: () => ({
+      icons: { waiting: 0 },
+      translations: { waiting: 0 },
+      layout: { needsGroups: false, hasGroups: true, rejected: false, waiting: 0 }
+    })
+  });
+  assert.deepStrictEqual(completed.snapshot().items, [], "已有分组表的完成页不能误列成待办");
+}
+
+function caseRejectedPipelineRunIsListed() {
+  const queue = makeQueue({
+    runs: [{
+      id: "job-3",
+      projectRoot: PROJECT,
+      target: "DemoPage",
+      mode: "A",
+      state: "failed",
+      layoutStep: "layoutManifest",
+      failedStep: "layoutManifest",
+      failedMessage: "分组表第 1 项（g1）的 members 至少 2 个 ref"
+    }],
+    pendingFor: (query) => ({
+      icons: { waiting: 0 },
+      translations: { waiting: 0 },
+      layout: {
+        needsGroups: false,
+        hasGroups: true,
+        rejected: query.state === "failed" &&
+          query.layoutStep === query.failedStep &&
+          query.failedMessage.includes("分组表"),
+        failed: query.state === "failed" && query.layoutStep === query.failedStep,
+        failedMessage: query.failedMessage,
+        waiting: query.state === "failed" &&
+          query.layoutStep === query.failedStep &&
+          query.failedMessage.includes("分组表") ? 1 : 0
+      }
+    })
+  });
+  assert.strictEqual(queue.snapshot().items[0].counts.layout, 1, "流水线直跑同样要带上布局停点事实");
+}
+
 /*
  * 同一个页面被两条线各跑过一次（看板任务的工作目录 + 流水线直跑的运行）：按「工程目录 + 页面」去重，
  * 看板那条先算，后来的同名条目丢掉 —— 不然人会在列表里看到同一页两次。
@@ -100,6 +231,10 @@ try {
     ["条目形状：条数、来源、状态名", caseEntryShape],
     ["看板来源按整段路径判（work 不吃 work2、大小写不敏感）", caseWorkRootPrefix],
     ["一条都不需要填的不进列表", caseEmptyIsSkipped],
+    ["只剩布局分组时仍可人工写空表", caseLayoutOnlyIsListed],
+    ["布局待办只列给含 A 的路线", caseLayoutOnlyForPipelineA],
+    ["已有分组表被拒收时看板任务仍进列表", caseRejectedExistingGroupsIsListed],
+    ["已有分组表被拒收时流水线直跑也进列表", caseRejectedPipelineRunIsListed],
     ["同一页只列一条", caseDedupeByProjectAndTarget]
   ];
   for (const [name, run] of cases) {

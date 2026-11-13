@@ -25,9 +25,6 @@ const OCCUPIED_STATES = ["queued", "preparing", "running", "waiting", "merging"]
 /* 产物已写完、清单可以看的状态：合并中算（产物写完了，正在回写主工程）。 */
 const PRODUCT_STATES = ["ready", "merging", "merged", "conflict"]
 
-/* 停下来的三种：失败、等语义输入、被停掉。只有它们身上还有「断点」可续。 */
-const RESUMABLE_STATES = ["failed", "waiting", "stopped"]
-
 /*
  * 停下来等人/等合并的任务：侧边栏区域行的「待处理」与看板的状态筛选都用这一份，
  * 不许各写一套 —— 两处口径不一致时，人会照着数字去找，然后找不到。
@@ -53,7 +50,7 @@ export function occupiesSlot(state: string): boolean {
 
 /*
  * 在跑：占着这一位、又不是停在语义停点上（「等待」那一档正是等人补输入的时候）。
- * 「写回并续跑」（待确认页与布局确认面板的「确认并继续」）只在不在跑的时候给 ——
+ * 待确认页的「确认并继续」只在不在跑的时候给 ——
  * 跑着的时候再来一次会起第二次运行。
  */
 export function isInFlight(state: string): boolean {
@@ -61,8 +58,7 @@ export function isInFlight(state: string): boolean {
 }
 
 /*
- * 「运行中不给续跑」这句说法的唯一一处：布局确认与待确认面板的「写入并续跑」都挂它。
- * 判据是上面的 isInFlight；说法只写一处，两个入口不会一个拦一个不拦、也不会各说各的。
+ * 「运行中不给续跑」这句说法的唯一一处：待确认面板的「写入并续跑」挂它。
  */
 export function inFlightNote(action: string): string {
   return "流水线正在跑：等它停下来再点「" + action + "」。"
@@ -90,39 +86,20 @@ export function canStop(state: string): boolean {
 }
 
 /*
- * 能不能「从断点继续」：只在这三种停法上有意义 —— 失败、等语义输入、被停掉。
- * 跑完的没有断点，排队中的还没跑过（那是「开始」）。
- * 工作目录是续跑要用的：插件登记表与产物都在那儿，没有它续起来只是空跑。
- *
- * 失败还要看「有没有断点」，那一份由后端按插件登记表算（task.resumeStep，见 lib/board.js 的 resumeOf）：
- * 空串＝一步都没跑过 —— 那种失败是输入 / 环境的问题（插件根本没开始跑），再点「继续」只会拿同一份输入
- * 把同一句错再报一遍，所以要先把输入改对。失败原话里带步骤名也说明不了什么（子进程起不来那种也会带）。
- *
- * 被停掉与等输入这两支没有这层意思：它们本来就停在某一步等人，空登记表只说明「还没跑过」，
- * 再点一次就是从起点跑一遍（那是重跑，不是死循环），所以照旧给入口。
- */
-export function canResume(task: { state: string; workDir: string; resumeStep?: string | null }): boolean {
-  if (!RESUMABLE_STATES.includes(task.state) || !task.workDir.trim()) return false
-  if (task.state !== "failed") return true
-  return Boolean(task.resumeStep)
-}
-
-/*
- * 待补全面板自己处理的那两节的条数：各自的 waiting 由后端 lib/pending.js 算一次
+ * 待补全面板三节的条数：各自的 waiting 由后端 lib/pending.js 算一次
  *（图标那节还含命名表写歪的旧下标与重名组），这里只取数、不再按 needsXxx 重算一遍。
- * 布局那一节不在这里：它归布局确认面板（后端的 layoutSection），界面不把三节混成一个数。
  */
-export function waitingCounts(pending: Pending | null): { icons: number; translations: number } {
+export function waitingCounts(pending: Pending | null): { icons: number; translations: number; layout: number } {
   return {
     icons: pending?.icons.waiting ?? 0,
-    translations: pending?.translations.waiting ?? 0
+    translations: pending?.translations.waiting ?? 0,
+    layout: pending?.layout.waiting ?? 0
   }
 }
 
 /*
- * 待补全面板自己处理的那两节（图标 + 译文）的条数：布局那一节归布局确认面板，
- * 「这一页有没有图标/文案要补」只看这一个数 —— 面板的提交门禁与看板那张待确认卡都读它。
+ * 待补全面板三节的条数：面板的提交门禁与看板那张待确认卡都读它。
  */
-export function pendingInputCount(counts: { icons: number; translations: number }): number {
-  return counts.icons + counts.translations
+export function pendingInputCount(counts: { icons: number; translations: number; layout: number }): number {
+  return counts.icons + counts.translations + counts.layout
 }

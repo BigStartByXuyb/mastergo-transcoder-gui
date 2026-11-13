@@ -11,7 +11,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { createRunManager, routesOfMode, MODE_LABEL } = require("../lib/run.js");
+const { createRunManager, routesOfMode, modeTakesRoute, modePolicies, MODE_LABEL } = require("../lib/run.js");
 const { UserError } = require("../lib/errors.js");
 // token 的环境变量名只有一处（lib/mcp-token.js）：用例照它设与读。
 const { TOKEN_ENV_KEY } = require("../lib/mcp-token.js");
@@ -70,7 +70,7 @@ function fakeChild() {
 }
 
 /*
- * 「一个 mode 跑哪几条路线」只有这一处判据：界面按路线显示输入入口（作业A 的设计稿位图）读的也是它，
+ * 「一个 mode 跑哪几条路线」只有这一处判据：界面按路线显示输入入口（作业A 的页面 PNG）读的也是它，
  * 所以 AB 一定要含 A —— 漏了就会出现「A 段照样跑、界面却不给它的输入入口」。
  */
 function caseRoutesOfMode() {
@@ -81,6 +81,15 @@ function caseRoutesOfMode() {
   assert.throws(() => routesOfMode("C"), /路线只能是 A \/ B \/ AB/);
   assert.strictEqual(MODE_LABEL["mw-wpf"], "A", "路线名与界面标签的对应也只有这一处");
   assert.strictEqual(MODE_LABEL["mtslg-iocontrol"], "B");
+  assert.strictEqual(modeTakesRoute("A", "A"), true);
+  assert.strictEqual(modeTakesRoute("AB", "A"), true);
+  assert.strictEqual(modeTakesRoute("B", "A"), false);
+  assert.throws(() => modeTakesRoute("A", "C"), /路线只能是 A \/ B/);
+  assert.deepStrictEqual(modePolicies(), [
+    { mode: "A", routes: ["A"], takesPageImage: true, runsPipelineAOnly: true },
+    { mode: "B", routes: ["B"], takesPageImage: false, runsPipelineAOnly: false },
+    { mode: "AB", routes: ["A", "B"], takesPageImage: true, runsPipelineAOnly: false }
+  ], "界面能力表由同一个 routesOfMode 展开");
 }
 
 function manager(options = {}) {
@@ -227,6 +236,16 @@ async function caseLineProtocol() {
   assert.match(run.failure.message, /覆盖校验未通过/);
   assert.match(run.failure.resume, /-Progress capture/);
   assert.strictEqual(status.state, "failed");
+  assert.strictEqual(
+    fx.manager.list().find((item) => item.id === job.id).failedMessage,
+    run.failure.message,
+    "轻量运行列表也要带失败原话，待确认侧才能区分分组表校验错误与其他布局失败"
+  );
+  assert.strictEqual(
+    fx.manager.summary(job.id).failedMessage,
+    run.failure.message,
+    "按显式 runId 直查的摘要与列表共用同一失败字段"
+  );
 
   const slice = fx.manager.log(job.id, 0);
   assert.match(slice.text, /路线 B（mtslg-iocontrol）/);
@@ -448,8 +467,16 @@ async function caseListCurrentAndLookup() {
   const list = fx.manager.list();
   assert.strictEqual(list.filter((item) => item.projectRoot === "D:/a").length, 1, "同工程+同 Target 只留最近一次");
   assert.strictEqual(list.find((item) => item.projectRoot === "D:/a").id, aAgain.id);
+  assert.strictEqual(
+    Object.prototype.hasOwnProperty.call(list.find((item) => item.projectRoot === "D:/a"), "imageStop"),
+    false,
+    "运行摘要不冒充看板任务的等图停点"
+  );
   assert.ok(fx.manager.status(a.id), "旧 job 仍然可按 id 取到状态");
   assert.strictEqual(fx.manager.status(a.id).state, "done");
+  assert.strictEqual(fx.manager.summary(a.id).id, a.id, "按 id 直查不能被列表的去重换成较新的运行");
+  assert.strictEqual(fx.manager.summary(a.id).projectRoot, "D:/a");
+  assert.strictEqual(fx.manager.summary("nope"), null);
   assert.strictEqual(fx.manager.status("nope"), null);
   assert.strictEqual(fx.manager.latestFor("D:/a").id, aAgain.id, "按工程目录反查最近一次");
   assert.strictEqual(fx.manager.latestFor("D:/missing"), null);

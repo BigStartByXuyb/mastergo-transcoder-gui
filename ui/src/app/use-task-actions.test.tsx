@@ -7,7 +7,7 @@ import { drive } from "@/lib/settings-fixtures"
 
 /*
  * 任务上的动作：调后端 → 把后端回的最新看板/运行换到界面 → 失败原话交出去。
- * 六个动作的口径只在这里，页面只接按钮。
+ * 五个动作的口径只在这里，页面只接按钮。
  */
 
 // 夹具路径按段拼（settings-fixtures 的 drive）：源码里不出现机器专属的盘符写法。
@@ -54,29 +54,6 @@ afterEach(() => {
 })
 
 describe("useTaskActions", () => {
-  it("开始：建任务 + 启动，两次都把最新看板换上去，并回建出来的任务 id", async () => {
-    const fx = harness((url) => (url.includes("/api/board/add") ? ok({ ok: true, board: { tasks: [] }, created: ["t9"] }) : ok({ ok: true, board: { tasks: [{ id: "t9" }] } })))
-
-    let created = ""
-    await act(async () => {
-      const added = await fx.result.current.start({
-        projectRoot: drive("D", "p"),
-        ui: "F4",
-        autoMerge: true,
-        stopAfter: "",
-        overwrite: false,
-        items: [{ link: "https://mastergo.com/goto/x?file=1&layer_id=2", target: "T", mode: "A" }]
-      })
-      created = added?.created[0] ?? ""
-    })
-    await act(async () => {
-      await fx.result.current.startJob(created)
-    })
-
-    expect(created).toBe("t9")
-    expect(fx.boards.length).toBe(2)
-  })
-
   it("续跑：换掉界面上的运行与日志起点，并把后端给的说法提示出来", async () => {
     const fx = harness(() => ok({ ok: true, mode: "A", resumedFrom: "layout", job: { id: "job-2" } }))
 

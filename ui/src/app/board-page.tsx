@@ -4,7 +4,7 @@
  * 这一页的主体是任务表；工程、模式、链接只在要加任务时填，收进「创建任务」弹窗。
  * 上面一排筛选（工作区 / 区域 / 状态），列表按页给，一页十条，页面本身不往下拖。
  */
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { GitMerge, Loader2, Play, Plus } from "lucide-react"
 import { toast } from "sonner"
 
@@ -22,16 +22,18 @@ import { useValueRunner } from "@/app/use-action-runner"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentityFill } from "@/app/use-identity-fill"
 import { useOnlyEffective } from "@/app/use-only-effective"
+import { createTasksForMode, taskEntryFailure, taskInputFailure } from "@/app/task-creation-entry"
 import { useRemembered } from "@/app/use-remembered"
-import { api, type Board } from "@/lib/api"
+import { api, type Board, type BoardModePolicy } from "@/lib/api"
 import { fillTargets, keepPickedImages, parseBoardItems, withPickedImage } from "@/lib/board-items"
 import { filterTasks, hasFilters, readBoardFilters, writeBoardFilters } from "@/lib/board-filters"
 import { coverageOf, visibleByCoverage, type Coverage } from "@/lib/board-effective"
 import { readBoardForm, writeBoardForm, type BoardTaskForm } from "@/lib/board-form"
 import { describeFailure } from "@/lib/describe-failure"
 import { pageSlice } from "@/lib/paging"
-import { picksForCreated, stagePickedImages } from "@/app/stage-design-images"
+import { canStartAll } from "@/lib/task-start"
 import { FINISHED_STATES } from "@/lib/task-state"
+import { modePolicyOf, requestDefaultsOf } from "@/lib/task-form"
 import { useSettings } from "@/lib/use-settings"
 
 // 一页十条：一屏放得下，多出来的翻页。
@@ -43,7 +45,8 @@ export function BoardPage() {
   const [form, setForm] = useRemembered(readBoardForm, writeBoardForm)
   const [busy, setBusy] = useState("")
   const [adding, setAdding] = useState(false)
-  /** 创建任务时先选好的设计稿位图：一行（一个页面）一份，按链接记；文件不进 localStorage。 */
+  const addInFlight = useRef(false)
+  /** 创建任务时先选好的页面 PNG：一行（一个页面）一份，按链接记；文件不进 localStorage。 */
   const [images, setImages] = useState<Record<string, File>>({})
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useRemembered(readBoardFilters, writeBoardFilters)
@@ -51,6 +54,9 @@ export function BoardPage() {
   const { onlyEffective, setOnlyEffective } = useOnlyEffective()
   const [identityFailure, setIdentityFailure] = useState("")
   const { settings } = useSettings()
+  const currentMode = modePolicyOf(board?.modes, form.mode)
+  const takesPageImage = currentMode?.takesPageImage === true
+  const runsPipelineAOnly = currentMode?.runsPipelineAOnly === true
 
   // 补完 Target 就写回链接行：任务创建与运行读的都是这一份文本。
   const identity = useIdentityFill({
@@ -103,46 +109,69 @@ export function BoardPage() {
     [run, applyBoard]
   )
 
-  function addTasks() {
+  async function addTasks() {
+    const projectRoot = form.projectRoot.trim()
     const items = parseBoardItems(form.links, form.mode)
-    if (!form.projectRoot.trim()) {
-      toast.error("先填工程目录")
+    const failure = taskEntryFailure({
+      projectRoot,
+      links: items.map((item) => item.link),
+      modes: board?.modes,
+      policy: currentMode
+    })
+    if (failure) {
+      toast.error(failure)
       return
     }
-    if (items.length === 0) {
-      toast.error("一行一个 MasterGo 链接，至少一行")
-      return
-    }
-    void run(
-      "add",
-      async () => {
-        const added = await api.boardAdd({
-          projectRoot: form.projectRoot.trim(),
-          ui: form.ui.trim(),
-          autoMerge: form.autoMerge,
-          overwrite: form.overwrite,
-          stopAfter: form.stopAfter.trim(),
-          items
-        })
-        // 建完任务才暂存（暂存件按任务 id 落键）：门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts。
-        await stagePickedImages(form.mode, picksForCreated(added.board, added.created, images))
-        return added
-      },
-      applyBoard
-    ).then((added) => {
+    // taskEntryFailure 已在同样条件上返回；这里只把通过校验的事实收窄给 TypeScript。
+    const policy = currentMode as BoardModePolicy
+
+    if (addInFlight.current) return
+    addInFlight.current = true
+    try {
+      const added = await run(
+        "add",
+        async () => {
+          const created = await createTasksForMode({
+            items,
+            projectRoot,
+            policy,
+            automation: settings?.automation ?? "assist",
+            images,
+            add: api.boardAdd,
+            otherRequest: async (requestItems) => ({
+              ok: true,
+              body: {
+                projectRoot,
+                ...requestDefaultsOf(form),
+                deferStart: true,
+                items: requestItems
+              }
+            })
+          })
+          if (!created.ok) {
+            if (created.board) setBoard(created.board)
+            throw new Error(created.failure)
+          }
+          return created
+        },
+        applyBoard
+      )
       if (added) setImages({})
       setAdding(false)
-    })
+    }
+    finally {
+      addInFlight.current = false
+    }
   }
 
   function fillIdentity() {
     const items = parseBoardItems(form.links, form.mode)
-    if (!form.projectRoot.trim()) {
-      toast.error("先填工程目录")
-      return
-    }
-    if (items.length === 0) {
-      toast.error("一行一个 MasterGo 链接，至少一行")
+    const failure = taskInputFailure({
+      projectRoot: form.projectRoot,
+      links: items.map((item) => item.link)
+    })
+    if (failure) {
+      toast.error(failure)
       return
     }
     void identity.run(items, form.projectRoot, form.ui)
@@ -166,7 +195,7 @@ export function BoardPage() {
     <div className="flex h-full min-h-0 flex-col gap-4">
       {problem && (
         <Alert variant="destructive">
-          <AlertTitle>看板没读到最新状态</AlertTitle>
+          <AlertTitle>操作失败</AlertTitle>
           <AlertDescription>
             <ClampText text={problem} />
           </AlertDescription>
@@ -187,7 +216,7 @@ export function BoardPage() {
           />
           <Button
             variant="outline"
-            disabled={busy !== "" || !tasks.some((task) => task.state === "queued")}
+            disabled={busy !== "" || !canStartAll(tasks)}
             onClick={() => void run("start-all", () => api.boardStart(), applyBoard)}
           >
             {busy === "start-all" ? <Loader2 className="animate-spin" /> : <Play />}
@@ -236,7 +265,10 @@ export function BoardPage() {
       <BoardNewTaskDialog
         open={adding}
         form={form}
+        modes={board?.modes?.map((item) => item.mode) ?? []}
         images={images}
+        takesPageImage={takesPageImage}
+        runsPipelineAOnly={runsPipelineAOnly}
         busy={busy === "add"}
         automation={settings?.automation ?? "assist"}
         identity={identity}

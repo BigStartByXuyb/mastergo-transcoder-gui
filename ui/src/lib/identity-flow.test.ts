@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { applyIdentity, candidatesForLink, identityConflict } from "@/lib/identity-flow"
+import {
+  applyIdentities,
+  applyIdentity,
+  candidatesForLink,
+  explicitTargetConflictReason,
+  identityConflict,
+  resolveExplicitTarget
+} from "@/lib/identity-flow"
 
 /*
  * 走真的 api 层（只把 fetch 换掉）：要验的就是「拼了哪些字段出去、模型那几条排哪」，
@@ -40,6 +47,7 @@ describe("candidatesForLink", () => {
     expect(sentBody(mock)).toEqual({
       projectRoot: "/project",
       pageName: "Stop Adjust",
+      autoAdopt: false,
       useAi: true,
       ui: "F1",
       link: "https://mastergo.com/goto/x?file=1&layer_id=2:3"
@@ -93,13 +101,62 @@ describe("applyIdentity", () => {
   })
 })
 
+describe("applyIdentities", () => {
+  it("同一批次只发一次请求，所有条目一次交给后端", async () => {
+    const mock = stub(() => ok({ ok: true, replaced: [false, true] }))
+    const written = await applyIdentities([
+      {
+        link: "l1",
+        projectRoot: " p ",
+        pageName: "PageOne",
+        item: { target: "F1One", ui: "F1", semanticName: "", basis: "", needsSemanticName: false }
+      },
+      {
+        link: "l2",
+        projectRoot: "p",
+        pageName: "",
+        item: { target: "F2Two", ui: "F2", semanticName: "", basis: "", needsSemanticName: false, designPageName: "第二页" }
+      }
+    ])
+    expect(written.replaced).toEqual([false, true])
+    expect(String((mock.mock.calls[0] as unknown as [string])[0])).toContain("/api/identity/apply-batch")
+    expect(sentBody(mock)).toEqual({
+      projectRoot: "p",
+      entries: [
+        { target: "F1One", ui: "F1", link: "l1", designPageName: "PageOne" },
+        { target: "F2Two", ui: "F2", link: "l2", designPageName: "第二页" }
+      ]
+    })
+  })
+
+  it("不同工程不能混进同一批次", async () => {
+    const mock = stub(() => ok({ ok: true, replaced: [] }))
+    await expect(applyIdentities([
+      {
+        link: "l1",
+        projectRoot: "p1",
+        pageName: "PageOne",
+        item: { target: "F1One", ui: "F1", semanticName: "", basis: "", needsSemanticName: false }
+      },
+      {
+        link: "l2",
+        projectRoot: "p2",
+        pageName: "PageTwo",
+        item: { target: "F2Two", ui: "F2", semanticName: "", basis: "", needsSemanticName: false }
+      }
+    ])).rejects.toThrow("工程目录必须一致")
+    expect(mock).not.toHaveBeenCalled()
+  })
+})
+
 describe("identityConflict", () => {
   const registered = {
     target: "F4FocusMaintain",
     ui: "F4",
     semanticName: "FocusMaintain",
     basis: "登记表",
-    needsSemanticName: false
+    needsSemanticName: false,
+    registered: true
   }
 
   it("填的 Target 就是链接指向的那一页：不拦", () => {
@@ -114,5 +171,75 @@ describe("identityConflict", () => {
   it("没填 Target、或后端给不出候选：无从对账，不拦", () => {
     expect(identityConflict({ target: "", candidates: [registered] })).toBeNull()
     expect(identityConflict({ target: "Any", candidates: [] })).toBeNull()
+  })
+
+  it("未登记的机械或模型候选不能替另一页放行", () => {
+    const mechanical = { ...registered, target: "F3HandWritten", ui: "F3", basis: "机械转换", registered: false }
+    expect(identityConflict({ target: "F3HandWritten", candidates: [registered, mechanical] })).toBe(registered)
+  })
+})
+
+describe("resolveExplicitTarget", () => {
+  const registered = {
+    target: "F4FocusMaintain",
+    ui: "F4",
+    semanticName: "FocusMaintain",
+    basis: "登记表",
+    needsSemanticName: false,
+    registered: true
+  }
+
+  it("冲突原话由这一处给，两个开始入口共用", () => {
+    expect(explicitTargetConflictReason(registered, "saddas")).toContain("两者不是同一页")
+    expect(explicitTargetConflictReason(registered, "saddas")).toContain("F4FocusMaintain")
+  })
+
+  it("命中登记页时直接采用，不再读取后端拆分", async () => {
+    const loadTargetParts = vi.fn()
+    await expect(resolveExplicitTarget({
+      target: "F4FocusMaintain",
+      candidates: [registered],
+      loadTargetParts,
+      basis: "手工填写的 Target"
+    })).resolves.toEqual({ kind: "picked", candidate: registered })
+    expect(loadTargetParts).not.toHaveBeenCalled()
+  })
+
+  it("没有登记候选时，按后端拆分与同一完整性判据决定", async () => {
+    await expect(resolveExplicitTarget({
+      target: "F3HandWritten",
+      candidates: [],
+      loadTargetParts: async () => ({ previewUi: "F3", semanticName: "HandWritten", complete: true }),
+      basis: "看板行手写的 Target"
+    })).resolves.toEqual({
+      kind: "picked",
+      candidate: {
+        target: "F3HandWritten",
+        ui: "F3",
+        semanticName: "HandWritten",
+        basis: "看板行手写的 Target",
+        needsSemanticName: false
+      }
+    })
+  })
+
+  it("空 Target 保持 none，冲突时不读取拆分", async () => {
+    const loadTargetParts = vi.fn()
+    await expect(resolveExplicitTarget({
+      target: " ",
+      candidates: [],
+      loadTargetParts,
+      basis: ""
+    })).resolves.toEqual({ kind: "none" })
+    await expect(resolveExplicitTarget({
+      target: "saddas",
+      candidates: [registered],
+      loadTargetParts,
+      basis: ""
+    })).resolves.toEqual({
+      kind: "rejected",
+      reason: explicitTargetConflictReason(registered, "saddas")
+    })
+    expect(loadTargetParts).not.toHaveBeenCalled()
   })
 })

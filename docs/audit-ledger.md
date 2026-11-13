@@ -311,4 +311,109 @@
 | 2026-10-13 第 87 遍 | REVIEW-002 | 面板用 `!canSuggest && !imageStamp` 反推「为什么不能问模型」，与后端判据成了两份（清单不在又没图时还多挂一句误导的「传一张图」） | 已收 | 后端把 `canSuggest` 换成整条读数 `suggest: { ready, code, reason, hint }`（就是 `suggestBlocker` 的原话）；面板只显示那句话，不再由布尔反推；写回那条路仍读 `candidates` |
 | 2026-10-13 第 87 遍 | 非阻断 | `api.ts` 与 `pending.js` 对 `canSuggest` 的注释漏了「没有位图时不问」 | 已收 | 两处随 `suggest` 改名一并写全三条前提（清单在 / 条目够 / 有位图） |
 | 2026-10-13 第 88 遍 | BLOCK-001 | `lib/pending.js` 的 `designImage` require 已无任何引用（死代码；`orphan-exports` 只管导出，后端注释又不在 lint 范围） | 已收 | 删掉那一行 require；「有没有位图」继续只从 `inspect` 取；另把改名后残留的几处旧说法（`layout-groups.js` 两处、`autofill.js` 一处注释）一并改齐 |
+| 2026-11-10 GitHub 第 1 遍 | REVIEW-001 | 自动层级下手填待确认条目仍会发起没有来源运行的续跑 | 已收 | 自动路径与按钮共用 `hasSource`；手填条目只写文件，`pending-panel.test.tsx` 补回归 |
+| 2026-11-10 GitHub 第 1 遍 | REVIEW-002 | A 路线身份写回失败只撤销任务，已写入的登记表条目留在工程里 | 已收 | 身份写回收成 `/api/identity/apply-batch` 一次校验、一次写盘；`identity.test.js` 与前端流程用例补回归 |
+| 2026-11-10 GitLab 第 1 遍 | BLOCK-001 | 重启后停在页面 PNG 停点的任务不会再次结算 | 已收 | 重启后恢复自动补输入并确保轮询继续；缺分组表时运行仍在与运行已丢失都走 `restartLayoutIfNeeded`，看板流程用例补重启后收尾回归 |
+| 2026-11-10 GitLab 第 1 遍 | REVIEW-002 | 待确认面板的自动路径绕过来源门禁 | 已收 | 与 GitHub 第 1 遍 REVIEW-001 同族，自动路径改传 `hasSource` |
+| 2026-11-10 GitLab 第 1 遍 | REVIEW-003 | 前端仍硬编码 A/B/AB 清单，与后端能力表约定不一致 | 已收 | 下拉、文案与图片入口统一消费后端 `modes` 能力；A 启动请求沿用命中的 mode |
+| 2026-11-10 最新报告 | 非阻断 | 延后启动重启文案把所有路线都写成页面 PNG 暂存窗口，B 的表述不成立 | 已收 | 文案改成路线无关的「任务创建与显式启动之间」，后端流程用例同步 |
+| 2026-11-10 GitHub 第 2 遍 | REVIEW-001 | 批次身份写回的工程目录在请求顶层和每个条目各存一份，条目内字段被静默丢弃 | 已收 | 批次接口只在顶层接收 `projectRoot`，条目类型去掉该字段；前端先校验整批工程目录一致，后端空批先报「缺少要写回的页面身份」 |
+| 2026-11-10 GitHub 第 2 遍 | 非阻断 | 等图停点有一条仍写「流水线 A」，与「含 A 的路线」不一致 | 已收 | 统一改为「含 A 的路线还不能核对页面 PNG」 |
+| 2026-11-10 GitHub 第 3 遍 | FIND-001 | 只有延后启动的排队任务时，「启动全部」仍可点击但没有效果 | 已收 | 看板快照交出 `deferStart`，`canStartAll` 只统计 `queued && !deferStart`；`task-start.test.ts` 补两条门禁用例 |
+| 2026-11-10 GitHub 第 3 遍 | FIND-002 | 看板页与流水线页各自维护创建编排与失败出口 | 已收 | 两个页面共用 `createTasksForMode`，页面只保留表单状态、错误呈现、导航与提示 |
+| 2026-11-10 GitHub 第 3 遍 | FIND-003 | 两个创建入口重复维护工程、链接与路线校验 | 已收 | 统一走 `taskEntryFailure`；提示文案只有这一份，页面只决定 toast 或内联显示 |
+| 2026-11-10 GitHub 第 3 遍 | FIND-004 | 页面 PNG 的硬前置校验排在身份准备之后 | 已收 | 第 7 遍再收口到 `createTasksForMode`：A 在身份准备前、AB 在请求准备前按同一条 `pageImageFailure` 拒绝；回归断言缺图时不发请求、不建任务 |
+| 2026-11-10 GitHub 第 3 遍 | FIND-005 | 看板流程测试直接替换 `workdir.readManifest` 导出 | 已收 | `createBoard` 支持注入 `merge`；测试用注入的挂起实现控制合并，并在 `finally` 中先判断释放函数存在 |
+| 2026-11-10 GitHub 第 3 遍 | 非阻断 | `lib/layout-groups.js` 文件头把 AI 候选清理写成直接调用 `uniqueMembers` | 已收 | 注释改为实际消费者 `cleanGroups`；`uniqueMembers` 仍是两个清理/校验路径共用的内部实现 |
+| 2026-11-10 GitHub 第 3 遍 | 非阻断 | `commitPipelineAIdentities` 把同形状 identity 再逐字段映射一次 | 已收 | 直接把 `PreparedPipelineIdentity[]` 交给 `applyIdentities`，删除无语义的映射 |
+| 2026-11-10 GitHub 第 4 遍 | REVIEW-001 | 流水线页的页面 PNG 键会用未去空白的链接，选过图后可能被判缺图 | 已收 | `pickedForLink` / `withPickedImage` / `keepPickedImages` 统一走 `imageKey(link.trim())`；`board-items.test.ts` 补首尾空白回归 |
+| 2026-11-10 GitHub 第 4 遍 | 非阻断 | 路线能力来自后端能力表，但路线下拉仍有自己的本地列表 | 已收 | 新建卡片与看板弹窗把后端 `modes` 传给 `ModeField`；本地 `TASK_MODE_OPTIONS` 只在能力表尚未读到时兜底 |
+| 2026-11-10 GitHub 第 4 遍 | 非阻断 | 任务进入运行、失败、停止或待合并后，页面 PNG 停点缓存不主动清理 | 已收 | 离开页面 PNG 停点或任务停止时清理 `imageStopCache`；待合并、失败、停止、重新运行四条路径同步 |
+| 2026-11-10 GitHub 第 4 遍 | 非阻断 | 新建任务相关注释仍把页面 PNG 叫「设计稿位图」 | 已收 | `pipeline-page.tsx`、`new-task-card.tsx` 与对应用例统一改为「页面 PNG」 |
+| 2026-11-10 GitHub 第 5 遍 | REVIEW-001 | A 路线的两个新建表单仍渲染只有标题的「可选参数」空组 | 已收 | 两个入口都把整组放进 `!pipelineA` 条件；A 只留必填组，B / AB 保留可选组，前端用例分别锁定 |
+| 2026-11-10 GitHub 第 5 遍 | 非阻断 | 两个新建入口的路线标题不一致，源码注释仍混用「设计稿位图」 | 已收 | 路线标题统一为「路线」；`lib/`、`ui/src/` 与对应用例中的旧称统一改为「页面 PNG」 |
+| 2026-11-10 GitHub 第 6 遍 | REVIEW-001 | `startsWithPipelineA` 实际表示「只跑 A」，名字会让后续维护者误把 AB 也纳入自动身份分支 | 已收 | 字段与全部消费者同批改名为 `runsPipelineAOnly`；A / B / AB 能力表与前端用例同步 |
+| 2026-11-10 GitHub 第 6 遍 | 非阻断 | 页面 PNG 读接口注释仍提到已删除的分组表；两个入口在共同校验后保留 TypeScript 收窄死分支 | 已收 | 注释改为「图在不在、尺寸对不对、现在能不能传」；共同校验后使用显式 `BoardModePolicy` 收窄 |
+| 2026-11-10 GitHub 第 7 遍 | REVIEW-001 | 页面 PNG 的「必需且已选」预检在创建入口、A 编排与创建编排重复三次 | 已收 | `createTasksForMode` 只调用一次 `pageImageFailure`；`startPipelineA` 与 `createTasksWithPageImages` 不再重判，A 仍在身份准备前、AB 仍在请求准备前拒绝；对应用例同步 |
+| 2026-11-10 GitHub 第 8 遍 | BLOCK-001 | 重启后停在页面 PNG 停点的 `waiting` 任务补上合格图后不会重新结算 | 已收 | 任务显式记录 `imageStop`；tick/snapshot 按图片输入签名重跑 `reconcileTask`，合格后走 `settleDone`，缺分组表则重推布局；旧记录按失败步骤与布局输入步骤兼容认领 |
+| 2026-11-10 GitHub 第 8 遍 | REVIEW-002 | 空链接时选的页面 PNG 在链接换成另一页后仍被当作新页的图 | 已收 | `keepPickedImages` 只在链接完整解析出 `file` / `layer_id` 时认领待选图；`pickedForLink` 对非空链接不再回落到空串键；补空链接→A→B 回归 |
+| 2026-11-12 GitLab 最终遍 | REVIEW-001 | 快照轮询会把普通语义停点重新排队自动补输入 | 已收 | `reconcileTask` 对非等图 `waiting` 直接返回；看板流程用例在两次 tick 之间连续调用 `snapshot()`，锁定自动补输入只发生一次 |
+| 2026-11-12 GitLab 最终遍 | REVIEW-002 | `createTasksWithPageImages` 的 `links` 入参已无人读取 | 已收 | 入参、两个生产调用点与前端用例全部删除该参数；缺图门禁仍只由 `pageImageFailure` 一处负责 |
+| 2026-11-12 GitHub 最终遍 | REVIEW-001 | 页面 PNG 停点仍显示「重跑一遍」，但流水线各步已经完成，该入口必然报 `ALL_DONE` | 已收 | 续跑资格由后端 `resumeAllowedOf` 一次算出并随快照给 `task.resumable`；前端按钮与失败说明只读它，页面 PNG 停点只保留补图操作 |
+| 2026-11-12 GitLab 第二轮 | REVIEW-001 | `waiting` / `stopped` 在登记表已跑满时仍可能给续跑，点击必然报 `ALL_DONE` | 已收 | `resumeAllowedOf` 先排除 `plan.finished`；快照对表让过期的 `waiting` / `stopped` 走同一个 `settleDone` 收尾，并补完整登记表用例 |
+| 2026-11-12 GitLab 第二轮 | REVIEW-002 | 前端用正则自判链接是否完整，与后端 `parseLink` 形成两套口径 | 已收 | 删除前端链接拆分：待认领图保持原键，单页面表单在显示与提交时直接读取，多页面批次要求每行各自选图 |
+| 2026-11-12 GitLab 第二轮 | REVIEW-003 | `-StopAfter` 让运行以 done 收尾、但登记表没跑满时被误判成页面 PNG 停点，且失去唯一续跑入口 | 已收 | `settleDone` 先核对登记表完整性；没跑满就落为可续跑的 `stopped`，只有跑满才进入页面 PNG 门禁、布局重推与待合并 |
+| 2026-11-12 升级边界复核 | REVIEW-004 | 旧版本已误写成页面 PNG 停点的提前结束任务，重启对表会先被旧等图标记挡住 | 已收 | `reconcileTask` 先按登记表判断进度；登记表未跑满时清掉旧等图状态并回到 `stopped`，只在登记表为空或已跑满时核对页面 PNG |
+| 2026-11-12 GitHub 最终遍 | REVIEW-005 | A-only 新建隐藏 `overwrite` / `stopAfter` 等固定值，用户可见提示与实际请求来源不一致 | 已收 | 保留 A 的全自动固定设置，两个新建入口都明确显示「自动合并、同名产物覆盖、不在中途停止」；B / AB 继续使用各自表单值 |
+| 2026-11-12 GitHub 最终后审 | REVIEW-006 | 路线能力缺失时用 `board` 是否存在区分「未加载」和「路线不可用」 | 已收 | `taskEntryFailure` 直接读取 `board.modes`：未定义才是未加载，已返回但没有当前路线才是不可用 |
+| 2026-11-12 GitHub 最终后审 | REVIEW-007 | 通用请求默认值放在 A 专属准备模块，看板入口依赖 A 模块 | 已收 | `requestDefaultsOf` 与默认值类型移到 `ui/src/lib/task-form.ts`；A 准备模块只消费共享实现 |
+| 2026-11-12 GitLab 最终遍 | REVIEW-003 | A 启动写死 `takesPageImage=true`，绕过后端路线能力表 | 已收 | `createTasksForMode` 把 `policy.takesPageImage` 继续传入 `startPipelineA`；定向用例覆盖能力为假时不暂存图片 |
+| 2026-11-12 GitLab 最终遍 | 非阻断 | 等图停点的进入与写盘在运行收尾、登记表对表各有一份 | 已收 | 两处共用 `enterPipelineAImageStop`；旧记录识别与停点文案共用 `PAGE_IMAGE_LABEL` |
+| 2026-11-12 GitLab 最终遍 | 非阻断 | 补页面身份复用创建校验，会先报路线能力未读到 | 已收 | 新增 `taskInputFailure`，补身份只校验工程目录与链接；创建入口仍在此基础上校验路线能力 |
+| 2026-11-12 GitHub 合并前复核 | REVIEW-001 | A-only 表单遇到设计页改名时，文案仍要求点候选或填 UI 区域，而这两个控件在 A-only 表单中已经隐藏 | 已收 | `lib/identity.js` 在 `autoAdopt` 改名分支改给可执行路径：先在 B / AB 显式确认候选，或先修改 `docs/page-registry.json` 再重跑 A；候选依据与拦截原话共用同一分支，`identity.test.js` 锁定不再指向隐藏控件 |
+| 2026-11-12 GitHub 合并前复核 | REVIEW-002 | 已有分组表被插件拒绝时，磁盘上「有表」让客户端误判完成，待确认列表和面板都没有重写入口 | 已收 | 布局读数增加 `hasGroups` / `rejected`；服务端按来源任务或运行的 `layoutStep`、失败步骤和状态判定是否真的停在吃分组表那一步，前端不接受该判据的布尔参数。看板与直跑运行都进待确认队列，面板提供空表重写与 `/api/layout-groups/suggest` 重新自动分组；后者复用 `candidatesInput + ai.suggestLayoutGroups + confirm`，不恢复布局编辑、树或画布 |
+| 2026-11-12 GitHub 语义审计 | REVIEW-001 | `reconcileTask` 末尾仍保留永不命中的 `ready -> queueMerge` 条件，让合并排队的真实入口看起来有三处 | 已收 | 删除该不可达分支与未使用的前态变量；按登记表对表的失败/待确认路径只更新停点，“依次从 `settleDone` 与 `syncTask` 进入待合并”保持原行为 |
+| 2026-11-12 GitHub 语义审计 | 非阻断 | 看板页对 `task-form` 分两条导入；流水线页头注释仍把创建编排直接指向 `stage-design-images`；创建后取图保留空链接防御分支 | 已收 | 导入合并为一处，头注释改指 `task-creation-entry`，创建结果沿用同一份看板任务的非空链接并删除不可达空链接分支 |
+| 2026-11-12 GitHub 语义复审 | BLOCK-001 | `/api/pending` 从 `board.byId()` 的轻量引用读取不存在的 `layoutStep` / `failure`，看板主路径的布局恢复面板永不出现 | 已收 | 待确认接口改从 `board.snapshot()` 的完整任务画像取 `state` / `layoutStep` / `failure` / `imageStop`；队列与面板继续读同一套 `pending.inspect` 结论，并补看板快照字段回归 |
+| 2026-11-12 GitHub 语义复审 | REVIEW-001 | 等页面 PNG 的停点同样把失败步骤写成布局步骤，已有分组表时会被误判为「分组表被拒」 | 已收 | 看板公开快照与待确认队列增加独立的 `imageStop` 事实，`isLayoutStepStop` 明确排除等图停点；补 `waiting + layoutStep + hasGroups + imageStop` 不产生重写入口的边界用例 |
+| 2026-11-12 GitHub 最新 artifact | REVIEW-001 | 布局步骤只要停在同一位置并有表就被当成「分组表被拒」，其他布局错误也会给覆盖现有表的动作 | 已收 | `isRejectedExistingGroups` 同时要求停点、表存在与失败原话中的分组表校验证据；其他布局错误把原话带到待确认面板，不显示写表或重新分组按钮 |
+| 2026-11-12 GitHub 最新 artifact | REVIEW-002 | `syncTask` 保留了不可达的 `ready -> queueMerge` 条件，自动合并有两个入口 | 已收 | 删除 `syncTask` 收尾的不可达条件；自动合并只由 `settleDone` 进入 |
+| 2026-11-12 GitHub 最新 artifact | REVIEW-003 | 非 A 请求准备的失败原因可为空，看板与流水线页会把空错误静默吞掉 | 已收 | `OtherRouteRequest` 改为必填失败原因，`createTasksForMode` 统一补非空文案；请求准备不再写入随后会被覆盖的本地失败状态 |
+| 2026-11-12 GitHub artifact 正文复核 | REVIEW-001 | 最终 JSON 汇总为 PASS，但原始语义报告仍有 REVIEW：等页面 PNG 的停点在图存在但不符合时同时生成布局待办，空表续跑会回到同一停点 | 已收 | `layoutSection` 先判该停点是否适用布局，等图停点统一排除 `needsGroups`、已有表拒收与布局失败；`pending-layout.test.js` 锁定有图、无表、`imageStop=true` 时布局 `waiting=0` |
+| 2026-11-12 GitHub artifact 正文复核 | 非阻断 | A-only 改名恢复文案在候选依据与 blocked 说明中各写一份，标点与动作措辞可能漂移 | 已收 | `lib/identity.js` 共用 `autoRenamedRecovery`，两处只引用同一句 |
+| 2026-11-12 GitHub artifact 正文复核 | 非阻断 | 看板状态读取失败和普通操作失败共用同一错误面板，但标题只限定为「看板没读到最新状态」 | 已收 | `board-page.tsx` 的错误标题改为「操作失败」，不再把参数校验或动作错误说成状态读取问题 |
+| 2026-11-12 GitHub artifact 正文复核 | 非阻断 | 待确认面板注释仍写「没有单独调用布局模型的入口」，与已有「重新自动分组」按钮不符 | 已收 | 注释改为缺表等待人工写空表、已有表被拒时才显示重新分组，和实际渲染条件一致 |
+| 2026-11-12 GitHub 43168151041 | REVIEW-001 | 布局因非分组表原因失败且当前无表时，`needsGroups` 仍让缺表恢复抢占真实失败，面板隐藏原话并给空表续跑 | 已收 | 布局分组模块拆出「失败原话是否属于分组表输入问题」的唯一证据；`isMissingGroupsStop` 与 `isRejectedExistingGroups` 共用它。`layoutSection` 仅在未停布局或确有分组表输入证据时保留补表待办；补已有表与无表两条非分组失败回归 |
+| 2026-11-12 GitHub 43168151041 | 非阻断 | 已有表被拒的说明写「两种都会写入分组表并从布局步骤继续」，但无来源运行时按钮与后端只写文件 | 已收 | 布局说明按 `hasSource` 分叉：有来源才说继续，无来源明确「来源运行已不可用，不会继续」；补前端回归 |
+| 2026-11-12 GitHub 43172017972 | REVIEW-001 | 看板行接受「链接后接 Target」写法，A 身份准备却用自动候选覆盖手写 Target，且没有链接身份冲突检查 | 已收 | `prepareOne` 先处理非空手写 Target：用链接已登记候选对账，冲突时停在启动前；无冲突时以后端 `identityPrefix` 校验并取得区域，Target 原样保留。不再调用身份模型 |
+| 2026-11-12 GitHub 43172017972 | REVIEW-002 | A 在辅助层级仍调用身份模型并无确认写回，与 `adoptsIdentityWithoutConfirm` 的统一语义不一致 | 已收 | A 身份准备改收 `automation`：模型补语义名只在「自动」层级执行，辅助 / 关闭只采用机械身份；A 的机械身份继续按项目唯一既有区域自动落实。`task-form.ts` 固化例外，两个新建入口共用 `PIPELINE_A_FIXED_HINT`，设置页同步说明 |
+| 2026-11-12 GitHub 43175130967 | REVIEW-001 | 看板结算保留 `conflict` 不可达分支，触发条件与调用方状态集合不相交 | 已收 | 结算只写 `ready`；自动合并只看 `autoMerge`。合并冲突仍只由合并结束路径写入，人工裁决入口不变 |
+| 2026-11-12 GitHub 43175130967 | REVIEW-002 | A 与 B / AB 的手写 Target 对账拿到不同候选集，未登记候选可能替另一页放行 | 已收 | 已登记过滤收进 `identityConflict` 唯一判据；A 不再重复筛选，B / AB 也读同一条；补未登记机械候选不能放行的回归 |
+| 2026-11-12 GitHub 43177015762 | REVIEW-001 | 布局分组恢复按失败原话是否含「分组」分类，插件换措辞会误判 | 已收 | 插件输出 `LAYOUT_GROUPS_MISSING` / `LAYOUT_GROUPS_REJECTED` 机器码；GUI 只按机器码判恢复，文案只展示 |
+| 2026-11-12 GitHub 43177015762 | REVIEW-002 | 缺分组表时只有空表出口，模型重新分组入口只挂在已有表被拒 | 已收 | 缺表与已拒都显示模型分组；自动层级可把分组与同停点的图标、译文、术语一次写回后续跑 |
+| 2026-11-12 GitHub 43177015762 | REVIEW-003 | 单页待认领图规则在门禁、选图层、暂存三处各算一次 | 已收 | `singlePageAllowsUnclaimedImage` 成为唯一判据；三个消费者共享同一布尔结论，暂存不再重算任务数 |
+| 2026-11-12 GitHub 43177015762 | REVIEW-004 | A 身份准备单函数混用成功对象与失败字符串，分支不可判别 | 已收 | 拆成手写 Target、机械候选、模型候选三个命名步骤；返回值统一为 `picked / none / rejected` 判别联合 |
+| 2026-11-12 GitHub 43177015762 | REVIEW-005 | 独立待确认页手填条目固定空路线，布局停点被误报没有待办 | 已收 | 手填区增加显式 A / B / AB 路线；选中后把真实 mode 传给待确认面板并保留布局节 |
+| 2026-11-12 GitHub 43181365297 | BLOCK-001 | 看板同步与自动补输入没有把失败步骤、失败原话交给布局分类，非分组表原因的布局失败仍可能被当成缺表并自动写表 | 已收 | `layout-groups.inspect` 统一合成文件、可读性、停点与机器码事实；`board`、`autofill`、`pending`、面板读取同一份结论。读清单成功时不再退回步骤契约把布局输入一律当语义停点；补回归锁住其他布局失败保持 `failed`、不调用模型 |
+| 2026-11-12 GitHub 43181365297 | REVIEW-001 | 分组表文件存在但内容损坏时 `hasGroups=false`，拒收机器码因此无法命中，面板两个恢复入口都不出现 | 已收 | 增加独立的 `hasFile` 事实；拒收按文件存在与 `LAYOUT_GROUPS_REJECTED` 判定，损坏表仍进入待确认并可写空表或重新分组；补后端、面板与待确认队列回归 |
+| 2026-11-12 GitLab MR !5 审计正文 | REVIEW-002 | 布局模型恢复接口把「已有表被拒 / 缺表」的前置条件只放在界面，直接调用接口可绕过停点覆盖分组表 | 已收 | `/api/layout-groups/suggest` 先按 taskId / runId 解析来源并调用同一份 `pending.inspect`；`layoutGroups.requireRecovery` 要求有来源时处于等待/失败态，并只放行 `needsGroups` 或 `rejected`，其余返回 `NOT_LAYOUT_RECOVERY` |
+| 2026-11-12 GitLab MR !5 审计正文 | REVIEW-003 | `/api/pending` 与待确认队列各自拼装一遍看板任务到 `pending.inspect` 的字段 | 已收 | `queryOfTask` / `queryOfRun` / `queryOfManual` 成为唯一映射；看板、路由、队列与自动补输入共用，补 `pending-query.test.js` 锁定任务、运行与手填三种来源 |
+| 2026-11-12 GitHub 43187257378 | REVIEW-001 | `stopped` 来源仍算出布局待办，但恢复接口拒绝，面板给出必然失败的按钮；无 taskId 的自动路径还会主动发起该请求 | 已收 | `layout-groups.inspect` 同时给出 `recoverable`；手填无状态、等待和失败才为真，运行中、显式停止及等图停点为假。`needsGroups`、`rejected`、`waiting` 与服务端 `requireRecovery` 共用该结论，补 stopped 回归 |
+| 2026-11-12 GitHub 43187257378 | REVIEW-002 | 分组表文件损坏但布局因其他原因失败时，损坏表说明顶掉失败原话，按钮却因 `waiting=0` 不渲染 | 已收 | 面板的损坏表分支改为同时要求 `layoutWaiting > 0`；无恢复资格时继续显示 `failedMessage`，不会承诺提交 |
+| 2026-11-12 GitHub 43199059070 | REVIEW-001 | 待确认面板切换来源时沿用上一页草稿，连续取数乱序时还可能把旧清单配到新来源 | 已收 | `pendingPanelKey` 将来源、工程、页面、路线、任务与运行纳入重建键；`use-pending-inputs` 增加请求序号，`use-value-runner` 只应用当前请求的返回与失败 |
+| 2026-11-12 GitHub 43199059070 | REVIEW-002 | A 与 B / AB 各写一份显式 Target 对账、fallback 候选和不同冲突说明 | 已收 | `resolveExplicitTarget` 组合唯一冲突判据、后端区域拆分与完整性采用；两个开始入口只传 Target、候选、拆分函数与来源标签 |
+| 2026-11-12 GitHub 43199059070 | 非阻断 | `needsGroups` 重复判断 `imageStop`，而 `recoverable` 已包含该条件 | 已收 | 删除重复比较；布局停点继续只读 `recoverable` 与其余输入事实 |
+| 2026-11-12 GitHub 43199059070 | 非阻断 | 身份写回客户端返回类型漏掉后端实际返回的 `entry` / `entries` | 已收 | `api.ts` 增加 `IdentityRegistryEntry` 并补齐两个接口的返回类型 |
+| 2026-11-13 GitHub 43219655714 | REVIEW-001 | 待确认页给面板加了草稿重建键，流水线详情的第二个挂载点没有同一条约定 | 已收 | `pendingPanelKey` 移到 `ui/src/lib/pending-source.ts`；两个挂载点共用来源、工程、页面、路线、任务与运行组成的键 |
+| 2026-11-13 GitHub 43219655714 | REVIEW-002 | 等图停点用 `null / false / true` 同时编码是否停在等图和是否写盘 | 已收 | `enterPipelineAImageStop` 返回 `{ entered, changed }`；所有调用点按具名字段分派 |
+| 2026-11-13 GitHub 43219655714 | REVIEW-003 | 登记表对表与 `settleDone` 各自判断跑满、空表、失败和等图停点 | 已收 | `registryFactsOf` 统一产出 `{ empty, complete, failed }`；运行 done 与对表共用，`settleDone` 只消费事实，`reconcileTask` 只有一处结算调用 |
+| 2026-11-13 GitHub 43219655714 | 非阻断 | 待确认取数 effect 重复列出已包含在 `reload` 依赖中的任务与运行 id | 已收 | effect 只依赖 `reload` 与状态，来源变化仍由 `reload` 自身依赖触发 |
+| 2026-11-13 GitHub 43345812327 | REVIEW-001 | 重名停点下命名表可编辑，但提交载荷只在缺名字时发送，人工改过的资源名被丢弃 | 已收 | `pending-panel.tsx` 用 `namingEditable` 同时控制表格与 `naming` 载荷；`pruneNaming` 继续单独表示服务端修复 |
+| 2026-11-13 GitHub 43345812327 | REVIEW-002 | 有来源状态但失败步骤为空时，仍按有图无表给出布局恢复 | 已收 | `layout-groups.inspect` 新增 `sourceAllowsRecovery`；手填无状态才直接恢复，等待/失败来源必须命中布局停点与缺表/被拒证据 |
+| 2026-11-13 GitHub 43345812327 | REVIEW-003 | `/api/confirm` 用来源停点做门禁，却用请求体的工程目录/页面写盘 | 已收 | `/api/confirm` 与自动分组统一走 `requireConfirmSourceOf`；`commitFromSource` 仅使用已解析来源的 query 写盘 |
+| 2026-11-13 GitHub 43345812327 | 非阻断 | 缺链接提示“一行一个”被单链接入口复用；运行来源未继承 `imageStop` | 已收 | 提示改为单页/多页都成立的说法；运行来源不读取自身摘要，由同工作目录的看板任务补入 `imageStop` |
+| 2026-11-13 GitHub 43348268739 | REVIEW-001 | 任务、运行与手填查询各有一份 8 字段映射，新增字段容易漂移 | 已收 | `lib/pending.js` 用 `QUERY_FIELDS` 单表描述字段、默认值与覆盖；三个入口只保留来源适配 |
+| 2026-11-13 GitHub 43349533865 | BLOCK-001 | `/api/layout-groups/suggest` 的请求体没有 `groups`，用 body 推断是否过门禁导致实际绕过 | 已收 | 自动分组入口改由 `layoutRecovery.suggestAndCommit` 先过恢复门禁；确认入口仅在本次实际写 `groups` 时调用同一门禁，并补两条 suggest 门禁用例 |
+| 2026-11-13 GitHub 43351319354 | REVIEW-001 | `board.snapshot()` 被只读 GET 与 `busyReason()` 调用，但对表可能启动运行并写盘 | 已收 | `snapshot` 只做投影；任务推进收成 `advanceTask` / `advance`，定时器与重启恢复显式调用；新增快照零启动、零写盘回归 |
+| 2026-11-13 GitHub 43351319354 | REVIEW-002 | 人工布局恢复与自动布局恢复各有一套编排和请求字段 | 已收 | 新增 `lib/layout-recovery.js`：恢复门禁、`candidatesInput`、模型调用与 `commitFromSource` 只有一个入口；路由和 `autofill` 都消费它 |
+| 2026-11-13 GitHub 43351319354 | REVIEW-003 | 页面图身份在预览戳与停点签名中各拼一套文件事实 | 已收 | `fileIdentityOf` 统一产出大小与取整修改时间；`stampOf` 与 `inputSignature` 只做投影 |
+| 2026-11-13 GitHub 43351319354 | REVIEW-004 | `autofill.fill` 直接读取 `query.request.mode`，绕过统一 query 映射 | 已收 | `fill` 只消费 `source.query`；任务来源由 `sourceOfTask` 生成，字段口径继续只在 `pending.js` 的 `QUERY_FIELDS` |
+| 2026-11-13 GitHub 43354406359 | REVIEW-001 | 手填来源的「按空表重写」未携带路线，清单显示可恢复但 `/api/confirm` 被服务端拒绝 | 已收 | `pending-panel` 的共享提交体增加 `mode`，确认与自动分组两条路径使用同一来源身份；`api.confirm` 类型同步；后端与前端回归锁定 `groups: [] + mode: A` |
+| 2026-11-13 GitHub 43354406359 | 非阻断 | changelog 写“不再用请求体是否携带 `groups` 推断入口行为”，与确认入口仍按 `groups` 判断不一致 | 已收 | changelog 改成实际口径：自动分组先过统一恢复门禁，确认入口仅在本次写 `groups` 时过同一门禁 |
+| 2026-11-13 GitHub 43354406359 | 非阻断 | `layout-groups.inspect` 注释把两个恢复按钮与 `regroup.allowed` 混成一类输入 | 已收 | 注释拆清：待办与恢复资格读 `inspect`，是否够问模型另由 `regroup.allowed` 决定 |
+| 2026-11-13 GitLab pipeline 499 | REVIEW-001 | 旧看板记录的等图停点用当前显示文案反推，改显示名会静默改变历史任务行为 | 已收 | 新增冻结兼容标记 `LEGACY_PAGE_IMAGE_STOP_LABEL`，历史识别只读固定字面量；显示标签继续独立维护 |
+| 2026-11-13 GitLab pipeline 499 | REVIEW-002 | 看板 B/AB 的手写 Target 未走新建任务页共用的身份对账 | 已收 | 非 A 共同创建路径新增 `reconcileOtherItems`：逐行取链接候选并调用 `resolveExplicitTarget`，通过后才交给看板或流水线组请求，并补冲突回归 |
+| 2026-11-13 GitLab pipeline 499 | 非阻断 | `docs/audit-ledger.md` 旧行仍记录已删除的 `writesGroups` 参数 | 已收 | 旧行改成当前 `layoutRecovery` 门禁口径 |
+| 2026-11-13 GitLab pipeline 499 | 非阻断 | `restartLayoutIfNeeded` 省略 `state` 的理由没有注释 | 已收 | 调用处写明 `settleDone` 已不在实时停点，按无状态手填来源检查缺表 |
+| 2026-11-13 GitHub 43359109984 | BLOCK-001 | 流水线页 B/AB 新建任务固定提交空 Target，表单值被丢弃并绕过共同身份对账 | 已收 | 单页表单与多行文本框统一用 `boardItemOf` 归一链接和 Target；流水线页把 `form.target` 交给 `createTasksForMode`，对账通过后原值进入请求与建任务；补单页归一与对账成功回归 |
+| 2026-11-13 GitHub 43360945240 | REVIEW-001 | 图标命名草稿在重读时被磁盘旧值整条覆盖，与译文/术语只补空缺的口径不一致 | 已收 | 三张草稿统一由 `fillMissing` 只铺缺失键；补「改草稿后重新读取仍保留输入」回归 |
+| 2026-11-13 GitHub 43360945240 | 非阻断 | `useIdentity` 注释把表单按钮的候选写回说成唯一身份实现，未提及 A 启动前复用 `identity-flow` | 已收 | 注释改为说明两条入口共享 `identity-flow` 判据，只在自动化采用和表单回填上分工 |
+| 2026-11-13 GitLab pipeline 505 | REVIEW-001 | 换图删除旧分组表后，任务上的旧 `LAYOUT_GROUPS_REJECTED` 停点同时错过被拒与缺表恢复 | 已收 | `inspect` 在文件不存在时把旧拒收码归到缺表恢复；补「被拒停点换图删表后仍可重新分组」的跨模块回归 |
+| 2026-11-13 GitLab pipeline 505 | 非阻断 | `autofill.fill` 保留两个不再读取的局部变量；流水线页同一模块拆成两条 import | 已收 | 删除未读取变量，并合并 `task-form` 导入 |
+| 2026-11-13 GitLab pipeline 507 | REVIEW-001 | 手填来源的 `/api/confirm` 允许请求自报失败停点与拒收机器码，可绕过布局分组写入门禁 | 已收 | `queryOfManual` 只保留工程、页面、路线；任务与运行的停点字段不再从手填请求读取，并补伪造停点 API 回归 |
+| 2026-11-13 GitLab pipeline 507 | 非阻断 | `autofill.fill` 与 `layoutRecovery.suggestGroups` 在同一轮对相同输入重复 `pending.inspect` | 已收 | 自动补输入把刚算出的布局结论传给恢复编排，复用同一次检查 |
+| 2026-11-13 GitHub 43368470990 | REVIEW-001 | 自动身份候选写登记表失败被吞掉，任务仍按未登记 Target 创建并启动 | 已收 | `apply` 返回明确成功/失败并保留后端原因；`decideStartIdentity` 在写回失败时停止启动；补字段不全与 HTTP 失败回归 |
+| 2026-11-13 GitHub 43368470990 | REVIEW-002 | A-only 表单隐藏 Target 后仍提交持久化的旧值，可能按上一页身份启动 | 已收 | 流水线页单页条目统一经 `pipelinePageTaskItems`；A-only 强制空 Target 交给 A 自动身份准备，B / AB 保留手填值 |
+| 2026-11-13 GitHub 43368470990 | 非阻断 | 待确认自动补输入依赖数组含正文未读取的 `otherWaiting`；建任务与暂存图落地未统一校验页面 Target 文件名安全 | 已收 | 删除无效依赖；看板建任务与 `installStaged` 共用 `requirePageTarget`，补路径型 Target API 回归 |
+| 2026-11-13 GitHub 43401890694 | REVIEW-001 | 运行来源的 `imageStop` 读取从不写入的 `job.imageStop`，等图停点抑制对运行来源失效 | 已收 | 运行摘要删除该字段；`taskAtProjectRoot` 按工作目录找到关联看板任务，`sourceOfRun` 从任务补入 `imageStop`；待确认队列与 `/api/pending?runId` 共用同一来源映射，补大小写与真实任务值回归 |
 

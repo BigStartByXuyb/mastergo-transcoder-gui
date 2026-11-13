@@ -1,0 +1,32 @@
+stages: [dispatch]
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
+app:central-ci:
+  stage: dispatch
+  interruptible: true
+  trigger:
+    project: data_ai/cicd
+    branch: main
+    strategy: depend
+    forward:
+      yaml_variables: true
+      pipeline_variables: false
+  variables:
+    CALLER_CI_SUITE: desktop-app
+    CALLER_PROJECT_ID: "$CI_PROJECT_ID"
+    CALLER_PROJECT_PATH: "$CI_PROJECT_PATH"
+    CALLER_COMMIT_SHA: "$CI_COMMIT_SHA"
+    CALLER_REF_NAME: "$CI_COMMIT_REF_NAME"
+    CALLER_BASE_SHA: "$CI_MERGE_REQUEST_DIFF_BASE_SHA"
+    CALLER_PREVIOUS_SHA: "$CI_COMMIT_BEFORE_SHA"
+    CALLER_MR_IID: "$CI_MERGE_REQUEST_IID"
+    CALLER_MR_TITLE: "$CI_MERGE_REQUEST_TITLE"
+    CALLER_MR_TARGET_BRANCH: "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    CALLER_PIPELINE_URL: "$CI_PIPELINE_URL"
+    CALLER_PIPELINE_SOURCE: "$CI_PIPELINE_SOURCE"
+    CALLER_USER_LOGIN: "$GITLAB_USER_LOGIN"

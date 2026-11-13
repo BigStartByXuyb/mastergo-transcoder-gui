@@ -5,7 +5,7 @@ import { StepRail } from "@/app/task-steps"
 import type { StepRow } from "@/lib/step-rows"
 
 /*
- * 步骤条：每一步一行（序号 + 标题 + 状态 + 耗时 + 人/AI 语义输入），停在哪一步标「停这里」，
+ * 步骤条：每一步一行（序号 + 标题 + 状态 + 耗时 + 自动语义输入），停在哪一步标「停这里」，
  * 点一步就把详情切到那一步。它不推「跑到哪一步了」——状态取自运行登记表（由调用方给）。
  */
 
@@ -41,7 +41,7 @@ describe("StepRail", () => {
     expect(screen.getByText("失败")).toBeTruthy()
     expect(screen.getByText("运行中")).toBeTruthy()
     expect(screen.getByText("1.2s")).toBeTruthy()
-    expect(screen.getByText("人/AI 语义输入")).toBeTruthy()
+    expect(screen.getByText("自动语义输入")).toBeTruthy()
   })
 
   it("停在哪一步标「停这里」（失败的停点用红色徽章）", () => {

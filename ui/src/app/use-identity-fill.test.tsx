@@ -61,7 +61,7 @@ describe("useIdentityFill", () => {
     stub([
       { match: "/api/design/page-name", reply: () => ok({ ok: true, pageName: "停止调整", rootId: "1" }) },
       { match: "/api/identity/candidates", reply: () => ok(CANDIDATES_OK) },
-      { match: "/api/identity/apply", reply: () => ok({ ok: true, registryPath: "p", replaced: false }) }
+      { match: "/api/identity/apply-batch", reply: () => ok({ ok: true, registryPath: "p", replaced: [false] }) }
     ])
     const view = render("auto")
     await act(async () => {
@@ -148,5 +148,35 @@ describe("useIdentityFill", () => {
     })
     await waitFor(() => expect(view.onFailure).toHaveBeenCalled())
     expect(view.result.current.rows).toEqual([])
+  })
+
+  it("自动身份一次批量写回；批次失败时不上屏假成功，也不回填表单", async () => {
+    const urls: string[] = []
+    vi.stubGlobal("fetch", (input: string) => {
+      const url = String(input)
+      urls.push(url)
+      if (url.includes("/api/design/page-name")) {
+        return ok({ ok: true, pageName: "停止调整", rootId: "1" })
+      }
+      if (url.includes("/api/identity/candidates")) return ok(CANDIDATES_OK)
+      if (url.includes("/api/identity/apply-batch")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ error: { code: "TARGET_UI_MISMATCH", message: "批次不合法", hint: "修正后重试" } }), {
+            status: 400
+          })
+        )
+      }
+      return ok({ ok: true })
+    })
+    const view = render("auto")
+    await act(async () => {
+      await view.result.current.run([item(), item({ link: LINK + "&copy=2" })], ROOT, "F1")
+    })
+    expect(urls.filter((url) => url.includes("/api/identity/apply"))).toHaveLength(1)
+    expect(urls.some((url) => url.includes("/api/identity/apply-batch"))).toBe(true)
+    expect(view.result.current.rows).toHaveLength(2)
+    expect(view.result.current.rows.every((row) => row.kind === "pick")).toBe(true)
+    expect(view.onFilled).not.toHaveBeenCalled()
+    expect(view.onFailure).toHaveBeenCalled()
   })
 })

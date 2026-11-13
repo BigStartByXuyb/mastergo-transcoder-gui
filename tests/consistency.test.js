@@ -256,8 +256,11 @@ function caseDocRefsResolve() {
   for (const rel of scannedFiles()) {
     const text = read(rel);
     const names = new Set();
+    const sourceRoot = rel.startsWith(".ci-impl/") ? ".ci-impl" : "";
     // 任何文件里写「docs/<路径>.md」都算引用（含子目录）。
-    for (const match of text.matchAll(/(?<![\w./:])docs\/([\w./-]+\.md)/g)) names.add(DOCS + "/" + match[1]);
+    for (const match of text.matchAll(/(?<![\w./:])docs\/([\w./-]+\.md)/g)) {
+      names.add(path.posix.join(sourceRoot, DOCS, match[1]));
+    }
     // Markdown 链接：按它所在文件那一层解析（docs 下的文档最常见，代码注释里也这样算）。
     const baseDir = path.posix.dirname(rel);
     for (const match of text.matchAll(/\]\(([^)#]+\.md)(?:#[^)]*)?\)/g)) {

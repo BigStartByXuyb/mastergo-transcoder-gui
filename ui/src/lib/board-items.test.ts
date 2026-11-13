@@ -1,15 +1,27 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  boardItemOf,
   fillTargets,
   keepPickedImages,
   parseBoardItems,
   parseBoardRows,
   pickedForLink,
+  singlePageAllowsUnclaimedImage,
   withPickedImage
 } from "@/lib/board-items"
 
 const LINK = "https://mastergo.com/goto/x?file=1&layer_id=2:3"
+
+describe("boardItemOf", () => {
+  it("单页表单与多行文本框用同一份条目归一", () => {
+    expect(boardItemOf(`  ${LINK}  `, "  F3Align  ", "B")).toEqual({
+      link: LINK,
+      target: "F3Align",
+      mode: "B"
+    })
+  })
+})
 
 describe("parseBoardItems", () => {
   it("一行一个链接，Target 省略时留空", () => {
@@ -56,8 +68,20 @@ describe("keepPickedImages", () => {
     expect(keepPickedImages(picked, LINK)).toEqual({ [LINK]: "a.png" })
   })
 
-  it("还没填链接时选的那一份不算行没了", () => {
+  it("填链接时不拆 URL，待认领那一份保持原样", () => {
     expect(keepPickedImages({ "": "a.png" }, LINK)).toEqual({ "": "a.png" })
+  })
+
+  it("单页读取时才用待认领图；换到另一页仍由同一格承载", () => {
+    const unclaimed = keepPickedImages({ "": "a.png" }, LINK)
+    expect(pickedForLink(unclaimed, LINK, true)).toBe("a.png")
+    expect(pickedForLink(unclaimed, LINK)).toBeNull()
+    expect(keepPickedImages(unclaimed, other)).toEqual({ "": "a.png" })
+    expect(pickedForLink(keepPickedImages(unclaimed, other), other, true)).toBe("a.png")
+  })
+
+  it("只有链接、没有页面图时，不从待认领那一格冒领", () => {
+    expect(keepPickedImages({ "": "a.png" }, "https://mastergo.com/goto/x?file=1")).toEqual({ "": "a.png" })
   })
 })
 
@@ -84,11 +108,19 @@ describe("withPickedImage", () => {
     expect(withPickedImage({ [LINK]: "a.png" }, LINK, "b.png")).toEqual({ [LINK]: "b.png" })
   })
 
-  it("还没填链接时选的那一份记在待认领那一格，链接一填就归这一页", () => {
+  it("链接首尾空白不改变图片键：写入、读取、换链接保留三处都归一", () => {
+    const picked = withPickedImage({}, `  ${LINK}  `, "a.png")
+    expect(picked).toEqual({ [LINK]: "a.png" })
+    expect(pickedForLink(picked, ` ${LINK} `)).toBe("a.png")
+    expect(keepPickedImages(picked, `  ${LINK}  `)).toEqual({ [LINK]: "a.png" })
+  })
+
+  it("还没填链接时选的那一份记在待认领那一格，由单页读取消费", () => {
     const picked = withPickedImage({}, "", "a.png")
     expect(picked).toEqual({ "": "a.png" })
-    expect(pickedForLink(picked, LINK)).toBe("a.png")
+    expect(pickedForLink(picked, LINK)).toBeNull()
     expect(keepPickedImages(picked, LINK)).toEqual({ "": "a.png" })
+    expect(pickedForLink(keepPickedImages(picked, LINK), LINK, true)).toBe("a.png")
   })
 
   it("再选一张或移除都把待认领那一格清掉（移除之后不会又从那儿冒出来）", () => {
@@ -110,11 +142,23 @@ describe("pickedForLink", () => {
     expect(pickedForLink({ [LINK]: "a.png" }, other)).toBeNull()
   })
 
-  it("还没填链接时给「待认领」那一格：链接一填就归这一页", () => {
-    expect(pickedForLink({ "": "a.png" }, LINK)).toBe("a.png")
+  it("非空但还没认领时不给空串那一格", () => {
+    expect(pickedForLink({ "": "a.png" }, LINK)).toBeNull()
+  })
+
+  it("当前只有一个页面时才允许读取待认领那份", () => {
+    expect(pickedForLink({ "": "a.png" }, LINK, true)).toBe("a.png")
   })
 
   it("这一页自己那一格优先于待认领的那一份", () => {
     expect(pickedForLink({ "": "unclaimed.png", [LINK]: "mine.png" }, LINK)).toBe("mine.png")
+  })
+})
+
+describe("singlePageAllowsUnclaimedImage", () => {
+  it("只有一页才允许把先选的图认领给这一页", () => {
+    expect(singlePageAllowsUnclaimedImage(0)).toBe(false)
+    expect(singlePageAllowsUnclaimedImage(1)).toBe(true)
+    expect(singlePageAllowsUnclaimedImage(2)).toBe(false)
   })
 })

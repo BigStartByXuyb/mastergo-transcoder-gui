@@ -5,16 +5,16 @@
  *   详情：`#pipeline?task=<id>`（看板点「详情」、或刚加入看板）→ 左边步骤条 + 右边当前那一步的界面。
  *
  * 本文件只做编排与接线：看板快照在 use-board-tasks，待确认清单由面板自己取（app/pending-panel.tsx），
- * 动作在 use-task-actions，开始前的身份决定在 ui/src/lib/task-start.ts，步骤条的数据映射在
- * ui/src/lib/step-rows.ts，身份补全在 use-identity，运行日志在 use-run-log。每个面板自己知道自己要什么。
+ * 详情动作在 use-task-actions，任务创建与页面 PNG 编排从 task-creation-entry 统一进入，开始前的身份决定在
+ * ui/src/lib/task-start.ts，步骤条的数据映射在 ui/src/lib/step-rows.ts，身份补全在 use-identity，
+ * 运行日志在 use-run-log。每个面板自己知道自己要什么。
  */
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { DoneBoard } from "@/app/done-board"
 import { DesignImageCard } from "@/app/design-image-card"
-import { LayoutPanel } from "@/app/layout-panel"
 import { NewTaskCard } from "@/app/new-task-card"
 import { PendingPanel } from "@/app/pending-panel"
 import { StepCard } from "@/app/step-card"
@@ -22,6 +22,7 @@ import { TaskDetailCard } from "@/app/task-detail-card"
 import { TaskLogCard } from "@/app/task-log-card"
 import { StepRail } from "@/app/task-steps"
 import { ClampText } from "@/app/clamp-text"
+import { createTasksForMode, pipelinePageTaskItems, taskEntryFailure } from "@/app/task-creation-entry"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentity } from "@/app/use-identity"
 import { useRemembered } from "@/app/use-remembered"
@@ -29,13 +30,20 @@ import { useRunLog } from "@/app/use-run-log"
 import { useTaskActions } from "@/app/use-task-actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { api, type PipelineStep, type PluginSummary } from "@/lib/api"
+import { api, type BoardAddBody, type BoardModePolicy, type PipelineStep, type PluginSummary } from "@/lib/api"
 import { keepPickedImages, pickedForLink, withPickedImage } from "@/lib/board-items"
 import { describeFailure } from "@/lib/describe-failure"
-import { candidatesForLink } from "@/lib/identity-flow"
+import { pendingPanelKey } from "@/lib/pending-source"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
-import { stagePickedImages } from "@/app/stage-design-images"
-import { AUTOMATION_LABEL, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
+import {
+  AUTOMATION_LABEL,
+  modePolicyOf,
+  readTaskForm,
+  requestDefaultsOf,
+  startActionLabel,
+  writeTaskForm,
+  type TaskForm
+} from "@/lib/task-form"
 import { decideStartIdentity } from "@/lib/task-start"
 import { canStop, hasProducts } from "@/lib/task-state"
 
@@ -52,23 +60,29 @@ export function PipelinePage({
   const [currentId, setCurrentId] = useState(taskId)
   const [failure, setFailure] = useState("")
   const [automation, setAutomation] = useState("assist")
+  const [starting, setStarting] = useState(false)
+  const startInFlight = useRef(false)
   /* 填过的值改一下就写回本地（写回时机只有 app/use-remembered.ts 一处）：填一半切走再回来还在。 */
   const [form, setForm] = useRemembered(readTaskForm, writeTaskForm)
   /** 详情区现在看哪一步（空串 = 任务总览）。 */
   const [step, setStep] = useState("")
   /*
-   * 新建时先选好的设计稿位图：按链接记，与看板同一套（ui/src/lib/board-items.ts）——
-   * 还没填链接时选的那一份先记在「待认领」那一格，链接一填就归这一页；换成另一页就不算数。
+   * 新建时先选好的页面 PNG：按链接记，与看板同一套（ui/src/lib/board-items.ts）——
+   * 还没填链接时选的那一份先记在「待认领」那一格；流水线页只有一个页面行，读取时直接使用它。
    */
   const [images, setImages] = useState<Record<string, File>>({})
-  const stagedImage = pickedForLink(images, form.link)
+  const stagedImage = pickedForLink(images, form.link, true)
   /*
-   * 两屏：带 `task=<id>`（从看板点「详情」、或刚「加入看板并开始」）就是看那个任务；
+   * 两屏：带 `task=<id>`（从看板点「详情」、或刚点开始按钮）就是看那个任务；
    * 不带（侧边栏「+ 新建任务」）就是新建表单。换屏走侧边栏/看板，页内不放互相跳的按钮。
    * 给哪一屏由「有没有这条路由 + 快照里有没有这个任务」唯一决定（不另存一份状态）。
    */
-  const { setBoard, reload, taskOf } = useBoardTasks()
+  const { board, setBoard, reload, taskOf } = useBoardTasks()
   const task = taskOf(currentId)
+  const currentMode = modePolicyOf(board?.modes, form.mode)
+  const takesPageImage = currentMode?.takesPageImage === true
+  const startLabel = startActionLabel(takesPageImage)
+  const pipelineAMode = currentMode?.runsPipelineAOnly ? currentMode.mode : null
   /* 给哪一屏：见上面「两屏」那段 —— 没有路由里的任务 id，或快照里已经没有这个任务，就给表单。 */
   const showForm = !taskId || !task
   const showProducts = task !== null && hasProducts(task.state)
@@ -137,58 +151,98 @@ export function PipelinePage({
     if (stopStep) setStep(stopStep)
   }, [stopStep, task?.jobId])
 
-  // 开始 = 新建看板任务 + 启动它；看板负责建工作目录、并发与合并。
-  async function start() {
-    const decision = await decideStartIdentity({
-      link: form.link,
-      projectRoot: form.projectRoot,
-      target: form.target,
-      ui: form.ui,
-      automation,
-      loadCandidates: async () =>
-        (
-          await candidatesForLink({
-            link: form.link,
-            projectRoot: form.projectRoot,
-            pageName: identity.name,
-            ui: form.ui,
-            useAi: false
-          })
-        ).items,
-      autoPick: () => identity.pick(),
-      autoApply: (item) => identity.apply(item)
-    })
+  async function prepareStartRequest(
+    projectRoot: string,
+    items: BoardAddBody["items"]
+  ): Promise<{ ok: true; body: BoardAddBody } | { ok: false; failure: string }> {
+    const item = items[0]
+    if (!item) return { ok: false, failure: "没有可创建的任务条目" }
+    const decision = item.target.trim()
+      ? { ok: true as const, target: item.target, ui: item.ui ?? form.ui }
+      : await decideStartIdentity({
+          link: item.link,
+          projectRoot,
+          target: "",
+          ui: form.ui,
+          automation,
+          autoPick: () => identity.pick(),
+          autoApply: (candidate) => identity.apply(candidate)
+        })
     if (!decision.ok) {
-      if (decision.reason) setFailure(decision.reason)
-      return
+      return {
+        ok: false,
+        failure: decision.reason || "页面身份还没准备好，请补全后重试"
+      }
     }
-    // 失败时动作返回 null，原话已经由 use-task-actions 写进 failure：这一次点击到这儿就收尾。
-    const added = await actions.start({
-      projectRoot: form.projectRoot,
+    const defaults = requestDefaultsOf({
       ui: decision.ui,
       autoMerge: true,
-      stopAfter: form.stopAfter,
       overwrite: form.overwrite,
-      items: [{ link: form.link, target: decision.target, mode: form.mode as "A" | "B" | "AB" }]
+      stopAfter: form.stopAfter
     })
-    if (!added) return
-    // 后端建不出来就不会回成功（lib/board.js 的 add 在没解析出链接时直接抛），所以这里一定有这一条。
-    const created = added.created[0]
-    await actions.startJob(created)
-    setCurrentId(created)
-    /*
-     * 先选好的位图跟着任务暂存（暂存件的键是任务 id）：那时画板尺寸还不知道，核不了尺寸 ——
-     * 任务跑到「取数 + 固化快照」之后由看板那侧核对尺寸再落地。
-     * 图被后端挡回来（不是 PNG/JPEG、太大）弹一句原话 + 后果，与看板那条同源：任务已经建好并在跑，
-     * 不占表单上的「启动失败」（那不是启动没成）。
-     */
-    if (stagedImage) {
-      // 门禁、逐张送、失败怎么说都在 ui/src/app/stage-design-images.ts（与看板那条同源）。
-      await stagePickedImages(form.mode, [{ taskId: created, file: stagedImage }])
+    return {
+      ok: true,
+      body: {
+        projectRoot,
+        ...defaults,
+        deferStart: true,
+        items: [{ link: item.link, target: decision.target, mode: form.mode as "A" | "B" | "AB" }]
+      }
     }
-    setImages({})
-    window.location.hash = "pipeline?task=" + created
-    toast.success("已加入看板并开始")
+  }
+
+  // 开始 = 准备身份 → 共用创建编排（建任务、暂存、回滚、启动）→ 打开详情。
+  async function start() {
+    const projectRoot = form.projectRoot.trim()
+    const link = form.link.trim()
+    const failure = taskEntryFailure({
+      projectRoot,
+      links: link ? [link] : [],
+      modes: board?.modes,
+      policy: currentMode
+    })
+    if (failure) {
+      setFailure(failure)
+      return
+    }
+    // taskEntryFailure 已在同样条件上返回；这里只把通过校验的事实收窄给 TypeScript。
+    const policy = currentMode as BoardModePolicy
+    if (startInFlight.current) return
+    startInFlight.current = true
+    setStarting(true)
+    try {
+      const stagedImages = stagedImage ? { [link]: stagedImage } : {}
+      const result = await createTasksForMode({
+        items: pipelinePageTaskItems({ link, target: form.target, mode: form.mode }, policy),
+        projectRoot,
+        policy,
+        automation,
+        images: stagedImages,
+        add: api.boardAdd,
+        otherRequest: (requestItems) => prepareStartRequest(projectRoot, requestItems)
+      })
+      if (result.board) setBoard(result.board)
+      if (!result.ok) {
+        setFailure(result.failure)
+        return
+      }
+      const created = result.created[0]
+      if (!created) {
+        setFailure("后端创建任务后没有返回任务 id")
+        return
+      }
+      setCurrentId(created)
+      setImages({})
+      window.location.hash = "pipeline?task=" + created
+      toast.success("已" + startLabel)
+    }
+    catch (error) {
+      setFailure(describeFailure(error))
+    }
+    finally {
+      startInFlight.current = false
+      setStarting(false)
+    }
   }
 
   const failedStep = contract.find((item) => item.Name === stopStep) ?? null
@@ -200,13 +254,16 @@ export function PipelinePage({
       {showForm && (
         <NewTaskCard
           form={form}
+          modes={board?.modes?.map((item) => item.mode) ?? []}
           onForm={patchForm}
           plugin={plugin}
           contract={contract}
           identity={identity}
           image={stagedImage}
+          takesPageImage={takesPageImage}
+          runsPipelineAOnly={pipelineAMode !== null}
           onPickImage={(file) => setImages((current) => withPickedImage(current, form.link, file))}
-          busy={actions.busy}
+          busy={actions.busy || (starting ? "start" : "")}
           failure={failure}
           canStop={task !== null && canStop(task.state)}
           onStart={() => void start()}
@@ -217,7 +274,7 @@ export function PipelinePage({
 
       {showForm && task && (
         <p className="text-muted-foreground text-sm">
-          上面填好点「加入看板并开始」，或在看板点某个任务的「详情」——那是另一屏，按步骤看。
+          上面填好点「{startLabel}」，或在看板点某个任务的「详情」——那是另一屏，按步骤看。
         </p>
       )}
 
@@ -280,24 +337,11 @@ export function PipelinePage({
                 failure={task.failure?.stepName === step ? task.failure : null}
               >
                 {/*
-                  走 A 路线（mw-wpf）的任务才读图：AB 的 A 段同样读，所以判据是「路线里有 A」。
-                  图与分组表都属于「布局」那一步的输入；那一步叫什么由后端按插件契约的 Inputs 算出来
-                  （task.layoutStep），界面不认步骤名。它们就挂在这一步的界面里。
+                  走 A 路线（mw-wpf）的任务才读图：AB 的 A 段同样读，所以判据是任务快照里的 routes。
+                  图属于布局那一步的输入；分组表由服务端自动补齐，界面不再显示布局编辑器。
                 */}
                 {step === task.layoutStep && task.workDir && task.request.target && task.routes.includes("A") && (
-                  <div className="flex flex-col gap-3">
-                    <DesignImageCard task={task} />
-                    <LayoutPanel
-                      taskId={task.id}
-                      runId={task.jobId}
-                      resume
-                      projectRoot={task.workDir}
-                      target={task.request.target}
-                      updatedAt={task.updatedAt}
-                      progressDone={task.progress?.done}
-                      state={task.state}
-                    />
-                  </div>
+                  <DesignImageCard task={task} />
                 )}
 
                 {/*
@@ -309,7 +353,7 @@ export function PipelinePage({
                   <div className="flex flex-col gap-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-muted-foreground text-xs">
-                        {/* 只报这一层级的名字：每层什么意思、布局确认那一节怎么另算，都在设置 → AI Agent 那一处说。 */}
+                        {/* 只报这一层级的名字：每层什么意思在设置 → AI Agent 那一处说。 */}
                         当前自动化层级：{AUTOMATION_LABEL[automation] ?? automation}
                       </span>
                       <Button
@@ -323,8 +367,17 @@ export function PipelinePage({
                       </Button>
                     </div>
                     <PendingPanel
+                      key={pendingPanelKey({
+                        source: "board",
+                        projectRoot: task.workDir,
+                        target: task.request.target,
+                        mode: task.request.mode,
+                        taskId: task.id,
+                        runId: task.jobId
+                      })}
                       projectRoot={task.workDir}
                       target={task.request.target}
+                      mode={task.request.mode}
                       taskId={task.id}
                       runId={task.jobId}
                       state={task.state}

@@ -1,15 +1,18 @@
 import { readStored, writeStored } from "@/lib/storage"
+import type { BoardAddBody, BoardModePolicy } from "@/lib/api"
 
 /*
  * 新建任务表单：值跨刷新记住；两个展示用文案表在这里统一一份，界面各处引用同一处。
  */
+
+export type TaskMode = "A" | "B" | "AB"
 
 export type TaskForm = {
   link: string
   projectRoot: string
   target: string
   ui: string
-  mode: string
+  mode: TaskMode
   stopAfter: string
   overwrite: boolean
 }
@@ -19,7 +22,7 @@ const EMPTY_TASK_FORM: TaskForm = {
   projectRoot: "",
   target: "",
   ui: "",
-  mode: "B",
+  mode: "A",
   stopAfter: "",
   overwrite: false
 }
@@ -27,29 +30,62 @@ const EMPTY_TASK_FORM: TaskForm = {
 // 下拉框里只显示短值，长说明放下面一行：否则触发按钮的宽度会随选中项变化，
 // 弹层每次重新定位，看起来像「选一下就跳位置」。
 export const MODE_HINT: Record<string, string> = {
-  B: "B —— MTSLG IOContorl 页面 XML（缺省）",
   A: "A —— MW WPF XAML 页面",
+  B: "B —— MTSLG IOContorl 页面 XML",
   AB: "AB —— 两条都跑，两次独立运行（先 A 后 B）"
 }
 
-/*
- * 这一版走不走某条路线：与后端 lib/run.js 的 routesOfMode 同一口径（AB 两条都跑，回给界面的就是
- * 展开后的 routes）。表单里只有 mode 这一个值，所以按它判，不用子串匹配 —— 新增路线值不会被误命中。
- */
-export function modeTakesRoute(mode: string, route: "A" | "B"): boolean {
-  return mode === "AB" || mode === route
+export const TASK_MODE_OPTIONS = Object.keys(MODE_HINT) as TaskMode[]
+
+/** 两个新建表单对本地记住的路线共用这一份归一。 */
+export function normalizeStoredMode(value: unknown, fallback: TaskMode = "A"): TaskMode {
+  const raw = String(value ?? "").trim().toUpperCase()
+  return TASK_MODE_OPTIONS.includes(raw as TaskMode) ? raw as TaskMode : fallback
+}
+
+/* 路线能力由后端 modePolicies 给；界面只按 mode 查表，不自己从字符串推断。 */
+export function modePolicyOf(policies: BoardModePolicy[] | undefined, mode: string): BoardModePolicy | null {
+  const wanted = String(mode || "").trim().toUpperCase()
+  return (policies || []).find((item) => item.mode === wanted) || null
+}
+
+export type BoardRequestDefaults = Pick<BoardAddBody, "ui" | "autoMerge" | "overwrite" | "stopAfter">
+export type RequestDefaultsInput = {
+  ui: string
+  autoMerge: boolean
+  overwrite: boolean
+  stopAfter: string
+}
+
+/** 两个入口共用这一份请求默认值归一；A 是否采用固定值仍由 A 的准备模块决定。 */
+export function requestDefaultsOf(input: RequestDefaultsInput): BoardRequestDefaults {
+  return {
+    ui: input.ui.trim(),
+    autoMerge: input.autoMerge,
+    overwrite: input.overwrite,
+    stopAfter: input.stopAfter.trim()
+  }
+}
+
+/* 两个新建入口的提交按钮用同一句话：需要页面 PNG 的路线会先暂存，再显式启动。 */
+export function startActionLabel(takesPageImage: boolean): string {
+  return takesPageImage ? "创建并开始" : "加入看板并开始"
 }
 
 /*
- * A 路线多一道输入：设计稿位图。图必须与设计稿画板同尺寸，而画板尺寸要等流水线取数之后才知道 ——
- * 所以新建时选好的图先跟**任务**一起暂存（键是任务 id），任务跑到「取数 + 固化快照」之后自动核对尺寸再落地；
- * 也可以不在这里选，等跑到那一步在任务详情里传。这句话只有这一处。
+ * A 路线多一道输入：页面 PNG。图必须与设计稿画板同尺寸，而画板尺寸要等流水线取数之后才知道 ——
+ * 所以新建时选好的图先跟**任务**一起暂存（键是任务 id），任务跑到「取数 + 固化快照」之后自动核对尺寸再落地。
+ * A / AB 的启动门禁要求这里必须先选图。这句话只有这一处。
  */
 export const READ_IMAGE_HINT =
-  "A 路线要读设计稿位图（按设计稿原尺寸导出）：现在选好就跟着任务一起暂存，流水线产出画板尺寸之后自动核对落地；也可以等那一步在任务详情里传。"
+  "按 MasterGo 画板原始尺寸导出。现在选好就跟着任务一起暂存，流水线产出画板尺寸之后自动核对落地。"
 
 /* 这一项的标题：新建任务表单与看板弹窗都读它（两张表单对同一项说法一致）。 */
-export const DESIGN_IMAGE_LABEL = "设计稿位图"
+export const DESIGN_IMAGE_LABEL = "页面 PNG"
+
+/* A 的固定运行设置与身份边界只在两个新建入口共用这一句。 */
+export const PIPELINE_A_FIXED_HINT =
+  "A 路线固定为自动合并、同名产物覆盖、不在中途停止；页面身份按项目唯一既有区域自动补齐；模型补语义名只在「自动」层级执行。"
 
 export const AUTOMATION_LABEL: Record<string, string> = {
   off: "关（不叫模型）",
@@ -57,7 +93,10 @@ export const AUTOMATION_LABEL: Record<string, string> = {
   auto: "自动"
 }
 
-/* 「自动」这一层级的含义：身份候选不人工确认，直接采用。按钮入口与启动前共用这条规则。 */
+/*
+ * 「自动」这一层级的含义：模型身份候选不人工确认，直接采用。B / AB 的按钮与启动前共用这条规则；
+ * A 没有身份表单，只可用它决定何时允许模型补身份语义名。A 的机械身份仍按项目唯一既有区域自动落实。
+ */
 export function adoptsIdentityWithoutConfirm(automation: string): boolean {
   return automation === "auto"
 }
@@ -70,7 +109,7 @@ export function readTaskForm(): TaskForm {
     projectRoot: String(raw.projectRoot ?? ""),
     target: String(raw.target ?? ""),
     ui: String(raw.ui ?? ""),
-    mode: String(raw.mode ?? "") || EMPTY_TASK_FORM.mode,
+    mode: normalizeStoredMode(raw.mode, "A"),
     stopAfter: String(raw.stopAfter ?? ""),
     overwrite: raw.overwrite === true
   }))

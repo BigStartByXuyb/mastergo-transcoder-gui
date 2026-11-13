@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { RefreshCw } from "lucide-react"
 
 import { PendingPanel } from "@/app/pending-panel"
-import { LayoutPanel } from "@/app/layout-panel"
 import { ClampText } from "@/app/clamp-text"
 import { PixelLoader } from "@/app/pixel-loader"
 import { IdentifierText } from "@/app/identifier-text"
+import { ModeField } from "@/app/mode-field"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { api, type PendingQueueEntry } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
+import { pendingPanelKey } from "@/lib/pending-source"
 import { REVIEW_POLL_MS } from "@/lib/task-state"
 
 /*
@@ -38,6 +39,7 @@ export function ReviewPage() {
   const [automation, setAutomation] = useState("assist")
   const [manualRoot, setManualRoot] = useState("")
   const [manualTarget, setManualTarget] = useState("")
+  const [manualMode, setManualMode] = useState<"A" | "B" | "AB">("A")
   const [loaded, setLoaded] = useState(false)
 
   const load = useCallback(async () => {
@@ -67,8 +69,7 @@ export function ReviewPage() {
 
   /*
    * 当前处理哪一条：列表里选中的那条；它已经从列表里消失（填完了 / 任务被移除）就收起来 ——
-   * 面板不再显示。手填的条目（列表里没有这个工程目录）也挂上去，它的条数给 0：
-   * 布局确认那一块自己会照后端的读结论说「可编辑 / 还没有控件清单」，没有来源运行就只写盘不续跑。
+   * 面板不再显示。手填的条目（列表里没有这个工程目录）也挂上去，它的条数给 0。
    */
   const active = useMemo<ActiveEntry | null>(() => {
     const hit = queue.find((item) => keyOf(item) === selected)
@@ -76,6 +77,7 @@ export function ReviewPage() {
     if (manualRoot.trim() && manualTarget.trim()) {
       return {
         source: "pipeline" as const,
+        mode: manualMode,
         projectRoot: manualRoot.trim(),
         target: manualTarget.trim(),
         runId: "",
@@ -90,7 +92,7 @@ export function ReviewPage() {
       }
     }
     return null
-  }, [queue, selected, manualRoot, manualTarget])
+  }, [queue, selected, manualRoot, manualTarget, manualMode])
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -107,7 +109,8 @@ export function ReviewPage() {
         <CardHeader>
           <CardTitle>待确认</CardTitle>
           <CardDescription>
-            流水线停在语义判断点时要人/AI 补的输入。看板里的任务与流水线页直跑的运行都列在这里，
+            流水线 A 自动补齐语义输入；模型无法完成而停下的页面会列在这里。
+            看板里的任务与流水线页直跑的运行都列在这里，
             按「工程目录 + 页面 Target」去重；填完就从列表里消失。
           </CardDescription>
         </CardHeader>
@@ -216,26 +219,16 @@ export function ReviewPage() {
           </CardHeader>
           <CardContent>
             <PendingPanel
+              key={pendingPanelKey(active)}
               projectRoot={active.projectRoot}
               target={active.target}
+              mode={active.mode}
               taskId={active.taskId}
               runId={active.runId}
               state={active.runState}
               automation={automation}
               onResumed={() => void load()}
             />
-            {/* 手填的条目（列表里没有它）也把布局确认挂上：没有来源运行就只写盘、不续跑。 */}
-            {(active.manual || active.counts.layout > 0) && (
-              <LayoutPanel
-                taskId={active.taskId}
-                runId={active.runId}
-                resume={Boolean(active.taskId || active.runId)}
-                projectRoot={active.projectRoot}
-                target={active.target}
-                updatedAt=""
-                state={active.runState}
-              />
-            )}
           </CardContent>
         </Card>
       )}
@@ -244,7 +237,7 @@ export function ReviewPage() {
         <CardHeader>
           <CardTitle className="text-base">手动指定</CardTitle>
           <CardDescription>
-            列表里没有的（例如客户端重启过、或者路径不在已知运行里）可以手填。
+            列表里没有的（例如客户端重启过、或者路径不在已知运行里）可以手填；路线必须显式选择，布局分组只对含 A 的路线显示。
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -268,6 +261,16 @@ export function ReviewPage() {
               value={manualTarget}
               onChange={(event) => {
                 setManualTarget(event.target.value)
+                setSelected("")
+              }}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <ModeField
+              label="路线"
+              value={manualMode}
+              onChange={(mode) => {
+                setManualMode(mode as "A" | "B" | "AB")
                 setSelected("")
               }}
             />

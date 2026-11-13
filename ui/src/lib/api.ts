@@ -161,8 +161,8 @@ export type PluginInfo = {
 }
 
 /**
- * 作业A 的设计稿位图：这一页「读图」那条开关的输入（口径见后端 lib/design-image.js）。
- * 图必须按设计稿原始尺寸导出 —— 尺寸要等于 DSL 画板尺寸；有图就必须先有分组表，否则布局推导那一步停下。
+ * 作业A 的页面 PNG：这一页「读图」那条开关的输入（口径见后端 lib/design-image.js）。
+ * 图必须按设计稿原始尺寸导出 —— 尺寸要等于 DSL 画板尺寸；页面 PNG 落地时会清掉旧分组表。
  */
 export type DesignImage = {
   /** 图该放的那个目录（后端算好给出来；界面不自己拼这一段）。 */
@@ -173,119 +173,11 @@ export type DesignImage = {
   image: { path: string; name: string; bytes: number; width: number; height: number; stamp: string } | null
   /** 图与画板尺寸是否一致（两边都读得出来时才有意义）。 */
   matches: boolean
-  groups: { path: string; exists: boolean }
   /**
    * 现在不能传的原因（空串＝可以传）。判据在后端（save 在同一种情况下按同一句话拒收），
    * 界面照原话显示并据此禁用按钮，不自己再判一遍。
    */
   blocked: string
-}
-
-/**
- * 作业A 的布局确认：控件清单 + 分组表（口径见后端 lib/layout-groups.js）。
- * 分组表是「语义输入」之一，人/AI 看图后写，布局推导那一步消费它。
- */
-export type LayoutControl = {
-  ref: string
-  controlType: string
-  text: string
-  absX: number
-  absY: number
-  w: number
-  h: number
-  /**
-   * 这个 ref 在不在这一层的可引用条目里（分组表只能写这些 ref）：
-   * 结论由后端一处给（判据在 lib/layout-candidates.js 的 refsOf），界面按它分「能拖 / 不能写进表」。
-   */
-  citable: boolean
-}
-
-export type LayoutGroup = {
-  id: string
-  kind: "column" | "row"
-  members: string[]
-}
-
-/** 推导结果里的一个格子（分区自己那一层、或某个容器那一层里的一个）：格子里装着什么就看 children。 */
-export type LayoutCell = {
-  ref: string
-  /** 这一格是不是一组（读视图按「里面有子网格」定）：界面按它摆组行还是控件行，不自己再判一遍。 */
-  group: boolean
-  /** 这一格往哪个方向排（column = 上下排，row = 左右排，空串 = 产物没给）。判据在后端读视图。 */
-  axis: "" | "column" | "row"
-  /** 产物给的类型（合成出来的容器常常没有这个）：界面在清单里找不到这一格时按它显示。 */
-  controlType: string
-  /** 组那一层网格的行列带（`group` 为真时才有）：界面据它说明谁吃剩余。 */
-  bands?: { rows: LayoutBand[]; columns: LayoutBand[] }
-  /** 这一格子网格里的格子（可以再套），已按产物给的行列排好：空表就是这一格只是个控件。 */
-  children: LayoutCell[]
-  /** 这一格连同它里面装着的全部 ref：界面点它要高亮的就是这些（往下摊平由读视图一处做）。 */
-  refs: string[]
-}
-
-/** 推导结果里的一个分区：名字 / 发不发射 + 它自己那一层网格（行带列带 + 格子）。 */
-export type LayoutRegion = {
-  id: string
-  name: string
-  emit: boolean
-  /** 这一层的行带 / 列带：界面据它写「N 行 × M 列」并标出谁吃剩余（*）。判据在后端读视图。 */
-  bands: { rows: LayoutBand[]; columns: LayoutBand[] }
-  cells: LayoutCell[]
-}
-
-/** 一条带：吃剩余（star）还是固定像素。像素值不往界面搬 —— 界面只用「谁吃剩余」这一件事实。 */
-export type LayoutBand = { star: boolean }
-
-/*
- * 推导出来的布局（作业A 第 8 步的产物，界面那栏「布局树」显示的就是它 —— 不是设计稿原始层级）：
- *   分区 → 组（装着子网格的格子，可以再套）→ 控件。
- * 树之外还有两份读数，各说各的事：unplaced 是界面摆不进树的（产物里读不出行列坐标的格子，
- * 缺字段 / 空串 / 数字串 / 布尔 / 非整数 / 负数）；singles 是插件那一步报的单条目栏（它们在树上有位置）。
- * 这一步没跑过时 available:false，reason 是给界面看的那句话。
- */
-export type DerivedLayout = {
-  available: boolean
-  reason: string
-  regions: LayoutRegion[]
-  /** 摆不进树的那几条：ref + 为什么（它连同它里面那些控件都不摆）。 */
-  unplaced: { ref: string; reason: string }[]
-  /** 插件报的单条目栏（没进任何组）：ref + 插件给的那句原话。 */
-  singles: { ref: string; reason: string }[]
-}
-
-export type LayoutGroups = {
-  available: boolean
-  reason: string
-  controls: LayoutControl[]
-  /**
-   * 这一步的「分组表可引用的条目」清单（作业A 第 8 步的产物，转发 lib/layout-candidates.js）：
-   * 表里的 ref 只能从 entries 里取；entries 为空＝这一层不参与分组（表只能是空表）；
-   * available 为 false 时还没有这份清单（这一步没跑过），界面按 reason 说清、不给写回。
-   */
-  candidates: {
-    available: boolean
-    reason: string
-    pageTarget: string
-    entries: { ref: string; controlType: string; text: string }[]
-  }
-  /** 画板尺寸（界面把控件坐标换算成百分比用）；固化快照那一步还没跑时是 null。判据在后端。 */
-  canvas: { width: number; height: number } | null
-  /** 这一页那张图的身份（空串＝没有图）：画布据此挂图并拼预览地址；判据在后端。 */
-  imageStamp: string
-  /** 推导出来的布局（分区 → 组 → 控件）：跑完布局那一步才有；界面据此摆「布局树」。 */
-  derived: DerivedLayout
-  groups: LayoutGroup[]
-  /** 这一页有没有分组表（空表也算有）：与「表里有什么」同一次读给出。 */
-  hasGroups: boolean
-  /**
-   * 「能不能问模型」这份读数：ready 为假时 reason / hint 就是不能问的那件事与出路（后端 suggestBlocker 的原话）。
-   * 条件三样缺一不可：这一层的条目清单在、条目够、这一页有设计稿位图（这一步是看图判分组）。
-   */
-  suggest: { ready: boolean; code: string; reason: string; hint: string }
-  /** 这一页有没有设计稿位图：与 suggest 同一次读数（待确认那节据它算在不在布局这一步停）。 */
-  hasImage: boolean
-  /** 「自动通过」是全局开关，值随这一页一起读回来（面板不必再取一遍设置）。 */
-  autoPass: boolean
 }
 
 export type ResolvedNode = {
@@ -381,11 +273,6 @@ export type Settings = {
   providers: ProviderPreset[]
   ai: { provider: string; baseUrl: string; model: string; hasKey: boolean }
   automation: "off" | "assist" | "auto"
-  /**
-   * 布局确认的独立开关：默认关（有图无表时停在布局确认等人）。
-   * 生效条件与后端同一处（lib/autofill.js 的 fill()）：还得自动化层级不是「关」、这一页确实停在那里、控件至少 2 个。
-   */
-  layoutAutoPass: boolean
   /** 插件来源的手动选择：来源 id，空串 = 按查找顺序自动选（见 docs/plugin-sources.md）。 */
   pluginOverride: string
   /** 对话/自动模式的写盘开关：关着时 Codex 只读，开着才允许它直接改工程文件。 */
@@ -499,15 +386,35 @@ export type PendingTranslations = {
 }
 
 export type PendingLayout = {
-  /** 有设计稿位图、还没有分组表、控件清单也在手上 —— 这一页要人确认布局。 */
+  /** 有页面 PNG、还没有分组表、条目清单也在手上 —— 服务端需要自动补分组。 */
   needsGroups: boolean
-  /** 要人确认的条数：0 或 1。口径在 lib/pending.js 算一次，界面只取数。 */
+  /** 当前来源状态允许恢复布局分组（手填无状态、等待或失败）。 */
+  recoverable: boolean
+  /** 分组表文件存在（插件会看到它），即使内容损坏也仍为 true。 */
+  hasFile: boolean
+  /** 分组表已经存在；已有表也可能被插件在布局步骤拒收。 */
+  hasGroups: boolean
+  /** 来源运行确实停在布局步骤，且已有分组表被插件拒收。 */
+  rejected: boolean
+  /** 来源运行停在布局步骤（不等同于分组表被拒）。 */
+  failed: boolean
+  /** 布局步骤的失败原话；非失败停点为空串。 */
+  failedMessage: string
+  /** 需要处理的布局停点条数：0 或 1。口径在 lib/pending.js 算一次。 */
   waiting: number
-  /**
-   * 这一层的条目凑不凑得出组（自动补输入据此决定要不要问模型）：
-   * 判据在 lib/layout-groups.js 一处算，这里只转发；界面不读它。
-   */
-  canSuggest: boolean
+  /** 自动分组是否能执行：判据与后端恢复入口同一次检查给出的结论。 */
+  regroup: {
+    allowed: boolean
+    code: string
+    reason: string
+    hint: string
+  }
+}
+
+export type PendingLayoutGroup = {
+  id: string
+  kind: "row" | "column"
+  members: string[]
 }
 
 export type Pending = {
@@ -567,6 +474,14 @@ export type BoardTaskState =
   | "conflict"
   | "failed"
   | "stopped"
+
+/** 后端从 routesOfMode 展开的路线能力：表单只读这一份，不自己解释 mode 字符串。 */
+export type BoardModePolicy = {
+  mode: "A" | "B" | "AB"
+  routes: ("A" | "B")[]
+  takesPageImage: boolean
+  runsPipelineAOnly: boolean
+}
 
 export type BoardTaskRun = {
   label: string
@@ -628,17 +543,23 @@ export type BoardTask = {
    */
   routes: ("A" | "B")[]
   autoMerge: boolean
+  /** 创建方暂存页面 PNG 时先延后显式启动；「启动全部」不会越过这一层。 */
+  deferStart: boolean
   progress: BoardProgress | null
   /** 这一页的流程：步骤来自插件自己的运行登记表，续跑会接着写同一份。 */
   steps: BoardTaskStep[]
   /**
-   * 还有没有断点可续、续的是哪一步：这一步的标题，空串＝没有断点（后端按插件登记表算出来）。
-   * 界面那条按钮只用它定给不给入口、以及说是「继续」还是「重跑一遍」；
+   * 能不能从当前停点续跑：后端按状态、工作目录与页面 PNG 停点算好，界面不重写判据。
+   */
+  resumable: boolean
+  /**
+   * 续的是哪一步：这一步的标题，空串＝只能从起点重跑（后端按插件登记表算出来）。
+   * 界面只用它决定按钮写「继续」还是「重跑一遍」；
    * 实际从哪一步续由后端在点下去那一刻按当时的情况算（那次运行还在就按它那一步，否则按登记表），
-   * 结果写在完成提示里 —— 快照里这个步名不拿来当承诺。
+   * 结果写在完成提示里。
    */
   resumeStep: string
-  /** 吃布局输入（设计稿位图 / 分组表）的那一步叫什么：任务详情把位图卡片与布局确认挂在这一步上。 */
+  /** 吃布局输入（页面 PNG / 分组表）的那一步叫什么。 */
   layoutStep: string
   aiFills: BoardAiFill[]
   failure: {
@@ -653,8 +574,10 @@ export type BoardTask = {
   /** 冲突处已做的选择（相对路径 → mine / main），合并成功后清空。 */
   resolutions: Record<string, "mine" | "main">
   error: string
-  /** 新建时先选的设计稿位图没能落地时的那句话（不是任务的失败原因）；空串表示没有要说的。 */
+  /** 新建时先选的页面 PNG 没能落地时的那句话（不是任务的失败原因）；空串表示没有要说的。 */
   designImage: string
+  /** 当前停在补页面 PNG：与布局步骤被分组表拒绝是两种停点。 */
+  imageStop: boolean
 }
 
 export type BoardAiFill = {
@@ -683,6 +606,7 @@ export type Board = {
   limits: { logical: number; limit: number }
   /** 正在占并发额度的任务数。 */
   running: number
+  modes?: BoardModePolicy[]
   tasks: BoardTask[]
 }
 
@@ -694,12 +618,23 @@ export type BoardAddBody = {
   stopAfter: string
   /** 目标工程里已经有同名页面时是否替换（对应流水线的「替换已有产物」）。 */
   overwrite: boolean
-  items: { link: string; target: string; mode: "A" | "B" | "AB" }[]
+  /** 创建方会在暂存页面 PNG（如有）后显式启动：看板 tick 不抢跑。 */
+  deferStart?: boolean
+  items: {
+    link: string
+    target: string
+    mode: "A" | "B" | "AB"
+    ui?: string
+    stopAfter?: string
+    fileId?: string
+    layerId?: string
+  }[]
 }
 
 /** 一条「还缺语义输入」的页面。board = 看板任务（产物在它自己的工作目录里），pipeline = 流水线页直跑的运行。 */
 export type PendingQueueEntry = {
   source: "board" | "pipeline"
+  mode: "A" | "B" | "AB" | ""
   projectRoot: string
   target: string
   runId: string
@@ -710,7 +645,7 @@ export type PendingQueueEntry = {
   stateLabel: string
   /** 看板任务已经被移除，但工作目录与产物还在。 */
   orphan: boolean
-  /** 三节的待办条数，与看板 / 流水线详情同一份口径（图标一节、文案一节、布局一节）。 */
+  /** 人工待办条数：图标、文案、以及自动分组失败后需要显式写空表的布局停点。 */
   counts: { icons: number; translations: number; layout: number }
   total: number
 }
@@ -795,6 +730,36 @@ export type IdentityCandidates = {
   ai: { used: boolean; items: IdentityCandidate[] }
   /** 不能自动采用时的整句原因（含人要做什么）；空串＝可以自动采用第一条。 */
   blocked: string
+}
+
+export type IdentityTargetParts = {
+  previewUi: string
+  semanticName: string
+  complete: boolean
+}
+
+export type IdentityApplyBody = {
+  projectRoot: string
+  target: string
+  ui: string
+  fileId?: string
+  layerId?: string
+  link?: string
+  designPageName?: string
+}
+
+export type IdentityApplyEntry = Omit<IdentityApplyBody, "projectRoot">
+
+/** 身份写回后登记表里归一化后的条目。 */
+type IdentityRegistryEntry = {
+  target: string
+  ui: string
+  derivation: string
+  designSource: {
+    fileId: string
+    layerId: string
+    designPageName?: string
+  }
 }
 
 export class ApiFailure extends Error {
@@ -1042,13 +1007,18 @@ export const api = {
   pluginSources: () => request<PluginSources>("/api/plugin/sources"),
   /** 手动切换插件来源：override 是来源 id，空串 = 回到自动查找顺序。 */
   pluginOverride: (override: string) => post<PluginSources>("/api/plugin/override", { override }),
-  /** 作业A 的读图输入：这一页放着哪张图、尺寸对不对、分组表在不在。 */
-  designImage: (projectRoot: string, target: string) =>
+  /** 作业A 的读图输入：这一页放着哪张图、尺寸对不对、现在能不能传。 */
+  designImage: (projectRoot: string, target: string, taskId: string) =>
     request<{ ok: true; image: DesignImage }>(
-      "/api/design-image?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
+      "/api/design-image?projectRoot=" +
+        encodeURIComponent(projectRoot) +
+        "&target=" +
+        encodeURIComponent(target) +
+        "&taskId=" +
+        encodeURIComponent(taskId)
     ),
   /**
-   * 这一页那张设计稿位图的地址（位图卡的预览与布局确认的画布都用它当 <img src>）。
+   * 这一页那张页面 PNG 的地址（预览与模型读图都用它）。
    * 地址怎么拼只有这一处；没有图时后端回明确错误（那两处也只在有图时显示）。
    */
   designImageUrl: (projectRoot: string, target: string, stamp: string) =>
@@ -1056,10 +1026,10 @@ export const api = {
     /* 图的身份并进地址：换了图（大小 / 修改时间变了）地址就变，<img> 才会重新取一次。 */
     "&stamp=" + encodeURIComponent(stamp),
   /**
-   * 存一张设计稿位图（整份替换）。格式按**内容**认，落盘后缀也按它取，所以不用传文件名；
+   * 存一张页面 PNG（整份替换）。格式按**内容**认，落盘后缀也按它取，所以不用传文件名；
    * 尺寸与画板不一致、内容不是 PNG/JPEG 时，后端按原话拒绝。
    */
-  saveDesignImage: (body: { projectRoot: string; target: string; data: string }) =>
+  saveDesignImage: (body: { taskId: string; projectRoot: string; target: string; data: string }) =>
     post<{ ok: true; image: DesignImage }>("/api/design-image", body),
   /**
    * 新建任务时先把位图暂存起来（那时还不知道画板尺寸）：任务跑到「取数 + 固化快照」之后
@@ -1067,11 +1037,6 @@ export const api = {
    */
   stageDesignImage: (body: { taskId: string; data: string }) =>
     post<{ ok: true; staged: { path: string; width: number; height: number } }>("/api/design-image/stage", body),
-  /** 作业A 的布局确认：读控件清单 + 现有分组（后端 lib/layout-groups.js）。 */
-  layoutGroups: (projectRoot: string, target: string) =>
-    request<{ ok: true; layout: LayoutGroups }>(
-      "/api/layout-groups?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
-    ),
   /** 在文件管理器里打开一个目录（插件页各行的「打开目录」）。打不开时 ok=false，reason 是原话。 */
   openFolder: (path: string) => post<{ ok: boolean; reason: string }>("/api/system/open-folder", { path }),
   pluginUpdateStatus: () => request<{ ok: true; status: PluginUpdateStatus }>("/api/plugin/update/status"),
@@ -1107,9 +1072,13 @@ export const api = {
     ),
   settingsGet: () => request<{ ok: true; settings: Settings }>("/api/settings"),
   settingsSave: (body: unknown) => post<{ ok: true; settings: Settings }>("/api/settings", body),
-  pending: (projectRoot: string, target: string) =>
+  pending: (input: { projectRoot: string; target: string; mode: string; taskId?: string; runId?: string }) =>
     request<{ ok: true; pending: Pending }>(
-      "/api/pending?projectRoot=" + encodeURIComponent(projectRoot) + "&target=" + encodeURIComponent(target)
+      "/api/pending?projectRoot=" + encodeURIComponent(input.projectRoot) +
+        "&target=" + encodeURIComponent(input.target) +
+        "&mode=" + encodeURIComponent(input.mode) +
+        "&taskId=" + encodeURIComponent(input.taskId ?? "") +
+        "&runId=" + encodeURIComponent(input.runId ?? "")
     ),
   pendingList: () => request<{ ok: true; queue: PendingQueue }>("/api/pending/list"),
   mapping: () => request<{ ok: true; mapping: MappingView }>("/api/mapping"),
@@ -1132,19 +1101,11 @@ export const api = {
       kind: "glossary",
       texts
     }),
-  /*
-   * 带上工程与页面：后端据此取这一层的条目清单与这一页的设计稿位图（插件口径里这一步是「看图判分组」，
-   * 表里的 ref 只能从那几条条目里取 —— 输入只有服务端一处拼法，界面不把控件清单塞进来）。
-   */
-  aiLayoutGroups: (projectRoot: string, target: string) =>
-    post<{ ok: true; groups: LayoutGroup[] }>("/api/ai/suggest", {
-      kind: "layout-groups",
-      projectRoot,
-      target
-    }),
   confirm: (body: {
     projectRoot: string
     target: string
+    /** 手填来源的路线：布局恢复门禁与待确认取数使用同一来源身份。 */
+    mode?: string
     /** 看板任务 id：运行管理器里那次运行没了，也按任务把续跑重建出来。 */
     taskId?: string
     /** 来源运行 id：没有 taskId 的条目（流水线直跑、任务已移除）靠它续跑。 */
@@ -1152,8 +1113,7 @@ export const api = {
     naming?: { index: number; name: string; comment: string; fromDsl?: boolean }[]
     translations?: Record<string, string>
     glossary?: Record<string, string>
-    /** 分组表：空数组也照写，表示「本页没有要声明的分组」。 */
-    groups?: LayoutGroup[]
+    groups?: PendingLayoutGroup[]
     allowEmptyLedger?: boolean
     /** 顺手把命名表里当前不认的旧下标裁掉。 */
     pruneNaming?: boolean
@@ -1167,28 +1127,55 @@ export const api = {
       /** 续跑从哪一步开始（补进去的输入由这一步消费）。 */
       resumedFrom?: string
     }>("/api/confirm", body),
+  /** 分组表缺失或被拒后，按同一份布局输入叫模型分组，并可与这一停点的其它人工输入一起写回。 */
+  layoutGroupsSuggest: (body: {
+    projectRoot: string
+    target: string
+    mode?: string
+    taskId?: string
+    runId?: string
+    naming?: { index: number; name: string; comment: string; fromDsl?: boolean }[]
+    translations?: Record<string, string>
+    glossary?: Record<string, string>
+    allowEmptyLedger?: boolean
+    pruneNaming?: boolean
+    resume: boolean
+  }) =>
+    post<{
+      ok: true
+      groups: PendingLayoutGroup[]
+      written: { path: string; count: number }[]
+      job: Job | null
+      note?: string
+      resumedFrom?: string
+    }>("/api/layout-groups/suggest", body),
   board: () => request<{ ok: true; board: Board }>("/api/board"),
   projectPages: (projectRoot: string) =>
     request<{ ok: true; pages: ProjectPages }>(
       "/api/project/pages?projectRoot=" + encodeURIComponent(projectRoot)
     ),
-  /** Target → 区域前缀的预览：规则在后端，界面上只显示结论。 */
+  /** Target → 区域前缀与语义名：完整性判据在后端，界面只读结论。 */
   identityPrefix: (target: string) =>
-    request<{ ok: true; previewUi: string }>("/api/identity/prefix?target=" + encodeURIComponent(target)),
+    request<{ ok: true } & IdentityTargetParts>("/api/identity/prefix?target=" + encodeURIComponent(target)),
   /** 从链接取设计页名（中文原名，如「停止调整」）：Target 由它翻译 + 区域前缀得到。 */
   designPageName: (link: string) =>
     post<{ ok: true; pageName: string; rootId: string }>("/api/design/page-name", { link }),
-  identityCandidates: (body: { projectRoot: string; pageName: string; useAi?: boolean; ui?: string; link?: string }) =>
-    post<{ ok: true } & IdentityCandidates>("/api/identity/candidates", body),
-  identityApply: (body: {
+  identityCandidates: (body: {
     projectRoot: string
-    target: string
-    ui: string
-    fileId?: string
-    layerId?: string
+    pageName: string
+    useAi?: boolean
+    ui?: string
     link?: string
-    designPageName?: string
-  }) => post<{ ok: true; registryPath: string; replaced: boolean }>("/api/identity/apply", body),
+    autoAdopt?: boolean
+  }) =>
+    post<{ ok: true } & IdentityCandidates>("/api/identity/candidates", body),
+  identityApply: (body: IdentityApplyBody) =>
+    post<{ ok: true; registryPath: string; entry: IdentityRegistryEntry; replaced: boolean }>("/api/identity/apply", body),
+  identityApplyBatch: (projectRoot: string, entries: IdentityApplyEntry[]) =>
+    post<{ ok: true; registryPath: string; entries: IdentityRegistryEntry[]; replaced: boolean[] }>("/api/identity/apply-batch", {
+      projectRoot,
+      entries
+    }),
   boardAdd: (body: BoardAddBody) => post<{ ok: true; board: Board; created: string[] }>("/api/board/add", body),
   boardStart: (id = "") => post<{ ok: true; board: Board }>("/api/board/start", { id }),
   boardStop: (id: string) => post<{ ok: true; board: Board }>("/api/board/stop", { id }),

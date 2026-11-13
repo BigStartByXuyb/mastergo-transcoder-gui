@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it } from "vitest"
 
+import type { BoardModePolicy } from "@/lib/api"
 import {
   AUTOMATION_LABEL,
   MODE_HINT,
   adoptsIdentityWithoutConfirm,
-  modeTakesRoute,
+  modePolicyOf,
   readTaskForm,
+  requestDefaultsOf,
+  startActionLabel,
   writeTaskForm
 } from "@/lib/task-form"
 
@@ -14,13 +17,13 @@ afterEach(() => {
 })
 
 describe("task-form", () => {
-  it("没存过时给缺省表单（路线默认 B）", () => {
+  it("没存过时给缺省表单（路线默认 A）", () => {
     expect(readTaskForm()).toEqual({
       link: "",
       projectRoot: "",
       target: "",
       ui: "",
-      mode: "B",
+      mode: "A",
       stopAfter: "",
       overwrite: false
     })
@@ -49,9 +52,16 @@ describe("task-form", () => {
 
   it("存的是坏 JSON 或非对象时退回缺省，不抛异常", () => {
     localStorage.setItem("mastergo-transcoder-gui.pipeline", "{不是 JSON")
-    expect(readTaskForm().mode).toBe("B")
+    expect(readTaskForm().mode).toBe("A")
     localStorage.setItem("mastergo-transcoder-gui.pipeline", "[1,2,3]")
     expect(readTaskForm().link).toBe("")
+  })
+
+  it("本地记住的路线与看板表单使用同一份归一", () => {
+    localStorage.setItem("mastergo-transcoder-gui.pipeline", JSON.stringify({ mode: " c " }))
+    expect(readTaskForm().mode).toBe("A")
+    localStorage.setItem("mastergo-transcoder-gui.pipeline", JSON.stringify({ mode: "b" }))
+    expect(readTaskForm().mode).toBe("B")
   })
 
   it("路线文案与自动化层级文案各有一份", () => {
@@ -66,12 +76,29 @@ describe("task-form", () => {
     expect(adoptsIdentityWithoutConfirm("off")).toBe(false)
   })
 
-  it("哪一版走哪条路线：单条按名字对上，AB 两条都算", () => {
-    expect(modeTakesRoute("A", "A")).toBe(true)
-    expect(modeTakesRoute("A", "B")).toBe(false)
-    expect(modeTakesRoute("B", "B")).toBe(true)
-    expect(modeTakesRoute("AB", "A")).toBe(true)
-    expect(modeTakesRoute("AB", "B")).toBe(true)
-    expect(modeTakesRoute("", "A")).toBe(false)
+  it("路线能力只从后端表里查，不在前端解释 mode 字符串", () => {
+    const policies: BoardModePolicy[] = [
+      { mode: "A", routes: ["A"], takesPageImage: true, runsPipelineAOnly: true },
+      { mode: "B", routes: ["B"], takesPageImage: false, runsPipelineAOnly: false },
+      { mode: "AB", routes: ["A", "B"], takesPageImage: true, runsPipelineAOnly: false }
+    ]
+    expect(modePolicyOf(policies, " ab ")).toEqual(policies[2])
+    expect(modePolicyOf(policies, "B")).toEqual(policies[1])
+    expect(modePolicyOf(policies, "C")).toBeNull()
+    expect(modePolicyOf(undefined, "A")).toBeNull()
+  })
+
+  it("创建按钮对 A、AB 用同一句启动文案", () => {
+    expect(startActionLabel(true)).toBe("创建并开始")
+    expect(startActionLabel(false)).toBe("加入看板并开始")
+  })
+
+  it("请求默认值只在一处分词与归一", () => {
+    expect(requestDefaultsOf({
+      ui: " F3 ",
+      autoMerge: false,
+      overwrite: true,
+      stopAfter: " discover "
+    })).toEqual({ ui: "F3", autoMerge: false, overwrite: true, stopAfter: "discover" })
   })
 })

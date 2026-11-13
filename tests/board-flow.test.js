@@ -13,6 +13,8 @@ const path = require("path");
 const { createBoard } = require("../lib/board.js");
 const designImage = require("../lib/design-image.js");
 const { UserError } = require("../lib/errors.js");
+const { GROUP_FAILURE_CODE } = require("../lib/layout-groups.js");
+const workdir = require("../lib/workdir.js");
 const { png } = require("./image-fixtures.js");
 
 const LINK = "https://mastergo.com/goto/x?file=204689197363903&layer_id=1872:60904";
@@ -30,6 +32,14 @@ const STEPS = [
     Recovery: ["r"]
   }
 ];
+
+function completedSteps(steps = STEPS) {
+  return steps.map((step) => ({ id: step.Id, name: step.Name, status: "ok", seconds: 1, note: "" }));
+}
+
+function completeArtifacts(steps = STEPS) {
+  return { stepsOf: () => completedSteps(steps) };
+}
 
 function write(file, text) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -50,6 +60,10 @@ function makeRuns(contract) {
   const started = [];
   return {
     started: started,
+    clear() {
+      jobs.clear();
+      latest.clear();
+    },
     seed(id, job, projectRoot) {
       jobs.set(id, job);
       if (projectRoot) latest.set(projectRoot, job);
@@ -81,9 +95,11 @@ function makeBoard(options = {}) {
       inspect: (args) => {
         pendingCalls.push(args);
         if (options.pendingThrows) throw new Error("读不到清单");
+        if (options.pendingFor) return options.pendingFor(args);
         return options.pending || { icons: { available: true, needsNaming: true, needsRepair: false, mustName: [1, 2] }, translations: { available: false } };
       }
     },
+    merge: options.merge,
     autoFill: options.autoFill === undefined && options.autoFillThrows === undefined
       ? null
       : {
@@ -117,15 +133,92 @@ const hasJob = (task) => Boolean(task.jobId);
 
 function caseLoadMarksDeadTasksStopped() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-resume-"));
+  const queuedId = "t3";
+  const staged = designImage.stage({ home: home, taskId: queuedId, data: png(1280, 1024).toString("base64") });
   write(path.join(home, "board.json"), JSON.stringify([
     { id: "t1", state: "running", request: { projectRoot: "D:/p", link: LINK, target: "T" }, workDir: "D:/w" },
-    { id: "t2", state: "merged", request: { projectRoot: "D:/p", link: LINK, target: "T" }, workDir: "D:/w" }
+    { id: "t2", state: "merged", request: { projectRoot: "D:/p", link: LINK, target: "T" }, workDir: "D:/w" },
+    {
+      id: queuedId,
+      state: "queued",
+      deferStart: true,
+      request: { projectRoot: "D:/p", link: LINK, target: "T" },
+      workDir: ""
+    }
   ]));
   const runs = makeRuns();
   const board = createBoard({ runs: runs.api, pending: null, artifacts: { stepsOf: () => [] }, home: home });
-  const states = board.snapshot().tasks.map((task) => task.state);
-  assert.deepStrictEqual(states, ["stopped", "merged"], "重启后不可能还在跑：running 变 stopped，其它状态保留");
+  const snapshot = board.snapshot();
+  const states = snapshot.tasks.map((task) => task.state);
+  assert.deepStrictEqual(states, ["stopped", "merged", "failed"], "重启后不可能还在跑，未完成延后启动的任务要有明确终态");
+  const deferred = snapshot.tasks.find((task) => task.id === queuedId);
+  assert.match(deferred.error, /任务创建与显式启动之间/, "延后启动窗口被打断时给出明确原因");
+  assert.ok(!fs.existsSync(staged.path), "无法恢复的延后任务同时清掉暂存件");
   fs.rmSync(home, { recursive: true, force: true });
+}
+
+function caseSnapshotIsReadOnly() {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-readonly-home-"));
+  const project = makeProject();
+  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-readonly-work-"));
+  const steps = [
+    contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
+  ];
+  write(
+    path.join(workDir, "Generated", "runs", "T1", "dsl.snapshot.json"),
+    JSON.stringify({ dsl: { nodes: [{ type: "FRAME", id: "1:1", layoutStyle: { width: 1280, height: 1024 } }] } })
+  );
+  write(
+    path.join(workdir.inputsDir(workDir), "T1.layout-group-candidates.json"),
+    JSON.stringify({ schemaVersion: "mw-wpf-layout-group-candidates/1", pageTarget: "T1", entries: [{ ref: "a" }, { ref: "b" }] })
+  );
+  write(path.join(workdir.inputsDir(workDir), "T1.design.png"), png(1280, 1024));
+  write(path.join(home, "board.json"), JSON.stringify([{
+    id: "t-readonly",
+    state: "stopped",
+    request: {
+      mode: "A",
+      link: LINK,
+      target: "T1",
+      ui: "F3",
+      projectRoot: project,
+      fileId: "204689197363903",
+      layerId: "1872:60904",
+      stopAfter: "",
+      overwrite: false,
+      allowEmptyLedger: false
+    },
+    workDir: workDir,
+    jobId: "",
+    autoMerge: false,
+    failure: null,
+    error: ""
+  }], null, 2) + "\n");
+  const store = path.join(home, "board.json");
+  const storeMtime = fs.statSync(store).mtimeMs;
+  const runs = makeRuns(steps);
+  const board = createBoard({
+    runs: runs.api,
+    pending: null,
+    layout: { register: () => ({ ok: true }) },
+    artifacts: completeArtifacts(steps),
+    home: home
+  });
+
+  const before = board.snapshot().tasks.find((task) => task.id === "t-readonly");
+  assert.strictEqual(before.state, "stopped", "快照只读当前状态");
+  assert.strictEqual(runs.started.length, 0, "快照不得启动布局运行");
+  assert.strictEqual(fs.statSync(store).mtimeMs, storeMtime, "快照不得写 board.json");
+
+  board.advance();
+  const after = board.snapshot().tasks.find((task) => task.id === "t-readonly");
+  assert.strictEqual(after.state, "running", "显式推进才按登记表重建缺分组表的布局运行");
+  assert.strictEqual(runs.started.length, 1, "显式推进是唯一会启动布局恢复的入口");
+  assert.strictEqual(runs.started[0].progress, "layoutManifest");
+
+  fs.rmSync(home, { recursive: true, force: true });
+  fs.rmSync(project, { recursive: true, force: true });
+  fs.rmSync(workDir, { recursive: true, force: true });
 }
 
 function caseAddValidationAndFields() {
@@ -134,6 +227,11 @@ function caseAddValidationAndFields() {
   assert.throws(() => fx.board.add({ projectRoot: "D:/missing-dir-xyz", items: [{ link: LINK }] }), (error) => error.code === "NO_PROJECT");
   assert.throws(() => fx.board.add({ projectRoot: fx.project, items: [] }), (error) => error.code === "NO_ITEMS");
   assert.throws(() => fx.board.add({ projectRoot: fx.project, items: [{ link: "https://x" }] }), (error) => error.code === "BAD_LINK");
+  assert.throws(
+    () => fx.board.add({ projectRoot: fx.project, items: [{ link: LINK, target: "../escape" }] }),
+    (error) => error.code === "BAD_TARGET",
+    "直接调 API 也不能把路径型 Target 写进任务"
+  );
 
   const added = fx.board.add({
     projectRoot: fx.project,
@@ -186,8 +284,52 @@ async function caseStartUsesWorkDirAndKeepsQueue() {
   fs.rmSync(fx.home, { recursive: true, force: true });
 }
 
-async function caseTickSyncsReadyAndMerges() {
+async function caseDeferredTaskWaitsForExplicitStart() {
   const fx = makeBoard();
+  const live = fx.board.add({ projectRoot: fx.project, items: [{ link: LINK, target: "Live", mode: "B" }] });
+  fx.board.start(live.created[0]);
+  const liveTask = await waitForTask(fx.board, live.created[0], hasJob, "先有一条运行中的任务");
+  fx.runs.seed(liveTask.jobId, { id: liveTask.jobId, state: "running", request: {}, runs: [] }, liveTask.workDir);
+
+  const added = fx.board.add({
+    projectRoot: fx.project,
+    deferStart: true,
+    items: [{ link: LINK + "&deferred=1", target: "Deferred", mode: "A" }]
+  });
+  await sleep(TICK * 2 + 300);
+  const deferred = fx.board.snapshot().tasks.find((item) => item.id === added.created[0]);
+  assert.strictEqual(deferred.state, "queued", "tick 不得抢跑等页面 PNG 暂存的新任务");
+  assert.strictEqual(deferred.jobId, "", "还没有工作目录与运行");
+
+  fx.board.start(added.created[0]);
+  await waitForTask(fx.board, added.created[0], hasJob, "暂存完成后显式启动");
+  fs.rmSync(fx.home, { recursive: true, force: true });
+}
+
+async function caseStartAllKeepsDeferredTasks() {
+  const fx = makeBoard();
+  const deferred = fx.board.add({
+    projectRoot: fx.project,
+    deferStart: true,
+    items: [{ link: LINK + "&deferred-all=1", target: "Deferred", mode: "A" }]
+  });
+  const regular = fx.board.add({
+    projectRoot: fx.project,
+    items: [{ link: LINK + "&regular-all=1", target: "Regular", mode: "B" }]
+  });
+
+  fx.board.start();
+  await waitForTask(fx.board, regular.created[0], hasJob, "启动全部先启动未延后的任务");
+  const stillWaiting = fx.board.snapshot().tasks.find((task) => task.id === deferred.created[0]);
+  assert.strictEqual(stillWaiting.state, "queued", "启动全部不得越过页面 PNG 暂存门禁");
+  assert.strictEqual(stillWaiting.jobId, "", "延后任务还没跑");
+
+  fx.board.stop(regular.created[0]);
+  fs.rmSync(fx.home, { recursive: true, force: true });
+}
+
+async function caseTickSyncsReadyAndMerges() {
+  const fx = makeBoard({ artifacts: completeArtifacts() });
   const added = fx.board.add({ projectRoot: fx.project, items: [{ link: LINK, target: "T1", mode: "B" }] });
   const id = added.created[0];
   fx.board.start(id);
@@ -229,6 +371,7 @@ async function caseSemanticStopAndAutoFill() {
   const after = fx.board.snapshot().tasks.find((item) => item.id === id);
   assert.strictEqual(after.state, "waiting", "停点等人/AI 补输入时是待确认，不是失败");
   assert.strictEqual(after.failure.kind, "semantic");
+  assert.strictEqual(after.resumable, true, "普通语义停点有运行登记表断点，可以续跑");
   assert.ok(fx.pendingCalls.length > 0, "要按插件产物判断是不是语义停点");
   assert.ok(fx.autoFillCalls.length > 0, "自动化层级允许时要尝试自动补输入");
   assert.ok(after.aiFills.length > 0, "补进去的内容记在消费它的那一步上");
@@ -246,7 +389,7 @@ async function caseAutoFillBlockedByInput() {
   const project = makeProject();
   const runs = makeRuns();
   const id = "task-blocked-input";
-  const reason = "这一页那张设计稿位图读不出格式：重新导出成 PNG / JPEG 再传一张。";
+  const reason = "这一页那张页面 PNG 读不出格式：重新导出成 PNG / JPEG 再传一张。";
   write(path.join(home, "board.json"), JSON.stringify([{
     id: id,
     createdAt: new Date().toISOString(),
@@ -366,6 +509,7 @@ async function caseAutoFillLimitAndRealFailure() {
   const after2 = fx2.board.snapshot().tasks.find((item) => item.id === added2.created[0]);
   assert.strictEqual(after2.state, "failed");
   assert.strictEqual(after2.failure.kind, "error");
+  assert.strictEqual(after2.resumable, false, "还没跑过任何步骤的失败没有断点可续");
   fs.rmSync(fx2.home, { recursive: true, force: true });
 
   /*
@@ -390,7 +534,7 @@ async function caseAutoFillLimitAndRealFailure() {
 }
 
 /*
- * 新建任务时先选的设计稿位图：跑到「取数 + 固化快照」之后核对尺寸 —— 对不上就在任务行上写一句
+ * 新建任务时先选的页面 PNG：跑到「取数 + 固化快照」之后核对尺寸 —— 对不上就在任务行上写一句
  * （两个尺寸都写出来），条件解除之后自己清掉。这条提示不占 task.error，也不每个 tick 重复落盘。
  */
 async function caseStagedImageNotice() {
@@ -432,8 +576,520 @@ async function caseStagedImageNotice() {
 }
 
 /*
+ * A 路线跑完后唯一允许进入待合并的前提，是工作目录里已有与 DSL 画板同尺寸的页面 PNG。
+ * 没有图时 task.designImage 不能代替输入事实，更不能自动合并。
+ */
+async function casePipelineARequiresImageBeforeReady() {
+  const project = makeProject();
+  const steps = [
+    contractStep({
+      Id: 6,
+      Name: "discover",
+      Title: "候选发现",
+      Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"]
+    }),
+    STEPS[1]
+  ];
+  write(
+    path.join(project, "Generated", "runs", "T1", "dsl.snapshot.json"),
+    JSON.stringify({ dsl: { nodes: [{ type: "FRAME", id: "1:1", layoutStyle: { width: 1280, height: 1024 } }] } })
+  );
+  const fx = makeBoard({
+    project: project,
+    steps,
+    artifacts: completeArtifacts(steps),
+    autoFill: { ok: false, empty: true, reason: "这次停点没有要补的输入" }
+  });
+  const added = fx.board.add({
+    projectRoot: project,
+    autoMerge: false,
+    items: [{ link: LINK, target: "T1", mode: "A" }]
+  });
+  const id = added.created[0];
+  fx.board.start(id);
+  const task = await waitForTask(fx.board, id, hasJob, "启动完成");
+  fx.runs.seed(task.jobId, { id: task.jobId, state: "done", request: {}, runs: [] }, task.workDir);
+
+  await sleep(TICK + 300);
+  const after = fx.board.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(after.state, "waiting", "没有页面 PNG 的 A 任务不得进入待合并");
+  assert.strictEqual(after.failure.kind, "semantic");
+  assert.match(after.failure.message, /含 A 的路线需要页面 PNG/);
+  assert.strictEqual(after.imageStop, true, "看板快照要单独交出等图事实");
+  assert.strictEqual(after.failure.stepName, after.layoutStep, "等图停点挂在布局输入步骤上，显示时不能被当成分组表被拒");
+  assert.strictEqual(after.error, "", "页面 PNG 是可补齐的语义停点，不是运行错误");
+  assert.strictEqual(after.resumable, false, "页面 PNG 停点只能补图，不能重跑已完成的流水线");
+  assert.strictEqual(fx.autoFillCalls.length, 0, "页面 PNG 等图停点不走语义自动补输入");
+  const waitingAt = after.updatedAt;
+  const store = path.join(fx.home, "board.json");
+  const storeMtime = fs.statSync(store).mtimeMs;
+  await sleep(TICK * 2 + 300);
+  const stable = fx.board.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(stable.updatedAt, waitingAt, "同一个等图停点不刷新更新时间");
+  assert.strictEqual(fs.statSync(store).mtimeMs, storeMtime, "同一个等图停点不重写 board.json");
+
+  designImage.stage({ home: fx.home, taskId: id, data: png(1280, 1023).toString("base64") });
+  await sleep(TICK + 300);
+  const mismatched = fx.board.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(mismatched.state, "waiting", "尺寸不符同样不得进入待合并");
+  assert.match(mismatched.failure.message, /与画板尺寸不一致：图 1280×1023，画板 1280×1024/);
+
+  const stored = JSON.parse(fs.readFileSync(path.join(fx.home, "board.json"), "utf8"));
+  assert.strictEqual(stored[0].state, "waiting", "等图状态先落盘，不能只改内存");
+  assert.match(stored[0].failure.message, /含 A 的路线需要页面 PNG|页面 PNG 与画板尺寸不一致/);
+  delete stored[0].imageStop;
+
+  // 模拟进程重启：磁盘上原本还在运行的旧状态会被 load 改成 stopped，
+  // 登记表即使显示全部完成，也必须重新经过页面 PNG 门禁。
+  stored[0].state = "waiting";
+  stored[0].jobId = "";
+  stored[0].error = "";
+  write(path.join(fx.home, "board.json"), JSON.stringify(stored, null, 2) + "\n");
+  const restarted = createBoard({
+    runs: makeRuns(steps).api,
+    pending: null,
+    artifacts: {
+      stepsOf: () => [
+        { id: 6, name: "discover", status: "ok", seconds: 1, note: "" },
+        { id: 7, name: "ledger", status: "ok", seconds: 1, note: "" }
+      ]
+    },
+    home: fx.home
+  });
+  const afterRestart = restarted.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(afterRestart.state, "waiting", "重启对表不得绕过页面 PNG 门禁");
+  assert.match(afterRestart.failure.message, /页面 PNG/);
+  assert.strictEqual(afterRestart.failure.stepName, "discover");
+  assert.strictEqual(afterRestart.resumable, false, "重启后的页面 PNG 停点同样不给续跑入口");
+  assert.strictEqual(afterRestart.error, "", "进入等图停点要清掉旧错误，任务行只显示当前结论");
+
+  designImage.save({ projectRoot: afterRestart.workDir, target: "T1", data: png(1280, 1024).toString("base64") });
+  await sleep(TICK + 300);
+  const settled = restarted.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(settled.state, "ready", "重启后的等图任务补上合格图要重新结算");
+
+  fs.rmSync(fx.home, { recursive: true, force: true });
+  fs.rmSync(project, { recursive: true, force: true });
+}
+
+async function caseLayoutRerunsAfterProgressWhenImageNeedsGroups() {
+  const project = makeProject();
+  write(
+    path.join(project, "Generated", "runs", "T1", "dsl.snapshot.json"),
+    JSON.stringify({ dsl: { nodes: [{ type: "FRAME", id: "1:1", layoutStyle: { width: 1280, height: 1024 } }] } })
+  );
+  write(
+    path.join(project, "Generated", "_inputs", "T1.layout-group-candidates.json"),
+    JSON.stringify({ schemaVersion: "mw-wpf-layout-group-candidates/1", pageTarget: "T1", entries: [{ ref: "a" }, { ref: "b" }] })
+  );
+  const steps = [
+    contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
+  ];
+  const fx = makeBoard({ project: project, steps: steps, artifacts: completeArtifacts(steps) });
+  const id = fx.board.add({
+    projectRoot: project,
+    autoMerge: false,
+    items: [{ link: LINK, target: "T1", mode: "A" }]
+  }).created[0];
+  const staged = designImage.stage({ home: fx.home, taskId: id, data: png(1280, 1024).toString("base64") });
+  fx.board.start(id);
+  const task = await waitForTask(fx.board, id, hasJob, "任务启动");
+  designImage.installStaged({ home: fx.home, taskId: id, target: "T1", workDir: task.workDir });
+  assert.ok(!fs.existsSync(staged.path), "页面 PNG 已落地");
+  fx.runs.seed(task.jobId, {
+    id: task.jobId,
+    state: "done",
+    request: { progress: "layoutManifest", stopAfter: "" },
+    runs: []
+  }, task.workDir);
+
+  await sleep(TICK + 300);
+  assert.ok(fx.runs.started.some((request) => request.progress === "layoutManifest"),
+    "即使本次运行本身就是从布局续起，只要当前页面 PNG 缺分组表也要重推");
+
+  const stored = JSON.parse(fs.readFileSync(path.join(fx.home, "board.json"), "utf8"));
+  stored[0].state = "running";
+  stored[0].jobId = "";
+  write(path.join(fx.home, "board.json"), JSON.stringify(stored, null, 2) + "\n");
+  const restartedRuns = makeRuns(steps);
+  const restarted = createBoard({
+    runs: restartedRuns.api,
+    pending: null,
+    layout: { register: () => ({ ok: true }) },
+    artifacts: { stepsOf: () => [{ id: 8, name: "layoutManifest", status: "ok", seconds: 1, note: "" }] },
+    home: fx.home
+  });
+  restarted.advance();
+  const restartedTask = restarted.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(restartedTask.state, "running", "重启对表后缺分组表也要重新进入运行");
+  assert.ok(restartedRuns.started.some((request) => request.progress === "layoutManifest"),
+    "运行已丢失时也要按当前页面 PNG 重推布局，不能直接待合并");
+  const resumed = restarted.byId(id);
+  write(workdir.layoutGroupsPath(resumed.workDir, "T1"), '{ "groups": [] }\n');
+  restartedRuns.seed(
+    resumed.jobId,
+    { id: resumed.jobId, state: "done", request: { progress: "layoutManifest", stopAfter: "" }, runs: [] },
+    resumed.workDir
+  );
+  await sleep(TICK + 300);
+  assert.strictEqual(
+    restarted.snapshot().tasks.find((item) => item.id === id).state,
+    "ready",
+    "重启后补起的布局运行必须继续被 tick 跟到收尾"
+  );
+
+  fs.rmSync(fx.home, { recursive: true, force: true });
+  fs.rmSync(project, { recursive: true, force: true });
+}
+
+async function caseBRealFailureIsNotReclassifiedByLayout() {
+  const project = makeProject();
+  const fx = makeBoard({
+    project: project,
+    pendingFor: (query) => ({
+      icons: { available: false },
+      translations: { available: false },
+      layout: { needsGroups: query.mode !== "B", waiting: query.mode === "B" ? 0 : 1 }
+    })
+  });
+  const id = fx.board.add({
+    projectRoot: project,
+    items: [{ link: LINK, target: "T1", mode: "B" }]
+  }).created[0];
+  fx.board.start(id);
+  const task = await waitForTask(fx.board, id, hasJob, "B 任务启动");
+  fx.runs.seed(task.jobId, {
+    id: task.jobId,
+    state: "failed",
+    request: {},
+    runs: [{
+      state: "failed",
+      steps: {},
+      failure: { stepName: "not-human", message: "B 的真实失败" }
+    }]
+  }, task.workDir);
+  await sleep(TICK + 300);
+  const after = fx.board.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(after.state, "failed", "B 不消费布局分组，真实失败不能被改判成待确认");
+  assert.ok(fx.pendingCalls.some((call) => call.mode === "B"), "看板判停点必须把任务的 mode 交给同一份清单");
+  fs.rmSync(fx.home, { recursive: true, force: true });
+  fs.rmSync(project, { recursive: true, force: true });
+}
+
+async function caseLayoutStopUsesFailureEvidence() {
+  const steps = [
+    contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
+  ];
+  const failureMessage = "推导失败：节点没有归宿";
+  const failedFx = makeBoard({
+    steps: steps,
+    pendingFor: (query) => ({
+      icons: { available: false },
+      translations: { available: false },
+      layout: {
+        needsGroups: true,
+        waiting: query.failedMessage.includes("[" + GROUP_FAILURE_CODE.rejected + "]") ? 1 : 0
+      }
+    }),
+    autoFill: { ok: false, empty: true }
+  });
+  const failedId = failedFx.board.add({
+    projectRoot: failedFx.project,
+    items: [{ link: LINK, target: "T1", mode: "A" }]
+  }).created[0];
+  failedFx.board.start(failedId);
+  const failedTask = await waitForTask(failedFx.board, failedId, hasJob, "布局其他失败任务启动");
+  failedFx.runs.seed(failedTask.jobId, {
+    id: failedTask.jobId,
+    state: "failed",
+    request: {},
+    runs: [{
+      state: "failed",
+      steps: {},
+      failure: { stepName: "layoutManifest", message: failureMessage }
+    }]
+  }, failedTask.workDir);
+  await sleep(TICK + 300);
+  const failed = failedFx.board.snapshot().tasks.find((item) => item.id === failedId);
+  assert.strictEqual(failed.state, "failed", "布局步骤的其他失败不能被折成缺表停点");
+  assert.strictEqual(failed.failure.message, failureMessage);
+  assert.strictEqual(failedFx.autoFillCalls.length, 0, "没有分组表机器码时不得自动写表");
+  const failedQuery = failedFx.pendingCalls.find((call) => call.state === "failed" && call.failedStep === "layoutManifest");
+  assert.ok(failedQuery, "看板判停点必须把布局失败步骤一起交出去");
+  assert.strictEqual(failedQuery.failedMessage, failureMessage);
+  assert.strictEqual(failedQuery.layoutStep, "layoutManifest");
+
+  const rejectedMessage = "[" + GROUP_FAILURE_CODE.rejected + "] 分组表必须是数组";
+  const rejectedFx = makeBoard({
+    steps: steps,
+    pendingFor: (query) => ({
+      icons: { available: false },
+      translations: { available: false },
+      layout: {
+        needsGroups: false,
+        waiting: query.failedMessage.includes("[" + GROUP_FAILURE_CODE.rejected + "]") ? 1 : 0
+      }
+    }),
+    autoFill: { ok: false, empty: true }
+  });
+  const rejectedId = rejectedFx.board.add({
+    projectRoot: rejectedFx.project,
+    items: [{ link: LINK, target: "T1", mode: "A" }]
+  }).created[0];
+  rejectedFx.board.start(rejectedId);
+  const rejectedTask = await waitForTask(rejectedFx.board, rejectedId, hasJob, "分组表拒收任务启动");
+  rejectedFx.runs.seed(rejectedTask.jobId, {
+    id: rejectedTask.jobId,
+    state: "failed",
+    request: {},
+    runs: [{
+      state: "failed",
+      steps: {},
+      failure: { stepName: "layoutManifest", message: rejectedMessage }
+    }]
+  }, rejectedTask.workDir);
+  await sleep(TICK + 300);
+  const rejected = rejectedFx.board.snapshot().tasks.find((item) => item.id === rejectedId);
+  assert.strictEqual(rejected.state, "waiting", "分组表拒收停点仍按同一事实进入待确认");
+  assert.strictEqual(rejectedFx.autoFillCalls.length, 1, "分组表拒收时自动补输入只启动一次");
+
+  fs.rmSync(failedFx.home, { recursive: true, force: true });
+  fs.rmSync(failedFx.project, { recursive: true, force: true });
+  fs.rmSync(rejectedFx.home, { recursive: true, force: true });
+  fs.rmSync(rejectedFx.project, { recursive: true, force: true });
+}
+
+async function caseBadImageStopsBeforeLayoutRerun() {
+  const project = makeProject();
+  write(
+    path.join(project, "Generated", "runs", "T1", "dsl.snapshot.json"),
+    JSON.stringify({ dsl: { nodes: [{ type: "FRAME", id: "1:1", layoutStyle: { width: 1280, height: 1024 } }] } })
+  );
+  write(
+    path.join(project, "Generated", "_inputs", "T1.layout-group-candidates.json"),
+    JSON.stringify({ schemaVersion: "mw-wpf-layout-group-candidates/1", pageTarget: "T1", entries: [{ ref: "a" }, { ref: "b" }] })
+  );
+  const steps = [
+    contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
+  ];
+  const fx = makeBoard({ project: project, steps: steps, artifacts: completeArtifacts(steps) });
+  const id = fx.board.add({ projectRoot: project, items: [{ link: LINK, target: "T1", mode: "A" }] }).created[0];
+  fx.board.start(id);
+  const task = await waitForTask(fx.board, id, hasJob, "任务启动");
+  write(path.join(workdir.inputsDir(task.workDir), "T1.design.png"), png(1280, 1023));
+  const before = fx.runs.started.length;
+  fx.runs.seed(task.jobId, { id: task.jobId, state: "done", request: { stopAfter: "" }, runs: [] }, task.workDir);
+
+  await sleep(TICK + 300);
+  const after = fx.board.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(after.state, "waiting", "坏图先停在页面 PNG 核对点");
+  assert.match(after.failure.message, /与画板尺寸不一致：图 1280×1023，画板 1280×1024/);
+  assert.strictEqual(fx.runs.started.length, before, "页面 PNG 不合格时不得先重启布局");
+
+  fs.rmSync(fx.home, { recursive: true, force: true });
+  fs.rmSync(project, { recursive: true, force: true });
+}
+
+async function caseLayoutWaitDoesNotRepeatAutoFill() {
+  const project = makeProject();
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-home-"));
+  const taskDir = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-work-"));
+  const steps = [
+    contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
+  ];
+  write(
+    path.join(taskDir, "Generated", "runs", "T1", "dsl.snapshot.json"),
+    JSON.stringify({ dsl: { nodes: [{ type: "FRAME", id: "1:1", layoutStyle: { width: 1280, height: 1024 } }] } })
+  );
+  designImage.save({ projectRoot: taskDir, target: "T1", data: png(1280, 1024).toString("base64") });
+  write(path.join(home, "board.json"), JSON.stringify([{
+    id: "layout-wait",
+    state: "waiting",
+    request: {
+      mode: "A",
+      link: LINK,
+      target: "T1",
+      ui: "F3",
+      projectRoot: project,
+      fileId: "204689197363903",
+      layerId: "1872:60904",
+      stopAfter: "",
+      overwrite: false,
+      allowEmptyLedger: false
+    },
+    workDir: taskDir,
+    jobId: "",
+    autoMerge: false,
+    autoFillCount: 0,
+    failure: {
+      kind: "semantic",
+      stepName: "layoutManifest",
+      title: "Layout 清单",
+      message: "需要补布局分组",
+      logPath: ""
+    },
+    error: ""
+  }], null, 2) + "\n");
+  let autoFillCalls = 0;
+  const runs = makeRuns(steps);
+  const board = createBoard({
+    runs: runs.api,
+    pending: {
+      inspect: () => ({
+        icons: { available: false },
+        translations: { available: false },
+        layout: { needsGroups: true, waiting: 1 }
+      })
+    },
+    autoFill: {
+      fill: async () => {
+        autoFillCalls += 1;
+        return { ok: false, empty: true };
+      }
+    },
+    artifacts: {
+      stepsOf: () => [{ id: 8, name: "layoutManifest", status: "failed", seconds: 1, note: "需要补布局分组" }]
+    },
+    home
+  });
+
+  await sleep(TICK + 300);
+  assert.strictEqual(autoFillCalls, 1, "布局停点重启后只补输入一次");
+  board.snapshot();
+  board.snapshot();
+  await sleep(TICK * 2 + 300);
+  board.snapshot();
+  assert.strictEqual(autoFillCalls, 1, "后续轮询不得把同一布局停点反复当成读图停点");
+
+  fs.rmSync(home, { recursive: true, force: true });
+  fs.rmSync(project, { recursive: true, force: true });
+  fs.rmSync(taskDir, { recursive: true, force: true });
+}
+
+function caseUnsafeImageIdentityStopsInsteadOfThrowing() {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-home-"));
+  const project = makeProject();
+  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-work-"));
+  write(path.join(home, "board.json"), JSON.stringify([{
+    id: "t-unsafe",
+    state: "stopped",
+    request: {
+      mode: "A",
+      link: LINK,
+      target: "../Unsafe",
+      projectRoot: project,
+      stopAfter: "",
+      overwrite: true
+    },
+    workDir: workDir,
+    jobId: "",
+    autoMerge: false,
+    failure: null,
+    error: "客户端重启，这个任务已中断"
+  }], null, 2) + "\n");
+  const steps = [
+    contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
+  ];
+  const runs = makeRuns(steps);
+  const board = createBoard({
+    runs: runs.api,
+    pending: null,
+    layout: { register: () => ({ ok: true }) },
+    artifacts: { stepsOf: () => [{ id: 8, name: "layoutManifest", status: "ok", seconds: 1, note: "" }] },
+    home: home
+  });
+  let snapshot;
+  board.advance();
+  assert.doesNotThrow(() => { snapshot = board.snapshot(); }, "不合规页面身份不能从看板轮询里逸出");
+  const task = snapshot.tasks.find((item) => item.id === "t-unsafe");
+  assert.strictEqual(task.state, "waiting");
+  assert.match(task.failure.message, /无法核对页面 PNG/);
+  assert.strictEqual(runs.started.length, 0, "页面身份读不出来时不得重推布局");
+
+  fs.rmSync(home, { recursive: true, force: true });
+  fs.rmSync(project, { recursive: true, force: true });
+  fs.rmSync(workDir, { recursive: true, force: true });
+}
+
+async function caseMergingDoesNotRestartLayout() {
+  const project = makeProject();
+  write(
+    path.join(project, "Generated", "runs", "T1", "dsl.snapshot.json"),
+    JSON.stringify({ dsl: { nodes: [{ type: "FRAME", id: "1:1", layoutStyle: { width: 1280, height: 1024 } }] } })
+  );
+  write(
+    path.join(project, "Generated", "_inputs", "T1.layout-group-candidates.json"),
+    JSON.stringify({ schemaVersion: "mw-wpf-layout-group-candidates/1", pageTarget: "T1", entries: [{ ref: "a" }, { ref: "b" }] })
+  );
+  const steps = [
+    contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
+  ];
+  let releaseMerge = null;
+  const fx = makeBoard({
+    project: project,
+    steps: steps,
+    artifacts: completeArtifacts(steps),
+    merge: {
+      merge: () => new Promise((resolve) => {
+        releaseMerge = () => resolve({ applied: [], skipped: [], notes: [], conflicts: [] });
+      })
+    }
+  });
+  const id = fx.board.add({ projectRoot: project, autoMerge: false, items: [{ link: LINK, target: "T1", mode: "A" }] }).created[0];
+  fx.board.start(id);
+  const task = await waitForTask(fx.board, id, hasJob, "任务启动");
+  write(path.join(workdir.inputsDir(task.workDir), "T1.design.png"), png(1280, 1024));
+  write(workdir.layoutGroupsPath(task.workDir, "T1"), '{ "groups": [] }\n');
+  fx.runs.seed(task.jobId, { id: task.jobId, state: "done", request: { stopAfter: "" }, runs: [] }, task.workDir);
+  await sleep(TICK + 300);
+  assert.strictEqual(fx.board.snapshot().tasks.find((item) => item.id === id).state, "ready");
+  assert.match(
+    fx.board.imageWriteBlock({ id: id, workDir: task.workDir, target: "T1" }),
+    /任务已经产出/
+  );
+  assert.throws(
+    () => fx.board.requireImageWrite({ id: id, workDir: task.workDir, target: "T1" }),
+    (error) => error.code === "TASK_IMAGE_FINAL"
+  );
+
+  try {
+    fx.board.mergeOne(id);
+    assert.strictEqual(fx.board.snapshot().tasks.find((item) => item.id === id).state, "merging");
+    assert.strictEqual(
+      fx.board.imageWriteBlock({ id: id, workDir: task.workDir, target: "T1" }),
+      "任务正在合并，结束后才能换图。"
+    );
+    assert.throws(
+      () => fx.board.requireImageWrite({ id: id, workDir: task.workDir, target: "T1" }),
+      (error) => error.code === "TASK_MERGING"
+    );
+    assert.throws(
+      () => fx.board.requireImageStage(id),
+      (error) => error.code === "TASK_MERGING"
+    );
+    fs.rmSync(path.join(workdir.inputsDir(task.workDir), "T1.design.png"), { force: true });
+    const staged = designImage.stage({ home: fx.home, taskId: id, data: png(1280, 1024).toString("base64") });
+    fs.rmSync(workdir.layoutGroupsPath(task.workDir, "T1"), { force: true });
+    const before = fx.runs.started.length;
+    await sleep(TICK + 300);
+    const after = fx.board.snapshot().tasks.find((item) => item.id === id);
+    assert.strictEqual(after.state, "merging", "合并期间状态不被布局重跑覆盖");
+    assert.strictEqual(fx.runs.started.length, before, "合并期间不启动新的布局运行");
+    assert.ok(fs.existsSync(staged.path), "合并期间暂存件不落地");
+    assert.strictEqual(designImage.read({ projectRoot: task.workDir, target: "T1" }).image, null,
+      "合并期间不写工作目录");
+  }
+  finally {
+    if (releaseMerge) releaseMerge();
+  }
+
+  fs.rmSync(fx.home, { recursive: true, force: true });
+  fs.rmSync(project, { recursive: true, force: true });
+}
+
+/*
  * 「哪一步吃布局输入」按契约的 Inputs 判，不看步骤名：契约里叫 layout 的那一步若不吃分组表，
- * 界面就不会把设计稿位图与布局确认挂上去（另有一个 decoy 故意叫这个名字）。
+ * 界面就不会把位图恢复入口挂到别的步骤上（另有一个 decoy 故意叫这个名字）。
  */
 function contractStep(detail) {
   return { Outputs: ["x"], Failures: ["f"], Recovery: ["r"], Inputs: [], ...detail };
@@ -459,8 +1115,8 @@ async function caseLayoutStepComesFromContract() {
   const task = await waitForTask(fx.board, id, hasJob, "启动完成");
   const byName = new Map(task.steps.map((step) => [step.name, step]));
   assert.strictEqual(task.layoutStep, "layoutManifest", "吃分组表的那一步就是布局那一步（叫 layout 的那一步不算）");
-  assert.strictEqual(byName.get("ledger").humanInput, true, "吃命名表那一步仍标「人/AI 语义输入」");
-  assert.strictEqual(byName.get("layoutManifest").humanInput, true, "吃分组表那一步同样是人/AI 语义输入");
+  assert.strictEqual(byName.get("ledger").humanInput, true, "吃命名表那一步标自动语义输入");
+  assert.strictEqual(byName.get("layoutManifest").humanInput, true, "吃分组表那一步同样标自动语义输入");
   assert.strictEqual(byName.get("layout").humanInput, false, "不吃这些输入的那一步不标");
 
   // 插件来源可以在运行中被换掉（换一份契约）：看板这份事实跟着契约走，不在自己这边留一份缓存。
@@ -517,6 +1173,11 @@ async function caseResumeStepBoundary() {
     "",
     "还没跑过：没有断点"
   );
+  assert.strictEqual(
+    fresh.board.snapshot().tasks.find((task) => task.id === freshId).resumable,
+    false,
+    "还没开始的任务不给续跑"
+  );
   fs.rmSync(fresh.home, { recursive: true, force: true });
 
   const artifacts = {
@@ -534,6 +1195,135 @@ async function caseResumeStepBoundary() {
   fs.rmSync(half.home, { recursive: true, force: true });
 }
 
+/*
+ * 运行以 done 退出不等于流水线跑完：-StopAfter 后面的步骤是 skipped。
+ * 这种任务必须停在可续跑的 stopped，而不是被页面 PNG 门禁改写成 waiting。
+ */
+async function caseDoneBeforeCompleteStaysResumable() {
+  const artifacts = {
+    stepsOf: () => [
+      { id: 6, name: "discover", status: "ok", seconds: 1, note: "" },
+      { id: 7, name: "ledger", status: "skipped", seconds: 0, note: "" }
+    ]
+  };
+  const fx = makeBoard({ artifacts: artifacts });
+  const added = fx.board.add({
+    projectRoot: fx.project,
+    stopAfter: "discover",
+    items: [{ link: LINK, target: "T1", mode: "AB" }]
+  });
+  const id = added.created[0];
+  fx.board.start(id);
+  const task = await waitForTask(fx.board, id, hasJob, "启动完成");
+  fx.runs.seed(task.jobId, { id: task.jobId, state: "done", request: { stopAfter: "discover" }, runs: [] }, task.workDir);
+
+  await sleep(TICK + 300);
+  const after = fx.board.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(after.state, "stopped", "提前停止的运行不能按已完成收尾");
+  assert.strictEqual(after.failure, null, "提前停止不是错误，也不该伪造页面 PNG 停点");
+  assert.strictEqual(after.resumable, true, "登记表没跑满时必须保留续跑入口");
+  assert.strictEqual(after.resumeStep, "图标台账", "续跑从登记表里的下一步开始");
+  fs.rmSync(fx.home, { recursive: true, force: true });
+}
+
+/* 登记表已经跑满但磁盘状态还是 waiting / stopped：快照对表要直接收尾，不能再给必然 ALL_DONE 的入口。 */
+async function caseCompletedRegistrySettlesStaleStops() {
+  const complete = [
+    { id: 6, name: "discover", status: "ok", seconds: 1, note: "" },
+    { id: 7, name: "ledger", status: "ok", seconds: 1, note: "" }
+  ];
+
+  const stoppedFx = makeBoard({ artifacts: { stepsOf: () => complete } });
+  const stoppedId = stoppedFx.board.add({
+    projectRoot: stoppedFx.project,
+    autoMerge: false,
+    items: [{ link: LINK, target: "T1", mode: "B" }]
+  }).created[0];
+  stoppedFx.board.start(stoppedId);
+  await waitForTask(stoppedFx.board, stoppedId, hasJob, "启动完成");
+  stoppedFx.board.stop(stoppedId);
+  stoppedFx.runs.clear();
+  stoppedFx.board.advance();
+  const settledStopped = stoppedFx.board.snapshot().tasks.find((task) => task.id === stoppedId);
+  assert.strictEqual(settledStopped.state, "ready", "登记表跑满后 stopped 要对表收尾");
+  assert.strictEqual(settledStopped.resumable, false, "已经跑完的任务不给续跑");
+  fs.rmSync(stoppedFx.home, { recursive: true, force: true });
+
+  const waitingHome = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-waiting-complete-"));
+  const waitingWork = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-waiting-work-"));
+  write(path.join(waitingHome, "board.json"), JSON.stringify([{
+    id: "waiting-complete",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    state: "waiting",
+    request: { mode: "B", link: LINK, target: "T1", ui: "F3", projectRoot: waitingWork, stopAfter: "", overwrite: false },
+    workDir: waitingWork,
+    baseDir: "",
+    jobId: "",
+    autoMerge: false,
+    autoFillCount: 0,
+    failure: { kind: "semantic", stepName: "ledger", title: "图标台账", message: "旧停点", logPath: "" },
+    merge: null,
+    error: ""
+  }]));
+  const waitingBoard = createBoard({
+    runs: makeRuns().api,
+    pending: null,
+    artifacts: { stepsOf: () => complete },
+    home: waitingHome
+  });
+  waitingBoard.advance();
+  const settledWaiting = waitingBoard.snapshot().tasks.find((task) => task.id === "waiting-complete");
+  assert.strictEqual(settledWaiting.state, "ready", "登记表跑满后 waiting 要对表收尾");
+  assert.strictEqual(settledWaiting.resumable, false, "等待态过期后也不能给续跑");
+  fs.rmSync(waitingHome, { recursive: true, force: true });
+  fs.rmSync(waitingWork, { recursive: true, force: true });
+}
+
+/* 旧版本把 -StopAfter 误写成等图停点时，登记表没跑满也必须回到可续跑状态。 */
+async function caseIncompleteRegistryOverridesStaleImageStop() {
+  const incomplete = [
+    { id: 6, name: "discover", status: "ok", seconds: 1, note: "" },
+    { id: 7, name: "ledger", status: "skipped", seconds: 0, note: "" }
+  ];
+  const fx = makeBoard({ artifacts: { stepsOf: () => incomplete } });
+  const id = fx.board.add({
+    projectRoot: fx.project,
+    stopAfter: "discover",
+    items: [{ link: LINK, target: "T1", mode: "AB" }]
+  }).created[0];
+  fx.board.start(id);
+  const task = await waitForTask(fx.board, id, hasJob, "启动完成");
+  fx.board.stop(id);
+  const stored = JSON.parse(fs.readFileSync(path.join(fx.home, "board.json"), "utf8"));
+  const record = stored.find((item) => item.id === id);
+  record.state = "waiting";
+  record.imageStop = true;
+  record.failure = {
+    kind: "semantic",
+    stepName: "layoutManifest",
+    title: "Layout 清单",
+    message: "含 A 的路线还不能核对页面 PNG：旧版本误判",
+    logPath: ""
+  };
+  write(path.join(fx.home, "board.json"), JSON.stringify(stored));
+  fx.runs.clear();
+
+  const fresh = createBoard({
+    runs: fx.runs.api,
+    pending: null,
+    artifacts: { stepsOf: () => incomplete },
+    home: fx.home
+  });
+  fresh.advance();
+  const after = fresh.snapshot().tasks.find((item) => item.id === id);
+  assert.strictEqual(after.state, "stopped", "登记表未跑满时旧等图停点必须回到 stopped");
+  assert.strictEqual(after.resumable, true, "提前结束的旧记录必须重新给出续跑入口");
+  assert.strictEqual(after.failure, null, "旧等图文案不能继续遮住真实进度");
+  fs.rmSync(fx.home, { recursive: true, force: true });
+  fs.rmSync(task.workDir, { recursive: true, force: true });
+}
+
 async function caseStopRemoveClearAndMerge() {
   const fx = makeBoard();
   const added = fx.board.add({ projectRoot: fx.project, items: [{ link: LINK, target: "T1", mode: "B" }, { link: LINK + "&b=1", target: "T2", mode: "B" }] });
@@ -543,6 +1333,7 @@ async function caseStopRemoveClearAndMerge() {
 
   const stopped = fx.board.stop(first);
   assert.strictEqual(stopped.tasks.find((task) => task.id === first).state, "stopped");
+  assert.strictEqual(stopped.tasks.find((task) => task.id === first).resumable, false, "还没建工作目录的排队任务停止后没有可续的断点");
   const removed = await fx.board.remove(second);
   assert.strictEqual(removed.tasks.some((task) => task.id === second), false);
   await assert.rejects(() => fx.board.remove("nope"), (error) => error.code === "NO_TASK");
@@ -552,7 +1343,10 @@ async function caseStopRemoveClearAndMerge() {
   fx.board.start(third);
   await waitForTask(fx.board, third, hasJob, "第三个任务跑起来");
   await assert.rejects(() => fx.board.remove(third), (error) => error.code === "BUSY_TASK");
-  fx.board.stop(third);
+  const halted = fx.board.stop(third);
+  const haltedTask = halted.tasks.find((task) => task.id === third);
+  assert.strictEqual(haltedTask.state, "stopped");
+  assert.strictEqual(haltedTask.resumable, true, "已建工作目录的手动停止任务可以从当前断点重跑");
   const afterStop = await fx.board.remove(third);
   assert.strictEqual(afterStop.tasks.some((task) => task.id === third), false);
 
@@ -594,17 +1388,31 @@ async function caseProgressStepsAndTargetAdoption() {
 async function main() {
   const cases = [
     ["重启后把不可能还在跑的任务标成已停止", caseLoadMarksDeadTasksStopped],
+    ["快照只读，状态推进只在 advance", caseSnapshotIsReadOnly],
     ["加任务：校验与参数落地", caseAddValidationAndFields],
     ["启动：工作目录与并发队列", caseStartUsesWorkDirAndKeepsQueue],
+    ["deferStart 等暂存完成再启动", caseDeferredTaskWaitsForExplicitStart],
+    ["启动全部不越过暂存门禁", caseStartAllKeepsDeferredTasks],
     ["tick 同步：跑完自动合并", caseTickSyncsReadyAndMerges],
     ["语义停点与自动补输入", caseSemanticStopAndAutoFill],
     ["补输入到上限与真失败", caseAutoFillLimitAndRealFailure],
     ["输入读不出来（位图坏了）：整句写回、不占额度", caseAutoFillBlockedByInput],
     ["补输入抛出来的错误也带修法", caseAutoFillThrownErrorKeepsHint],
-    ["先选的设计稿位图：尺寸不符写在行上、条件解除自清", caseStagedImageNotice],
+    ["先选的页面 PNG：尺寸不符写在行上、条件解除自清", caseStagedImageNotice],
+    ["A 路线没有页面 PNG 时停在待确认，不自动合并", casePipelineARequiresImageBeforeReady],
+    ["从布局续跑完成也要按当前页面 PNG 检查分组", caseLayoutRerunsAfterProgressWhenImageNeedsGroups],
+    ["B 的真实失败不被布局停点改判", caseBRealFailureIsNotReclassifiedByLayout],
+    ["布局停点按失败步骤与机器码分类", caseLayoutStopUsesFailureEvidence],
+    ["坏图先停页面 PNG 核对点，不抢跑布局", caseBadImageStopsBeforeLayoutRerun],
+    ["布局停点不会反复触发自动补输入", caseLayoutWaitDoesNotRepeatAutoFill],
+    ["页面身份不合规时停在等图点，不从轮询逸出", caseUnsafeImageIdentityStopsInsteadOfThrowing],
+    ["合并期间不因换图重启布局", caseMergingDoesNotRestartLayout],
     ["任务离开看板（移除 / 清理 / 清空区域）：暂存件跟着走", caseRemovalDropsStagedImage],
     ["「哪一步吃布局输入」按契约的 Inputs 判，不认步骤名", caseLayoutStepComesFromContract],
     ["「能不能续、续哪一步」的两支边界（没跑过 / 跑到一半）", caseResumeStepBoundary],
+    ["运行提前 done 但登记表没跑满：停在可续跑的 stopped", caseDoneBeforeCompleteStaysResumable],
+    ["登记表已跑满：过期的 waiting / stopped 直接收尾", caseCompletedRegistrySettlesStaleStops],
+    ["登记表未跑满：旧等图停点回到可续跑状态", caseIncompleteRegistryOverridesStaleImageStop],
     ["停止 / 移除 / 清理 / 合并前置校验", caseStopRemoveClearAndMerge],
     ["进度、步骤视图与 Target 认领", caseProgressStepsAndTargetAdoption]
   ];

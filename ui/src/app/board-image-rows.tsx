@@ -5,13 +5,15 @@ import { linkLabel, pickedForLink, type BoardRow } from "@/lib/board-items"
 import { DESIGN_IMAGE_LABEL, READ_IMAGE_HINT } from "@/lib/task-form"
 
 /*
- * 创建任务弹窗「可选」组里的设计稿位图：一行（一个页面）一个框。
+ * 创建任务弹窗必填区里的页面 PNG：一行（一个页面）一个框。
  * 选哪一张由调用方按链接记（ui/src/lib/board-items.ts），暂存与尺寸核对在任务建出来之后
  * （ui/src/app/stage-design-images.ts）。
  */
 export function BoardImageRows(props: {
   rows: BoardRow[]
   images: Record<string, File>
+  /** 当前表单确实只有一个页面时，先选好的待认领图仍显示在这一行。 */
+  allowUnclaimed: boolean
   onPickImage: (link: string, file: File | null) => void
 }) {
   return (
@@ -36,7 +38,7 @@ export function BoardImageRows(props: {
             {row.target && <Badge variant="secondary">{row.target}</Badge>}
             <DesignImagePicker
               id={"board-image-" + row.line}
-              file={pickedForLink(props.images, row.link)}
+              file={pickedForLink(props.images, row.link, props.allowUnclaimed)}
               emptyHint=""
               onPick={(file) => props.onPickImage(row.link, file)}
             />

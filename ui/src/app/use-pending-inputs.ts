@@ -1,8 +1,17 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import { useValueRunner } from "@/app/use-action-runner"
 import { useAlive } from "@/app/use-alive"
 import { api, type Pending } from "@/lib/api"
+
+/** 三张草稿共用这一条初值策略：只铺还没有键的格子，人已经改过的值不覆盖。 */
+function fillMissing<K extends PropertyKey, V>(current: Record<K, V>, seeds: Iterable<readonly [K, V]>): Record<K, V> {
+  const next = { ...current }
+  for (const [key, value] of seeds) {
+    if (next[key] === undefined) next[key] = value
+  }
+  return next
+}
 
 /*
  * 待确认清单的取数、三张草稿（命名表 / 译文 / 术语）与叫 AI 出候选。
@@ -34,13 +43,14 @@ export const PENDING_BUSY = {
 export function usePendingInputs(input: {
   projectRoot: string
   target: string
+  mode: string
   /** 看板任务 id：续跑按它落回那一行（面板提交时用），这里只用它判断来源有没有换。 */
   taskId: string
   runId: string
   /** 来源运行/任务的状态：它一变就重读（「跑着 → 停下」后会新出现待办）。 */
   state: string
 }) {
-  const { projectRoot, target, taskId, runId, state } = input
+  const { projectRoot, target, mode, taskId, runId, state } = input
   const [pending, setPending] = useState<Pending | null>(null)
   const [names, setNames] = useState<Record<number, { name: string; comment: string }>>({})
   const [texts, setTexts] = useState<Record<string, string>>({})
@@ -50,6 +60,7 @@ export function usePendingInputs(input: {
   const [failure, setFailure] = useState("")
   const [aiReady, setAiReady] = useState<boolean | null>(null)
   const alive = useAlive()
+  const reloadSeq = useRef(0)
   /*
    * 两个配置，同一份骨架（ui/src/app/use-action-runner.ts）：
    *   run   —— 取数：失败就照原话写进 failure；
@@ -72,38 +83,36 @@ export function usePendingInputs(input: {
   }, [])
 
   const reload = useCallback(async () => {
-    if (!projectRoot.trim() || !target.trim()) return
-    await run(PENDING_BUSY.load, () => api.pending(projectRoot, target), (payload) => {
-      if (!alive.current) return
+    const seq = ++reloadSeq.current
+    if (!projectRoot.trim() || !target.trim()) {
+      setPending(null)
+      setBusy("")
+      return
+    }
+    await run(PENDING_BUSY.load, () => api.pending({ projectRoot, target, mode, taskId, runId }), (payload) => {
       setPending(payload.pending)
-      setNames((current) => {
-        const next = { ...current }
-        for (const item of payload.pending.icons.mustName) {
-          if (!next[item.index]) next[item.index] = { name: "", comment: "" }
-        }
-        for (const row of payload.pending.icons.naming) next[row.index] = { name: row.name ?? "", comment: row.comment ?? "" }
-        return next
-      })
-      setTexts((current) => {
-        const next = { ...current }
-        for (const item of payload.pending.translations.pendingTranslations) {
-          if (next[item.text] === undefined) next[item.text] = payload.pending.translations.translations[item.text] ?? ""
-        }
-        return next
-      })
-      setGlossary((current) => {
-        const next = { ...current }
-        for (const item of payload.pending.translations.glossaryRequired) {
-          if (next[item.text] === undefined) next[item.text] = payload.pending.translations.glossary[item.text] ?? ""
-        }
-        return next
-      })
+      setNames((current) => fillMissing(current, [
+        ...payload.pending.icons.naming.map((row) =>
+          [row.index, { name: row.name ?? "", comment: row.comment ?? "" }] as const
+        ),
+        ...payload.pending.icons.mustName.map((item) =>
+          [item.index, { name: "", comment: "" }] as const
+        )
+      ]))
+      setTexts((current) => fillMissing(current, payload.pending.translations.pendingTranslations.map((item) =>
+        [item.text, payload.pending.translations.translations[item.text] ?? ""] as const
+      )))
+      setGlossary((current) => fillMissing(current, payload.pending.translations.glossaryRequired.map((item) =>
+        [item.text, payload.pending.translations.glossary[item.text] ?? ""] as const
+      )))
+    }, {
+      isCurrent: () => alive.current && seq === reloadSeq.current
     })
-  }, [alive, projectRoot, target, run])
+  }, [alive, projectRoot, target, mode, taskId, runId, run])
 
   useEffect(() => {
     void reload()
-  }, [reload, state, taskId, runId])
+  }, [reload, state])
 
   /*
    * 命名表草稿 → 提交形状：只有这一处（人填的那份与模型出的那份共用它）。

@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { BoardNewTaskDialog } from "@/app/board-new-task-dialog"
 import type { BoardTaskForm } from "@/lib/board-form"
@@ -12,6 +12,11 @@ import type { useIdentityFill } from "@/app/use-identity-fill"
 
 const LINK = "https://mastergo.com/goto/x?file=1&layer_id=2:3"
 const OTHER = "https://mastergo.com/goto/y?file=1&layer_id=4:5"
+
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 /* 弹窗里的补全面板由 useIdentityFill 驱动：这一组用例与它无关，给一份不动的壳。 */
 const IDENTITY = {
@@ -33,7 +38,10 @@ function show(patch: Partial<Parameters<typeof BoardNewTaskDialog>[0]> = {}) {
     <BoardNewTaskDialog
       open={true}
       form={form()}
+      modes={["A", "B", "AB"]}
       images={{}}
+      takesPageImage={true}
+      runsPipelineAOnly={true}
       busy={false}
       automation="assist"
       identity={IDENTITY}
@@ -53,11 +61,18 @@ function show(patch: Partial<Parameters<typeof BoardNewTaskDialog>[0]> = {}) {
 }
 
 describe("BoardNewTaskDialog 的选图", () => {
-  it("走 A 路线：一行一个选图框", () => {
+  it("走 A 路线：保留路线选择，一行一个选图框，不显示身份与停点设置", () => {
     const { inputs } = show({ form: form({ links: LINK + "\n" + OTHER }) })
     expect(inputs.length).toBe(2)
     expect(screen.getByText("第 1 行")).toBeTruthy()
     expect(screen.getByText("第 2 行")).toBeTruthy()
+    expect(screen.getByText("路线")).toBeTruthy()
+    expect(screen.getByText("页面 PNG").closest("section")?.textContent).toContain("必填参数")
+    expect(screen.queryByLabelText("Ui 前缀")).toBeNull()
+    expect(screen.queryByLabelText("停在某一步")).toBeNull()
+    expect(screen.queryByText("可选参数")).toBeNull()
+    expect(screen.getByText(/A 路线固定为自动合并、同名产物覆盖、不在中途停止/)).toBeTruthy()
+    expect(screen.getByRole("button", { name: "创建并开始" })).toBeTruthy()
   })
 
   it("选的是哪一行的那一份：按链接交出去", () => {
@@ -73,15 +88,35 @@ describe("BoardNewTaskDialog 的选图", () => {
     expect(screen.getByText("第 1 行")).toBeTruthy()
   })
 
+  it("只有一行时，先选图后填链接仍显示这份待认领图", () => {
+    vi.stubGlobal("URL", { createObjectURL: () => "blob:preview", revokeObjectURL: () => undefined })
+    const file = new File(["x"], "Picked.design.png", { type: "image/png" })
+    show({ form: form({ links: LINK }), images: { "": file } })
+    expect(screen.getByText("Picked.design.png")).toBeTruthy()
+  })
+
   it("行号与上面那个框里的行对得上（空行也占一行）", () => {
     show({ form: form({ links: "\n" + LINK }) })
     expect(screen.getByText("第 2 行")).toBeTruthy()
   })
 
   it("不跑 A 路线就不给选图", () => {
-    const { inputs } = show({ form: form({ mode: "B" }) })
+    const { inputs } = show({ form: form({ mode: "B" }), takesPageImage: false, runsPipelineAOnly: false })
     expect(inputs.length).toBe(0)
     expect(screen.queryByText("第 1 行")).toBeNull()
+    expect(screen.getByLabelText("Ui 前缀")).toBeTruthy()
+    expect(screen.getByLabelText("停在某一步")).toBeTruthy()
+    expect(screen.getByText("可选参数")).toBeTruthy()
+    expect(screen.getByRole("button", { name: "加入看板并开始" })).toBeTruthy()
+  })
+
+  it("AB 也要求选图并在暂存后开始，同时保留 B 的身份、停点和覆盖设置", () => {
+    const { inputs } = show({ form: form({ mode: "AB" }), takesPageImage: true, runsPipelineAOnly: false })
+    expect(inputs.length).toBe(1)
+    expect(screen.getByLabelText("Ui 前缀")).toBeTruthy()
+    expect(screen.getByLabelText("停在某一步")).toBeTruthy()
+    expect(screen.getByText("可选参数")).toBeTruthy()
+    expect(screen.getByRole("button", { name: "创建并开始" })).toBeTruthy()
   })
 
   it("行还没写时说明一行配一张", () => {

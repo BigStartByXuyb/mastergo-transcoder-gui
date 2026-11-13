@@ -1,11 +1,15 @@
 import { useState } from "react"
 import { toast } from "sonner"
 
-import { api, type IdentityCandidate } from "@/lib/api"
+import type { IdentityCandidate } from "@/lib/api"
 import type { BoardItem } from "@/lib/board-items"
 import { describeFailure } from "@/lib/describe-failure"
-import { applyIdentity, candidatesForLink } from "@/lib/identity-flow"
-import { pickIdentityCandidate } from "@/lib/identity-pick"
+import {
+  applyIdentities,
+  applyIdentity,
+  prepareLinkIdentity,
+  type ApplyIdentityInput
+} from "@/lib/identity-flow"
 import { adoptsIdentityWithoutConfirm } from "@/lib/task-form"
 
 /*
@@ -35,6 +39,7 @@ export function useIdentityFill(options: {
     setRoot(projectRoot.trim())
     options.onFailure("")
     const next: FillRow[] = []
+    const autoWrite: { row: number; input: ApplyIdentityInput; basis: string }[] = []
     const filled = new Map<string, string>()
     try {
       for (const item of items) {
@@ -43,37 +48,55 @@ export function useIdentityFill(options: {
           next.push({ kind: "filled", link: item.link, target: item.target, ui, basis: "这一行自己写了 Target，没动" })
           continue
         }
-        const named = await api.designPageName(item.link)
-        const got = await candidatesForLink({
+        const result = await prepareLinkIdentity({
           link: item.link,
           projectRoot,
-          pageName: named.pageName,
           ui,
-          useAi: options.automation !== "off"
+          useAi: options.automation !== "off",
+          autoOnly: adoptsIdentityWithoutConfirm(options.automation)
         })
-        const decision = pickIdentityCandidate(got.items, got.blocked)
-        if (!decision.pick || !adoptsIdentityWithoutConfirm(options.automation)) {
-          const usable = got.items.some((candidate) => candidate.target && !candidate.needsSemanticName)
-          next.push(
-            usable
-              ? { kind: "pick", link: item.link, pageName: named.pageName, items: got.items, reason: decision.reason }
-              : { kind: "none", link: item.link, reason: decision.reason }
-          )
+        if (result.kind === "rejected") {
+          setRows(next)
+          options.onFailure(result.reason)
+          return
+        }
+        if (result.kind === "manual" || result.kind === "none") {
+          next.push(result.kind === "manual"
+            ? { kind: "pick", link: item.link, pageName: result.pageName, items: result.items, reason: result.reason }
+            : { kind: "none", link: item.link, reason: result.reason })
           continue
         }
-        await applyIdentity({ link: item.link, projectRoot, pageName: named.pageName, item: decision.pick })
-        filled.set(item.link, decision.pick.target)
+        const input = { link: item.link, projectRoot, pageName: result.pageName, item: result.candidate }
+        autoWrite.push({ row: next.length, input, basis: result.candidate.basis })
         next.push({
-          kind: "filled",
+          kind: "pick",
           link: item.link,
-          target: decision.pick.target,
-          ui: decision.pick.ui,
-          basis: decision.pick.basis
+          pageName: result.pageName,
+          items: [result.candidate],
+          reason: ""
         })
       }
       setRows(next)
-      if (filled.size > 0) options.onFilled(filled)
+      if (autoWrite.length > 0) {
+        await applyIdentities(autoWrite.map((entry) => entry.input))
+        const committed = [...next]
+        for (const entry of autoWrite) {
+          const item = entry.input.item
+          committed[entry.row] = {
+            kind: "filled",
+            link: entry.input.link,
+            target: item.target,
+            ui: item.ui,
+            basis: entry.basis
+          }
+          filled.set(entry.input.link, item.target)
+        }
+        setRows(committed)
+        options.onFilled(filled)
+      }
     } catch (error) {
+      // 候选行先上屏：批次写回失败时，人能看到哪些行还需要手动处理；登记表由后端整批回滚。
+      setRows(next)
       options.onFailure(describeFailure(error))
     } finally {
       setBusy("")

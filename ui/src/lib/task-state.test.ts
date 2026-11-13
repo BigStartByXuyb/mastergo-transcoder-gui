@@ -4,7 +4,6 @@ import type { Pending } from "@/lib/api"
 import {
   FINISHED_STATES,
   SETTLED_STATES,
-  canResume,
   canStop,
   hasProducts,
   isBusyState,
@@ -27,7 +26,16 @@ function pending(patch: { icons?: number; translations?: number; layout?: number
     summary: null,
     icons: { available: true, waiting: patch.icons ?? 0 },
     translations: { available: true, waiting: patch.translations ?? 0 },
-    layout: { needsGroups: false, controls: [], waiting: patch.layout ?? 0 }
+    layout: {
+      needsGroups: false,
+      recoverable: true,
+      hasFile: false,
+      hasGroups: false,
+      rejected: false,
+      failed: false,
+      failedMessage: "",
+      waiting: patch.layout ?? 0
+    }
   } as unknown as Pending
 }
 
@@ -63,47 +71,25 @@ describe("task-state", () => {
     expect(canStop("merged")).toBe(false)
   })
 
-  it("续跑只给停下来的三种，且必须有工作目录", () => {
-    const atStep = "校验结果"
-    expect(canResume({ state: "failed", workDir: "work\\page", resumeStep: atStep })).toBe(true)
-    for (const state of ["waiting", "stopped"]) {
-      expect(canResume({ state, workDir: "work\\page", resumeStep: atStep })).toBe(true)
-    }
-    expect(canResume({ state: "merged", workDir: "work\\page", resumeStep: atStep })).toBe(false)
-    expect(canResume({ state: "running", workDir: "work\\page", resumeStep: atStep })).toBe(false)
-    expect(canResume({ state: "failed", workDir: "" })).toBe(false)
-    expect(canResume({ state: "failed", workDir: "   " })).toBe(false)
-  })
-
-  it("登记表里一步都没跑过：不给续跑 —— 点了只会把同一句错再报一遍", () => {
-    expect(canResume({ state: "failed", workDir: "work\\page", resumeStep: "" })).toBe(false)
-    expect(canResume({ state: "failed", workDir: "work\\page" })).toBe(false)
-  })
-
-  it("被停掉 / 等输入但还没跑过：照旧给入口（再点一次是从起点重跑，不是死循环）", () => {
-    expect(canResume({ state: "stopped", workDir: "work\\page", resumeStep: "" })).toBe(true)
-    expect(canResume({ state: "waiting", workDir: "work\\page", resumeStep: "" })).toBe(true)
-  })
-
   it("「写回并续跑」只在不在跑时给：排队 / 建目录 / 跑着 / 合并中都不给，等输入的「等待」给", () => {
     for (const state of ["queued", "preparing", "running", "merging"]) expect(isInFlight(state)).toBe(true)
     for (const state of ["waiting", "failed", "stopped", "ready", "merged"]) expect(isInFlight(state)).toBe(false)
   })
 
   it("只数后端给出的待办条数：哪一节为 0 就只算另一节", () => {
-    expect(waitingCounts(pending({ icons: 3 }))).toEqual({ icons: 3, translations: 0 })
-    expect(waitingCounts(pending({ translations: 2 }))).toEqual({ icons: 0, translations: 2 })
-    expect(waitingCounts(pending({ icons: 2, translations: 5 }))).toEqual({ icons: 2, translations: 5 })
-    expect(waitingCounts(pending({ layout: 1 }))).toEqual({ icons: 0, translations: 0 })
+    expect(waitingCounts(pending({ icons: 3 }))).toEqual({ icons: 3, translations: 0, layout: 0 })
+    expect(waitingCounts(pending({ translations: 2 }))).toEqual({ icons: 0, translations: 2, layout: 0 })
+    expect(waitingCounts(pending({ icons: 2, translations: 5 }))).toEqual({ icons: 2, translations: 5, layout: 0 })
+    expect(waitingCounts(pending({ layout: 1 }))).toEqual({ icons: 0, translations: 0, layout: 1 })
   })
 
-  it("待补全面板只管图标与文案两节：布局那一节不进它的条数", () => {
-    expect(pendingInputCount({ icons: 2, translations: 3 })).toBe(5)
-    expect(pendingInputCount({ icons: 0, translations: 0 })).toBe(0)
-    expect(pendingInputCount(waitingCounts(pending({ layout: 1 })))).toBe(0)
+  it("待补全面板三节都计数：布局自动分组失败也必须有可提交出口", () => {
+    expect(pendingInputCount({ icons: 2, translations: 3, layout: 0 })).toBe(5)
+    expect(pendingInputCount({ icons: 0, translations: 0, layout: 0 })).toBe(0)
+    expect(pendingInputCount(waitingCounts(pending({ layout: 1 })))).toBe(1)
   })
 
   it("没有待确认清单时全是 0", () => {
-    expect(waitingCounts(null)).toEqual({ icons: 0, translations: 0 })
+    expect(waitingCounts(null)).toEqual({ icons: 0, translations: 0, layout: 0 })
   })
 })

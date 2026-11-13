@@ -6,7 +6,7 @@ import { IMAGE_ACCEPT, useFilePick } from "@/app/use-file-pick"
 import { humanSize } from "@/lib/upload-files"
 
 /*
- * 设计稿位图的选图框：一个「＋」磁贴，选好之后磁贴里就是那张图的缩略图（再点它＝换一张）。
+ * 页面 PNG 的选图框：一个「＋」磁贴，选好之后磁贴里就是那张图的缩略图（再点它＝换一张）。
  * 新建任务那张表单与看板的创建任务弹窗共用这一份，磁贴边长也同一档 —— 两张表单摆在一起不会一高一矮。
  *
  * 只管「手里拿着哪张图」—— 暂存、尺寸核对、格式判据都在后端（ui/src/app/stage-design-images.ts
@@ -48,7 +48,7 @@ export function DesignImagePicker(props: {
   return (
     <div className="flex min-w-0 items-center gap-3">
       {/* 点磁贴就是点这个 label（文件框本身藏起来）；id 同时留给外面那个 Label 关联。 */}
-      <label htmlFor={props.id} title={props.file ? "换一张位图" : "选择设计稿位图（按设计稿原尺寸导出）"} className={TILE_CLASS}>
+      <label htmlFor={props.id} title={props.file ? "换一张页面 PNG" : "选择页面 PNG（按画板原始尺寸导出）"} className={TILE_CLASS}>
         <input
           ref={picked.input}
           id={props.id}

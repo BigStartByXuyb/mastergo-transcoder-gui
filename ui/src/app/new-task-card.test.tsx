@@ -6,7 +6,7 @@ import type { useIdentity } from "@/app/use-identity"
 import type { TaskForm } from "@/lib/task-form"
 
 /*
- * 新建任务卡片：走 A 路线时设计稿位图就在「可选」那一组里。
+ * 新建任务卡片：A 路线只渲染必填组；B / AB 才显示身份和可选参数。
  * 页面 Target 空着也照给选图 —— 暂存件的键是任务 id，与页面名什么时候认回来无关。
  */
 
@@ -33,11 +33,14 @@ function show(patch: Partial<Parameters<typeof NewTaskCard>[0]> = {}) {
   const { container } = render(
     <NewTaskCard
       form={form()}
+      modes={["A", "B", "AB"]}
       onForm={() => undefined}
       plugin={null}
       contract={[]}
       identity={IDENTITY}
       image={null}
+      takesPageImage={true}
+      runsPipelineAOnly={true}
       onPickImage={vi.fn()}
       busy=""
       failure=""
@@ -52,14 +55,33 @@ function show(patch: Partial<Parameters<typeof NewTaskCard>[0]> = {}) {
 }
 
 describe("NewTaskCard 的选图", () => {
-  it("走 A 路线、页面 Target 空着也给选图框（而且不是禁用的）", () => {
+  it("走 A 路线时只要求链接、工程目录和页面 PNG", () => {
     const inputs = show()
     expect(inputs.length).toBe(1)
     expect(inputs[0].disabled).toBe(false)
-    expect(screen.getByText(/按设计稿原尺寸导出/)).toBeTruthy()
+    expect(screen.getByText(/画板原始尺寸导出/)).toBeTruthy()
+    expect(screen.getByText("页面 PNG").closest("section")?.textContent).toContain("必填参数")
+    expect(screen.getByText("A —— MW WPF XAML 页面")).toBeTruthy()
+    expect(screen.queryByLabelText("页面 Target")).toBeNull()
+    expect(screen.queryByLabelText("UI 区域")).toBeNull()
+    expect(screen.queryByLabelText("停在某一步")).toBeNull()
+    expect(screen.queryByText("可选参数")).toBeNull()
+    expect(screen.getByText(/A 路线固定为自动合并、同名产物覆盖、不在中途停止/)).toBeTruthy()
+    expect(screen.getByRole("button", { name: "创建并开始" })).toBeTruthy()
   })
 
-  it("不跑 A 路线就不给选图", () => {
-    expect(show({ form: form({ mode: "B" }) }).length).toBe(0)
+  it("B 路线保留原有 Target/区域与可选参数，但不给选图", () => {
+    expect(show({ form: form({ mode: "B" }), takesPageImage: false, runsPipelineAOnly: false }).length).toBe(0)
+    expect(screen.getByLabelText("页面 Target")).toBeTruthy()
+    expect(screen.getByLabelText("UI 区域")).toBeTruthy()
+    expect(screen.getByLabelText("停在某一步")).toBeTruthy()
+    expect(screen.getByText("可选参数")).toBeTruthy()
+  })
+
+  it("AB 路线同时保留 A 的选图与 B 的身份字段", () => {
+    expect(show({ form: form({ mode: "AB" }), takesPageImage: true, runsPipelineAOnly: false }).length).toBe(1)
+    expect(screen.getByLabelText("页面 Target")).toBeTruthy()
+    expect(screen.getByLabelText("UI 区域")).toBeTruthy()
+    expect(screen.getByText("可选参数")).toBeTruthy()
   })
 })

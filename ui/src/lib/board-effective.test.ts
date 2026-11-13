@@ -31,8 +31,10 @@ function task(
     workDir: "",
     routes: ["B"],
     autoMerge: true,
+    deferStart: false,
     progress: null,
     steps: [],
+    resumable: false,
     resumeStep: "",
     layoutStep: "",
     aiFills: [],
@@ -40,7 +42,8 @@ function task(
     merge: at ? { at, applied: [], skipped: [], notes: [], conflicts: [] } : null,
     resolutions: {},
     error: "",
-    designImage: ""
+    designImage: "",
+    imageStop: false
   }
 }
 

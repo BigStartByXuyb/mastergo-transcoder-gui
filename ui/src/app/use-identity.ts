@@ -3,16 +3,16 @@ import { toast } from "sonner"
 
 import { api, type IdentityCandidate, type ProjectPages } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
-import { applyIdentity, candidatesForLink } from "@/lib/identity-flow"
-import { pickIdentityCandidate } from "@/lib/identity-pick"
+import { applyIdentity, prepareLinkIdentity } from "@/lib/identity-flow"
+import type { IdentityApplyDecision } from "@/lib/task-start"
 import { adoptsIdentityWithoutConfirm } from "@/lib/task-form"
 
 /*
  * 页面身份：Target 与 UI 区域。
  *
- * 「选候选 → 写工程登记表 → 回填表单」只有这一处实现，按钮与自动层级启动前都调它；
- * 分叉会让两条入口对同一页给出不同结论。候选列表只跟工程目录有关，区域预览只跟 Target 有关
- * （规则在后端，前端不算），两者各自取数，互不牵连。
+ * 表单按钮的「选候选 → 写工程登记表 → 回填表单」在这里；候选准备复用
+ * `ui/src/lib/identity-flow.ts` 的统一编排，只在表单回填上分工。
+ * 候选列表只跟工程目录有关，区域预览只跟 Target 有关（规则在后端，前端不算），两者各自取数，互不牵连。
  */
 
 export type IdentityOptions = {
@@ -75,22 +75,34 @@ export function useIdentity(options: IdentityOptions) {
 
   /* 取候选并判定能不能自动采用；要人决策时把原因写进 failure，返回 null。 */
   async function pick(): Promise<IdentityCandidate | null> {
-    const got = await candidatesForLink({
+    const result = await prepareLinkIdentity({
       link,
       projectRoot,
       pageName: name,
       ui,
-      useAi: automation !== "off"
+      useAi: automation !== "off",
+      autoOnly: false
     })
-    setCandidates(got.items)
-    const decision = pickIdentityCandidate(got.items, got.blocked)
-    if (decision.pick) return decision.pick
-    onFailure(decision.reason)
+    if (result.kind === "manual") {
+      setCandidates(result.items)
+      if (!result.candidate) onFailure(result.reason)
+      return result.candidate
+    }
+    setCandidates([])
+    if (result.kind === "rejected") {
+      onFailure(result.reason)
+      return null
+    }
+    onFailure(result.kind === "none" ? result.reason : "")
     return null
   }
 
-  async function apply(item: IdentityCandidate) {
-    if (!item.target || !item.ui) return
+  async function apply(item: IdentityCandidate): Promise<IdentityApplyDecision> {
+    if (!item.target || !item.ui) {
+      const reason = "候选缺少页面 Target 或 UI 区域，不能写入登记表"
+      onFailure(reason)
+      return { ok: false, reason }
+    }
     setBusy("apply")
     try {
       const written = await applyIdentity({ link, projectRoot, pageName: name, item })
@@ -99,8 +111,11 @@ export function useIdentity(options: IdentityOptions) {
       setCandidates([])
       loadPages(projectRoot.trim())
       // 预览不用在这里再取一次：回填会让上面那条 effect 跑（同一件事只有一个入口）。
+      return { ok: true }
     } catch (error) {
-      onFailure(describeFailure(error))
+      const reason = describeFailure(error)
+      onFailure(reason)
+      return { ok: false, reason }
     } finally {
       setBusy("")
     }

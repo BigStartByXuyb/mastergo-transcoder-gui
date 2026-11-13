@@ -1,4 +1,5 @@
 import { readStored, writeStored } from "@/lib/storage"
+import { normalizeStoredMode, type TaskMode } from "@/lib/task-form"
 
 /*
  * 创建任务那张表单的内容：本地记着，下次打开还在。
@@ -10,7 +11,7 @@ const STORAGE_KEY = "mastergo-transcoder-gui.board"
 export type BoardTaskForm = {
   projectRoot: string
   ui: string
-  mode: "A" | "B" | "AB"
+  mode: TaskMode
   autoMerge: boolean
   overwrite: boolean
   stopAfter: string
@@ -20,7 +21,7 @@ export type BoardTaskForm = {
 export const EMPTY_BOARD_FORM: BoardTaskForm = {
   projectRoot: "",
   ui: "",
-  mode: "B",
+  mode: "A",
   autoMerge: true,
   overwrite: false,
   stopAfter: "",
@@ -31,7 +32,7 @@ export function readBoardForm(): BoardTaskForm {
   return readStored(STORAGE_KEY, EMPTY_BOARD_FORM, (raw) => ({
     projectRoot: String(raw.projectRoot ?? ""),
     ui: String(raw.ui ?? ""),
-    mode: raw.mode === "A" || raw.mode === "AB" ? raw.mode : "B",
+    mode: normalizeStoredMode(raw.mode, "A"),
     autoMerge: raw.autoMerge !== false,
     overwrite: raw.overwrite === true,
     stopAfter: String(raw.stopAfter ?? ""),

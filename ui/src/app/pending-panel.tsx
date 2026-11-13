@@ -31,7 +31,7 @@ const WRITTEN_LABEL: Record<string, string> = {
   "icon-naming.json": "图标命名",
   "lang-translations.json": "译文",
   "lang-glossary.json": "术语",
-  // 分组表由布局确认面板写回（同一份 /api/confirm），写进去的文件名这里也认。
+  // 分组表由自动补输入写回（同一份 /api/confirm），写进去的文件名这里也认。
   "layout-groups.json": "布局分组"
 }
 
@@ -52,12 +52,13 @@ const SUBMIT_BUSY = "submit"
  *
  * 自动化层级（来自设置）：
  *   off   —— 只列清单，不叫模型
- *   assist—— 自动叫模型出候选并预填，等人确认（默认）
+ *   assist—— 自动叫模型出候选并预填，等人确认（默认）；A 的布局分组按页面 PNG 自动补
  *   auto  —— 自动叫模型，拿到候选直接提交并续跑（人可在日志里回看）
  */
 export function PendingPanel({
   projectRoot,
   target,
+  mode,
   taskId,
   runId,
   state,
@@ -66,6 +67,7 @@ export function PendingPanel({
 }: {
   projectRoot: string
   target: string
+  mode: string
   /** 看板任务 id：续跑按它落回那一行，拿 jobId 当钥匙会在运行被换掉后失效。 */
   taskId: string
   /** 来源运行 id：非看板来源（流水线直跑、任务已移除）没有 taskId，续跑只有它能用。 */
@@ -84,7 +86,7 @@ export function PendingPanel({
    * 清单、三张草稿与叫 AI 都在 use-pending-inputs 那一处（取数只在那里取一次）；
    * 面板这里只留「提交并续跑」这条动作的忙位与失败 —— 两处合起来是界面要显示的那一份。
    */
-  const inputs = usePendingInputs({ projectRoot, target, taskId, runId, state })
+  const inputs = usePendingInputs({ projectRoot, target, mode, taskId, runId, state })
   const { pending, names, texts, glossary, setName, setText, setGlossaryOf, aiReady, clearFailure, writeFailure } = inputs
   const {
     namingPayload,
@@ -109,10 +111,18 @@ export function PendingPanel({
   // 资源名撞在一起的组数（同名图层按图层名起名就会撞）：第 7 步的台账要求同一页里名字唯一。
   const duplicateGroups = pending?.icons.available ? pending.icons.duplicates : []
   const duplicateCount = duplicateGroups.length
+  // 命名表可编辑与提交载荷共用这一条判据：缺名字，或已有表里的资源名撞在一起。
+  const namingEditable = Boolean(pending?.icons.available && (pending.icons.needsNaming || duplicateCount > 0))
   const langCount = pending?.translations.available ? pending.translations.pendingTranslations.length : 0
   const glossaryCount = pending?.translations.available ? pending.translations.glossaryRequired.length : 0
-  // 本页还缺多少条语义输入：布局确认在 layout-panel 单独处理，这里只数图标 + 文案（同一个判据给看板那张卡用）。
+  const layoutWaiting = pending?.layout.waiting ?? 0
+  const layoutFailed = pending?.layout.failed === true
+  const layoutFailedMessage = pending?.layout.failedMessage ?? ""
+  const layoutRegroupAllowed = pending?.layout.regroup.allowed === true
+  const layoutTableInvalid = Boolean(layoutWaiting > 0 && pending?.layout.hasFile && !pending?.layout.hasGroups)
+  // 本页还缺多少条人工语义输入：三节共用一个计数判据。
   const waiting = pendingInputCount(waitingCounts(pending))
+  const otherWaiting = waiting - layoutWaiting
 
   /*
    * 「本页没有图标槽位」只有一种情形：插件判定必须登记的候选一条都没有。
@@ -120,61 +130,113 @@ export function PendingPanel({
    * 直接清掉刚写好的命名表，产物会退化成没有图标的一页。
    */
   const noIconSlots = Boolean(pending?.icons.available) && (pending?.icons.mustName.length ?? 0) === 0
-  // 有待办才让提交；没有图标槽位时靠「按空台账继续」这一个显式声明兜底。
-  const canSubmit = Boolean(pending) && (waiting > 0 || (noIconSlots && allowEmptyLedger))
+  const layoutBlocking = layoutWaiting > 0 || layoutFailed
+  // 布局停点只走布局区自己的恢复入口；通用提交不能替人写空台账，也不能从错误的步骤续跑。
+  const canSubmit = Boolean(pending) && !layoutBlocking &&
+    (otherWaiting > 0 || (noIconSlots && allowEmptyLedger))
+  // 后端续跑只认来源运行；只有 taskId 而没有 runId 时不能承诺「并继续」。
+  const hasSource = Boolean(runId)
   /*
-   * 跑着的时候不给续跑：这条判据与布局确认面板同一处（ui/src/lib/task-state.ts 的 isInFlight）。
+   * 跑着的时候不给续跑：这条判据在任务状态模块（ui/src/lib/task-state.ts 的 isInFlight）。
    * 待确认清单不按运行状态过滤，正在跑的任务照样会列在这里 —— 两个入口的口径必须一样。
    */
   const inFlight = isInFlight(state)
 
-  // 显式接收入参：自动路径拿的是「刚取回的候选」，等 setState 生效再读会拿到空值。
-  const submitWith = useCallback(
+  const finishSubmission = useCallback(
     async (
+      result: {
+        written: { path: string; count: number }[]
+        job: { id: string } | null
+        note?: string
+        resumedFrom?: string
+      },
+      resume: boolean
+    ) => {
+      const written = result.written.map(labelOfWritten)
+      const summary = written.join("、")
+      const writtenText = "已写入：" + (summary || "无")
+      if (result.job) toast.success(writtenText + "，已从断点继续")
+      else if (resume) toast.success(result.note || writtenText + "；未续跑：当前没有可续跑的上一次运行")
+      else toast.success(writtenText)
+      await load()
+      if (result.job) onResumed?.({ filled: written, resumedFrom: result.resumedFrom ?? "" })
+    },
+    [load, onResumed]
+  )
+
+  // 显式接收入参：自动路径拿的是「刚取回的候选」，等 setState 生效再读会拿到空值。
+  const submitInputs = useCallback(
+    async (
+      kind: "confirm" | "suggest",
       resume: boolean,
       naming: { index: number; name: string; comment: string; fromDsl?: boolean }[],
       translations: Record<string, string>,
-      glossaryMap: Record<string, string>
+      glossaryMap: Record<string, string>,
+      confirmEmptyGroups = false
     ) => {
       if (!pending) return
       clearFailure()
       setSubmitBusy(SUBMIT_BUSY)
       try {
-        const payload = await api.confirm({
+        const body = {
           projectRoot: pending.projectRoot,
           target: pending.target,
+          mode,
           taskId,
           runId,
-          naming: pending.icons.available && pending.icons.needsNaming ? naming : undefined,
+          naming: namingEditable ? naming : undefined,
           translations: pending.translations.available ? translations : undefined,
           glossary: pending.translations.available ? glossaryMap : undefined,
-          allowEmptyLedger: noIconSlots && allowEmptyLedger,
+          groups: confirmEmptyGroups ? [] : undefined,
+          allowEmptyLedger: !confirmEmptyGroups && !layoutBlocking && noIconSlots && allowEmptyLedger,
           // 命名表写歪了（旧下标 / 重名）就顺手修好：这次提交不只是补名字。
           pruneNaming: Boolean(pending.icons.available && pending.icons.needsRepair),
           resume
-        })
-        const written = payload.written.map(labelOfWritten)
-        const summary = written.join("、")
-        toast.success("已写入：" + (summary || "无") + (payload.job ? "，已从断点继续" : ""))
-        await load()
-        if (payload.job) onResumed?.({ filled: written, resumedFrom: payload.resumedFrom ?? "" })
+        }
+        const payload = kind === "suggest"
+          ? await api.layoutGroupsSuggest(body)
+          : await api.confirm(body)
+        await finishSubmission(payload, resume)
       } catch (error) {
         writeFailure(describeFailure(error))
       } finally {
         setSubmitBusy("")
       }
     },
-    [pending, taskId, runId, allowEmptyLedger, load, onResumed, clearFailure, writeFailure]
+    [pending, taskId, runId, mode, allowEmptyLedger, noIconSlots, layoutBlocking, namingEditable, finishSubmission, clearFailure, writeFailure]
   )
 
   const submit = useCallback(
-    (resume: boolean) => submitWith(resume, namingPayload(), translationsPayload(), glossaryPayload()),
-    [submitWith, namingPayload, translationsPayload, glossaryPayload]
+    (resume: boolean) =>
+      submitInputs(
+        "confirm",
+        resume,
+        namingPayload(),
+        translationsPayload(),
+        glossaryPayload()
+      ),
+    [submitInputs, namingPayload, translationsPayload, glossaryPayload]
+  )
+
+  const submitLayoutEmpty = useCallback(
+    (resume: boolean) =>
+      submitInputs("confirm", resume, namingPayload(), translationsPayload(), glossaryPayload(), true),
+    [submitInputs, namingPayload, translationsPayload, glossaryPayload]
+  )
+
+  const submitLayoutRegroup = useCallback(
+    (
+      resume: boolean,
+      naming: { index: number; name: string; comment: string; fromDsl?: boolean }[],
+      translations: Record<string, string>,
+      glossaryMap: Record<string, string>
+    ) => submitInputs("suggest", resume, naming, translations, glossaryMap),
+    [submitInputs]
   )
 
   /*
    * 自动出候选：同一个停点只自动跑一次。
-   * 关键在 autoKey —— 用「工程 + 页面 + 待办条数」做指纹，续跑后条数变了才会再来一轮，
+   * 关键在 autoKey —— 用「工程 + 页面 + 待办条数 + 布局停点」做指纹，续跑后停点或条数变了才会再来一轮，
    * 否则每次重渲染都会重复打模型。
    */
   useEffect(() => {
@@ -184,7 +246,9 @@ export function PendingPanel({
     if (waiting === 0) return
     if (aiReady !== true) return
     const key =
-      projectRoot + "|" + target + "|" + iconCount + "|" + staleCount + "|" + duplicateCount + "|" + langCount + "|" + glossaryCount
+      projectRoot + "|" + target + "|" + iconCount + "|" + staleCount + "|" + duplicateCount +
+      "|" + langCount + "|" + glossaryCount + "|" + layoutWaiting + "|" + layoutFailedMessage +
+      "|" + layoutRegroupAllowed
     if (autoKey.current === key) return
     autoKey.current = key
     void (async () => {
@@ -216,18 +280,31 @@ export function PendingPanel({
        *（lib/board.js 的 autoFillWaiting → lib/autofill.js，它读同一个 automation 设置，
        * 而且不需要浏览器在场）；这里只对没有看板任务的条目（流水线直跑 / 孤儿）发起，免得同一个停点起两次运行。
        */
-      if (automation === "auto" && !taskId) await submitWith(true, naming, translations, glossaryMap)
+      if (automation === "auto" && !taskId) {
+        if (layoutWaiting > 0) {
+          if (layoutRegroupAllowed) await submitLayoutRegroup(hasSource, naming, translations, glossaryMap)
+          else await submitInputs("confirm", hasSource, naming, translations, glossaryMap, true)
+        }
+        else await submitInputs("confirm", hasSource, naming, translations, glossaryMap)
+      }
     })()
   }, [
     pending,
     automation,
     inFlight,
     waiting,
+    layoutWaiting,
+    layoutRegroupAllowed,
+    layoutFailedMessage,
     iconCount,
+    staleCount,
+    duplicateCount,
     langCount,
     glossaryCount,
     projectRoot,
     target,
+    taskId,
+    hasSource,
     aiReady,
     namingPayload,
     translationsPayload,
@@ -235,7 +312,8 @@ export function PendingPanel({
     fillIconNames,
     fillTranslations,
     fillGlossary,
-    submitWith
+    submitInputs,
+    submitLayoutRegroup
   ])
 
   async function suggestNamesOnly() {
@@ -259,6 +337,14 @@ export function PendingPanel({
 
   const icons = pending.icons
   const lang = pending.translations
+  const layoutRegroup = pending.layout.regroup
+  const layoutRecoveryLead = layoutRegroup.allowed
+    ? "可以按空表重写，也可以让模型按本页 PNG 与本层条目重新分组；"
+    : "可以按空表重写；"
+  const layoutRecoveryScope = layoutRegroup.allowed ? "两种恢复都会" : "空表会"
+  const layoutWriteResult = hasSource
+    ? "，并从布局步骤继续。"
+    : "；来源运行已不可用，不会继续。"
 
   return (
     <div className="flex flex-col gap-4">
@@ -270,13 +356,90 @@ export function PendingPanel({
         </Alert>
       )}
 
-      {waiting > 0 && aiReady === false && automation !== "off" && (
+      {otherWaiting > 0 && aiReady === false && automation !== "off" && (
         <Alert>
           <AlertTitle>还没配模型，暂时只能人工填</AlertTitle>
           <AlertDescription>
             到「设置」填厂商 / base_url / 模型名 / key 之后，这里会自动出候选。下面仍然可以手填。
           </AlertDescription>
         </Alert>
+      )}
+
+      {(layoutWaiting > 0 || layoutFailed) && (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium">布局分组</span>
+            <Badge variant="destructive">
+              {pending.layout.rejected
+                ? "插件拒收了分组表"
+                : layoutTableInvalid
+                  ? "分组表不可读"
+                : pending.layout.needsGroups
+                  ? "自动分组未完成"
+                  : "布局步骤失败"}
+            </Badge>
+          </div>
+          <Alert>
+            <AlertTitle>
+              {pending.layout.rejected
+                ? "已有分组表，但插件在布局步骤拒绝了它"
+                : layoutTableInvalid
+                  ? "分组表文件存在，但内容不是可用的 groups 数组"
+                : pending.layout.needsGroups
+                  ? "这一页有 PNG，但还没有分组表"
+                  : "布局步骤没有通过"}
+            </AlertTitle>
+            <AlertDescription>
+              {pending.layout.rejected
+                ? layoutRecoveryLead + layoutRecoveryScope + "写入分组表" +
+                  layoutWriteResult +
+                  (layoutFailedMessage ? " 插件原话：" + layoutFailedMessage : "")
+                : layoutTableInvalid
+                  ? layoutRecoveryLead + layoutRecoveryScope + "替换这张损坏的表" +
+                    layoutWriteResult
+                : pending.layout.needsGroups
+                  ? "这一页还没有可用的分组表。" + layoutRecoveryLead +
+                    "确认本页没有需要声明的控件分组时，可以写一张空表" +
+                    layoutWriteResult
+                  : layoutFailedMessage ||
+                    "运行没有留下这一步的失败原话。到看板任务或流水线详情查看该步骤日志，修正后重跑；这里不会覆盖现有分组表。"}
+            </AlertDescription>
+          </Alert>
+          {layoutWaiting > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy !== "" || inFlight}
+                onClick={() => void submitLayoutEmpty(hasSource)}
+              >
+                <Send className="size-4" />
+                {hasSource ? "按空表重写并继续" : "按空表重写"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy !== "" || inFlight || !layoutRegroup.allowed}
+                onClick={() => void submitLayoutRegroup(
+                  hasSource,
+                  namingPayload(),
+                  translationsPayload(),
+                  glossaryPayload()
+                )}
+              >
+                {busy === SUBMIT_BUSY ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                {pending.layout.rejected || layoutTableInvalid ? "重新自动分组" : "让 AI 按 PNG 分组"}
+                {hasSource ? "并继续" : "并写入"}
+              </Button>
+              {!layoutRegroup.allowed && (
+                <p className="text-muted-foreground basis-full text-xs">
+                  {layoutRegroup.reason}
+                  {layoutRegroup.hint ? " " + layoutRegroup.hint : ""}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {icons.available && (
@@ -340,7 +503,7 @@ export function PendingPanel({
             </>
           )}
 
-          {(icons.needsNaming || duplicateCount > 0) && (
+          {namingEditable && (
             <>
               <div>
                 <Button variant="outline" size="sm" disabled={busy !== ""} onClick={() => void suggestNamesOnly()}>
@@ -468,7 +631,7 @@ export function PendingPanel({
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button disabled={busy === SUBMIT_BUSY || !canSubmit || inFlight} onClick={() => void submit(true)}>
+        <Button disabled={busy === SUBMIT_BUSY || !canSubmit || inFlight || !hasSource} onClick={() => void submit(true)}>
           {busy === SUBMIT_BUSY ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           确认并继续
         </Button>
@@ -480,8 +643,11 @@ export function PendingPanel({
           只写入，不继续
         </Button>
         {inFlight && canSubmit && <span className="text-muted-foreground text-xs">{inFlightNote("确认并继续")}</span>}
-        {!canSubmit && pending && (
+        {!canSubmit && pending && layoutWaiting === 0 && !layoutFailed && (
           <span className="text-muted-foreground text-xs">这个页面当前没有要填的东西。</span>
+        )}
+        {!hasSource && canSubmit && (
+          <span className="text-muted-foreground text-xs">手填条目没有来源运行：可以写文件，不能自动续跑。</span>
         )}
       </div>
     </div>

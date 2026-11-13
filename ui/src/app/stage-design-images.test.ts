@@ -1,105 +1,207 @@
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
+import {
+  createTasksWithPageImages,
+  pageImageFailure,
+  ROLLED_BACK_NOTE,
+  STAGE_FAILED_NOTE
+} from "@/app/stage-design-images"
 import type { Board } from "@/lib/api"
-import { STAGE_FAILED_NOTE, picksForCreated, stagePickedImages } from "@/app/stage-design-images"
 
 /*
- * 新建时先选好的位图 → 暂存件（一条任务一份）：走真的 api 层，只把 fetch 与 toast 换掉。
- * 要验的是「每张图各送各的任务 id」「不跑 A 就不送」「一张被挡回来不连累其余几张，且原话弹得出来」。
+ * 两个新建入口共用的编排：建任务 → 暂存 → 回滚 → 启动。
+ * 这里用同形的假 API 驱动每条失败支路，确认页面两处不需要再各写一份收尾。
  */
 
-const toasted: string[] = []
-vi.mock("sonner", () => ({
-  toast: {
-    error: (message: string) => toasted.push(message)
-  }
-}))
-
-function stub(handler: (url: string, body: { taskId: string; data: string }) => Response) {
-  const seen: { taskId: string; data: string }[] = []
-  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
-    const body = init && init.body ? JSON.parse(String(init.body)) : { taskId: "", data: "" }
-    seen.push(body)
-    return Promise.resolve(handler(String(input), body))
-  })
-  return seen
-}
-
-const okBody = JSON.stringify({ ok: true, staged: { path: "p", width: 1, height: 1 } })
-/* 这一组只验编排：文件给一份能读出字节的壳就够（读字节本身的写法由 upload-files 那一处负责）。 */
+const empty: Board = { workRoot: "", limits: { logical: 1, limit: 1 }, running: 0, tasks: [] }
+const board = (running: number): Board => ({ ...empty, running })
+type TaskCreationApi = NonNullable<Parameters<typeof createTasksWithPageImages>[0]["api"]>
 const file = (content: string) =>
   ({ name: "picked.png", size: content.length, arrayBuffer: async () => new TextEncoder().encode(content).buffer }) as unknown as File
 
-afterEach(() => {
-  vi.unstubAllGlobals()
-  toasted.length = 0
-})
+function fakeApi(overrides: Partial<TaskCreationApi> = {}): TaskCreationApi {
+  return {
+    stageDesignImage: vi.fn(async () => ({ ok: true as const })),
+    boardStart: vi.fn(async () => ({ board: board(1) })),
+    boardRemove: vi.fn(async () => ({ board: empty })),
+    board: vi.fn(async () => ({ board: empty })),
+    ...overrides
+  }
+}
 
-describe("stagePickedImages", () => {
-  it("每一张各送各的任务 id", async () => {
-    const seen = stub(() => new Response(okBody, { status: 200 }))
-    await stagePickedImages("A", [
-      { taskId: "task-1", file: file("a") },
-      { taskId: "task-2", file: file("b") }
-    ])
-    expect(seen.map((item) => item.taskId)).toEqual(["task-1", "task-2"])
-    expect(seen.every((item) => item.data.length > 0)).toBe(true)
-    expect(toasted).toEqual([])
+describe("createTasksWithPageImages", () => {
+  it("单页允许先选图、后填链接；多页不把待认领图复制给任意一行", () => {
+    const picked = { "": file("a") }
+    expect(pageImageFailure(true, ["https://a"], picked, true)).toBe("")
+    expect(pageImageFailure(true, ["https://a", "https://b"], picked, false)).toContain("需要为每个页面选择")
   })
 
-  it("一张被挡回来不连累同一批里其余的，原话照后端给", async () => {
-    const seen = stub((_url, body) =>
-      body.taskId === "task-1"
-        ? new Response(JSON.stringify({ error: { code: "BAD_IMAGE", message: "这张图不是位图", hint: "传 PNG / JPEG" } }), { status: 400 })
-        : new Response(okBody, { status: 200 })
+  it("单任务批次提交时使用待认领图", async () => {
+    const api = fakeApi()
+    const result = await createTasksWithPageImages({
+      takesPageImage: true,
+      images: { "": file("a") },
+      allowUnclaimed: true,
+      add: async () => ({
+        created: ["task-1"],
+        board: { ...empty, tasks: [{ id: "task-1", request: { link: "https://a" } }] as Board["tasks"] }
+      }),
+      api
+    })
+
+    expect(api.stageDesignImage).toHaveBeenCalledWith(expect.objectContaining({ taskId: "task-1" }))
+    expect(result.ok).toBe(true)
+  })
+
+  it("含 A 的路线先逐张暂存，再逐条显式启动", async () => {
+    const api = fakeApi()
+    const result = await createTasksWithPageImages({
+      takesPageImage: true,
+      images: { "https://a": file("a"), "https://b": file("b") },
+      allowUnclaimed: false,
+      add: async () => ({
+        created: ["task-1", "task-2"],
+        board: {
+          ...empty,
+          tasks: [
+            { id: "task-1", request: { link: "https://a" } },
+            { id: "task-2", request: { link: "https://b" } }
+          ] as Board["tasks"]
+        }
+      }),
+      api
+    })
+
+    expect(vi.mocked(api.stageDesignImage).mock.calls.map(([body]) => body.taskId)).toEqual(["task-1", "task-2"])
+    expect(vi.mocked(api.boardStart).mock.calls.map(([taskId]) => taskId)).toEqual(["task-1", "task-2"])
+    expect(result).toMatchObject({ ok: true, created: ["task-1", "task-2"] })
+  })
+
+  it("B 不送图，但仍按同一编排显式启动", async () => {
+    const api = fakeApi()
+    const result = await createTasksWithPageImages({
+      takesPageImage: false,
+      images: { "https://a": file("a") },
+      allowUnclaimed: true,
+      add: async () => ({ created: ["task-1"], board: empty }),
+      api
+    })
+
+    expect(api.stageDesignImage).not.toHaveBeenCalled()
+    expect(api.boardStart).toHaveBeenCalledWith("task-1")
+    expect(result.ok).toBe(true)
+  })
+
+  it("暂存失败时整批撤销，不启动；失败原话带准确的后果", async () => {
+    const api = fakeApi({
+      stageDesignImage: vi.fn(async ({ taskId }) => {
+        if (taskId === "task-1") throw new Error("这张图不是位图")
+        return { ok: true as const }
+      })
+    })
+    const result = await createTasksWithPageImages({
+      takesPageImage: true,
+      images: { "https://a": file("a"), "https://b": file("b") },
+      allowUnclaimed: false,
+      add: async () => ({
+        created: ["task-1", "task-2"],
+        board: {
+          ...empty,
+          tasks: [
+            { id: "task-1", request: { link: "https://a" } },
+            { id: "task-2", request: { link: "https://b" } }
+          ] as Board["tasks"]
+        }
+      }),
+      api
+    })
+
+    expect(vi.mocked(api.boardRemove).mock.calls.map(([taskId]) => taskId)).toEqual(["task-1", "task-2"])
+    expect(api.boardStart).not.toHaveBeenCalled()
+    expect(result).toMatchObject({ ok: false, failure: "这张图不是位图" + STAGE_FAILED_NOTE })
+  })
+
+  it("回滚失败也继续撤销其余任务，并回读服务端看板", async () => {
+    const refreshed = board(0)
+    const api = fakeApi({
+      stageDesignImage: vi.fn(async () => { throw new Error("图坏了") }),
+      boardRemove: vi.fn(async (taskId: string) => {
+        if (taskId === "task-1") throw new Error("删除失败")
+        return { board: refreshed }
+      }),
+      board: vi.fn(async () => ({ board: refreshed }))
+    })
+    const result = await createTasksWithPageImages({
+      takesPageImage: true,
+      images: { "https://a": file("a"), "https://b": file("b") },
+      allowUnclaimed: false,
+      add: async () => ({
+        created: ["task-1", "task-2"],
+        board: {
+          ...empty,
+          tasks: [
+            { id: "task-1", request: { link: "https://a" } },
+            { id: "task-2", request: { link: "https://b" } }
+          ] as Board["tasks"]
+        }
+      }),
+      api
+    })
+
+    expect(vi.mocked(api.boardRemove).mock.calls.map(([taskId]) => taskId)).toEqual(["task-1", "task-2"])
+    expect(api.board).toHaveBeenCalled()
+    expect(result).toMatchObject({ ok: false, board: refreshed })
+    expect(result.ok ? "" : result.failure).toContain("撤销刚建任务失败：删除失败")
+  })
+
+  it("身份写回失败时撤销已建任务与暂存件，不启动", async () => {
+    const api = fakeApi()
+    const result = await createTasksWithPageImages({
+      takesPageImage: true,
+      images: { "https://a": file("a"), "https://b": file("b") },
+      allowUnclaimed: false,
+      beforeStart: async () => { throw new Error("登记表写入失败") },
+      add: async () => ({
+        created: ["task-1", "task-2"],
+        board: {
+          ...empty,
+          tasks: [
+            { id: "task-1", request: { link: "https://a" } },
+            { id: "task-2", request: { link: "https://b" } }
+          ] as Board["tasks"]
+        }
+      }),
+      api
+    })
+
+    expect(api.stageDesignImage).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(api.boardRemove).mock.calls.map(([taskId]) => taskId)).toEqual(["task-1", "task-2"])
+    expect(api.boardStart).not.toHaveBeenCalled()
+    expect(result).toMatchObject({ ok: false, failure: "登记表写入失败" + ROLLED_BACK_NOTE })
+  })
+
+  it("启动中途失败也尝试其余任务，再回读真实看板", async () => {
+    const refreshed = board(1)
+    const api = fakeApi({
+      boardStart: vi.fn(async (taskId = "") => {
+        if (taskId === "task-1") throw new Error("启动失败")
+        return { board: refreshed }
+      }),
+      board: vi.fn(async () => ({ board: refreshed }))
+    })
+    const result = await createTasksWithPageImages({
+      takesPageImage: false,
+      images: {},
+      allowUnclaimed: false,
+      add: async () => ({ created: ["task-1", "task-2"], board: empty }),
+      api
+    })
+
+    expect(vi.mocked(api.boardStart).mock.calls.map(([taskId]) => taskId)).toEqual(["task-1", "task-2"])
+    expect(api.board).toHaveBeenCalled()
+    expect(result).toMatchObject({ ok: false, board: refreshed, created: ["task-1", "task-2"] })
+    expect(result.ok ? "" : result.failure).toContain(
+      "启动失败（本批任务仍保留在看板：task-1、task-2；已启动成功的会继续跑，未启动的需手动启动或移除）"
     )
-    await stagePickedImages("A", [
-      { taskId: "task-1", file: file("a") },
-      { taskId: "task-2", file: file("b") }
-    ])
-    expect(seen.map((item) => item.taskId)).toEqual(["task-1", "task-2"])
-    expect(toasted).toEqual(["这张图不是位图：传 PNG / JPEG" + STAGE_FAILED_NOTE])
-  })
-
-  it("都没选图时什么都不发", async () => {
-    const seen = stub(() => new Response(okBody, { status: 200 }))
-    await stagePickedImages("A", [])
-    expect(seen).toEqual([])
-  })
-
-  it("不跑 A 路线就不送：选了也不送，也不弹提示", async () => {
-    const seen = stub(() => new Response(okBody, { status: 200 }))
-    await stagePickedImages("B", [{ taskId: "task-1", file: file("a") }])
-    expect(seen).toEqual([])
-    expect(toasted).toEqual([])
-  })
-})
-
-describe("picksForCreated", () => {
-  const one = { link: "https://a" }
-  const two = { link: "https://b" }
-  const three = { link: "https://c" }
-
-  /* 看板快照里任务自己带着它的链接：配图按它配，不比次序。 */
-  const board = (rows: { id: string; link: string }[]) =>
-    ({ tasks: rows.map((row) => ({ id: row.id, request: { link: row.link } })) }) as unknown as Board
-
-  it("有图的任务带上那张图，不看次序", () => {
-    const images = { "https://a": file("a"), "https://c": file("c") }
-    const snapshot = board([
-      { id: "t3", link: three.link },
-      { id: "t1", link: one.link },
-      { id: "t2", link: two.link }
-    ])
-    expect(picksForCreated(snapshot, ["t1", "t2", "t3"], images).map((pick) => pick.taskId)).toEqual(["t1", "t3"])
-  })
-
-  it("没选图的任务跳过，别的照旧", () => {
-    const images = { "https://b": file("b") }
-    const snapshot = board([
-      { id: "t1", link: one.link },
-      { id: "t2", link: two.link }
-    ])
-    expect(picksForCreated(snapshot, ["t1", "t2"], images).map((pick) => pick.taskId)).toEqual(["t2"])
   })
 })

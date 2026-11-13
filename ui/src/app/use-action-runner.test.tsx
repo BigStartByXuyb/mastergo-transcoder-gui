@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react"
 import { toast } from "sonner"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { useActionRunner } from "@/app/use-action-runner"
+import { useActionRunner, useValueRunner } from "@/app/use-action-runner"
 
 /*
  * 动作骨架：置 working → 清旧错 → 跑 → 套用状态 → 提示 → 收尾。
@@ -19,6 +19,16 @@ function harness<T>() {
   const setStatus = vi.fn()
   const { result } = renderHook(() => useActionRunner<T>({ setWorking, setFailure, setStatus }))
   return { run: result.current, setWorking, setFailure, setStatus }
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((done, fail) => {
+    resolve = done
+    reject = fail
+  })
+  return { promise, resolve, reject }
 }
 
 describe("useActionRunner", () => {
@@ -88,5 +98,29 @@ describe("useActionRunner", () => {
 
     expect(onFailure).toHaveBeenCalledWith(boom)
     expect(setFailure).toHaveBeenLastCalledWith("boom")
+  })
+
+  it("同一动作连续发起时只采用最后一次的结果，旧返回不覆盖新清单", async () => {
+    const setWorking = vi.fn()
+    const setFailure = vi.fn()
+    const { result } = renderHook(() => useValueRunner({ setWorking, setFailure }))
+    const first = deferred<string>()
+    const second = deferred<string>()
+    const seen: string[] = []
+
+    await act(async () => {
+      const firstRun = result.current("load", async () => first.promise, (value) => seen.push(value), {
+        isCurrent: () => false
+      })
+      const secondRun = result.current("load", async () => second.promise, (value) => seen.push(value), {
+        isCurrent: () => true
+      })
+      first.reject(new Error("旧请求失败"))
+      second.resolve("新清单")
+      await Promise.all([firstRun, secondRun])
+    })
+
+    expect(seen).toEqual(["新清单"])
+    expect(setFailure).not.toHaveBeenCalledWith("旧请求失败")
   })
 })

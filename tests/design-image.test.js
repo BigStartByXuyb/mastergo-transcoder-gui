@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 
-// 作业A 的设计稿位图：图放哪儿、尺寸对不对、分组表在不在。
+// 作业A 的页面 PNG：图放哪儿、尺寸对不对、暂存件怎样落地。
 // 跑法：node tests/design-image.test.js
 
 const assert = require("assert");
@@ -33,12 +33,22 @@ function upload(projectRoot, buffer, name) {
   return designImage.save({ projectRoot: projectRoot, target: TARGET, name: name || "DemoPage.design.png", data: buffer.toString("base64") });
 }
 
+function writeGroups(projectRoot, groups) {
+  const file = path.join(projectRoot, "Generated", "_inputs", TARGET + ".layout-groups.json");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(
+    file,
+    JSON.stringify({ schemaVersion: "mw-wpf-layout-groups/1", pageTarget: TARGET, groups: groups }),
+    "utf8"
+  );
+  return file;
+}
+
 function caseSaveAndRead() {
   const root = sandbox();
   const before = designImage.read({ projectRoot: root, target: TARGET });
   assert.strictEqual(before.image, null, "还没传时没有图");
   assert.deepStrictEqual(before.canvas, { width: 1280, height: 1024 }, "画板尺寸取自 DSL 根节点");
-  assert.strictEqual(before.groups.exists, false);
   assert.match(before.dir, /Generated[\\/]_inputs$/, "图该放的目录照实给出来");
   assert.strictEqual(before.blocked, "", "画板尺寸读得出来就能传");
 
@@ -50,17 +60,15 @@ function caseSaveAndRead() {
   assert.strictEqual(saved.image.name, "DemoPage.design.png");
   assert.ok(fs.existsSync(path.join(root, "Generated", "_inputs", "DemoPage.design.png")), "落在 _inputs 下、用约定名");
   assert.match(saved.image.stamp, /^\d+-\d+$/, "图的身份＝大小-修改时间（预览地址拿它防「换了图地址不变」）");
-  assert.strictEqual(designImage.imageStamp({ projectRoot: root, target: TARGET }), saved.image.stamp, "身份在同一处算（read 与 imageStamp 同源）");
   fs.rmSync(root, { recursive: true, force: true });
 }
 
 /*
- * 界面显示那张图本身要的那条路（位图卡的预览、布局确认的画布都拿它当图源）：
+ * 任务详情显示那张图本身要的那条路：
  * 有图给路径，没图明确拒绝 —— 那两处也只在有图时才显示。
  */
 function caseImageFile() {
   const root = sandbox();
-  assert.strictEqual(designImage.imageStamp({ projectRoot: root, target: TARGET }), "", "没有图时身份是空串");
   assert.throws(
     () => designImage.imageFile({ projectRoot: root, target: TARGET }),
     (error) => error.code === "NO_IMAGE",
@@ -70,6 +78,23 @@ function caseImageFile() {
   const file = designImage.imageFile({ projectRoot: root, target: TARGET });
   assert.strictEqual(path.basename(file.path), "DemoPage.design.png", "给的是当前放着的那一张");
   assert.ok(fs.existsSync(file.path), "路径真的在");
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
+/* 轮询只比较输入文件身份：快照/位图路径、大小或修改时间一变，签名就要变。 */
+function caseInputSignature() {
+  const root = sandbox();
+  const before = designImage.inputSignature({ projectRoot: root, target: TARGET });
+  assert.match(before, /dsl\.snapshot\.json:\d+:\d+\|none$/, "没有页面 PNG 时也带上快照身份");
+
+  const saved = upload(root, png(1280, 1024));
+  const withImage = designImage.inputSignature({ projectRoot: root, target: TARGET });
+  assert.notStrictEqual(withImage, before, "落地页面 PNG 后签名变化");
+
+  const future = new Date(Date.now() + 2000);
+  fs.utimesSync(saved.image.path, future, future);
+  const touched = designImage.inputSignature({ projectRoot: root, target: TARGET });
+  assert.notStrictEqual(touched, withImage, "同一张图的新修改时间也要重新核对");
   fs.rmSync(root, { recursive: true, force: true });
 }
 
@@ -106,6 +131,7 @@ function caseJpeg() {
 function caseReplace() {
   const root = sandbox();
   upload(root, png(1280, 1024));
+  const groups = writeGroups(root, []);
   upload(root, jpeg(1280, 1024), "shot.jpg");
   const dir = path.join(root, "Generated", "_inputs");
   const left = fs.readdirSync(dir).filter((name) => name.startsWith("DemoPage.design."));
@@ -113,6 +139,7 @@ function caseReplace() {
   const now = designImage.read({ projectRoot: root, target: TARGET });
   assert.strictEqual(now.image.name, "DemoPage.design.jpg");
   assert.strictEqual(now.matches, true);
+  assert.ok(!fs.existsSync(groups), "换页面 PNG 后旧分组结论失效并删除");
   fs.rmSync(root, { recursive: true, force: true });
 }
 
@@ -151,36 +178,6 @@ function caseNoSnapshot() {
 }
 
 /*
- * 分组表可用照实报（文件在且解析出 groups 数组，空数组合法）：有图无表是流程漏步，判定在第 8 步。
- * 空表是「本页没有要声明的分组」，照旧算有表 —— 判据只有 lib/workdir.js 一处。
- */
-function caseGroups() {
-  const root = sandbox();
-  fs.mkdirSync(path.join(root, "Generated", "_inputs"), { recursive: true });
-  const file = path.join(root, "Generated", "_inputs", TARGET + ".layout-groups.json");
-  fs.writeFileSync(
-    file,
-    JSON.stringify({
-      schemaVersion: "mw-wpf-layout-groups/1",
-      pageTarget: TARGET,
-      groups: [{ id: "g1", kind: "column", members: ["a", "b"] }]
-    }),
-    "utf8"
-  );
-  const state = designImage.read({ projectRoot: root, target: TARGET });
-  assert.strictEqual(state.groups.exists, true);
-  assert.match(state.groups.path, /layout-groups\.json$/);
-
-  fs.writeFileSync(
-    file,
-    JSON.stringify({ schemaVersion: "mw-wpf-layout-groups/1", pageTarget: TARGET, groups: [] }),
-    "utf8"
-  );
-  assert.strictEqual(designImage.read({ projectRoot: root, target: TARGET }).groups.exists, true, "空表也算有表");
-  fs.rmSync(root, { recursive: true, force: true });
-}
-
-/*
  * 新建任务时先选好的图：那时还不知道画板尺寸，所以先暂存；任务跑到「取数 + 固化快照」之后
  * 由看板那侧核对尺寸再装进工作目录（插件从那读图），暂存件随之删掉。
  */
@@ -199,9 +196,11 @@ function caseStageThenInstall() {
   fs.rmSync(noSnapshot, { recursive: true, force: true });
 
   const workDir = sandbox();
+  const groups = writeGroups(workDir, []);
   const installed = designImage.installStaged({ home: home, taskId: TASK, target: TARGET, workDir: workDir });
   assert.match(installed.installed, /DemoPage\.design\.png$/);
   assert.ok(designImage.read({ projectRoot: workDir, target: TARGET }).matches, "装进去之后与画板尺寸一致");
+  assert.ok(!fs.existsSync(groups), "首次落地页面 PNG 时旧分组结论失效");
   assert.ok(!fs.existsSync(staged.path), "落地之后暂存件删掉（不留第二份）");
   assert.strictEqual(designImage.installStaged({ home: home, taskId: TASK, target: TARGET, workDir: workDir }), null);
 
@@ -266,6 +265,19 @@ function caseStagedUnreadable() {
   fs.rmSync(workDir, { recursive: true, force: true });
 }
 
+function caseStagedRejectsUnsafeTarget() {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-home-"));
+  designImage.stage({ home: home, taskId: TASK, data: png(1280, 1024).toString("base64") });
+  const workDir = sandbox();
+  assert.throws(
+    () => designImage.installStaged({ home: home, taskId: TASK, target: "../escape", workDir: workDir }),
+    (error) => error.code === "BAD_TARGET",
+    "暂存图落地同样不能接受路径型 Target"
+  );
+  fs.rmSync(home, { recursive: true, force: true });
+  fs.rmSync(workDir, { recursive: true, force: true });
+}
+
 /* 任务被移除时把还没轮到的暂存件一起收掉：暂存件不在看板上，留着没人认领。 */
 function caseDiscardStaged() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-home-"));
@@ -289,16 +301,17 @@ try {
   const cases = [
     ["存一张 PNG 并读回状态", caseSaveAndRead],
     ["界面显示的那张图：有图给路径 / 没图明确拒绝", caseImageFile],
+    ["轮询签名只读输入文件身份", caseInputSignature],
     ["发给模型看的那张图：data URL", caseDataUrl],
     ["JPEG 也认（尺寸与后缀都按内容）", caseJpeg],
     ["换格式只留一张", caseReplace],
     ["拒绝的几种", caseRejections],
     ["还没跑到第 2 步", caseNoSnapshot],
-    ["分组表在不在", caseGroups],
     ["新建时先选的图：暂存 → 有画板尺寸后核对落地", caseStageThenInstall],
     ["暂存图尺寸不对：不装、回两边的数、暂存件留着等人重导", caseStagedMismatch],
     ["工作目录里已经有人传过图：暂存件不动它、自己清掉", caseStagedKeepsExisting],
     ["暂存件坏了：回「读不出尺寸」，不编 0×0", caseStagedUnreadable],
+    ["暂存图落地拒绝路径型 Target", caseStagedRejectsUnsafeTarget],
     ["任务没了：暂存件跟着走", caseDiscardStaged]
   ];
   for (const [name, run] of cases) {

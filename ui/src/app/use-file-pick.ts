@@ -9,7 +9,7 @@ export const IMAGE_ACCEPT = "image/*"
 /*
  * 选文件框的共用行为：把选中的那一份交出去，然后把 input 的 value 清掉 ——
  * 不清的话「再选同一份文件」不会再触发 change（同一个 File 对象本身不受影响，读它照旧）。
- * 谁用：设计稿位图的共用选图框（ui/src/app/design-image-picker.tsx）与任务详情里那一张图（design-image-card.tsx）。
+ * 谁用：页面 PNG 的共用选图框（ui/src/app/design-image-picker.tsx）与任务详情里那一张图（design-image-card.tsx）。
  */
 export function useFilePick(onPick: (file: File | null) => void) {
   const input = useRef<HTMLInputElement>(null)
