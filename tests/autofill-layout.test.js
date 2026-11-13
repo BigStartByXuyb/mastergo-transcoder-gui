@@ -68,6 +68,7 @@ function harness(options) {
   const inspectCalls = [];
   const ai = {
     suggestLayoutGroups: async (input) => {
+      if (options.modelError) throw options.modelError;
       inputs.push(input);
       return { groups: options.groups };
     },
@@ -274,6 +275,19 @@ async function caseBrokenBitmapBlocks() {
   fs.rmSync(projectRoot, { recursive: true, force: true });
 }
 
+async function caseModelFailureConsumesAttempt() {
+  const projectRoot = sandbox(png(1280, 1024));
+  const modelError = Object.assign(new Error("调用模型失败 500"), { code: "AI_CALL", hint: "稍后重试" });
+  const fx = harness({ automation: "assist", groups: [], modelError: modelError });
+  await assert.rejects(
+    fx.autoFill.fill(source(projectRoot)),
+    (error) => error === modelError,
+    "模型调用失败不是输入读不出来，必须交给看板按普通失败计数"
+  );
+  assert.deepStrictEqual(fx.committed, [], "模型失败不写盘");
+  fs.rmSync(projectRoot, { recursive: true, force: true });
+}
+
 const CASES = [
   ["模型给出分组就照写", caseGroupsWritten],
   ["模型一组没给：空表也是结论", caseEmptyIsAConclusion],
@@ -284,7 +298,8 @@ const CASES = [
   ["布局停点事实决定能否自动写表", caseLayoutStopContextControlsAutoWrite],
   ["有图就把位图一起给模型", caseBitmapGoesToModel],
   ["没有位图：不问模型，按哪一条没满足交回", caseNoBitmap],
-  ["图坏了：整句交回给人、不写盘", caseBrokenBitmapBlocks]
+  ["图坏了：整句交回给人、不写盘", caseBrokenBitmapBlocks],
+  ["模型调用失败按普通失败计数，不冒充 blocked", caseModelFailureConsumesAttempt]
 ];
 
 (async function main() {

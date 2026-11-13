@@ -54,6 +54,7 @@
 | 看板任务状态推进与快照读取 | `lib/board.js` · `function advanceTask(` | `snapshot` 只做只读投影；定时器、启动恢复与测试显式推进统一走 `advanceTask`，有运行跟运行，没有运行才按登记表结算 |
 | 待确认写入与布局恢复共用哪一条来源解析 | `lib/routes.js` · `function requireConfirmSourceOf(` | 普通 `/api/confirm` 与布局恢复接口先从任务 / 运行 / 手填来源解析出一份 query；布局恢复的检查、候选与写回统一由 `lib/layout-recovery.js` 编排 |
 | 布局恢复从停点检查到候选与写回的唯一编排 | `lib/layout-recovery.js` · `function suggestGroups(source, options)` | 人工重新分组与自动补输入共用恢复门禁、`candidatesInput`、模型调用与 `commitFromSource`；调用方不再各拼一套请求与续跑字段 |
+| 布局恢复里「输入读不出来」与「模型失败」的边界 | `lib/layout-recovery.js` · `function isInputError(` | 只有 `candidatesInput` 的读取失败标成 `blocked`、退还自动补输入额度；`AI_CALL` / `AI_BAD_JSON` / 熔断等模型失败按普通错误回给看板，正常消耗一次额度 |
 | 已解析来源如何驱动写盘 | `lib/confirm.js` · `function commitFromSource(` | 写盘工程目录、页面与续跑运行只取 `source.query` / 来源任务；请求体只提供本次输入，不再决定写到哪一页 |
 | 页面图文件身份 | `lib/design-image.js` · `function fileIdentityOf(file)` | 预览地址的换图戳与布局停点缓存签名共用文件大小和取整后的修改时间，避免同一身份在两处各读一遍 |
 | 命名表可编辑与提交载荷 | `ui/src/app/pending-panel.tsx` · `const namingEditable =` | 缺名字或当前表有重名时，命名表可编辑；同一判据决定提交是否携带 `naming`，服务端修复仍由 `pruneNaming` 单独表示 |
