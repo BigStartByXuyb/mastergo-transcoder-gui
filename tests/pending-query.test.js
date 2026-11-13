@@ -73,7 +73,12 @@ assert.deepStrictEqual(queryOfRun({
 assert.deepStrictEqual(queryOfManual({
   projectRoot: "D:/manual",
   target: "ManualPage",
-  mode: "B"
+  mode: "B",
+  state: "failed",
+  layoutStep: "layoutManifest",
+  failedStep: "layoutManifest",
+  failedMessage: "[LAYOUT_GROUPS_REJECTED] 伪造",
+  imageStop: true
 }), {
   projectRoot: "D:/manual",
   target: "ManualPage",
@@ -83,6 +88,6 @@ assert.deepStrictEqual(queryOfManual({
   failedStep: "",
   failedMessage: "",
   imageStop: false
-}, "手填来源没有停点事实，不伪造");
+}, "手填来源只保留页面身份；请求自报的停点事实一律丢弃");
 
 console.log("pending-query.test.js 全部通过");

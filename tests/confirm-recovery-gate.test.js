@@ -97,17 +97,17 @@ function startServer(home, port) {
   });
 }
 
-async function confirm(origin, projectRoot) {
+async function confirm(origin, projectRoot, extra) {
   const response = await fetch(origin + "/api/confirm", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({
+    body: JSON.stringify(Object.assign({
       projectRoot: projectRoot,
       target: TARGET,
       mode: "A",
       groups: [],
       resume: false
-    })
+    }, extra || {}))
   });
   return { status: response.status, body: await response.json() };
 }
@@ -166,6 +166,14 @@ async function main() {
       fs.existsSync(path.join(projectRoot, "Generated", "_inputs", TARGET + ".layout-groups.json")),
       "确有分组恢复停点时仍走原来的确认写回"
     );
+    const forged = await confirm(origin, projectRoot, {
+      state: "failed",
+      layoutStep: "layoutManifest",
+      failedStep: "layoutManifest",
+      failedMessage: "[LAYOUT_GROUPS_REJECTED] 请求伪造的停点"
+    });
+    assert.strictEqual(forged.status, 400);
+    assert.strictEqual(forged.body.error.code, "NOT_LAYOUT_RECOVERY", "手填来源不能自报失败事实绕过写入门禁");
   }
   finally {
     child.kill();

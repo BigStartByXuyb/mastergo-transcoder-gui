@@ -410,4 +410,6 @@
 | 2026-11-13 GitHub 43360945240 | 非阻断 | `useIdentity` 注释把表单按钮的候选写回说成唯一身份实现，未提及 A 启动前复用 `identity-flow` | 已收 | 注释改为说明两条入口共享 `identity-flow` 判据，只在自动化采用和表单回填上分工 |
 | 2026-11-13 GitLab pipeline 505 | REVIEW-001 | 换图删除旧分组表后，任务上的旧 `LAYOUT_GROUPS_REJECTED` 停点同时错过被拒与缺表恢复 | 已收 | `inspect` 在文件不存在时把旧拒收码归到缺表恢复；补「被拒停点换图删表后仍可重新分组」的跨模块回归 |
 | 2026-11-13 GitLab pipeline 505 | 非阻断 | `autofill.fill` 保留两个不再读取的局部变量；流水线页同一模块拆成两条 import | 已收 | 删除未读取变量，并合并 `task-form` 导入 |
+| 2026-11-13 GitLab pipeline 507 | REVIEW-001 | 手填来源的 `/api/confirm` 允许请求自报失败停点与拒收机器码，可绕过布局分组写入门禁 | 已收 | `queryOfManual` 只保留工程、页面、路线；任务与运行的停点字段不再从手填请求读取，并补伪造停点 API 回归 |
+| 2026-11-13 GitLab pipeline 507 | 非阻断 | `autofill.fill` 与 `layoutRecovery.suggestGroups` 在同一轮对相同输入重复 `pending.inspect` | 已收 | 自动补输入把刚算出的布局结论传给恢复编排，复用同一次检查 |
 
