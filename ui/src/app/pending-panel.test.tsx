@@ -83,6 +83,7 @@ function stubWith(options: {
   pending?: Pending
   aiReady?: boolean
   onConfirm?: (body: Record<string, unknown>) => void
+  onPending?: () => void
 }) {
   vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
@@ -112,6 +113,7 @@ function stubWith(options: {
         new Response(JSON.stringify({ ok: true, written: [], job: null }), { status: 200 })
       )
     }
+    options.onPending?.()
     return Promise.resolve(new Response(JSON.stringify({ ok: true, pending: options.pending ?? pending() }), { status: 200 }))
   })
 }
@@ -213,6 +215,21 @@ describe("PendingPanel", () => {
       ],
       pruneNaming: true
     }))
+  })
+
+  it("重新读取只补空缺，未提交的图标名不会被磁盘旧值覆盖", async () => {
+    const stale = pending()
+    stale.icons.naming = [{ index: 1, name: "DiskOld", comment: "" }]
+    let loads = 0
+    stubWith({ pending: stale, onPending: () => { loads += 1 } })
+    render(panel("waiting"))
+
+    const name = await screen.findByDisplayValue("DiskOld")
+    fireEvent.change(name, { target: { value: "DraftKept" } })
+    await waitFor(() => expect(loads).toBe(1))
+    fireEvent.click(screen.getByRole("button", { name: /重新读取/ }))
+    await waitFor(() => expect(loads).toBe(2))
+    expect(screen.getByDisplayValue("DraftKept")).toBeTruthy()
   })
 
   it("只剩缺表停点时同时给出空表与模型分组出口", async () => {

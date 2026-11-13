@@ -406,4 +406,6 @@
 | 2026-11-13 GitLab pipeline 499 | 非阻断 | `docs/audit-ledger.md` 旧行仍记录已删除的 `writesGroups` 参数 | 已收 | 旧行改成当前 `layoutRecovery` 门禁口径 |
 | 2026-11-13 GitLab pipeline 499 | 非阻断 | `restartLayoutIfNeeded` 省略 `state` 的理由没有注释 | 已收 | 调用处写明 `settleDone` 已不在实时停点，按无状态手填来源检查缺表 |
 | 2026-11-13 GitHub 43359109984 | BLOCK-001 | 流水线页 B/AB 新建任务固定提交空 Target，表单值被丢弃并绕过共同身份对账 | 已收 | 单页表单与多行文本框统一用 `boardItemOf` 归一链接和 Target；流水线页把 `form.target` 交给 `createTasksForMode`，对账通过后原值进入请求与建任务；补单页归一与对账成功回归 |
+| 2026-11-13 GitHub 43360945240 | REVIEW-001 | 图标命名草稿在重读时被磁盘旧值整条覆盖，与译文/术语只补空缺的口径不一致 | 已收 | 三张草稿统一由 `fillMissing` 只铺缺失键；补「改草稿后重新读取仍保留输入」回归 |
+| 2026-11-13 GitHub 43360945240 | 非阻断 | `useIdentity` 注释把表单按钮的候选写回说成唯一身份实现，未提及 A 启动前复用 `identity-flow` | 已收 | 注释改为说明两条入口共享 `identity-flow` 判据，只在自动化采用和表单回填上分工 |
 

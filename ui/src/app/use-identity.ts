@@ -10,9 +10,9 @@ import { adoptsIdentityWithoutConfirm } from "@/lib/task-form"
 /*
  * 页面身份：Target 与 UI 区域。
  *
- * 「选候选 → 写工程登记表 → 回填表单」只有这一处实现，按钮与自动层级启动前都调它；
- * 分叉会让两条入口对同一页给出不同结论。候选列表只跟工程目录有关，区域预览只跟 Target 有关
- * （规则在后端，前端不算），两者各自取数，互不牵连。
+ * 表单按钮的「选候选 → 写工程登记表 → 回填表单」在这里；A 路线启动前也复用
+ * `ui/src/lib/identity-flow.ts` 的候选与显式 Target 判据，只在自动化采用和表单回填上分工。
+ * 候选列表只跟工程目录有关，区域预览只跟 Target 有关（规则在后端，前端不算），两者各自取数，互不牵连。
  */
 
 export type IdentityOptions = {

@@ -4,6 +4,15 @@ import { useValueRunner } from "@/app/use-action-runner"
 import { useAlive } from "@/app/use-alive"
 import { api, type Pending } from "@/lib/api"
 
+/** 三张草稿共用这一条初值策略：只铺还没有键的格子，人已经改过的值不覆盖。 */
+function fillMissing<K extends PropertyKey, V>(current: Record<K, V>, seeds: Iterable<readonly [K, V]>): Record<K, V> {
+  const next = { ...current }
+  for (const [key, value] of seeds) {
+    if (next[key] === undefined) next[key] = value
+  }
+  return next
+}
+
 /*
  * 待确认清单的取数、三张草稿（命名表 / 译文 / 术语）与叫 AI 出候选。
  * 面板（app/pending-panel.tsx）只管渲染与提交编排；「提交」那条动作仍在面板里（它要 toast 与 onResumed）。
@@ -82,28 +91,20 @@ export function usePendingInputs(input: {
     }
     await run(PENDING_BUSY.load, () => api.pending({ projectRoot, target, mode, taskId, runId }), (payload) => {
       setPending(payload.pending)
-      setNames((current) => {
-        const next = { ...current }
-        for (const item of payload.pending.icons.mustName) {
-          if (!next[item.index]) next[item.index] = { name: "", comment: "" }
-        }
-        for (const row of payload.pending.icons.naming) next[row.index] = { name: row.name ?? "", comment: row.comment ?? "" }
-        return next
-      })
-      setTexts((current) => {
-        const next = { ...current }
-        for (const item of payload.pending.translations.pendingTranslations) {
-          if (next[item.text] === undefined) next[item.text] = payload.pending.translations.translations[item.text] ?? ""
-        }
-        return next
-      })
-      setGlossary((current) => {
-        const next = { ...current }
-        for (const item of payload.pending.translations.glossaryRequired) {
-          if (next[item.text] === undefined) next[item.text] = payload.pending.translations.glossary[item.text] ?? ""
-        }
-        return next
-      })
+      setNames((current) => fillMissing(current, [
+        ...payload.pending.icons.naming.map((row) =>
+          [row.index, { name: row.name ?? "", comment: row.comment ?? "" }] as const
+        ),
+        ...payload.pending.icons.mustName.map((item) =>
+          [item.index, { name: "", comment: "" }] as const
+        )
+      ]))
+      setTexts((current) => fillMissing(current, payload.pending.translations.pendingTranslations.map((item) =>
+        [item.text, payload.pending.translations.translations[item.text] ?? ""] as const
+      )))
+      setGlossary((current) => fillMissing(current, payload.pending.translations.glossaryRequired.map((item) =>
+        [item.text, payload.pending.translations.glossary[item.text] ?? ""] as const
+      )))
     }, {
       isCurrent: () => alive.current && seq === reloadSeq.current
     })
