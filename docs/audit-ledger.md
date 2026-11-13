@@ -398,4 +398,7 @@
 | 2026-11-13 GitHub 43351319354 | REVIEW-002 | 人工布局恢复与自动布局恢复各有一套编排和请求字段 | 已收 | 新增 `lib/layout-recovery.js`：恢复门禁、`candidatesInput`、模型调用与 `commitFromSource` 只有一个入口；路由和 `autofill` 都消费它 |
 | 2026-11-13 GitHub 43351319354 | REVIEW-003 | 页面图身份在预览戳与停点签名中各拼一套文件事实 | 已收 | `fileIdentityOf` 统一产出大小与取整修改时间；`stampOf` 与 `inputSignature` 只做投影 |
 | 2026-11-13 GitHub 43351319354 | REVIEW-004 | `autofill.fill` 直接读取 `query.request.mode`，绕过统一 query 映射 | 已收 | `fill` 只消费 `source.query`；任务来源由 `sourceOfTask` 生成，字段口径继续只在 `pending.js` 的 `QUERY_FIELDS` |
+| 2026-11-13 GitHub 43354406359 | REVIEW-001 | 手填来源的「按空表重写」未携带路线，清单显示可恢复但 `/api/confirm` 被服务端拒绝 | 已收 | `pending-panel` 的共享提交体增加 `mode`，确认与自动分组两条路径使用同一来源身份；`api.confirm` 类型同步；后端与前端回归锁定 `groups: [] + mode: A` |
+| 2026-11-13 GitHub 43354406359 | 非阻断 | changelog 写“不再用请求体是否携带 `groups` 推断入口行为”，与确认入口仍按 `groups` 判断不一致 | 已收 | changelog 改成实际口径：自动分组先过统一恢复门禁，确认入口仅在本次写 `groups` 时过同一门禁 |
+| 2026-11-13 GitHub 43354406359 | 非阻断 | `layout-groups.inspect` 注释把两个恢复按钮与 `regroup.allowed` 混成一类输入 | 已收 | 注释拆清：待办与恢复资格读 `inspect`，是否够问模型另由 `regroup.allowed` 决定 |
 

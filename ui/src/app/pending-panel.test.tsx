@@ -244,7 +244,7 @@ describe("PendingPanel", () => {
     expect(screen.getByRole("button", { name: /让 AI 按 PNG 分组并继续/ })).toBeTruthy()
     empty.click()
     await vi.waitFor(() => expect(confirmed).not.toBeNull())
-    expect(confirmed).toEqual(expect.objectContaining({ groups: [] }))
+    expect(confirmed).toEqual(expect.objectContaining({ groups: [], mode: "A" }))
   })
 
   it("主提交不替用户写空布局表", async () => {
@@ -311,7 +311,7 @@ describe("PendingPanel", () => {
     expect(await screen.findByText(/插件在布局步骤拒绝了它/)).toBeTruthy()
     screen.getByRole("button", { name: /按空表重写并继续/ }).click()
     await vi.waitFor(() => expect(confirmed).not.toBeNull())
-    expect(confirmed).toEqual(expect.objectContaining({ groups: [] }))
+    expect(confirmed).toEqual(expect.objectContaining({ groups: [], mode: "A" }))
   })
 
   it("已有分组表被布局步骤拒收时可以重新自动分组", async () => {

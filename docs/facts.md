@@ -55,7 +55,7 @@
 | 已解析来源如何驱动写盘 | `lib/confirm.js` · `function commitFromSource(` | 写盘工程目录、页面与续跑运行只取 `source.query` / 来源任务；请求体只提供本次输入，不再决定写到哪一页 |
 | 页面图文件身份 | `lib/design-image.js` · `function fileIdentityOf(file)` | 预览地址的换图戳与布局停点缓存签名共用文件大小和取整后的修改时间，避免同一身份在两处各读一遍 |
 | 命名表可编辑与提交载荷 | `ui/src/app/pending-panel.tsx` · `const namingEditable =` | 缺名字或当前表有重名时，命名表可编辑；同一判据决定提交是否携带 `naming`，服务端修复仍由 `pruneNaming` 单独表示 |
-| 待确认面板的提交载荷与忙碌/失败收尾 | `ui/src/app/pending-panel.tsx` · `const submitInputs = useCallback(` | 「确认并继续」「只写入」「按空表重写」「重新自动分组」共用同一份字段组装与状态收尾，只在最后按提交类型选择接口 |
+| 待确认面板的提交载荷与忙碌/失败收尾 | `ui/src/app/pending-panel.tsx` · `const submitInputs = useCallback(` | 「确认并继续」「只写入」「按空表重写」「重新自动分组」共用同一份字段组装、来源路线与状态收尾，只在最后按提交类型选择接口 |
 | 新建任务按钮名 | `ui/src/lib/task-form.ts` · `export function startActionLabel(` | `new-task-card.tsx` 的按钮、流水线页提示与成功提示都读这一份名称；路线需要页面 PNG 时是「创建并开始」，否则是「加入看板并开始」 |
 | 显式 `runId` 的待确认来源 | `lib/run.js` · `function summary(id)` | `lib/routes.js` 的 `pendingSourceOf` 按运行 id 直查单次摘要；不看按工程 + Target 去重后的 `runs.list()`，来源不存在时直接报错，不退化成手填查询 |
 | 分组表里能写哪些 ref（这一层的条目清单在哪、为空算不算参与分组） | `lib/layout-candidates.js` · `function refsOf(`、`function noCandidatesReason(`、`const CANDIDATES_MIN_PLUGIN_VERSION =` | 喂模型（`lib/layout-groups.js` 的 `candidatesInput`）、写回校验与候选清理（同文件的 `validateGroups` / `cleanGroups`） |

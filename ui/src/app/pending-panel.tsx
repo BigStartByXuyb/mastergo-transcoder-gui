@@ -179,6 +179,7 @@ export function PendingPanel({
         const body = {
           projectRoot: pending.projectRoot,
           target: pending.target,
+          mode,
           taskId,
           runId,
           naming: namingEditable ? naming : undefined,
@@ -191,7 +192,7 @@ export function PendingPanel({
           resume
         }
         const payload = kind === "suggest"
-          ? await api.layoutGroupsSuggest({ ...body, mode })
+          ? await api.layoutGroupsSuggest(body)
           : await api.confirm(body)
         await finishSubmission(payload, resume)
       } catch (error) {
