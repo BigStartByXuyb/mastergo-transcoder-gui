@@ -392,4 +392,5 @@
 | 2026-11-13 GitHub 43345812327 | REVIEW-002 | 有来源状态但失败步骤为空时，仍按有图无表给出布局恢复 | 已收 | `layout-groups.inspect` 新增 `sourceAllowsRecovery`；手填无状态才直接恢复，等待/失败来源必须命中布局停点与缺表/被拒证据 |
 | 2026-11-13 GitHub 43345812327 | REVIEW-003 | `/api/confirm` 用来源停点做门禁，却用请求体的工程目录/页面写盘 | 已收 | `/api/confirm` 与自动分组统一走 `requireConfirmSourceOf`；`commitFromSource` 仅使用已解析来源的 query 写盘 |
 | 2026-11-13 GitHub 43345812327 | 非阻断 | 缺链接提示“一行一个”被单链接入口复用；运行来源未继承 `imageStop` | 已收 | 提示改为单页/多页都成立的说法；`queryOfRun` 与 `queryOfTask` 按同一字段映射读取 `imageStop` |
+| 2026-11-13 GitHub 43348268739 | REVIEW-001 | 任务、运行与手填查询各有一份 8 字段映射，新增字段容易漂移 | 已收 | `lib/pending.js` 用 `QUERY_FIELDS` 单表描述字段、默认值与覆盖；三个入口只保留来源适配 |
 
