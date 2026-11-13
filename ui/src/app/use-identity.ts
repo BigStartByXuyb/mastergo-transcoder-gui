@@ -85,6 +85,7 @@ export function useIdentity(options: IdentityOptions) {
     })
     if (result.kind === "manual") {
       setCandidates(result.items)
+      if (!result.candidate) onFailure(result.reason)
       return result.candidate
     }
     setCandidates([])

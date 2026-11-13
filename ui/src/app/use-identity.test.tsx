@@ -113,6 +113,19 @@ describe("useIdentity", () => {
     expect(result.current.candidates).toEqual([])
   })
 
+  it("有候选但后端不许自动采用时，列表保留并把阻塞原因交出去", async () => {
+    const candidate = { target: "F1StopAdjust", ui: "F1", semanticName: "StopAdjust", basis: "机械候选", needsSemanticName: false }
+    const blocked = "这一页还没登记过区域：从候选里显式点一条。"
+    stub([{ match: "/api/identity/candidates", reply: () => ok({ ok: true, uiCandidates: [], candidates: [candidate], ai: { used: false, items: [] }, blocked }) }])
+    const { result, onFailure, onPicked } = render()
+    await act(async () => {
+      await result.current.fill()
+    })
+    expect(result.current.candidates).toHaveLength(1)
+    expect(onFailure).toHaveBeenCalledWith(blocked)
+    expect(onPicked).not.toHaveBeenCalled()
+  })
+
   it("自动层级下 fill 直接采用候选：写登记表并把结果回填出去", async () => {
     const candidate = { target: "F1StopAdjust", ui: "F1", semanticName: "StopAdjust", basis: "同文件先例", needsSemanticName: false }
     const applied: string[] = []

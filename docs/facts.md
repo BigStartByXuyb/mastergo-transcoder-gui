@@ -17,6 +17,7 @@
 | 「运行中不给续跑」的判据与说法 | `ui/src/lib/task-state.ts` · `export function isInFlight(`、`export function inFlightNote(` | 待确认面板 |
 | 收图的四条判据（空 / 读不出 / 太大 / 不是 PNG·JPEG） | `lib/design-image.js` · `function requireBitmap(` | 暂存（`stage`）与存图（`save`） |
 | 先选的位图落地结果 | `lib/design-image.js` · `function installStaged(` | `lib/board.js`（写到任务行的 `designImage`） |
+| A 路线等图停点与先选位图落地 | `lib/board-page-image.js` · `function pipelineStopOf(`、`function stagedNoticeOf(` | 看板只保存任务与调用结果；位图读取、缓存签名、暂存件落地提示都在这个模块 |
 | 待确认清单的取数（含三张草稿与叫 AI 出候选） | `ui/src/app/use-pending-inputs.ts` · `api.pending(` | 待确认面板（取数只有这一处）；正常自动流程不显示，只在模型无法补齐时作为兜底 |
 | 待确认面板的草稿来源隔离 | `ui/src/lib/pending-source.ts` · `export function pendingPanelKey(` | 待确认页与流水线详情两个挂载点共用同一来源键；按来源、工程、页面、路线、任务与运行重建，换来源时不沿用上一页草稿 |
 | 待确认面板的并发取数 | `ui/src/app/use-pending-inputs.ts` · `const reloadSeq = useRef(` | `reload` 只采用最后一次请求的返回与失败；旧响应不落到当前来源，也不提前清掉新请求的忙碌状态 |
