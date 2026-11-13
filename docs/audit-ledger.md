@@ -393,4 +393,5 @@
 | 2026-11-13 GitHub 43345812327 | REVIEW-003 | `/api/confirm` 用来源停点做门禁，却用请求体的工程目录/页面写盘 | 已收 | `/api/confirm` 与自动分组统一走 `requireConfirmSourceOf`；`commitFromSource` 仅使用已解析来源的 query 写盘 |
 | 2026-11-13 GitHub 43345812327 | 非阻断 | 缺链接提示“一行一个”被单链接入口复用；运行来源未继承 `imageStop` | 已收 | 提示改为单页/多页都成立的说法；`queryOfRun` 与 `queryOfTask` 按同一字段映射读取 `imageStop` |
 | 2026-11-13 GitHub 43348268739 | REVIEW-001 | 任务、运行与手填查询各有一份 8 字段映射，新增字段容易漂移 | 已收 | `lib/pending.js` 用 `QUERY_FIELDS` 单表描述字段、默认值与覆盖；三个入口只保留来源适配 |
+| 2026-11-13 GitHub 43349533865 | BLOCK-001 | `/api/layout-groups/suggest` 的请求体没有 `groups`，用 body 推断是否过门禁导致实际绕过 | 已收 | `requireConfirmSourceOf` 增加显式 `writesGroups`；自动分组传 `true`，确认入口仍按 `groups` 判断，并补两条 suggest 门禁用例 |
 

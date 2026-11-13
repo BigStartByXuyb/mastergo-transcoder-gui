@@ -112,6 +112,20 @@ async function confirm(origin, projectRoot) {
   return { status: response.status, body: await response.json() };
 }
 
+async function suggest(origin, projectRoot) {
+  const response = await fetch(origin + "/api/layout-groups/suggest", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      projectRoot: projectRoot,
+      target: TARGET,
+      mode: "A",
+      resume: false
+    })
+  });
+  return { status: response.status, body: await response.json() };
+}
+
 async function main() {
   assert.ok(fs.existsSync(PLUGIN), "测试夹具要按客户端自带那一份插件就位");
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-confirm-gate-home-"));
@@ -128,8 +142,19 @@ async function main() {
       false,
       "被门禁拒绝的请求不进入写盘"
     );
+    const suggestRefused = await suggest(origin, projectRoot);
+    assert.strictEqual(suggestRefused.status, 400);
+    assert.strictEqual(suggestRefused.body.error.code, "NOT_LAYOUT_RECOVERY");
+    assert.strictEqual(
+      fs.existsSync(path.join(projectRoot, "Generated", "_inputs", TARGET + ".layout-groups.json")),
+      false,
+      "自动分组入口同样不能绕过门禁写盘"
+    );
 
     write(path.join(projectRoot, "Generated", "_inputs", TARGET + ".design.png"), png(1280, 1024));
+    const suggestAllowed = await suggest(origin, projectRoot);
+    assert.strictEqual(suggestAllowed.status, 400);
+    assert.strictEqual(suggestAllowed.body.error.code, "NO_ENTRIES", "恢复停点先放行，再由输入判据拒绝空条目");
     const accepted = await confirm(origin, projectRoot);
     assert.strictEqual(accepted.status, 200);
     assert.deepStrictEqual(accepted.body.written, [{

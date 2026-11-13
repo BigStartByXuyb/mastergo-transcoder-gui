@@ -33,7 +33,7 @@
 | 某一版能不能用在这一台上（外壳下限） | `lib/update.js` · `function usableHere(` | 「这一份可以切过去」（`switchable`：选版与版本表逐行都读它，清单都按 `manifestOf` 取）；与 `apply` 前那一刻的 `versionBlocked` 同源 |
 | 布局停点是否属于这个 mode，等图停点是否排除，缺表与已有表被拒收分别怎么读数 | `lib/pending.js` · `function layoutSection(` | `inspect` 的统一结论；看板语义停点、自动补输入、待确认队列与面板都读这一份，B 路线不产生布局停点，页面 PNG 等图停点只产生补图待办 |
 | 布局步骤的失败是否真的属于分组表输入问题（文件在不在、表能不能读、缺表恢复 / 已有表被拒） | `lib/layout-groups.js` · `const hasFile = fs.existsSync(workdir.layoutGroupsPath(`、`const failureCode = groupFailureCodeOf(` | `lib/pending.js` 的 `layoutSection`、`lib/board.js` 的语义停点、`lib/autofill.js` 的自动补输入共用同一份 `inspect` 结论；只有失败步骤就是布局步骤且机器码明确时，才产生补表待办或覆盖现有表的快捷动作 |
-| 布局分组写入口的服务端准入门槛 | `lib/layout-groups.js` · `function requireRecovery(` | `lib/routes.js` 的 `requireConfirmSourceOf` 先解析待确认来源，再对带 `groups` 的请求调用同一门禁；写入沿用已解析来源的工程目录与页面 |
+| 布局分组写入口的服务端准入门槛 | `lib/layout-groups.js` · `function requireRecovery(` | `lib/routes.js` 的 `requireConfirmSourceOf` 先解析待确认来源；自动分组入口显式声明写表，确认入口带 `groups` 时声明写表，两条都调用同一门禁 |
 | 看板任务 / 直跑运行 / 手填条目到待确认查询的唯一映射 | `lib/pending.js` · `const QUERY_FIELDS =`、`function queryOfTask(` | `queryOfTask` / `queryOfRun` / `queryOfManual` 只适配来源；字段集合、空值归一与覆盖顺序共用 `QUERY_FIELDS`，供 `/api/pending`、`lib/pending-queue.js`、`lib/board.js` 与 `lib/autofill.js` 读取 |
 | A / B / AB 页面身份的手写 Target 对账 | `ui/src/lib/identity-flow.ts` · `export async function resolveExplicitTarget(` | 冲突判据、冲突原话、后端区域拆分与完整性采用只在这里组合；三个入口不再各筛候选或各拼 fallback |
 | Target 是否同时具备区域前缀与语义名 | `lib/identity.js` · `function targetPartsOf(` | `/api/identity/prefix` 直接返回 `previewUi` / `semanticName` / `complete`；流水线 A 与 B / AB 的手写 Target 都读这份结论，再交给 `ui/src/lib/identity-pick.ts` 的同一采用判据；登记候选与写回接口也用这份结论 |
