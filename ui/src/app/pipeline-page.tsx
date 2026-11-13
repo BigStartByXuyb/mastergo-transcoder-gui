@@ -25,7 +25,6 @@ import { ClampText } from "@/app/clamp-text"
 import { createTasksForMode, taskEntryFailure } from "@/app/task-creation-entry"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentity } from "@/app/use-identity"
-import { requestDefaultsOf, startActionLabel } from "@/lib/task-form"
 import { useRemembered } from "@/app/use-remembered"
 import { useRunLog } from "@/app/use-run-log"
 import { useTaskActions } from "@/app/use-task-actions"
@@ -37,7 +36,15 @@ import { describeFailure } from "@/lib/describe-failure"
 import { candidatesForLink } from "@/lib/identity-flow"
 import { pendingPanelKey } from "@/lib/pending-source"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
-import { AUTOMATION_LABEL, modePolicyOf, readTaskForm, writeTaskForm, type TaskForm } from "@/lib/task-form"
+import {
+  AUTOMATION_LABEL,
+  modePolicyOf,
+  readTaskForm,
+  requestDefaultsOf,
+  startActionLabel,
+  writeTaskForm,
+  type TaskForm
+} from "@/lib/task-form"
 import { decideStartIdentity } from "@/lib/task-start"
 import { canStop, hasProducts } from "@/lib/task-state"
 

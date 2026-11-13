@@ -17,6 +17,8 @@ const path = require("path");
 
 const { createPending } = require("../lib/pending.js");
 const { GROUP_FAILURE_CODE, NO_GROUP_ENTRIES } = require("../lib/layout-groups.js");
+const designImage = require("../lib/design-image.js");
+const { png } = require("./image-fixtures.js");
 
 const TARGET = "DemoPage";
 /* 译文那一节要插件自己的派生实现：这里只验布局一节，给它一份最小替身（别让别的节把用例拖住）。 */
@@ -530,6 +532,23 @@ function caseBrokenGroupsCanBeRejected() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+function caseRejectedStopSurvivesImageReplacement() {
+  const root = sandbox();
+  writeControls(root);
+  const pending = pendingFor(root);
+  const message = "[" + GROUP_FAILURE_CODE.rejected + "] 分组表第 1 项（g1）的 members 至少 2 个 ref";
+  writeGroups(root, []);
+  assert.strictEqual(layoutOf(root, pending, "A", true, false, message).rejected, true, "已有表被拒时先走被拒恢复");
+
+  designImage.save({ projectRoot: root, target: TARGET, data: png(1280, 1024).toString("base64") });
+  const after = layoutOf(root, pending, "A", true, false, message);
+  assert.strictEqual(after.hasFile, false, "换图会删掉旧分组表");
+  assert.strictEqual(after.rejected, false, "文件不在后不能再标成已有表被拒");
+  assert.strictEqual(after.needsGroups, true, "旧拒收码仍要落到缺表恢复，等新图重推");
+  assert.strictEqual(after.waiting, 1);
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 function caseStoppedSourceIsNotRecoverable() {
   const root = sandbox();
   writeControls(root);
@@ -588,6 +607,7 @@ try {
     ["只有图、类型产物在但条目清单缺失", caseImageWithoutCandidates],
     ["分组表损坏 = 按没有表处理，让人重写一次", caseBrokenGroupsAsksAgain],
     ["损坏的分组表被插件拒收时仍命中拒收恢复", caseBrokenGroupsCanBeRejected],
+    ["被拒停点换图删表后仍可重新分组", caseRejectedStopSurvivesImageReplacement],
     ["显式停止的来源不提供布局恢复按钮", caseStoppedSourceIsNotRecoverable],
     ["有状态但没有失败步骤不提供布局恢复", caseStateWithoutFailedStepIsNotRecoverable]
   ];
