@@ -158,10 +158,12 @@ describe("createTasksForMode", () => {
   })
 
   it("非 A 的手写 Target 与链接登记页冲突时在创建前拒绝", async () => {
+    let pageNameCalls = 0
     vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
       const url = String(input)
       if (url.includes("/api/design/page-name")) {
-        return Promise.resolve(new Response(JSON.stringify({ ok: true, pageName: "停止调整", rootId: "1:1" }), { status: 200 }))
+        pageNameCalls += 1
+        throw new Error("显式 Target 对账不应读取设计页名")
       }
       if (url.includes("/api/identity/candidates")) {
         return Promise.resolve(new Response(JSON.stringify({
@@ -193,15 +195,18 @@ describe("createTasksForMode", () => {
 
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.failure).toContain("F4Registered")
+    expect(pageNameCalls).toBe(0)
     expect(otherRequest).not.toHaveBeenCalled()
     expect(add).not.toHaveBeenCalled()
   })
 
   it("非 A 的手写 Target 对账通过后原值交给请求准备并用于创建", async () => {
+    let pageNameCalls = 0
     vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       if (url.includes("/api/design/page-name")) {
-        return Promise.resolve(new Response(JSON.stringify({ ok: true, pageName: "停止调整", rootId: "1:1" }), { status: 200 }))
+        pageNameCalls += 1
+        throw new Error("显式 Target 对账不应读取设计页名")
       }
       if (url.includes("/api/identity/candidates")) {
         return Promise.resolve(new Response(JSON.stringify({
@@ -259,6 +264,7 @@ describe("createTasksForMode", () => {
     expect(otherRequest).toHaveBeenCalledWith([
       expect.objectContaining({ target: "F4Registered", ui: "F4", mode: "B" })
     ])
+    expect(pageNameCalls).toBe(0)
     expect(add).toHaveBeenCalledWith(body)
     expect(result.ok).toBe(true)
   })

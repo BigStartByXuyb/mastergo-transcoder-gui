@@ -72,6 +72,8 @@ async function reconcileOtherItems(items: BoardItem[], projectRoot: string): Pro
     const result = await prepareLinkIdentity({
       link: item.link,
       projectRoot: projectRoot,
+      // 手写 Target 的对账只认链接与登记候选；不能再为它调用会拉取设计 DSL 的页名接口。
+      pageName: "",
       target: item.target,
       ui: "",
       useAi: false,
