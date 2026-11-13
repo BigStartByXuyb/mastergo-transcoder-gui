@@ -57,7 +57,8 @@ assert.deepStrictEqual(queryOfRun({
   state: "failed",
   layoutStep: "layoutManifest",
   failedStep: "layoutManifest",
-  failedMessage: "[LAYOUT_GROUPS_REJECTED] 拒收"
+  failedMessage: "[LAYOUT_GROUPS_REJECTED] 拒收",
+  imageStop: true
 }), {
   projectRoot: "D:/work/run-1",
   target: "DemoPage",
@@ -66,7 +67,7 @@ assert.deepStrictEqual(queryOfRun({
   layoutStep: "layoutManifest",
   failedStep: "layoutManifest",
   failedMessage: "[LAYOUT_GROUPS_REJECTED] 拒收",
-  imageStop: false
+  imageStop: true
 }, "直跑运行映射");
 
 assert.deepStrictEqual(queryOfManual({

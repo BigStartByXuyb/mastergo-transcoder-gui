@@ -28,14 +28,18 @@ async function main() {
   };
   const payload = commitFromSource({
     body: {
-      projectRoot: "D:/work/task-1",
-      target: "DemoPage",
+      projectRoot: "D:/work/wrong",
+      target: "WrongPage",
       taskId: task.id,
       groups: [],
       resume: true
     },
+    source: {
+      task: task,
+      run: null,
+      query: { projectRoot: "D:/work/task-1", target: "DemoPage", mode: "A" }
+    },
     board: {
-      byId: (id) => id === task.id ? task : null,
       attach: (id, job) => { attached = { id, job }; }
     },
     confirm: {
@@ -50,6 +54,8 @@ async function main() {
     }
   });
   assert.deepStrictEqual(committed.groups, [], "模型结果交给 confirm 写回");
+  assert.strictEqual(committed.projectRoot, "D:/work/task-1", "写盘工程目录取已解析来源");
+  assert.strictEqual(committed.target, "DemoPage", "写盘页面取已解析来源");
   assert.strictEqual(committed.runId, "job-old", "看板来源使用任务自己的运行");
   assert.strictEqual(committed.request.origin, "board", "续跑保持看板来源");
   assert.strictEqual(committed.request.projectRoot, "D:/work/task-1");
@@ -65,8 +71,12 @@ async function main() {
       runId: "job-manual",
       groups: []
     },
+    source: {
+      task: null,
+      run: { id: "job-manual" },
+      query: { projectRoot: "D:/work/manual", target: "WrongPage", mode: "A" }
+    },
     board: {
-      byId: () => null,
       attach: () => { throw new Error("非看板来源不能挂任务"); }
     },
     confirm: {
@@ -77,6 +87,8 @@ async function main() {
     }
   });
   assert.strictEqual(committed.runId, "job-manual", "非看板来源沿用请求自带的运行");
+  assert.strictEqual(committed.projectRoot, "D:/work/manual", "写盘工程目录取已解析来源");
+  assert.strictEqual(committed.target, "WrongPage", "写盘页面取已解析来源");
   assert.strictEqual(committed.request, undefined, "非看板来源不伪造看板请求");
   assert.strictEqual(attached, null, "非看板来源不挂回任务");
   console.log("layout-recovery-source.test.js 全部通过");

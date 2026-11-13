@@ -36,7 +36,7 @@ export function taskInputFailure(input: {
   links: string[]
 }): string {
   if (!input.projectRoot.trim()) return "先填工程目录"
-  if (input.links.length === 0) return "一行一个 MasterGo 链接，至少一行"
+  if (input.links.length === 0) return "至少填一个 MasterGo 链接（多条时一行一个）"
   return ""
 }
 

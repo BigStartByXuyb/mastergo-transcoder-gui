@@ -14,7 +14,7 @@ describe("taskEntryFailure", () => {
   it("两个入口用同一套顺序判断工程、链接与路线能力", () => {
     expect(taskEntryFailure({ projectRoot: "", links: [], modes: undefined, policy: null })).toBe("先填工程目录")
     expect(taskEntryFailure({ projectRoot: "p", links: [], modes: undefined, policy: null }))
-      .toBe("一行一个 MasterGo 链接，至少一行")
+      .toBe("至少填一个 MasterGo 链接（多条时一行一个）")
     expect(taskEntryFailure({ projectRoot: "p", links: ["https://a"], modes: [policy], policy: null }))
       .toBe("当前记住的路线已不可用，请重新选择路线")
     expect(taskEntryFailure({ projectRoot: "p", links: ["https://a"], modes: undefined, policy: null }))
@@ -26,7 +26,7 @@ describe("taskEntryFailure", () => {
 describe("taskInputFailure", () => {
   it("补身份不依赖路线能力，只校验工程与链接", () => {
     expect(taskInputFailure({ projectRoot: "", links: [] })).toBe("先填工程目录")
-    expect(taskInputFailure({ projectRoot: "p", links: [] })).toBe("一行一个 MasterGo 链接，至少一行")
+    expect(taskInputFailure({ projectRoot: "p", links: [] })).toBe("至少填一个 MasterGo 链接（多条时一行一个）")
     expect(taskInputFailure({ projectRoot: "p", links: ["https://a"] })).toBe("")
   })
 })

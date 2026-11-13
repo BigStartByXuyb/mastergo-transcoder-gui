@@ -33,7 +33,7 @@
 | 某一版能不能用在这一台上（外壳下限） | `lib/update.js` · `function usableHere(` | 「这一份可以切过去」（`switchable`：选版与版本表逐行都读它，清单都按 `manifestOf` 取）；与 `apply` 前那一刻的 `versionBlocked` 同源 |
 | 布局停点是否属于这个 mode，等图停点是否排除，缺表与已有表被拒收分别怎么读数 | `lib/pending.js` · `function layoutSection(` | `inspect` 的统一结论；看板语义停点、自动补输入、待确认队列与面板都读这一份，B 路线不产生布局停点，页面 PNG 等图停点只产生补图待办 |
 | 布局步骤的失败是否真的属于分组表输入问题（文件在不在、表能不能读、缺表恢复 / 已有表被拒） | `lib/layout-groups.js` · `const hasFile = fs.existsSync(workdir.layoutGroupsPath(`、`const failureCode = groupFailureCodeOf(` | `lib/pending.js` 的 `layoutSection`、`lib/board.js` 的语义停点、`lib/autofill.js` 的自动补输入共用同一份 `inspect` 结论；只有失败步骤就是布局步骤且机器码明确时，才产生补表待办或覆盖现有表的快捷动作 |
-| 布局分组写入口的服务端准入门槛 | `lib/layout-groups.js` · `function requireRecovery(` | `lib/routes.js` 的 `POST /api/layout-groups/suggest` 与带 `groups` 的 `POST /api/confirm` 共用 `requireLayoutRecoveryOf`；只有来源停在缺表或已有表被拒时才允许覆盖分组表 |
+| 布局分组写入口的服务端准入门槛 | `lib/layout-groups.js` · `function requireRecovery(` | `lib/routes.js` 的 `requireConfirmSourceOf` 先解析待确认来源，再对带 `groups` 的请求调用同一门禁；写入沿用已解析来源的工程目录与页面 |
 | 看板任务 / 直跑运行 / 手填条目到待确认查询的唯一映射 | `lib/pending.js` · `function queryOfTask(`、`function queryOfRun(`、`function queryOfManual(` | `/api/pending`、`lib/pending-queue.js`、`lib/board.js` 与 `lib/autofill.js`；停点字段只在这里整理 |
 | A / B / AB 页面身份的手写 Target 对账 | `ui/src/lib/identity-flow.ts` · `export async function resolveExplicitTarget(` | 冲突判据、冲突原话、后端区域拆分与完整性采用只在这里组合；三个入口不再各筛候选或各拼 fallback |
 | Target 是否同时具备区域前缀与语义名 | `lib/identity.js` · `function targetPartsOf(` | `/api/identity/prefix` 直接返回 `previewUi` / `semanticName` / `complete`；流水线 A 与 B / AB 的手写 Target 都读这份结论，再交给 `ui/src/lib/identity-pick.ts` 的同一采用判据；登记候选与写回接口也用这份结论 |
@@ -45,11 +45,13 @@
 | 位图落地要等的那一步怎么说 | `lib/design-image.js` · `const NO_CANVAS_REASON =` | 界面那一块照后端给的原话显示（`/api/design-image` 的 `blocked`）；A 路线等图停点（`lib/board.js`）也拼这一句；表单指引不提步骤名，只说「流水线产出画板尺寸之后」 |
 | 本地记住的值什么时候写回 | `ui/src/app/use-remembered.ts` · `export function useRemembered<` | 两张「新建任务」表单（`ui/src/app/pipeline-page.tsx`、`board-page.tsx`）、看板筛选（`board-page.tsx`）、只看生效（`ui/src/app/use-only-effective.ts`） |
 | 布局分组这一步喂给模型的输入（本层可引用条目 + 本页页面 PNG 的 data URL） | `lib/layout-groups.js` · `function candidatesInput(` | 自动补输入（`lib/autofill.js`）；模型层（`lib/ai.js`）只吃这个入参，不碰磁盘 |
-| 布局待办、自动续跑与空表写回的前置判据 | `lib/layout-groups.js` · `const recoverable = query?.imageStop !== true &&`、`const needsGroups = recoverable &&` | `inspect` 的统一结论（`lib/pending.js`、看板状态判定与 `lib/autofill.js`）；只有来源为手填无状态 / 等待 / 失败态，且页面 PNG、条目清单与分组表输入证据满足时才成立 |
+| 布局待办、自动续跑与空表写回的前置判据 | `lib/layout-groups.js` · `const recoverable = query?.imageStop !== true &&`、`const sourceAllowsRecovery =` | `inspect` 的统一结论（`lib/pending.js`、看板状态判定与 `lib/autofill.js`）；手填无状态来源按有图无表恢复，等待/失败来源还必须命中布局步骤停点与缺表/被拒证据 |
 | 布局自动分组动作能不能执行 | `lib/layout-groups.js` · `function suggestBlocker(`、`function regroupOf(` | `inspect` 直接返回 `regroup.allowed / code / reason / hint`；待确认面板按钮与自动层级读同一份结论，输入不足时只走空表恢复 |
 | 等图停点的进入结果 | `lib/board.js` · `const IMAGE_GATE_NOT_ENTERED =` | `enterPipelineAImageStop` 统一返回 `{ entered, changed }`；运行收尾与登记表对表只按具名结论提前返回或继续，不再用 `null / false` 区分两种“没有改动” |
 | 登记表对表的显式事实与结算分派 | `lib/board.js` · `function registryFactsOf(` | `reconcileTask` 与运行 done 分支共用 `{ empty, complete, failed }`；`settleDone` 只消费同一份事实，不重复判断是否跑满 |
-| 待确认写入与布局恢复共用哪一条来源运行解析 | `lib/confirm.js` · `function commitFromSource(` | 普通 `/api/confirm` 与布局恢复接口都从这里把看板任务的 jobId / 工作目录交给 `confirm.commit`，新运行统一挂回原任务 |
+| 待确认写入与布局恢复共用哪一条来源解析 | `lib/routes.js` · `function requireConfirmSourceOf(` | 普通 `/api/confirm` 与布局恢复接口先从任务 / 运行 / 手填来源解析出一份 query，并把带 `groups` 的请求交给统一恢复门禁 |
+| 已解析来源如何驱动写盘 | `lib/confirm.js` · `function commitFromSource(` | 写盘工程目录、页面与续跑运行只取 `source.query` / 来源任务；请求体只提供本次输入，不再决定写到哪一页 |
+| 命名表可编辑与提交载荷 | `ui/src/app/pending-panel.tsx` · `const namingEditable =` | 缺名字或当前表有重名时，命名表可编辑；同一判据决定提交是否携带 `naming`，服务端修复仍由 `pruneNaming` 单独表示 |
 | 待确认面板的提交载荷与忙碌/失败收尾 | `ui/src/app/pending-panel.tsx` · `const submitInputs = useCallback(` | 「确认并继续」「只写入」「按空表重写」「重新自动分组」共用同一份字段组装与状态收尾，只在最后按提交类型选择接口 |
 | 新建任务按钮名 | `ui/src/lib/task-form.ts` · `export function startActionLabel(` | `new-task-card.tsx` 的按钮、流水线页提示与成功提示都读这一份名称；路线需要页面 PNG 时是「创建并开始」，否则是「加入看板并开始」 |
 | 显式 `runId` 的待确认来源 | `lib/run.js` · `function summary(id)` | `lib/routes.js` 的 `pendingSourceOf` 按运行 id 直查单次摘要；不看按工程 + Target 去重后的 `runs.list()`，来源不存在时直接报错，不退化成手填查询 |

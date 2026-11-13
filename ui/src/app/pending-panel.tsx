@@ -111,6 +111,8 @@ export function PendingPanel({
   // 资源名撞在一起的组数（同名图层按图层名起名就会撞）：第 7 步的台账要求同一页里名字唯一。
   const duplicateGroups = pending?.icons.available ? pending.icons.duplicates : []
   const duplicateCount = duplicateGroups.length
+  // 命名表可编辑与提交载荷共用这一条判据：缺名字，或已有表里的资源名撞在一起。
+  const namingEditable = Boolean(pending?.icons.available && (pending.icons.needsNaming || duplicateCount > 0))
   const langCount = pending?.translations.available ? pending.translations.pendingTranslations.length : 0
   const glossaryCount = pending?.translations.available ? pending.translations.glossaryRequired.length : 0
   const layoutWaiting = pending?.layout.waiting ?? 0
@@ -179,7 +181,7 @@ export function PendingPanel({
           target: pending.target,
           taskId,
           runId,
-          naming: pending.icons.available && pending.icons.needsNaming ? naming : undefined,
+          naming: namingEditable ? naming : undefined,
           translations: pending.translations.available ? translations : undefined,
           glossary: pending.translations.available ? glossaryMap : undefined,
           groups: confirmEmptyGroups ? [] : undefined,
@@ -198,7 +200,7 @@ export function PendingPanel({
         setSubmitBusy("")
       }
     },
-    [pending, taskId, runId, mode, allowEmptyLedger, noIconSlots, finishSubmission, clearFailure, writeFailure]
+    [pending, taskId, runId, mode, allowEmptyLedger, noIconSlots, namingEditable, finishSubmission, clearFailure, writeFailure]
   )
 
   const submit = useCallback(
@@ -499,7 +501,7 @@ export function PendingPanel({
             </>
           )}
 
-          {(icons.needsNaming || duplicateCount > 0) && (
+          {namingEditable && (
             <>
               <div>
                 <Button variant="outline" size="sm" disabled={busy !== ""} onClick={() => void suggestNamesOnly()}>

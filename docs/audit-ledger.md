@@ -388,4 +388,8 @@
 | 2026-11-13 GitHub 43219655714 | REVIEW-002 | 等图停点用 `null / false / true` 同时编码是否停在等图和是否写盘 | 已收 | `enterPipelineAImageStop` 返回 `{ entered, changed }`；所有调用点按具名字段分派 |
 | 2026-11-13 GitHub 43219655714 | REVIEW-003 | 登记表对表与 `settleDone` 各自判断跑满、空表、失败和等图停点 | 已收 | `registryFactsOf` 统一产出 `{ empty, complete, failed }`；运行 done 与对表共用，`settleDone` 只消费事实，`reconcileTask` 只有一处结算调用 |
 | 2026-11-13 GitHub 43219655714 | 非阻断 | 待确认取数 effect 重复列出已包含在 `reload` 依赖中的任务与运行 id | 已收 | effect 只依赖 `reload` 与状态，来源变化仍由 `reload` 自身依赖触发 |
+| 2026-11-13 GitHub 43345812327 | REVIEW-001 | 重名停点下命名表可编辑，但提交载荷只在缺名字时发送，人工改过的资源名被丢弃 | 已收 | `pending-panel.tsx` 用 `namingEditable` 同时控制表格与 `naming` 载荷；`pruneNaming` 继续单独表示服务端修复 |
+| 2026-11-13 GitHub 43345812327 | REVIEW-002 | 有来源状态但失败步骤为空时，仍按有图无表给出布局恢复 | 已收 | `layout-groups.inspect` 新增 `sourceAllowsRecovery`；手填无状态才直接恢复，等待/失败来源必须命中布局停点与缺表/被拒证据 |
+| 2026-11-13 GitHub 43345812327 | REVIEW-003 | `/api/confirm` 用来源停点做门禁，却用请求体的工程目录/页面写盘 | 已收 | `/api/confirm` 与自动分组统一走 `requireConfirmSourceOf`；`commitFromSource` 仅使用已解析来源的 query 写盘 |
+| 2026-11-13 GitHub 43345812327 | 非阻断 | 缺链接提示“一行一个”被单链接入口复用；运行来源未继承 `imageStop` | 已收 | 提示改为单页/多页都成立的说法；`queryOfRun` 与 `queryOfTask` 按同一字段映射读取 `imageStop` |
 

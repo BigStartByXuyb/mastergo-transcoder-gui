@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { PendingPanel } from "@/app/pending-panel"
@@ -180,6 +180,39 @@ describe("PendingPanel", () => {
     ask.click()
     const input = await screen.findByDisplayValue("MenuOk")
     expect(input).toBeTruthy()
+  })
+
+  it("重名停点下可编辑的命名表随提交写入", async () => {
+    const duplicate = pending()
+    const first = duplicate.icons.mustName[0]
+    duplicate.icons.mustName = [
+      { ...first, filled: true },
+      { ...first, index: 2, ownerText: "删除", filled: true }
+    ]
+    duplicate.icons.missing = 0
+    duplicate.icons.needsNaming = false
+    duplicate.icons.needsRepair = true
+    duplicate.icons.naming = [
+      { index: 1, name: "Same", comment: "" },
+      { index: 2, name: "Same", comment: "" }
+    ]
+    duplicate.icons.duplicates = [{ name: "Same", indexes: [1, 2] }]
+    duplicate.icons.waiting = 1
+    let confirmed: Record<string, unknown> | null = null
+    stubWith({ pending: duplicate, onConfirm: (body) => { confirmed = body } })
+    render(panel("waiting"))
+
+    const names = await screen.findAllByDisplayValue("Same")
+    fireEvent.change(names[0], { target: { value: "SameOne" } })
+    screen.getByRole("button", { name: /确认并继续/ }).click()
+    await vi.waitFor(() => expect(confirmed).not.toBeNull())
+    expect(confirmed).toEqual(expect.objectContaining({
+      naming: [
+        expect.objectContaining({ index: 1, name: "SameOne" }),
+        expect.objectContaining({ index: 2, name: "Same" })
+      ],
+      pruneNaming: true
+    }))
   })
 
   it("只剩缺表停点时同时给出空表与模型分组出口", async () => {

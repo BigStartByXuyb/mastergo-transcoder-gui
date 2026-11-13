@@ -551,6 +551,27 @@ function caseStoppedSourceIsNotRecoverable() {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+function caseStateWithoutFailedStepIsNotRecoverable() {
+  const root = sandbox();
+  writeControls(root);
+  writeImage(root);
+  const layout = pendingFor(root).inspect({
+    projectRoot: root,
+    target: TARGET,
+    mode: "A",
+    state: "failed",
+    layoutStep: "layoutManifest",
+    failedStep: "",
+    failedMessage: "",
+    imageStop: false
+  }).layout;
+  assert.strictEqual(layout.recoverable, true);
+  assert.strictEqual(layout.needsGroups, false, "来源有状态但没有失败步骤时不能冒充分组表恢复");
+  assert.strictEqual(layout.rejected, false);
+  assert.strictEqual(layout.waiting, 0);
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 try {
   const cases = [
     ["还没跑到取数那一步", caseNothingYet],
@@ -567,7 +588,8 @@ try {
     ["只有图、类型产物在但条目清单缺失", caseImageWithoutCandidates],
     ["分组表损坏 = 按没有表处理，让人重写一次", caseBrokenGroupsAsksAgain],
     ["损坏的分组表被插件拒收时仍命中拒收恢复", caseBrokenGroupsCanBeRejected],
-    ["显式停止的来源不提供布局恢复按钮", caseStoppedSourceIsNotRecoverable]
+    ["显式停止的来源不提供布局恢复按钮", caseStoppedSourceIsNotRecoverable],
+    ["有状态但没有失败步骤不提供布局恢复", caseStateWithoutFailedStepIsNotRecoverable]
   ];
   for (const [name, run] of cases) {
     run();
