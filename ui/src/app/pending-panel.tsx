@@ -130,8 +130,10 @@ export function PendingPanel({
    * 直接清掉刚写好的命名表，产物会退化成没有图标的一页。
    */
   const noIconSlots = Boolean(pending?.icons.available) && (pending?.icons.mustName.length ?? 0) === 0
-  // 有待办才让提交；没有图标槽位时靠「按空台账继续」这一个显式声明兜底。
-  const canSubmit = Boolean(pending) && (otherWaiting > 0 || (noIconSlots && allowEmptyLedger))
+  const layoutBlocking = layoutWaiting > 0 || layoutFailed
+  // 布局停点只走布局区自己的恢复入口；通用提交不能替人写空台账，也不能从错误的步骤续跑。
+  const canSubmit = Boolean(pending) && !layoutBlocking &&
+    (otherWaiting > 0 || (noIconSlots && allowEmptyLedger))
   // 后端续跑只认来源运行；只有 taskId 而没有 runId 时不能承诺「并继续」。
   const hasSource = Boolean(runId)
   /*
@@ -186,7 +188,7 @@ export function PendingPanel({
           translations: pending.translations.available ? translations : undefined,
           glossary: pending.translations.available ? glossaryMap : undefined,
           groups: confirmEmptyGroups ? [] : undefined,
-          allowEmptyLedger: noIconSlots && allowEmptyLedger,
+          allowEmptyLedger: !confirmEmptyGroups && !layoutBlocking && noIconSlots && allowEmptyLedger,
           // 命名表写歪了（旧下标 / 重名）就顺手修好：这次提交不只是补名字。
           pruneNaming: Boolean(pending.icons.available && pending.icons.needsRepair),
           resume
@@ -201,7 +203,7 @@ export function PendingPanel({
         setSubmitBusy("")
       }
     },
-    [pending, taskId, runId, mode, allowEmptyLedger, noIconSlots, namingEditable, finishSubmission, clearFailure, writeFailure]
+    [pending, taskId, runId, mode, allowEmptyLedger, noIconSlots, layoutBlocking, namingEditable, finishSubmission, clearFailure, writeFailure]
   )
 
   const submit = useCallback(

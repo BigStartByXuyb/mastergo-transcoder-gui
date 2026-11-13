@@ -32,6 +32,8 @@ function project(registry) {
 function casePrefixAndPascal() {
   assert.strictEqual(pascalFromPageName("手动对准 （2.2.1）"), "", "中文页名转不出英文");
   assert.strictEqual(pascalFromPageName("Manual Align (2.2.1)"), "ManualAlign");
+  assert.strictEqual(pascalFromPageName("页面2"), "", "纯数字编号不能冒充语义名");
+  assert.strictEqual(pascalFromPageName("Manual Align 2"), "ManualAlign", "编号从语义名里去掉");
   assert.strictEqual(pascalFromPageName("laser-focus"), "LaserFocus");
   assert.strictEqual(pascalFromPageName(""), "");
   // 区域前缀规则由后端持有（写盘校验与界面预览同一份）：这里断言「候选的 target 一定能推出它的 ui」。
@@ -57,6 +59,16 @@ function casePrefixAndPascal() {
     semanticName: "",
     complete: false
   }, "推不出区域前缀的 Target 不完整");
+  const numericPage = candidatesFor({
+    projectRoot: root,
+    pageName: "页面2",
+    autoAdopt: true
+  });
+  assert.ok(numericPage.candidates.length > 0, "仍给出可补语义名的区域候选");
+  assert.ok(
+    numericPage.candidates.every((candidate) => candidate.needsSemanticName),
+    "数字型页名不能生成被写回校验拒绝的完整候选"
+  );
   fs.rmSync(root, { recursive: true, force: true });
 }
 

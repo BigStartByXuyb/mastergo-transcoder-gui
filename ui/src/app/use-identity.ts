@@ -3,16 +3,15 @@ import { toast } from "sonner"
 
 import { api, type IdentityCandidate, type ProjectPages } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
-import { applyIdentity, candidatesForLink } from "@/lib/identity-flow"
-import { pickIdentityCandidate } from "@/lib/identity-pick"
+import { applyIdentity, prepareLinkIdentity } from "@/lib/identity-flow"
 import type { IdentityApplyDecision } from "@/lib/task-start"
 import { adoptsIdentityWithoutConfirm } from "@/lib/task-form"
 
 /*
  * 页面身份：Target 与 UI 区域。
  *
- * 表单按钮的「选候选 → 写工程登记表 → 回填表单」在这里；A 路线启动前也复用
- * `ui/src/lib/identity-flow.ts` 的候选与显式 Target 判据，只在自动化采用和表单回填上分工。
+ * 表单按钮的「选候选 → 写工程登记表 → 回填表单」在这里；候选准备复用
+ * `ui/src/lib/identity-flow.ts` 的统一编排，只在表单回填上分工。
  * 候选列表只跟工程目录有关，区域预览只跟 Target 有关（规则在后端，前端不算），两者各自取数，互不牵连。
  */
 
@@ -76,17 +75,24 @@ export function useIdentity(options: IdentityOptions) {
 
   /* 取候选并判定能不能自动采用；要人决策时把原因写进 failure，返回 null。 */
   async function pick(): Promise<IdentityCandidate | null> {
-    const got = await candidatesForLink({
+    const result = await prepareLinkIdentity({
       link,
       projectRoot,
       pageName: name,
       ui,
-      useAi: automation !== "off"
+      useAi: automation !== "off",
+      autoOnly: false
     })
-    setCandidates(got.items)
-    const decision = pickIdentityCandidate(got.items, got.blocked)
-    if (decision.pick) return decision.pick
-    onFailure(decision.reason)
+    if (result.kind === "manual") {
+      setCandidates(result.items)
+      return result.candidate
+    }
+    setCandidates([])
+    if (result.kind === "rejected") {
+      onFailure(result.reason)
+      return null
+    }
+    onFailure(result.kind === "none" ? result.reason : "")
     return null
   }
 

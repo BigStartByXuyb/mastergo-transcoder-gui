@@ -6,10 +6,9 @@ import {
   type CreatedTasks,
   type TaskCreationApi
 } from "@/app/stage-design-images"
-import { api as appApi, type BoardAddBody, type BoardModePolicy } from "@/lib/api"
+import type { BoardAddBody, BoardModePolicy } from "@/lib/api"
 import { boardItemOf, singlePageAllowsUnclaimedImage, type BoardItem } from "@/lib/board-items"
-import { describeFailure } from "@/lib/describe-failure"
-import { candidatesForLink, resolveExplicitTarget } from "@/lib/identity-flow"
+import { prepareLinkIdentity } from "@/lib/identity-flow"
 
 /*
  * 两个新建入口共用这一层：先按同一套输入判据给失败原因，再按后端路线能力选择
@@ -70,38 +69,27 @@ async function reconcileOtherItems(items: BoardItem[], projectRoot: string): Pro
       resolved.push({ link: item.link, target: item.target, mode: item.mode })
       continue
     }
-    try {
-      const named = await appApi.designPageName(item.link)
-      const candidates = await candidatesForLink({
-        link: item.link,
-        projectRoot: projectRoot,
-        pageName: named.pageName,
-        ui: "",
-        useAi: false
-      })
-      const selection = await resolveExplicitTarget({
-        target: item.target,
-        candidates: candidates.items,
-        loadTargetParts: appApi.identityPrefix,
-        basis: "手工填写的 Target"
-      })
-      if (selection.kind !== "picked") {
-        return {
-          ok: false,
-          failure: selection.kind === "rejected" ? selection.reason : "页面身份还没准备好，请补全后重试"
-        }
+    const result = await prepareLinkIdentity({
+      link: item.link,
+      projectRoot: projectRoot,
+      target: item.target,
+      ui: "",
+      useAi: false,
+      autoOnly: false
+    })
+    if (result.kind !== "resolved") {
+      return {
+        ok: false,
+        failure: result.kind === "rejected" ? result.reason : "页面身份还没准备好，请补全后重试"
       }
-      const candidate = selection.candidate
-      resolved.push({
-        link: item.link,
-        target: candidate.target,
-        mode: item.mode,
-        ...(candidate.ui ? { ui: candidate.ui } : {})
-      })
     }
-    catch (error) {
-      return { ok: false, failure: describeFailure(error) }
-    }
+    const candidate = result.candidate
+    resolved.push({
+      link: item.link,
+      target: candidate.target,
+      mode: item.mode,
+      ...(candidate.ui ? { ui: candidate.ui } : {})
+    })
   }
   return { ok: true, items: resolved }
 }

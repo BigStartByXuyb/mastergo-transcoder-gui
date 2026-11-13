@@ -264,8 +264,11 @@ describe("PendingPanel", () => {
     expect(confirmed).toEqual(expect.objectContaining({ groups: [], mode: "A" }))
   })
 
-  it("主提交不替用户写空布局表", async () => {
+  it("布局停点不允许通用提交绕过分组表", async () => {
     const layoutPending = pending()
+    layoutPending.icons.waiting = 0
+    layoutPending.icons.missing = 0
+    layoutPending.icons.needsNaming = false
     layoutPending.layout = {
       needsGroups: true,
       recoverable: true,
@@ -287,9 +290,9 @@ describe("PendingPanel", () => {
     render(panel("waiting"))
 
     const submit = await screen.findByRole("button", { name: /确认并继续/ })
-    submit.click()
-    await vi.waitFor(() => expect(confirmed).not.toBeNull())
-    expect(confirmed).not.toHaveProperty("groups")
+    expect(submit.hasAttribute("disabled")).toBe(true)
+    expect(screen.getByRole("button", { name: /只写入，不继续/ }).hasAttribute("disabled")).toBe(true)
+    expect(confirmed).toBeNull()
   })
 
   it("已有分组表被布局步骤拒收时可以按空表重写", async () => {

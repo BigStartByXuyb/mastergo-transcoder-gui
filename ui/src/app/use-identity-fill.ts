@@ -1,16 +1,15 @@
 import { useState } from "react"
 import { toast } from "sonner"
 
-import { api, type IdentityCandidate } from "@/lib/api"
+import type { IdentityCandidate } from "@/lib/api"
 import type { BoardItem } from "@/lib/board-items"
 import { describeFailure } from "@/lib/describe-failure"
 import {
   applyIdentities,
   applyIdentity,
-  candidatesForLink,
+  prepareLinkIdentity,
   type ApplyIdentityInput
 } from "@/lib/identity-flow"
-import { pickIdentityCandidate } from "@/lib/identity-pick"
 import { adoptsIdentityWithoutConfirm } from "@/lib/task-form"
 
 /*
@@ -49,32 +48,32 @@ export function useIdentityFill(options: {
           next.push({ kind: "filled", link: item.link, target: item.target, ui, basis: "这一行自己写了 Target，没动" })
           continue
         }
-        const named = await api.designPageName(item.link)
-        const got = await candidatesForLink({
+        const result = await prepareLinkIdentity({
           link: item.link,
           projectRoot,
-          pageName: named.pageName,
           ui,
-          useAi: options.automation !== "off"
+          useAi: options.automation !== "off",
+          autoOnly: adoptsIdentityWithoutConfirm(options.automation)
         })
-        const decision = pickIdentityCandidate(got.items, got.blocked)
-        if (!decision.pick || !adoptsIdentityWithoutConfirm(options.automation)) {
-          const usable = got.items.some((candidate) => candidate.target && !candidate.needsSemanticName)
-          next.push(
-            usable
-              ? { kind: "pick", link: item.link, pageName: named.pageName, items: got.items, reason: decision.reason }
-              : { kind: "none", link: item.link, reason: decision.reason }
-          )
+        if (result.kind === "rejected") {
+          setRows(next)
+          options.onFailure(result.reason)
+          return
+        }
+        if (result.kind === "manual" || result.kind === "none") {
+          next.push(result.kind === "manual"
+            ? { kind: "pick", link: item.link, pageName: result.pageName, items: result.items, reason: result.reason }
+            : { kind: "none", link: item.link, reason: result.reason })
           continue
         }
-        const input = { link: item.link, projectRoot, pageName: named.pageName, item: decision.pick }
-        autoWrite.push({ row: next.length, input, basis: decision.pick.basis })
+        const input = { link: item.link, projectRoot, pageName: result.pageName, item: result.candidate }
+        autoWrite.push({ row: next.length, input, basis: result.candidate.basis })
         next.push({
           kind: "pick",
           link: item.link,
-          pageName: named.pageName,
-          items: got.items,
-          reason: decision.reason
+          pageName: result.pageName,
+          items: [result.candidate],
+          reason: ""
         })
       }
       setRows(next)

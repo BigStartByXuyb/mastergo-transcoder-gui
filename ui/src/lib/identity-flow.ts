@@ -1,4 +1,5 @@
 import { api, type IdentityApplyEntry, type IdentityCandidate, type IdentityTargetParts } from "@/lib/api"
+import { describeFailure } from "@/lib/describe-failure"
 import { pickIdentityCandidate } from "@/lib/identity-pick"
 
 /*
@@ -137,4 +138,80 @@ export async function resolveExplicitTarget(input: {
   return decision.pick
     ? { kind: "picked", candidate: decision.pick }
     : { kind: "rejected", reason: decision.reason }
+}
+
+export type LinkIdentityPreparation =
+  | { kind: "resolved"; pageName: string; candidate: IdentityCandidate; source: "explicit" | "automatic" }
+  | { kind: "manual"; pageName: string; candidate: IdentityCandidate | null; items: IdentityCandidate[]; reason: string; blocked: boolean }
+  | { kind: "none"; pageName: string; reason: string; blocked: boolean }
+  | { kind: "rejected"; reason: string }
+
+/**
+ * 逐链接入口共用的身份准备编排：取页名、取候选、对账手填 Target、按采用条件给结论。
+ * 调用方只决定 useAi / autoOnly / aiFallback，不再各自重写这组步骤与错误收口。
+ */
+export async function prepareLinkIdentity(input: {
+  link: string
+  projectRoot: string
+  /** 已由调用方取得的设计页名；不传才从链接取。空串表示当前还没有页名。 */
+  pageName?: string
+  target?: string
+  ui?: string
+  useAi: boolean
+  autoAdopt?: boolean
+  autoOnly: boolean
+  aiFallback?: boolean
+}): Promise<LinkIdentityPreparation> {
+  try {
+    const pageName = input.pageName !== undefined
+      ? input.pageName
+      : (await api.designPageName(input.link)).pageName
+    const base = {
+      link: input.link,
+      projectRoot: input.projectRoot,
+      pageName: pageName,
+      ui: input.ui ?? ""
+    }
+    let got = await candidatesForLink({
+      ...base,
+      useAi: input.useAi,
+      autoAdopt: input.autoAdopt === true
+    })
+
+    const target = String(input.target ?? "").trim()
+    if (target) {
+      const resolved = await resolveExplicitTarget({
+        target: target,
+        candidates: got.items,
+        loadTargetParts: api.identityPrefix,
+        basis: "手工填写的 Target"
+      })
+      if (resolved.kind === "rejected") return resolved
+      if (resolved.kind === "picked") {
+        return { kind: "resolved", pageName: pageName, candidate: resolved.candidate, source: "explicit" }
+      }
+    }
+
+    let decision = pickIdentityCandidate(got.items, got.blocked, { autoOnly: input.autoOnly })
+    if (!decision.pick && input.aiFallback === true && !got.blocked) {
+      got = await candidatesForLink({ ...base, useAi: true, autoAdopt: true })
+      decision = pickIdentityCandidate(got.items, got.blocked, { autoOnly: true })
+    }
+    if (decision.pick && input.autoOnly) {
+      return { kind: "resolved", pageName: pageName, candidate: decision.pick, source: "automatic" }
+    }
+    const usable = got.items.some((candidate) => Boolean(candidate.target && !candidate.needsSemanticName))
+    return usable
+      ? {
+          kind: "manual",
+          pageName: pageName,
+          candidate: decision.pick,
+          items: got.items,
+          reason: decision.reason,
+          blocked: Boolean(got.blocked)
+        }
+      : { kind: "none", pageName: pageName, reason: decision.reason, blocked: Boolean(got.blocked) }
+  } catch (error) {
+    return { kind: "rejected", reason: describeFailure(error) }
+  }
 }

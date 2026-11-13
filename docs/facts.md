@@ -38,7 +38,7 @@
 | A / B / AB 页面身份的手写 Target 对账 | `ui/src/lib/identity-flow.ts` · `export async function resolveExplicitTarget(` | 冲突判据、冲突原话、后端区域拆分与完整性采用只在这里组合；三个入口不再各筛候选或各拼 fallback |
 | B / AB 新建任务的显式 Target 对账 | `ui/src/app/task-creation-entry.ts` · `async function reconcileOtherItems(` | 看板弹窗与流水线页的非 A 请求都先逐行取链接候选并调用 `resolveExplicitTarget`，通过后才进入各页面的 `otherRequest` |
 | Target 是否同时具备区域前缀与语义名 | `lib/identity.js` · `function targetPartsOf(` | `/api/identity/prefix` 直接返回 `previewUi` / `semanticName` / `complete`；流水线 A 与 B / AB 的手写 Target 都读这份结论，再交给 `ui/src/lib/identity-pick.ts` 的同一采用判据；登记候选与写回接口也用这份结论 |
-| A 路线页面身份的优先级与模型边界（手写 Target / 机械区域身份 / 模型语义名） | `ui/src/app/prepare-pipeline-items.ts` · `function prepareOne(` | 看板行手写 Target 优先并走统一身份对账；没有手写时采用项目唯一区域的机械身份；模型补语义名只读 `ui/src/lib/task-form.ts` 的 `adoptsIdentityWithoutConfirm`（仅自动层级）。A-only 单页表单不读取隐藏旧 Target |
+| A 路线页面身份的优先级与模型边界（手写 Target / 机械区域身份 / 模型语义名） | `ui/src/app/prepare-pipeline-items.ts` · `export async function preparePipelineAItems(` | 看板行手写 Target 优先并走 `prepareLinkIdentity` 的统一身份对账；没有手写时采用项目唯一区域的机械身份；模型补语义名只读 `ui/src/lib/task-form.ts` 的 `adoptsIdentityWithoutConfirm`（仅自动层级）。A-only 单页表单不读取隐藏旧 Target |
 | 布局分组停点的机器分类 | `lib/layout-groups.js` · `const GROUP_FAILURE_CODE` | 只认插件失败摘要首行里的 `LAYOUT_GROUPS_MISSING` / `LAYOUT_GROUPS_REJECTED`；中文失败原话只展示，不参与恢复入口判据 |
 | 单页表单何时允许「先选图、后填链接」 | `ui/src/lib/board-items.ts` · `function singlePageAllowsUnclaimedImage(` | 选图层、缺图门禁与建任务后的暂存读取同一结论；多页批次不把待认领图复制给任意一页 |
 | 任务创建失败时界面拿到的原因 | `ui/src/app/task-creation-entry.ts` · `const TASK_CREATION_FAILED =` | 两个新建入口共用；请求准备返回空原因时也落到这一句，页面不会再出现空错误 |
