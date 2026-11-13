@@ -393,7 +393,7 @@
 | 2026-11-13 GitHub 43345812327 | REVIEW-003 | `/api/confirm` 用来源停点做门禁，却用请求体的工程目录/页面写盘 | 已收 | `/api/confirm` 与自动分组统一走 `requireConfirmSourceOf`；`commitFromSource` 仅使用已解析来源的 query 写盘 |
 | 2026-11-13 GitHub 43345812327 | 非阻断 | 缺链接提示“一行一个”被单链接入口复用；运行来源未继承 `imageStop` | 已收 | 提示改为单页/多页都成立的说法；`queryOfRun` 与 `queryOfTask` 按同一字段映射读取 `imageStop` |
 | 2026-11-13 GitHub 43348268739 | REVIEW-001 | 任务、运行与手填查询各有一份 8 字段映射，新增字段容易漂移 | 已收 | `lib/pending.js` 用 `QUERY_FIELDS` 单表描述字段、默认值与覆盖；三个入口只保留来源适配 |
-| 2026-11-13 GitHub 43349533865 | BLOCK-001 | `/api/layout-groups/suggest` 的请求体没有 `groups`，用 body 推断是否过门禁导致实际绕过 | 已收 | `requireConfirmSourceOf` 增加显式 `writesGroups`；自动分组传 `true`，确认入口仍按 `groups` 判断，并补两条 suggest 门禁用例 |
+| 2026-11-13 GitHub 43349533865 | BLOCK-001 | `/api/layout-groups/suggest` 的请求体没有 `groups`，用 body 推断是否过门禁导致实际绕过 | 已收 | 自动分组入口改由 `layoutRecovery.suggestAndCommit` 先过恢复门禁；确认入口仅在本次实际写 `groups` 时调用同一门禁，并补两条 suggest 门禁用例 |
 | 2026-11-13 GitHub 43351319354 | REVIEW-001 | `board.snapshot()` 被只读 GET 与 `busyReason()` 调用，但对表可能启动运行并写盘 | 已收 | `snapshot` 只做投影；任务推进收成 `advanceTask` / `advance`，定时器与重启恢复显式调用；新增快照零启动、零写盘回归 |
 | 2026-11-13 GitHub 43351319354 | REVIEW-002 | 人工布局恢复与自动布局恢复各有一套编排和请求字段 | 已收 | 新增 `lib/layout-recovery.js`：恢复门禁、`candidatesInput`、模型调用与 `commitFromSource` 只有一个入口；路由和 `autofill` 都消费它 |
 | 2026-11-13 GitHub 43351319354 | REVIEW-003 | 页面图身份在预览戳与停点签名中各拼一套文件事实 | 已收 | `fileIdentityOf` 统一产出大小与取整修改时间；`stampOf` 与 `inputSignature` 只做投影 |
@@ -401,4 +401,8 @@
 | 2026-11-13 GitHub 43354406359 | REVIEW-001 | 手填来源的「按空表重写」未携带路线，清单显示可恢复但 `/api/confirm` 被服务端拒绝 | 已收 | `pending-panel` 的共享提交体增加 `mode`，确认与自动分组两条路径使用同一来源身份；`api.confirm` 类型同步；后端与前端回归锁定 `groups: [] + mode: A` |
 | 2026-11-13 GitHub 43354406359 | 非阻断 | changelog 写“不再用请求体是否携带 `groups` 推断入口行为”，与确认入口仍按 `groups` 判断不一致 | 已收 | changelog 改成实际口径：自动分组先过统一恢复门禁，确认入口仅在本次写 `groups` 时过同一门禁 |
 | 2026-11-13 GitHub 43354406359 | 非阻断 | `layout-groups.inspect` 注释把两个恢复按钮与 `regroup.allowed` 混成一类输入 | 已收 | 注释拆清：待办与恢复资格读 `inspect`，是否够问模型另由 `regroup.allowed` 决定 |
+| 2026-11-13 GitLab pipeline 499 | REVIEW-001 | 旧看板记录的等图停点用当前显示文案反推，改显示名会静默改变历史任务行为 | 已收 | 新增冻结兼容标记 `LEGACY_PAGE_IMAGE_STOP_LABEL`，历史识别只读固定字面量；显示标签继续独立维护 |
+| 2026-11-13 GitLab pipeline 499 | REVIEW-002 | 看板 B/AB 的手写 Target 未走新建任务页共用的身份对账 | 已收 | 非 A 共同创建路径新增 `reconcileOtherItems`：逐行取链接候选并调用 `resolveExplicitTarget`，通过后才交给看板或流水线组请求，并补冲突回归 |
+| 2026-11-13 GitLab pipeline 499 | 非阻断 | `docs/audit-ledger.md` 旧行仍记录已删除的 `writesGroups` 参数 | 已收 | 旧行改成当前 `layoutRecovery` 门禁口径 |
+| 2026-11-13 GitLab pipeline 499 | 非阻断 | `restartLayoutIfNeeded` 省略 `state` 的理由没有注释 | 已收 | 调用处写明 `settleDone` 已不在实时停点，按无状态手填来源检查缺表 |
 

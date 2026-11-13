@@ -147,28 +147,32 @@ export function PipelinePage({
 
   async function prepareStartRequest(
     projectRoot: string,
-    link: string
+    items: BoardAddBody["items"]
   ): Promise<{ ok: true; body: BoardAddBody } | { ok: false; failure: string }> {
-    const decision = await decideStartIdentity({
-      link,
-      projectRoot,
-      target: form.target,
-      ui: form.ui,
-      automation,
-      loadCandidates: async () =>
-        (
-          await candidatesForLink({
-            link,
-            projectRoot,
-            pageName: identity.name,
-            ui: form.ui,
-            useAi: false
-          })
-        ).items,
-      autoPick: () => identity.pick(),
-      autoApply: (item) => identity.apply(item),
-      loadTargetParts: api.identityPrefix
-    })
+    const item = items[0]
+    if (!item) return { ok: false, failure: "没有可创建的任务条目" }
+    const decision = item.target.trim()
+      ? { ok: true as const, target: item.target, ui: item.ui ?? form.ui }
+      : await decideStartIdentity({
+          link: item.link,
+          projectRoot,
+          target: "",
+          ui: form.ui,
+          automation,
+          loadCandidates: async () =>
+            (
+              await candidatesForLink({
+                link: item.link,
+                projectRoot,
+                pageName: identity.name,
+                ui: form.ui,
+                useAi: false
+              })
+            ).items,
+          autoPick: () => identity.pick(),
+          autoApply: (candidate) => identity.apply(candidate),
+          loadTargetParts: api.identityPrefix
+        })
     if (!decision.ok) {
       return {
         ok: false,
@@ -187,7 +191,7 @@ export function PipelinePage({
         projectRoot,
         ...defaults,
         deferStart: true,
-        items: [{ link, target: decision.target, mode: form.mode as "A" | "B" | "AB" }]
+        items: [{ link: item.link, target: decision.target, mode: form.mode as "A" | "B" | "AB" }]
       }
     }
   }
@@ -220,7 +224,7 @@ export function PipelinePage({
         automation,
         images: stagedImages,
         add: api.boardAdd,
-        otherRequest: () => prepareStartRequest(projectRoot, link)
+        otherRequest: (requestItems) => prepareStartRequest(projectRoot, requestItems)
       })
       if (result.board) setBoard(result.board)
       if (!result.ok) {

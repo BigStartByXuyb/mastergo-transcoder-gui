@@ -6,8 +6,10 @@ import {
   type CreatedTasks,
   type TaskCreationApi
 } from "@/app/stage-design-images"
-import type { BoardAddBody, BoardModePolicy } from "@/lib/api"
+import { api as appApi, type BoardAddBody, type BoardModePolicy } from "@/lib/api"
 import { singlePageAllowsUnclaimedImage, type BoardItem } from "@/lib/board-items"
+import { describeFailure } from "@/lib/describe-failure"
+import { candidatesForLink, resolveExplicitTarget } from "@/lib/identity-flow"
 
 /*
  * 两个新建入口共用这一层：先按同一套输入判据给失败原因，再按后端路线能力选择
@@ -46,6 +48,53 @@ export type OtherRouteRequest =
 
 const TASK_CREATION_FAILED = "任务创建未完成，请检查失败提示后重试"
 
+/** 非 A 路线的手写 Target 与 A 共用同一份链接身份对账，不能等到插件启动时才拒绝。 */
+async function reconcileOtherItems(items: BoardItem[], projectRoot: string): Promise<
+  { ok: true; items: BoardAddBody["items"] } |
+  { ok: false; failure: string }
+> {
+  const resolved: BoardAddBody["items"] = []
+  for (const item of items) {
+    if (!item.target.trim()) {
+      resolved.push({ link: item.link, target: item.target, mode: item.mode })
+      continue
+    }
+    try {
+      const named = await appApi.designPageName(item.link)
+      const candidates = await candidatesForLink({
+        link: item.link,
+        projectRoot: projectRoot,
+        pageName: named.pageName,
+        ui: "",
+        useAi: false
+      })
+      const selection = await resolveExplicitTarget({
+        target: item.target,
+        candidates: candidates.items,
+        loadTargetParts: appApi.identityPrefix,
+        basis: "手工填写的 Target"
+      })
+      if (selection.kind !== "picked") {
+        return {
+          ok: false,
+          failure: selection.kind === "rejected" ? selection.reason : "页面身份还没准备好，请补全后重试"
+        }
+      }
+      const candidate = selection.candidate
+      resolved.push({
+        link: item.link,
+        target: candidate.target,
+        mode: item.mode,
+        ...(candidate.ui ? { ui: candidate.ui } : {})
+      })
+    }
+    catch (error) {
+      return { ok: false, failure: describeFailure(error) }
+    }
+  }
+  return { ok: true, items: resolved }
+}
+
 function withFailure(result: CreateTasksResult): CreateTasksResult {
   if (result.ok || String(result.failure || "").trim()) return result
   return { ...result, failure: TASK_CREATION_FAILED }
@@ -59,7 +108,7 @@ export async function createTasksForMode(input: {
   automation: string
   images: Record<string, File>
   add: (body: BoardAddBody) => Promise<CreatedTasks>
-  otherRequest: () => Promise<OtherRouteRequest>
+  otherRequest: (items: BoardAddBody["items"]) => Promise<OtherRouteRequest>
   api?: TaskCreationApi
 }): Promise<CreateTasksResult> {
   const links = input.items.map((item) => item.link)
@@ -79,7 +128,11 @@ export async function createTasksForMode(input: {
     }))
   }
 
-  const request = await input.otherRequest()
+  const reconciled = await reconcileOtherItems(input.items, input.projectRoot)
+  if (!reconciled.ok) {
+    return { ok: false, failure: reconciled.failure, board: null }
+  }
+  const request = await input.otherRequest(reconciled.items)
   if (!request.ok) {
     return {
       ok: false,

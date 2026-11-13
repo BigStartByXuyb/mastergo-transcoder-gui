@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { createTasksForMode, taskEntryFailure, taskInputFailure } from "@/app/task-creation-entry"
 import type { BoardAddBody, BoardModePolicy } from "@/lib/api"
@@ -9,6 +9,10 @@ const policy: BoardModePolicy = {
   takesPageImage: false,
   runsPipelineAOnly: false
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe("taskEntryFailure", () => {
   it("两个入口用同一套顺序判断工程、链接与路线能力", () => {
@@ -123,6 +127,46 @@ describe("createTasksForMode", () => {
       failure: expect.stringMatching(/任务创建未完成/),
       board: null
     })
+    expect(add).not.toHaveBeenCalled()
+  })
+
+  it("非 A 的手写 Target 与链接登记页冲突时在创建前拒绝", async () => {
+    vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes("/api/design/page-name")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, pageName: "停止调整", rootId: "1:1" }), { status: 200 }))
+      }
+      if (url.includes("/api/identity/candidates")) {
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true,
+          candidates: [{
+            target: "F4Registered",
+            ui: "F4",
+            basis: "登记表",
+            needsSemanticName: false,
+            registered: true
+          }],
+          ai: { used: false, items: [] },
+          blocked: ""
+        }), { status: 200 }))
+      }
+      throw new Error("unexpected " + url)
+    })
+    const add = vi.fn()
+    const otherRequest = vi.fn()
+    const result = await createTasksForMode({
+      items: [{ link: "https://mastergo.com/goto/a?file=1&layer_id=2:3", target: "F3Wrong", mode: "B" }],
+      projectRoot: "project",
+      policy,
+      automation: "assist",
+      images: {},
+      add,
+      otherRequest
+    })
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.failure).toContain("F4Registered")
+    expect(otherRequest).not.toHaveBeenCalled()
     expect(add).not.toHaveBeenCalled()
   })
 })

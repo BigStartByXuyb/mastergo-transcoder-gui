@@ -138,13 +138,13 @@ export function BoardPage() {
             automation: settings?.automation ?? "assist",
             images,
             add: api.boardAdd,
-            otherRequest: async () => ({
+            otherRequest: async (requestItems) => ({
               ok: true,
               body: {
                 projectRoot,
                 ...requestDefaultsOf(form),
                 deferStart: true,
-                items
+                items: requestItems
               }
             })
           })
