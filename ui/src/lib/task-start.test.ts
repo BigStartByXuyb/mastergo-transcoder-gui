@@ -1,13 +1,12 @@
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 
 import type { IdentityCandidate } from "@/lib/api"
-import { explicitTargetConflictReason } from "@/lib/identity-flow"
 import { drive } from "@/lib/settings-fixtures"
 import { canStartAll, decideStartIdentity } from "@/lib/task-start"
 
 /*
- * 开始前的身份决定：先与链接对账，再在缺身份时按自动化层级自动补一次。
- * 取候选 / 自动补 / 写登记表都注入进来 —— 这里只验顺序与判据，不碰网络。
+ * 开始前的身份决定：缺身份时按自动化层级自动补一次。
+ * 自动补与写登记表都注入进来 —— 这里只验判据，不碰网络。
  */
 
 function candidate(target: string, ui = "F4"): IdentityCandidate {
@@ -22,35 +21,13 @@ function input(over: Partial<Parameters<typeof decideStartIdentity>[0]> = {}) {
     target: "",
     ui: "",
     automation: "assist",
-    loadCandidates: async () => [candidate("F4FocusMaintain")],
     autoPick: async () => null,
     autoApply: async () => ({ ok: true as const }),
-    loadTargetParts: async (target: string) => {
-      const previewUi = target.match(/^F\d+/)?.[0] ?? ""
-      const semanticName = previewUi ? target.slice(previewUi.length) : ""
-      return { previewUi, semanticName, complete: Boolean(previewUi && semanticName) }
-    },
     ...over
   }
 }
 
 describe("decideStartIdentity", () => {
-  it("填的 Target 与链接不是同一页：不开始，并说清登记表里那一页是什么", async () => {
-    const decision = await decideStartIdentity(input({ target: "saddas" }))
-
-    expect(decision.ok).toBe(false)
-    if (!decision.ok) expect(decision.reason).toBe(explicitTargetConflictReason(candidate("F4FocusMaintain"), "saddas"))
-    if (!decision.ok) expect(decision.reason).toContain("F4FocusMaintain")
-  })
-
-  it("填的 Target 就是链接指向那一页：直接用填的，不自动补", async () => {
-    const autoPick = vi.fn(async () => candidate("F4FocusMaintain"))
-    const decision = await decideStartIdentity(input({ target: "F4FocusMaintain", ui: "F4", automation: "auto", autoPick }))
-
-    expect(decision).toEqual({ ok: true, target: "F4FocusMaintain", ui: "F4" })
-    expect(autoPick).not.toHaveBeenCalled()
-  })
-
   it("没填身份、自动化层级是「自动」：补一次并写登记表", async () => {
     const applied: IdentityCandidate[] = []
     const decision = await decideStartIdentity(
@@ -86,42 +63,6 @@ describe("decideStartIdentity", () => {
     expect(decision).toEqual({ ok: false, reason: "登记表写入失败" })
   })
 
-  it("B / AB 显式 Target 命中只有区域前缀的候选时不许开始", async () => {
-    const partial = {
-      ...candidate("F4"),
-      semanticName: "",
-      needsSemanticName: true,
-      registered: false
-    }
-    const decision = await decideStartIdentity(input({
-      target: "F4",
-      loadCandidates: async () => [partial]
-    }))
-
-    expect(decision).toEqual({
-      ok: false,
-      reason: expect.stringContaining("语义名要由人给")
-    })
-  })
-
-  it("B / AB 自填 Target 也读后端的完整性结论", async () => {
-    const loadTargetParts = vi.fn(async () => ({
-      previewUi: "F4",
-      semanticName: "",
-      complete: false
-    }))
-    const decision = await decideStartIdentity(input({
-      target: "F4",
-      loadCandidates: async () => [],
-      loadTargetParts
-    }))
-
-    expect(loadTargetParts).toHaveBeenCalledWith("F4")
-    expect(decision).toEqual({
-      ok: false,
-      reason: expect.stringContaining("语义名要由人给")
-    })
-  })
 })
 
 describe("canStartAll", () => {

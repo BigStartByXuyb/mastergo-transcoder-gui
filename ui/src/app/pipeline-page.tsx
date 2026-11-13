@@ -33,7 +33,6 @@ import { Button } from "@/components/ui/button"
 import { api, type BoardAddBody, type BoardModePolicy, type PipelineStep, type PluginSummary } from "@/lib/api"
 import { keepPickedImages, pickedForLink, withPickedImage } from "@/lib/board-items"
 import { describeFailure } from "@/lib/describe-failure"
-import { candidatesForLink } from "@/lib/identity-flow"
 import { pendingPanelKey } from "@/lib/pending-source"
 import { stepRowOf, stepRowsOf } from "@/lib/step-rows"
 import {
@@ -166,19 +165,8 @@ export function PipelinePage({
           target: "",
           ui: form.ui,
           automation,
-          loadCandidates: async () =>
-            (
-              await candidatesForLink({
-                link: item.link,
-                projectRoot,
-                pageName: identity.name,
-                ui: form.ui,
-                useAi: false
-              })
-            ).items,
           autoPick: () => identity.pick(),
-          autoApply: (candidate) => identity.apply(candidate),
-          loadTargetParts: api.identityPrefix
+          autoApply: (candidate) => identity.apply(candidate)
         })
     if (!decision.ok) {
       return {

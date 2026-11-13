@@ -1,16 +1,13 @@
 import type { BoardTask, IdentityCandidate } from "@/lib/api"
-import { resolveExplicitTarget } from "@/lib/identity-flow"
 import { adoptsIdentityWithoutConfirm } from "@/lib/task-form"
 
 /*
  * 开始一条任务之前的身份决定：拿最终要提交的 Target / 区域，或者一句「为什么不能开始」。
  *
- * 两件事，顺序固定：
- *   1. 人填了 Target 就先与链接对账 —— 两者必须指向登记表里的同一页，否则插件会在还没进流水线时
- *      按身份混搭守卫拒掉（那一步连步骤都没有，人只能对着「没跑起来」猜）。
- *   2. 一个身份字段都没填、且自动化层级允许时，自动补一次（与表单那个按钮同一条实现）。
+ * 一个身份字段都没填、且自动化层级允许时，自动补一次（与表单那个按钮同一条实现）。
+ * 人在创建任务时填写的 Target 由 task-creation-entry 的共同入口对账；这里不另留一份实现。
  *
- * 取候选、自动补、写登记表都由调用方注入 —— 这里只编排顺序与判据，副作用仍在各自的实现里。
+ * 自动补与写登记表都由调用方注入 —— 这里只编排判据，副作用仍在各自的实现里。
  */
 
 export type StartDecision =
@@ -28,31 +25,12 @@ export async function decideStartIdentity(input: {
   target: string
   ui: string
   automation: string
-  /** 链接指向那一页的候选（后端按链接 + 登记表给；前端不自己拆链接）。 */
-  loadCandidates: () => Promise<IdentityCandidate[]>
   /** 缺身份时的自动补全（与表单按钮同一条实现）。 */
   autoPick: () => Promise<IdentityCandidate | null>
   autoApply: (item: IdentityCandidate) => Promise<IdentityApplyDecision>
-  /** Target 的区域/语义名拆分由后端给出；手动 Target 与本链路共用同一完整性判据。 */
-  loadTargetParts: (target: string) => Promise<{
-    previewUi: string
-    semanticName: string
-    complete: boolean
-  }>
 }): Promise<StartDecision> {
   let target = input.target.trim()
   let ui = input.ui.trim()
-
-  if (target && input.link.trim() && input.projectRoot.trim()) {
-    const candidates = await input.loadCandidates()
-    const resolved = await resolveExplicitTarget({
-      target: target,
-      candidates: candidates,
-      loadTargetParts: input.loadTargetParts,
-      basis: "手工填写的 Target"
-    })
-    if (resolved.kind === "rejected") return { ok: false, reason: resolved.reason }
-  }
 
   if (!target && !ui && adoptsIdentityWithoutConfirm(input.automation)) {
     const picked = await input.autoPick()
