@@ -391,7 +391,7 @@
 | 2026-11-13 GitHub 43345812327 | REVIEW-001 | 重名停点下命名表可编辑，但提交载荷只在缺名字时发送，人工改过的资源名被丢弃 | 已收 | `pending-panel.tsx` 用 `namingEditable` 同时控制表格与 `naming` 载荷；`pruneNaming` 继续单独表示服务端修复 |
 | 2026-11-13 GitHub 43345812327 | REVIEW-002 | 有来源状态但失败步骤为空时，仍按有图无表给出布局恢复 | 已收 | `layout-groups.inspect` 新增 `sourceAllowsRecovery`；手填无状态才直接恢复，等待/失败来源必须命中布局停点与缺表/被拒证据 |
 | 2026-11-13 GitHub 43345812327 | REVIEW-003 | `/api/confirm` 用来源停点做门禁，却用请求体的工程目录/页面写盘 | 已收 | `/api/confirm` 与自动分组统一走 `requireConfirmSourceOf`；`commitFromSource` 仅使用已解析来源的 query 写盘 |
-| 2026-11-13 GitHub 43345812327 | 非阻断 | 缺链接提示“一行一个”被单链接入口复用；运行来源未继承 `imageStop` | 已收 | 提示改为单页/多页都成立的说法；`queryOfRun` 与 `queryOfTask` 按同一字段映射读取 `imageStop` |
+| 2026-11-13 GitHub 43345812327 | 非阻断 | 缺链接提示“一行一个”被单链接入口复用；运行来源未继承 `imageStop` | 已收 | 提示改为单页/多页都成立的说法；运行来源不读取自身摘要，由同工作目录的看板任务补入 `imageStop` |
 | 2026-11-13 GitHub 43348268739 | REVIEW-001 | 任务、运行与手填查询各有一份 8 字段映射，新增字段容易漂移 | 已收 | `lib/pending.js` 用 `QUERY_FIELDS` 单表描述字段、默认值与覆盖；三个入口只保留来源适配 |
 | 2026-11-13 GitHub 43349533865 | BLOCK-001 | `/api/layout-groups/suggest` 的请求体没有 `groups`，用 body 推断是否过门禁导致实际绕过 | 已收 | 自动分组入口改由 `layoutRecovery.suggestAndCommit` 先过恢复门禁；确认入口仅在本次实际写 `groups` 时调用同一门禁，并补两条 suggest 门禁用例 |
 | 2026-11-13 GitHub 43351319354 | REVIEW-001 | `board.snapshot()` 被只读 GET 与 `busyReason()` 调用，但对表可能启动运行并写盘 | 已收 | `snapshot` 只做投影；任务推进收成 `advanceTask` / `advance`，定时器与重启恢复显式调用；新增快照零启动、零写盘回归 |
@@ -415,4 +415,5 @@
 | 2026-11-13 GitHub 43368470990 | REVIEW-001 | 自动身份候选写登记表失败被吞掉，任务仍按未登记 Target 创建并启动 | 已收 | `apply` 返回明确成功/失败并保留后端原因；`decideStartIdentity` 在写回失败时停止启动；补字段不全与 HTTP 失败回归 |
 | 2026-11-13 GitHub 43368470990 | REVIEW-002 | A-only 表单隐藏 Target 后仍提交持久化的旧值，可能按上一页身份启动 | 已收 | 流水线页单页条目统一经 `pipelinePageTaskItems`；A-only 强制空 Target 交给 A 自动身份准备，B / AB 保留手填值 |
 | 2026-11-13 GitHub 43368470990 | 非阻断 | 待确认自动补输入依赖数组含正文未读取的 `otherWaiting`；建任务与暂存图落地未统一校验页面 Target 文件名安全 | 已收 | 删除无效依赖；看板建任务与 `installStaged` 共用 `requirePageTarget`，补路径型 Target API 回归 |
+| 2026-11-13 GitHub 43401890694 | REVIEW-001 | 运行来源的 `imageStop` 读取从不写入的 `job.imageStop`，等图停点抑制对运行来源失效 | 已收 | 运行摘要删除该字段；`taskAtProjectRoot` 按工作目录找到关联看板任务，`sourceOfRun` 从任务补入 `imageStop`；待确认队列与 `/api/pending?runId` 共用同一来源映射，补大小写与真实任务值回归 |
 

@@ -467,7 +467,11 @@ async function caseListCurrentAndLookup() {
   const list = fx.manager.list();
   assert.strictEqual(list.filter((item) => item.projectRoot === "D:/a").length, 1, "同工程+同 Target 只留最近一次");
   assert.strictEqual(list.find((item) => item.projectRoot === "D:/a").id, aAgain.id);
-  assert.strictEqual(list.find((item) => item.projectRoot === "D:/a").imageStop, false, "运行摘要与待确认映射都带同一个停点字段");
+  assert.strictEqual(
+    Object.prototype.hasOwnProperty.call(list.find((item) => item.projectRoot === "D:/a"), "imageStop"),
+    false,
+    "运行摘要不冒充看板任务的等图停点"
+  );
   assert.ok(fx.manager.status(a.id), "旧 job 仍然可按 id 取到状态");
   assert.strictEqual(fx.manager.status(a.id).state, "done");
   assert.strictEqual(fx.manager.summary(a.id).id, a.id, "按 id 直查不能被列表的去重换成较新的运行");

@@ -9,7 +9,13 @@
 
 const assert = require("assert");
 
-const { queryOfTask, queryOfRun, queryOfManual } = require("../lib/pending.js");
+const {
+  queryOfTask,
+  queryOfRun,
+  queryOfManual,
+  sourceOfRun,
+  taskAtProjectRoot
+} = require("../lib/pending.js");
 
 assert.deepStrictEqual(queryOfTask({
   workDir: "D:/work/task-1",
@@ -50,7 +56,7 @@ assert.deepStrictEqual(queryOfTask({
   imageStop: false
 }, "同一次失败可以直接用当前停点覆盖任务尚未刷新的状态");
 
-assert.deepStrictEqual(queryOfRun({
+const run = {
   projectRoot: "D:/work/run-1",
   target: "DemoPage",
   mode: "AB",
@@ -58,6 +64,21 @@ assert.deepStrictEqual(queryOfRun({
   layoutStep: "layoutManifest",
   failedStep: "layoutManifest",
   failedMessage: "[LAYOUT_GROUPS_REJECTED] 拒收",
+  imageStop: true
+};
+assert.deepStrictEqual(queryOfRun(run), {
+  projectRoot: "D:/work/run-1",
+  target: "DemoPage",
+  mode: "AB",
+  state: "failed",
+  layoutStep: "layoutManifest",
+  failedStep: "layoutManifest",
+  failedMessage: "[LAYOUT_GROUPS_REJECTED] 拒收",
+  imageStop: false
+}, "运行摘要不承载等图事实");
+
+assert.deepStrictEqual(queryOfRun(run, {
+  workDir: "d:/WORK/RUN-1",
   imageStop: true
 }), {
   projectRoot: "D:/work/run-1",
@@ -68,7 +89,25 @@ assert.deepStrictEqual(queryOfRun({
   failedStep: "layoutManifest",
   failedMessage: "[LAYOUT_GROUPS_REJECTED] 拒收",
   imageStop: true
-}, "直跑运行映射");
+}, "运行来源的等图事实来自同工作目录的看板任务");
+
+const relatedTask = { id: "task-1", workDir: "d:/WORK/RUN-1", imageStop: true };
+assert.strictEqual(taskAtProjectRoot([{ id: "other", workDir: "D:/work/run-2" }, relatedTask], run.projectRoot), relatedTask,
+  "运行按整段工作目录匹配任务，大小写不敏感");
+assert.deepStrictEqual(sourceOfRun(run, relatedTask), {
+  task: null,
+  run: run,
+  query: {
+    projectRoot: "D:/work/run-1",
+    target: "DemoPage",
+    mode: "AB",
+    state: "failed",
+    layoutStep: "layoutManifest",
+    failedStep: "layoutManifest",
+    failedMessage: "[LAYOUT_GROUPS_REJECTED] 拒收",
+    imageStop: true
+  }
+}, "运行来源仍绑定运行，不把关联任务变成写回来源");
 
 assert.deepStrictEqual(queryOfManual({
   projectRoot: "D:/manual",
