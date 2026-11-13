@@ -133,9 +133,10 @@ function caseArtifacts(fx) {
   assert.throws(function () { artifacts.read({ projectRoot: "", target: "" }); }, /工程目录/, "缺工程目录要拒绝");
 }
 
-// 看板快照每次都对一次表：登记表说跑完了，行上的失败就是过期的。
+// 看板显式推进时对一次表：登记表说跑完了，行上的失败就是过期的。
 function caseReconcile(fx) {
   const board = fx.board(stubPending(true));
+  board.advance();
 
   const done = board.snapshot().tasks.find(function (item) { return item.id === "t-done"; });
   assert.strictEqual(done.state, "ready", "登记表跑满又全 ok，行要回到待合并");
@@ -163,7 +164,7 @@ function caseStopStaysStopped(fx) {
 // 旧 job 没了也能续：按任务 id 取回任务，从登记表算出锚点与参数。
 function caseResumePlan(fx) {
   const board = fx.board(stubPending(true));
-  board.snapshot();
+  board.advance();
 
   const found = board.byId("t-partial");
   assert.ok(found, "按任务 id 要能取回那一行");
@@ -189,7 +190,7 @@ function caseResumePlan(fx) {
 // 续跑起来之后把新 job 挂回那一行：行上的状态、日志、合并都跟着新运行走。
 function caseAttach(fx) {
   const board = fx.board(stubPending(true));
-  board.snapshot();
+  board.advance();
   board.attach("t-partial", { id: "job-new-1" });
   const after = board.snapshot().tasks.find(function (item) { return item.id === "t-partial"; });
   assert.strictEqual(after.jobId, "job-new-1", "新运行要挂到行上");

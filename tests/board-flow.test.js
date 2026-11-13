@@ -60,6 +60,10 @@ function makeRuns(contract) {
   const started = [];
   return {
     started: started,
+    clear() {
+      jobs.clear();
+      latest.clear();
+    },
     seed(id, job, projectRoot) {
       jobs.set(id, job);
       if (projectRoot) latest.set(projectRoot, job);
@@ -151,6 +155,70 @@ function caseLoadMarksDeadTasksStopped() {
   assert.match(deferred.error, /任务创建与显式启动之间/, "延后启动窗口被打断时给出明确原因");
   assert.ok(!fs.existsSync(staged.path), "无法恢复的延后任务同时清掉暂存件");
   fs.rmSync(home, { recursive: true, force: true });
+}
+
+function caseSnapshotIsReadOnly() {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-readonly-home-"));
+  const project = makeProject();
+  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "gui-board-readonly-work-"));
+  const steps = [
+    contractStep({ Id: 8, Name: "layoutManifest", Title: "Layout 清单", Inputs: ["分组表 Generated/_inputs/<Target>.layout-groups.json"] })
+  ];
+  write(
+    path.join(workDir, "Generated", "runs", "T1", "dsl.snapshot.json"),
+    JSON.stringify({ dsl: { nodes: [{ type: "FRAME", id: "1:1", layoutStyle: { width: 1280, height: 1024 } }] } })
+  );
+  write(
+    path.join(workdir.inputsDir(workDir), "T1.layout-group-candidates.json"),
+    JSON.stringify({ schemaVersion: "mw-wpf-layout-group-candidates/1", pageTarget: "T1", entries: [{ ref: "a" }, { ref: "b" }] })
+  );
+  write(path.join(workdir.inputsDir(workDir), "T1.design.png"), png(1280, 1024));
+  write(path.join(home, "board.json"), JSON.stringify([{
+    id: "t-readonly",
+    state: "stopped",
+    request: {
+      mode: "A",
+      link: LINK,
+      target: "T1",
+      ui: "F3",
+      projectRoot: project,
+      fileId: "204689197363903",
+      layerId: "1872:60904",
+      stopAfter: "",
+      overwrite: false,
+      allowEmptyLedger: false
+    },
+    workDir: workDir,
+    jobId: "",
+    autoMerge: false,
+    failure: null,
+    error: ""
+  }], null, 2) + "\n");
+  const store = path.join(home, "board.json");
+  const storeMtime = fs.statSync(store).mtimeMs;
+  const runs = makeRuns(steps);
+  const board = createBoard({
+    runs: runs.api,
+    pending: null,
+    layout: { register: () => ({ ok: true }) },
+    artifacts: completeArtifacts(steps),
+    home: home
+  });
+
+  const before = board.snapshot().tasks.find((task) => task.id === "t-readonly");
+  assert.strictEqual(before.state, "stopped", "快照只读当前状态");
+  assert.strictEqual(runs.started.length, 0, "快照不得启动布局运行");
+  assert.strictEqual(fs.statSync(store).mtimeMs, storeMtime, "快照不得写 board.json");
+
+  board.advance();
+  const after = board.snapshot().tasks.find((task) => task.id === "t-readonly");
+  assert.strictEqual(after.state, "running", "显式推进才按登记表重建缺分组表的布局运行");
+  assert.strictEqual(runs.started.length, 1, "显式推进是唯一会启动布局恢复的入口");
+  assert.strictEqual(runs.started[0].progress, "layoutManifest");
+
+  fs.rmSync(home, { recursive: true, force: true });
+  fs.rmSync(project, { recursive: true, force: true });
+  fs.rmSync(workDir, { recursive: true, force: true });
 }
 
 function caseAddValidationAndFields() {
@@ -646,6 +714,7 @@ async function caseLayoutRerunsAfterProgressWhenImageNeedsGroups() {
     artifacts: { stepsOf: () => [{ id: 8, name: "layoutManifest", status: "ok", seconds: 1, note: "" }] },
     home: fx.home
   });
+  restarted.advance();
   const restartedTask = restarted.snapshot().tasks.find((item) => item.id === id);
   assert.strictEqual(restartedTask.state, "running", "重启对表后缺分组表也要重新进入运行");
   assert.ok(restartedRuns.started.some((request) => request.progress === "layoutManifest"),
@@ -925,6 +994,7 @@ function caseUnsafeImageIdentityStopsInsteadOfThrowing() {
     home: home
   });
   let snapshot;
+  board.advance();
   assert.doesNotThrow(() => { snapshot = board.snapshot(); }, "不合规页面身份不能从看板轮询里逸出");
   const task = snapshot.tasks.find((item) => item.id === "t-unsafe");
   assert.strictEqual(task.state, "waiting");
@@ -1167,6 +1237,8 @@ async function caseCompletedRegistrySettlesStaleStops() {
   stoppedFx.board.start(stoppedId);
   await waitForTask(stoppedFx.board, stoppedId, hasJob, "启动完成");
   stoppedFx.board.stop(stoppedId);
+  stoppedFx.runs.clear();
+  stoppedFx.board.advance();
   const settledStopped = stoppedFx.board.snapshot().tasks.find((task) => task.id === stoppedId);
   assert.strictEqual(settledStopped.state, "ready", "登记表跑满后 stopped 要对表收尾");
   assert.strictEqual(settledStopped.resumable, false, "已经跑完的任务不给续跑");
@@ -1195,6 +1267,7 @@ async function caseCompletedRegistrySettlesStaleStops() {
     artifacts: { stepsOf: () => complete },
     home: waitingHome
   });
+  waitingBoard.advance();
   const settledWaiting = waitingBoard.snapshot().tasks.find((task) => task.id === "waiting-complete");
   assert.strictEqual(settledWaiting.state, "ready", "登记表跑满后 waiting 要对表收尾");
   assert.strictEqual(settledWaiting.resumable, false, "等待态过期后也不能给续跑");
@@ -1229,6 +1302,7 @@ async function caseIncompleteRegistryOverridesStaleImageStop() {
     logPath: ""
   };
   write(path.join(fx.home, "board.json"), JSON.stringify(stored));
+  fx.runs.clear();
 
   const fresh = createBoard({
     runs: fx.runs.api,
@@ -1236,6 +1310,7 @@ async function caseIncompleteRegistryOverridesStaleImageStop() {
     artifacts: { stepsOf: () => incomplete },
     home: fx.home
   });
+  fresh.advance();
   const after = fresh.snapshot().tasks.find((item) => item.id === id);
   assert.strictEqual(after.state, "stopped", "登记表未跑满时旧等图停点必须回到 stopped");
   assert.strictEqual(after.resumable, true, "提前结束的旧记录必须重新给出续跑入口");
@@ -1308,6 +1383,7 @@ async function caseProgressStepsAndTargetAdoption() {
 async function main() {
   const cases = [
     ["重启后把不可能还在跑的任务标成已停止", caseLoadMarksDeadTasksStopped],
+    ["快照只读，状态推进只在 advance", caseSnapshotIsReadOnly],
     ["加任务：校验与参数落地", caseAddValidationAndFields],
     ["启动：工作目录与并发队列", caseStartUsesWorkDirAndKeepsQueue],
     ["deferStart 等暂存完成再启动", caseDeferredTaskWaitsForExplicitStart],

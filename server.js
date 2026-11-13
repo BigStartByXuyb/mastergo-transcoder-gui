@@ -42,6 +42,7 @@ const { createAi } = require("./lib/ai.js");
 const { createArtifacts } = require("./lib/artifacts.js");
 const { createBoard } = require("./lib/board.js");
 const { createConfirm } = require("./lib/confirm.js");
+const { createLayoutRecovery } = require("./lib/layout-recovery.js");
 const { createAutoFill } = require("./lib/autofill.js");
 const { createLayoutRegistrar } = require("./lib/plugin-layout.js");
 const { createPendingQueue } = require("./lib/pending-queue.js");
@@ -200,9 +201,16 @@ const confirm = createConfirm({
   artifacts: artifacts,
   steps: function () { return readPipelineSteps(PLUGIN.root); }
 });
-const autoFill = createAutoFill({ ai: ai, pending: pending, confirm: confirm, settings: settings });
+let board = null;
+const layoutRecovery = createLayoutRecovery({
+  ai: ai,
+  pending: pending,
+  confirm: confirm,
+  board: function () { return board; }
+});
+const autoFill = createAutoFill({ ai: ai, pending: pending, recovery: layoutRecovery, settings: settings });
 const layoutRegistrar = createLayoutRegistrar({ pluginRoot: function () { return PLUGIN.root; } });
-const board = createBoard({
+board = createBoard({
   runs: runs,
   pending: pending,
   autoFill: autoFill,
@@ -291,6 +299,7 @@ const routes = createRoutes({
   settings: settings,
   pending: pending,
   ai: ai,
+  layoutRecovery: layoutRecovery,
   artifacts: artifacts,
   board: board,
   confirm: confirm,

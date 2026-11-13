@@ -15,6 +15,7 @@ const os = require("os");
 const path = require("path");
 
 const { createAutoFill } = require("../lib/autofill.js");
+const { createLayoutRecovery } = require("../lib/layout-recovery.js");
 const { png } = require("./image-fixtures.js");
 
 /* 这一层的可引用条目（插件第 8 步落的那份清单里就是这几条：ref / 类型 / 文本，没有坐标）。 */
@@ -41,39 +42,65 @@ function sandbox(bytes) {
   return root;
 }
 
+function source(projectRoot, overrides) {
+  return {
+    task: null,
+    run: { id: "job-1" },
+    query: {
+      projectRoot: projectRoot,
+      target: "T1",
+      mode: "A",
+      state: "waiting",
+      layoutStep: "layoutManifest",
+      failedStep: "layoutManifest",
+      failedMessage: "",
+      imageStop: false,
+      ...(overrides || {})
+    }
+  };
+}
+
 /* 三个协作者都用桩：这里只验「给模型的是什么、写出去的 payload 是什么」。 */
 function harness(options) {
   const committed = [];
   const inputs = [];
   const otherCalls = [];
   const inspectCalls = [];
-  const autoFill = createAutoFill({
-    ai: {
-      suggestLayoutGroups: async (input) => {
-        inputs.push(input);
-        return { groups: options.groups };
-      },
-      suggestIconNames: async () => {
-        otherCalls.push("icons");
-        return { items: [] };
-      }
+  const ai = {
+    suggestLayoutGroups: async (input) => {
+      inputs.push(input);
+      return { groups: options.groups };
     },
-    pending: {
-      inspect: (query) => {
-        inspectCalls.push(query);
-        return options.pending || ({
-          icons: {},
-          translations: {},
-          layout: { needsGroups: true, waiting: 1 }
-        });
-      }
-    },
+    suggestIconNames: async () => {
+      otherCalls.push("icons");
+      return { items: [] };
+    }
+  };
+  const pendingApi = {
+    inspect: (query) => {
+      inspectCalls.push(query);
+      return options.pending || ({
+        icons: {},
+        translations: {},
+        layout: { recoverable: true, needsGroups: true, rejected: false, waiting: 1 }
+      });
+    }
+  };
+  const recovery = createLayoutRecovery({
+    ai: ai,
+    pending: pendingApi,
     confirm: {
       commit: (payload) => {
         committed.push(payload);
         return { job: null };
       }
     },
+    board: { attach: () => {} }
+  });
+  const autoFill = createAutoFill({
+    ai: ai,
+    pending: pendingApi,
+    recovery: recovery,
     settings: { read: () => ({ automation: options.automation }) }
   });
   return {
@@ -88,7 +115,7 @@ function harness(options) {
 async function caseGroupsWritten() {
   const projectRoot = sandbox(png(1280, 1024));
   const fx = harness({ automation: "assist", groups: [{ id: "RightTools", kind: "column", members: ["1:9", "1:10"] }] });
-  const result = await fx.autoFill.fill({ projectRoot: projectRoot, target: "T1", runId: "job-1", request: { mode: "A" } });
+  const result = await fx.autoFill.fill(source(projectRoot));
   assert.strictEqual(result.ok, true);
   assert.deepStrictEqual(fx.committed[0].groups, [{ id: "RightTools", kind: "column", members: ["1:9", "1:10"] }]);
   assert.strictEqual(result.filled[0], "布局分组 1 组");
@@ -98,7 +125,7 @@ async function caseGroupsWritten() {
 async function caseEmptyIsAConclusion() {
   const projectRoot = sandbox(png(1280, 1024));
   const fx = harness({ automation: "assist", groups: [] });
-  const result = await fx.autoFill.fill({ projectRoot: projectRoot, target: "T1", runId: "job-1", request: { mode: "A" } });
+  const result = await fx.autoFill.fill(source(projectRoot));
   assert.strictEqual(result.ok, true, "一组都没给也要往下，不能当成「模型没给出可用结果」");
   assert.deepStrictEqual(fx.committed[0].groups, [], "写出空表：本页没有要声明的分组");
   assert.match(result.filled[0], /空表/);
@@ -117,9 +144,9 @@ async function caseAssistDoesNotAutoWriteOthers() {
   const fx = harness({
     automation: "assist",
     groups: [{ id: "Row", kind: "row", members: ["1:9", "1:10"] }],
-    pending: { icons, translations: {}, layout: { needsGroups: true, waiting: 1 } }
+    pending: { icons, translations: {}, layout: { recoverable: true, needsGroups: true, rejected: false, waiting: 1 } }
   });
-  const result = await fx.autoFill.fill({ projectRoot, target: "T1", request: { mode: "A" } });
+  const result = await fx.autoFill.fill(source(projectRoot));
   assert.strictEqual(result.ok, true, "辅助层级仍自动补 A 的布局分组");
   assert.deepStrictEqual(fx.otherCalls, [], "辅助层级不得自动写图标、译文或术语");
   assert.strictEqual(fx.committed[0].naming, undefined);
@@ -138,9 +165,9 @@ async function caseAutoWritesOthers() {
   const fx = harness({
     automation: "auto",
     groups: [{ id: "Row", kind: "row", members: ["1:9", "1:10"] }],
-    pending: { icons, translations: {}, layout: { needsGroups: true, waiting: 1 } }
+    pending: { icons, translations: {}, layout: { recoverable: true, needsGroups: true, rejected: false, waiting: 1 } }
   });
-  await fx.autoFill.fill({ projectRoot, target: "T1", request: { mode: "A" } });
+  await fx.autoFill.fill(source(projectRoot));
   assert.deepStrictEqual(fx.otherCalls, ["icons"], "全自动层级才自动写图标、译文或术语");
   fs.rmSync(projectRoot, { recursive: true, force: true });
 }
@@ -152,7 +179,7 @@ async function caseAutoWritesOthers() {
 async function caseNoCandidatesBlocks() {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "gui-autofill-layout-"));
   const fx = harness({ automation: "assist", groups: [] });
-  const result = await fx.autoFill.fill({ projectRoot: projectRoot, target: "T1", runId: "job-1", request: { mode: "A" } });
+  const result = await fx.autoFill.fill(source(projectRoot));
   assert.strictEqual(result.ok, false);
   assert.strictEqual(result.blocked, true, "标成输入问题：调用方据此不把它算进自动补输入的额度");
   assert.match(result.reason, /还没有这一步的条目清单/, "说清是哪一件事");
@@ -165,7 +192,7 @@ async function caseNoCandidatesBlocks() {
 async function caseAutomationOff() {
   const projectRoot = sandbox(png(1280, 1024));
   const fx = harness({ automation: "off", groups: [], projectRoot });
-  const result = await fx.autoFill.fill({ projectRoot, target: "T1", runId: "job-1", request: { mode: "A" } });
+  const result = await fx.autoFill.fill(source(projectRoot));
   assert.strictEqual(result.ok, false);
   assert.match(result.reason, /自动化已关闭/);
   assert.strictEqual(fx.inputs.length, 0, "关（不叫模型）时 A 路线也不得绕过设置");
@@ -185,16 +212,10 @@ async function caseLayoutStopContextControlsAutoWrite() {
       layout: { needsGroups: true, waiting: 0 }
     }
   });
-  const result = await fx.autoFill.fill({
-    projectRoot: projectRoot,
-    target: "T1",
-    runId: "job-1",
+  const result = await fx.autoFill.fill(source(projectRoot, {
     state: "failed",
-    layoutStep: "layoutManifest",
-    failedStep: "layoutManifest",
-    failedMessage: failedMessage,
-    request: { mode: "A" }
-  });
+    failedMessage: failedMessage
+  }));
   assert.strictEqual(result.ok, false);
   assert.deepStrictEqual(fx.inspectCalls[0], {
     projectRoot: projectRoot,
@@ -215,7 +236,7 @@ async function caseLayoutStopContextControlsAutoWrite() {
 async function caseBitmapGoesToModel() {
   const projectRoot = sandbox(png(1280, 1024));
   const fx = harness({ automation: "assist", groups: [], projectRoot: projectRoot });
-  await fx.autoFill.fill({ projectRoot: projectRoot, target: "T1", runId: "job-1", request: { mode: "A" } });
+  await fx.autoFill.fill(source(projectRoot));
   assert.strictEqual(fx.inputs.length, 1, "这一步要问模型");
   assert.match(fx.inputs[0].image, /^data:image\/png;base64,/, "本页那张位图按 data URL 一起给模型");
   assert.deepStrictEqual(fx.inputs[0].entries, ENTRIES, "这一层的条目原样给过去");
@@ -229,7 +250,7 @@ async function caseBitmapGoesToModel() {
 async function caseNoBitmap() {
   const projectRoot = sandbox();
   const fx = harness({ automation: "assist", groups: [], projectRoot: projectRoot });
-  const result = await fx.autoFill.fill({ projectRoot: projectRoot, target: "T1", runId: "job-1", request: { mode: "A" } });
+  const result = await fx.autoFill.fill(source(projectRoot));
   assert.deepStrictEqual(fx.inputs, [], "没有图就不问模型");
   assert.strictEqual(result.ok, false);
   assert.match(result.reason, /没有传图/, "按「哪一条没满足」交回给人");
@@ -243,7 +264,7 @@ async function caseNoBitmap() {
 async function caseBrokenBitmapBlocks() {
   const projectRoot = sandbox(Buffer.from("这不是一张位图", "utf8"));
   const fx = harness({ automation: "assist", groups: [], projectRoot: projectRoot });
-  const result = await fx.autoFill.fill({ projectRoot: projectRoot, target: "T1", runId: "job-1", request: { mode: "A" } });
+  const result = await fx.autoFill.fill(source(projectRoot));
   assert.strictEqual(result.ok, false);
   assert.strictEqual(result.blocked, true, "标成输入问题：调用方据此不把它算进自动补输入的额度");
   assert.match(result.reason, /读不出格式/, "说清是哪一件事");

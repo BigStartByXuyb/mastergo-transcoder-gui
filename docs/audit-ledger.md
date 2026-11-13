@@ -394,4 +394,8 @@
 | 2026-11-13 GitHub 43345812327 | 非阻断 | 缺链接提示“一行一个”被单链接入口复用；运行来源未继承 `imageStop` | 已收 | 提示改为单页/多页都成立的说法；`queryOfRun` 与 `queryOfTask` 按同一字段映射读取 `imageStop` |
 | 2026-11-13 GitHub 43348268739 | REVIEW-001 | 任务、运行与手填查询各有一份 8 字段映射，新增字段容易漂移 | 已收 | `lib/pending.js` 用 `QUERY_FIELDS` 单表描述字段、默认值与覆盖；三个入口只保留来源适配 |
 | 2026-11-13 GitHub 43349533865 | BLOCK-001 | `/api/layout-groups/suggest` 的请求体没有 `groups`，用 body 推断是否过门禁导致实际绕过 | 已收 | `requireConfirmSourceOf` 增加显式 `writesGroups`；自动分组传 `true`，确认入口仍按 `groups` 判断，并补两条 suggest 门禁用例 |
+| 2026-11-13 GitHub 43351319354 | REVIEW-001 | `board.snapshot()` 被只读 GET 与 `busyReason()` 调用，但对表可能启动运行并写盘 | 已收 | `snapshot` 只做投影；任务推进收成 `advanceTask` / `advance`，定时器与重启恢复显式调用；新增快照零启动、零写盘回归 |
+| 2026-11-13 GitHub 43351319354 | REVIEW-002 | 人工布局恢复与自动布局恢复各有一套编排和请求字段 | 已收 | 新增 `lib/layout-recovery.js`：恢复门禁、`candidatesInput`、模型调用与 `commitFromSource` 只有一个入口；路由和 `autofill` 都消费它 |
+| 2026-11-13 GitHub 43351319354 | REVIEW-003 | 页面图身份在预览戳与停点签名中各拼一套文件事实 | 已收 | `fileIdentityOf` 统一产出大小与取整修改时间；`stampOf` 与 `inputSignature` 只做投影 |
+| 2026-11-13 GitHub 43351319354 | REVIEW-004 | `autofill.fill` 直接读取 `query.request.mode`，绕过统一 query 映射 | 已收 | `fill` 只消费 `source.query`；任务来源由 `sourceOfTask` 生成，字段口径继续只在 `pending.js` 的 `QUERY_FIELDS` |
 
