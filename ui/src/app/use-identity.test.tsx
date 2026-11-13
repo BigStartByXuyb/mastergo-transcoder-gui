@@ -181,6 +181,44 @@ describe("useIdentity", () => {
     expect(onPicked).toHaveBeenCalledWith("F4TargetTeaching", "F4")
   })
 
+  it("候选缺字段时明确返回失败，不宣称已写入登记表", async () => {
+    const { result, onFailure, onPicked } = render({ automation: "auto" })
+    let decision
+    await act(async () => {
+      decision = await result.current.apply({
+        target: "F4TargetTeaching",
+        ui: "",
+        semanticName: "",
+        basis: "候选",
+        needsSemanticName: false
+      })
+    })
+    expect(decision).toEqual({
+      ok: false,
+      reason: "候选缺少页面 Target 或 UI 区域，不能写入登记表"
+    })
+    expect(onFailure).toHaveBeenCalledWith("候选缺少页面 Target 或 UI 区域，不能写入登记表")
+    expect(onPicked).not.toHaveBeenCalled()
+  })
+
+  it("登记表写入失败时返回后端原因，不再吞掉异常", async () => {
+    stub([{ match: "/api/identity/apply", reply: () => fail("登记表不可写", "检查文件权限") }])
+    const { result, onFailure, onPicked } = render({ automation: "auto" })
+    let decision
+    await act(async () => {
+      decision = await result.current.apply({
+        target: "F4TargetTeaching",
+        ui: "F4",
+        semanticName: "",
+        basis: "候选",
+        needsSemanticName: false
+      })
+    })
+    expect(decision).toEqual({ ok: false, reason: "登记表不可写：检查文件权限" })
+    expect(onFailure).toHaveBeenCalledWith("登记表不可写：检查文件权限")
+    expect(onPicked).not.toHaveBeenCalled()
+  })
+
   it("取候选失败时把后端原因（含怎么修）写进 failure", async () => {
     stub([{ match: "/api/identity/candidates", reply: () => fail("缺少 MasterGo token", "请传 --token") }])
     const { result, onFailure } = render({ automation: "assist" })

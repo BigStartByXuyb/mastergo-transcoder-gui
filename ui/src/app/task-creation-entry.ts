@@ -7,7 +7,7 @@ import {
   type TaskCreationApi
 } from "@/app/stage-design-images"
 import { api as appApi, type BoardAddBody, type BoardModePolicy } from "@/lib/api"
-import { singlePageAllowsUnclaimedImage, type BoardItem } from "@/lib/board-items"
+import { boardItemOf, singlePageAllowsUnclaimedImage, type BoardItem } from "@/lib/board-items"
 import { describeFailure } from "@/lib/describe-failure"
 import { candidatesForLink, resolveExplicitTarget } from "@/lib/identity-flow"
 
@@ -47,6 +47,17 @@ export type OtherRouteRequest =
   | { ok: false; failure: string }
 
 const TASK_CREATION_FAILED = "任务创建未完成，请检查失败提示后重试"
+
+/**
+ * 流水线页的单页表单入口：A-only 不读取隐藏的旧 Target，只让 A 身份准备自动识别；
+ * B / AB 仍把手填 Target 交给共同对账。
+ */
+export function pipelinePageTaskItems(
+  item: Pick<BoardItem, "link" | "target" | "mode">,
+  policy: Pick<BoardModePolicy, "runsPipelineAOnly">
+): BoardItem[] {
+  return [boardItemOf(item.link, policy.runsPipelineAOnly ? "" : item.target, item.mode)]
+}
 
 /** 非 A 路线的手写 Target 与 A 共用同一份链接身份对账，不能等到插件启动时才拒绝。 */
 async function reconcileOtherItems(items: BoardItem[], projectRoot: string): Promise<

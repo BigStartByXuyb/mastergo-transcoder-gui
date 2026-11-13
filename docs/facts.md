@@ -25,7 +25,7 @@
 | 先选的位图暂存在哪（键是什么） | `lib/design-image.js` · `function stagedPathOf(` | 暂存（`lib/routes.js` 的 `POST /api/design-image/stage`）、落地与清理（`lib/board.js`）；界面只把任务 id 交给暂存接口，不自己拼键（`ui/src/app/stage-design-images.ts`） |
 | 任务级换图门禁（工作目录 / 页面 / 合并中 / 产物已产出） | `lib/board.js` · `function imageWriteBlockOf(` | `GET /api/design-image` 把阻断原因并入 `blocked`；`POST /api/design-image`、`POST /api/design-image/stage` 与暂存件落地共用这一条判据 |
 | 位图尺寸不符时那两个数怎么写 | `lib/design-image.js` · `function sizeMismatchText(` | 存图被拒的原话（同文件的 `save`）、看板任务行上那句提示（`lib/board.js`） |
-| 「要当文件名的一段名字」的收口（空 / 非法分开说） | `lib/name-safety.js` · `function requireSafeName(` | 页面 Target 与任务 id 两个包装（同文件）；工程目录存在性走同文件的 `requireProjectDirectory` |
+| 「要当文件名的一段名字」的收口（空 / 非法分开说） | `lib/name-safety.js` · `function requireSafeName(` | 页面 Target 与任务 id 两个包装（同文件）；看板建任务、暂存图落地与分组恢复共用页面 Target 校验，工程目录存在性走同文件的 `requireProjectDirectory` |
 | 「这一份与清单对不上的是哪几个文件」 | `lib/update.js` · `function mismatchedFiles(` | 切换前的校验（同文件的 `apply`）、安装根那一份的核验（`installRootIsVersion`） |
 | 「本地这一份」（安装根那一棵树）算不算它声称的那一版 | `lib/update.js` · `function installRootIsVersion(` | `stagedReachable`（设置页与探活都读它）；结论缓存（含「核不出来」那种），作废只有两处、跟着触发点走：写指针（`writePointer`，切换与回退共用）与写下一版的清单（`writeVersionManifest`，检查与下载共用）；读盘出错不抛、按「认它」处理 |
 | 顶栏那条入口该对哪一版动作 | `lib/update.js` · `function targetVersionOf(` | `readState`（五态与它同出一处）、`hint()` 的 `target`（顶栏只渲染，不自己比一遍）；被外壳下限挡住的那一版不参与 |
@@ -38,7 +38,7 @@
 | A / B / AB 页面身份的手写 Target 对账 | `ui/src/lib/identity-flow.ts` · `export async function resolveExplicitTarget(` | 冲突判据、冲突原话、后端区域拆分与完整性采用只在这里组合；三个入口不再各筛候选或各拼 fallback |
 | B / AB 新建任务的显式 Target 对账 | `ui/src/app/task-creation-entry.ts` · `async function reconcileOtherItems(` | 看板弹窗与流水线页的非 A 请求都先逐行取链接候选并调用 `resolveExplicitTarget`，通过后才进入各页面的 `otherRequest` |
 | Target 是否同时具备区域前缀与语义名 | `lib/identity.js` · `function targetPartsOf(` | `/api/identity/prefix` 直接返回 `previewUi` / `semanticName` / `complete`；流水线 A 与 B / AB 的手写 Target 都读这份结论，再交给 `ui/src/lib/identity-pick.ts` 的同一采用判据；登记候选与写回接口也用这份结论 |
-| A 路线页面身份的优先级与模型边界（手写 Target / 机械区域身份 / 模型语义名） | `ui/src/app/prepare-pipeline-items.ts` · `function prepareOne(` | 看板行手写 Target 优先并走统一身份对账；没有手写时采用项目唯一区域的机械身份；模型补语义名只读 `ui/src/lib/task-form.ts` 的 `adoptsIdentityWithoutConfirm`（仅自动层级） |
+| A 路线页面身份的优先级与模型边界（手写 Target / 机械区域身份 / 模型语义名） | `ui/src/app/prepare-pipeline-items.ts` · `function prepareOne(` | 看板行手写 Target 优先并走统一身份对账；没有手写时采用项目唯一区域的机械身份；模型补语义名只读 `ui/src/lib/task-form.ts` 的 `adoptsIdentityWithoutConfirm`（仅自动层级）。A-only 单页表单不读取隐藏旧 Target |
 | 布局分组停点的机器分类 | `lib/layout-groups.js` · `const GROUP_FAILURE_CODE` | 只认插件失败摘要首行里的 `LAYOUT_GROUPS_MISSING` / `LAYOUT_GROUPS_REJECTED`；中文失败原话只展示，不参与恢复入口判据 |
 | 单页表单何时允许「先选图、后填链接」 | `ui/src/lib/board-items.ts` · `function singlePageAllowsUnclaimedImage(` | 选图层、缺图门禁与建任务后的暂存读取同一结论；多页批次不把待认领图复制给任意一页 |
 | 任务创建失败时界面拿到的原因 | `ui/src/app/task-creation-entry.ts` · `const TASK_CREATION_FAILED =` | 两个新建入口共用；请求准备返回空原因时也落到这一句，页面不会再出现空错误 |

@@ -18,6 +18,10 @@ export type StartDecision =
   /** 不能开始：reason 有值就照它显示；没值表示原因已经由被注入的那条路写下了（例如身份补全自己报的）。 */
   | { ok: false; reason?: string }
 
+export type IdentityApplyDecision =
+  | { ok: true }
+  | { ok: false; reason: string }
+
 export async function decideStartIdentity(input: {
   link: string
   projectRoot: string
@@ -28,7 +32,7 @@ export async function decideStartIdentity(input: {
   loadCandidates: () => Promise<IdentityCandidate[]>
   /** 缺身份时的自动补全（与表单按钮同一条实现）。 */
   autoPick: () => Promise<IdentityCandidate | null>
-  autoApply: (item: IdentityCandidate) => Promise<void>
+  autoApply: (item: IdentityCandidate) => Promise<IdentityApplyDecision>
   /** Target 的区域/语义名拆分由后端给出；手动 Target 与本链路共用同一完整性判据。 */
   loadTargetParts: (target: string) => Promise<{
     previewUi: string
@@ -54,7 +58,8 @@ export async function decideStartIdentity(input: {
     const picked = await input.autoPick()
     // 补不出来：原因由那条实现写下了（它知道自己为什么停），这里不再盖一句。
     if (!picked) return { ok: false }
-    await input.autoApply(picked)
+    const applied = await input.autoApply(picked)
+    if (!applied.ok) return applied
     target = picked.target
     ui = picked.ui
   }

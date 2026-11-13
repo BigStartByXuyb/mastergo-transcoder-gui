@@ -412,4 +412,7 @@
 | 2026-11-13 GitLab pipeline 505 | 非阻断 | `autofill.fill` 保留两个不再读取的局部变量；流水线页同一模块拆成两条 import | 已收 | 删除未读取变量，并合并 `task-form` 导入 |
 | 2026-11-13 GitLab pipeline 507 | REVIEW-001 | 手填来源的 `/api/confirm` 允许请求自报失败停点与拒收机器码，可绕过布局分组写入门禁 | 已收 | `queryOfManual` 只保留工程、页面、路线；任务与运行的停点字段不再从手填请求读取，并补伪造停点 API 回归 |
 | 2026-11-13 GitLab pipeline 507 | 非阻断 | `autofill.fill` 与 `layoutRecovery.suggestGroups` 在同一轮对相同输入重复 `pending.inspect` | 已收 | 自动补输入把刚算出的布局结论传给恢复编排，复用同一次检查 |
+| 2026-11-13 GitHub 43368470990 | REVIEW-001 | 自动身份候选写登记表失败被吞掉，任务仍按未登记 Target 创建并启动 | 已收 | `apply` 返回明确成功/失败并保留后端原因；`decideStartIdentity` 在写回失败时停止启动；补字段不全与 HTTP 失败回归 |
+| 2026-11-13 GitHub 43368470990 | REVIEW-002 | A-only 表单隐藏 Target 后仍提交持久化的旧值，可能按上一页身份启动 | 已收 | 流水线页单页条目统一经 `pipelinePageTaskItems`；A-only 强制空 Target 交给 A 自动身份准备，B / AB 保留手填值 |
+| 2026-11-13 GitHub 43368470990 | 非阻断 | 待确认自动补输入依赖数组含正文未读取的 `otherWaiting`；建任务与暂存图落地未统一校验页面 Target 文件名安全 | 已收 | 删除无效依赖；看板建任务与 `installStaged` 共用 `requirePageTarget`，补路径型 Target API 回归 |
 

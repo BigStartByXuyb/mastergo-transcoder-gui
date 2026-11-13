@@ -5,6 +5,7 @@ import { api, type IdentityCandidate, type ProjectPages } from "@/lib/api"
 import { describeFailure } from "@/lib/describe-failure"
 import { applyIdentity, candidatesForLink } from "@/lib/identity-flow"
 import { pickIdentityCandidate } from "@/lib/identity-pick"
+import type { IdentityApplyDecision } from "@/lib/task-start"
 import { adoptsIdentityWithoutConfirm } from "@/lib/task-form"
 
 /*
@@ -89,8 +90,12 @@ export function useIdentity(options: IdentityOptions) {
     return null
   }
 
-  async function apply(item: IdentityCandidate) {
-    if (!item.target || !item.ui) return
+  async function apply(item: IdentityCandidate): Promise<IdentityApplyDecision> {
+    if (!item.target || !item.ui) {
+      const reason = "候选缺少页面 Target 或 UI 区域，不能写入登记表"
+      onFailure(reason)
+      return { ok: false, reason }
+    }
     setBusy("apply")
     try {
       const written = await applyIdentity({ link, projectRoot, pageName: name, item })
@@ -99,8 +104,11 @@ export function useIdentity(options: IdentityOptions) {
       setCandidates([])
       loadPages(projectRoot.trim())
       // 预览不用在这里再取一次：回填会让上面那条 effect 跑（同一件事只有一个入口）。
+      return { ok: true }
     } catch (error) {
-      onFailure(describeFailure(error))
+      const reason = describeFailure(error)
+      onFailure(reason)
+      return { ok: false, reason }
     } finally {
       setBusy("")
     }

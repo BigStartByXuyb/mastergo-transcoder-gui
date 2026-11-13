@@ -24,7 +24,7 @@ function input(over: Partial<Parameters<typeof decideStartIdentity>[0]> = {}) {
     automation: "assist",
     loadCandidates: async () => [candidate("F4FocusMaintain")],
     autoPick: async () => null,
-    autoApply: async () => undefined,
+    autoApply: async () => ({ ok: true as const }),
     loadTargetParts: async (target: string) => {
       const previewUi = target.match(/^F\d+/)?.[0] ?? ""
       const semanticName = previewUi ? target.slice(previewUi.length) : ""
@@ -54,7 +54,16 @@ describe("decideStartIdentity", () => {
   it("没填身份、自动化层级是「自动」：补一次并写登记表", async () => {
     const applied: IdentityCandidate[] = []
     const decision = await decideStartIdentity(
-      input({ target: "", ui: "", automation: "auto", autoPick: async () => candidate("F4FocusMaintain"), autoApply: async (item) => void applied.push(item) })
+      input({
+        target: "",
+        ui: "",
+        automation: "auto",
+        autoPick: async () => candidate("F4FocusMaintain"),
+        autoApply: async (item) => {
+          applied.push(item)
+          return { ok: true }
+        }
+      })
     )
 
     expect(decision).toEqual({ ok: true, target: "F4FocusMaintain", ui: "F4" })
@@ -65,6 +74,16 @@ describe("decideStartIdentity", () => {
     const decision = await decideStartIdentity(input({ automation: "auto", autoPick: async () => null }))
 
     expect(decision).toEqual({ ok: false })
+  })
+
+  it("自动候选写登记表失败时停止启动，并带回失败原因", async () => {
+    const decision = await decideStartIdentity(input({
+      automation: "auto",
+      autoPick: async () => candidate("F4FocusMaintain"),
+      autoApply: async () => ({ ok: false, reason: "登记表写入失败" })
+    }))
+
+    expect(decision).toEqual({ ok: false, reason: "登记表写入失败" })
   })
 
   it("B / AB 显式 Target 命中只有区域前缀的候选时不许开始", async () => {

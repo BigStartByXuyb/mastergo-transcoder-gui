@@ -22,7 +22,7 @@ import { TaskDetailCard } from "@/app/task-detail-card"
 import { TaskLogCard } from "@/app/task-log-card"
 import { StepRail } from "@/app/task-steps"
 import { ClampText } from "@/app/clamp-text"
-import { createTasksForMode, taskEntryFailure } from "@/app/task-creation-entry"
+import { createTasksForMode, pipelinePageTaskItems, taskEntryFailure } from "@/app/task-creation-entry"
 import { useBoardTasks } from "@/app/use-board-tasks"
 import { useIdentity } from "@/app/use-identity"
 import { useRemembered } from "@/app/use-remembered"
@@ -31,7 +31,7 @@ import { useTaskActions } from "@/app/use-task-actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { api, type BoardAddBody, type BoardModePolicy, type PipelineStep, type PluginSummary } from "@/lib/api"
-import { boardItemOf, keepPickedImages, pickedForLink, withPickedImage } from "@/lib/board-items"
+import { keepPickedImages, pickedForLink, withPickedImage } from "@/lib/board-items"
 import { describeFailure } from "@/lib/describe-failure"
 import { candidatesForLink } from "@/lib/identity-flow"
 import { pendingPanelKey } from "@/lib/pending-source"
@@ -225,7 +225,7 @@ export function PipelinePage({
     try {
       const stagedImages = stagedImage ? { [link]: stagedImage } : {}
       const result = await createTasksForMode({
-        items: [boardItemOf(link, form.target, form.mode)],
+        items: pipelinePageTaskItems({ link, target: form.target, mode: form.mode }, policy),
         projectRoot,
         policy,
         automation,

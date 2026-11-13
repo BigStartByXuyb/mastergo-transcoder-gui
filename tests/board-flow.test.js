@@ -227,6 +227,11 @@ function caseAddValidationAndFields() {
   assert.throws(() => fx.board.add({ projectRoot: "D:/missing-dir-xyz", items: [{ link: LINK }] }), (error) => error.code === "NO_PROJECT");
   assert.throws(() => fx.board.add({ projectRoot: fx.project, items: [] }), (error) => error.code === "NO_ITEMS");
   assert.throws(() => fx.board.add({ projectRoot: fx.project, items: [{ link: "https://x" }] }), (error) => error.code === "BAD_LINK");
+  assert.throws(
+    () => fx.board.add({ projectRoot: fx.project, items: [{ link: LINK, target: "../escape" }] }),
+    (error) => error.code === "BAD_TARGET",
+    "直接调 API 也不能把路径型 Target 写进任务"
+  );
 
   const added = fx.board.add({
     projectRoot: fx.project,

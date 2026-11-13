@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { createTasksForMode, taskEntryFailure, taskInputFailure } from "@/app/task-creation-entry"
+import { createTasksForMode, pipelinePageTaskItems, taskEntryFailure, taskInputFailure } from "@/app/task-creation-entry"
 import type { Board, BoardAddBody, BoardModePolicy } from "@/lib/api"
 
 const policy: BoardModePolicy = {
@@ -39,6 +39,26 @@ describe("taskInputFailure", () => {
     expect(taskInputFailure({ projectRoot: "", links: [] })).toBe("先填工程目录")
     expect(taskInputFailure({ projectRoot: "p", links: [] })).toBe("至少填一个 MasterGo 链接（多条时一行一个）")
     expect(taskInputFailure({ projectRoot: "p", links: ["https://a"] })).toBe("")
+  })
+})
+
+describe("pipelinePageTaskItems", () => {
+  it("A-only 忽略表单里持久化的旧 Target，交给 A 自动身份准备", () => {
+    expect(pipelinePageTaskItems(
+      { link: "https://mastergo.com/goto/a?file=1&layer_id=2:3", target: "F9Stale", mode: "A" },
+      { runsPipelineAOnly: true }
+    )).toEqual([{
+      link: "https://mastergo.com/goto/a?file=1&layer_id=2:3",
+      target: "",
+      mode: "A"
+    }])
+  })
+
+  it("B / AB 继续使用手填 Target", () => {
+    expect(pipelinePageTaskItems(
+      { link: "https://mastergo.com/goto/a?file=1&layer_id=2:3", target: "F4Manual", mode: "B" },
+      { runsPipelineAOnly: false }
+    )[0].target).toBe("F4Manual")
   })
 })
 

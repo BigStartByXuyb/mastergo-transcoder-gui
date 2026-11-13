@@ -291,7 +291,6 @@ export function PendingPanel({
     automation,
     inFlight,
     waiting,
-    otherWaiting,
     layoutWaiting,
     layoutRegroupAllowed,
     layoutFailedMessage,

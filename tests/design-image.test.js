@@ -265,6 +265,19 @@ function caseStagedUnreadable() {
   fs.rmSync(workDir, { recursive: true, force: true });
 }
 
+function caseStagedRejectsUnsafeTarget() {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-home-"));
+  designImage.stage({ home: home, taskId: TASK, data: png(1280, 1024).toString("base64") });
+  const workDir = sandbox();
+  assert.throws(
+    () => designImage.installStaged({ home: home, taskId: TASK, target: "../escape", workDir: workDir }),
+    (error) => error.code === "BAD_TARGET",
+    "暂存图落地同样不能接受路径型 Target"
+  );
+  fs.rmSync(home, { recursive: true, force: true });
+  fs.rmSync(workDir, { recursive: true, force: true });
+}
+
 /* 任务被移除时把还没轮到的暂存件一起收掉：暂存件不在看板上，留着没人认领。 */
 function caseDiscardStaged() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "gui-design-image-home-"));
@@ -298,6 +311,7 @@ try {
     ["暂存图尺寸不对：不装、回两边的数、暂存件留着等人重导", caseStagedMismatch],
     ["工作目录里已经有人传过图：暂存件不动它、自己清掉", caseStagedKeepsExisting],
     ["暂存件坏了：回「读不出尺寸」，不编 0×0", caseStagedUnreadable],
+    ["暂存图落地拒绝路径型 Target", caseStagedRejectsUnsafeTarget],
     ["任务没了：暂存件跟着走", caseDiscardStaged]
   ];
   for (const [name, run] of cases) {
